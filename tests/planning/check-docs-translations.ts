@@ -1,8 +1,3 @@
-// Poort 12 van `verify:docs` (scripts/lib/docs-translations.ts): de optionele docstalen. Draait op een
-// tijdelijke fixture-map, zodat de test niet afhangt van echte vertalingen. Exit 0 = groen.
-//
-// Mutatiebewijs: de bestand↔index-controle weglaten ⇒ 11/12 rood; de structuurvergelijking met de
-// bewaarde hash weglaten ⇒ 20 rood; "verouderd" een fout maken ⇒ 21 rood.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -56,7 +51,6 @@ const input = (lang = 'ar'): OptionalLangInput => ({
 const run = () => checkOptionalDocLang(input());
 
 try {
-  // 1. Een geldige vertaling: geen fouten, alleen een rapport.
   reset();
   let r = run();
   eq('01 geldig: geen fouten', r.errors, []);
@@ -65,7 +59,6 @@ try {
   eq('04 rapportregel', optionalLangReportLine(r, 3), 'ar: 2/3 vertaald · 1 ontbreken');
   eq('05 taal zonder map: alles ontbreekt, geen fout', [checkOptionalDocLang(input('de')).errors, checkOptionalDocLang(input('de')).missing], [[], 3]);
 
-  // 2. Bestand ↔ indexregel.
   reset();
   write('public/docs/ar/index.json', '{\n"howto-a": {"title": "البداية"}\n}\n');
   ok('11 artikel zonder indexregel = fout', run().errors.some(e => e.includes('howto-b.md heeft geen regel in index.json')));
@@ -82,7 +75,6 @@ try {
   write('public/docs/ar/notes.txt', 'x');
   ok('15 ander bestand in de taalmap = fout', run().errors.some(e => e.includes('notes.txt')));
 
-  // 3. Structuur tegen de bewaarde en-bron.
   reset();
   write('public/docs/ar/howto-a.md', AR['howto-a'].replace('- اثنان\n', ''));
   ok('20 structuur wijkt af van de bewaarde hash = fout', run().errors.some(e => e.includes('howto-a: structuur')));
@@ -98,7 +90,6 @@ try {
   rmSync(join(sourcesDir, 'ar.json'));
   ok('24 geen docs-sources-bestand bij artikelen = fout', run().errors.some(e => e.includes('i18n/docs-sources/ar.json ontbreekt')));
 
-  // 4. Subset, koppen, leeg.
   reset();
   write('public/docs/ar/howto-b.md', `${AR['howto-b']}\n| a | b |\n`);
   ok('30 tabel = fout', run().errors.some(e => e.includes('tabel-syntax')));
@@ -112,7 +103,6 @@ try {
   write('public/docs/ar/howto-b.md', `${AR['howto-b']}\n![صورة](img/{lang}/x.webp)\n`);
   ok('33 beeld valt terug op en en moet bestaan', run().errors.some(e => e.includes('public/docs/img/en/x.webp')));
 
-  // 5. Rapporten: wees en onbekende links.
   reset();
   write('public/docs/ar/oud.md', '# قديم\n');
   write('public/docs/ar/index.json', '{\n"howto-a": {"title": "البداية"},\n"howto-b": {"title": "الثاني"},\n"oud": {"title": "قديم"}\n}\n');

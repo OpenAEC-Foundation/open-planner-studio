@@ -1,22 +1,3 @@
-// Eerste-startervaring, vervolg (eigenaarsbesluit 2026-09-28): welkomst → rondleiding → tutorialvraag.
-//
-// WAT HIER VASTLIGT.
-//  A. "Update beschikbaar" wacht zolang de eerste-startervaring loopt (`isOnboardingActive`).
-//  B. Alleen een VOLTOOIDE rondleiding opent de tutorialvraag, en alleen zolang die nog niet
-//     beantwoord is (`tourFinishPatch`); de overgang is één patch. In `TourOverlay` is Volgende/Klaar
-//     op de laatste stap de enige route naar `finish('completed')` (bron-assert).
-//  C. `tutorialOfferAnswered` is een blijvende instelling (register → `ops-tutorialOfferAnswered`), en elke
-//     instelling uit het register komt na bewaren en laden terug (C6).
-//  D. De Ja-route (`startFirstTutorial`) met gemockte afhankelijkheden: al actief, aan het laden,
-//     uitgeschakeld, installeren (geïnstalleerd / geweigerd / mislukt / niet actief), geen entry,
-//     offline, geen tutorial, niet gestart. Het host-event gaat pas uit NA de installatie.
-//  E. Met de echte loader: een net "geïnstalleerde" extensie met een trage (async) `onLoad` krijgt
-//     `host:tutorial-requested` pas als haar listener staat, en start de begeleiding.
-//  G. De gewone bouw (#818): feedbackknop, updateknoppen en stap 7 van de rondleiding blijven; alleen de
-//     platformbouw (`buildFlags.ts`) laat ze weg. De platformkant toetst `tests/browser/platform-build.spec.ts`.
-//  (De "Net bijgewerkt"-regel voor de eerste start staat in check-just-updated.ts.)
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -48,7 +29,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   }
 };
 
-// ── A. Onboarding blokkeert de updatedialoog ─────────────────────────────────────────────────
 {
   const idle = { welcomePending: false, showWelcomeDialog: false, showTourOverlay: false, showTutorialOffer: false };
   eq('A1 niets open → niet actief', isOnboardingActive(idle), false);
@@ -58,7 +38,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   eq('A5 tutorialvraag open → actief', isOnboardingActive({ ...idle, showTutorialOffer: true }), true);
 }
 
-// ── B. Einde van de rondleiding ──────────────────────────────────────────────────────────────
 {
   const snapshot: TourUiSnapshot = {
     activeRibbonTab: 'planning', backstageSection: 'recent', showHistogram: false,
@@ -76,7 +55,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   eq('B5 al beantwoord → een nieuwe voltooide rondleiding vraagt niet nog eens', 'showTutorialOffer' in again, false);
   eq('B6 zonder snapshot → Start-tabblad', tourFinishPatch({ tourSnapshot: null, tutorialOfferAnswered: false }, 'aborted').activeRibbonTab, 'start');
 
-  // Store: één setUI, en in die ene notificatie is de onboarding nog steeds actief (geen gat).
   const ctx = createAppStoreContext();
   ctx.store.getState().setUI({ showTourOverlay: true, tourSnapshot: snapshot });
   const seen: boolean[] = [];
@@ -101,7 +79,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
     /setUI\(\{ showWelcomeDialog: false, showTourOverlay: true, tourStepIndex: 0 \}\)/.test(welcome), true);
 }
 
-// ── C. Blijvende instelling ──────────────────────────────────────────────────────────────────
 {
   eq('C1 register kent tutorialOfferAnswered', SETTINGS.some(d => d.key === 'tutorialOfferAnswered' && d.field === 'tutorialOfferAnswered'), true);
   localStorage.removeItem('ops-tutorialOfferAnswered');
@@ -112,10 +89,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   localStorage.removeItem('ops-tutorialOfferAnswered');
   eq('C5 default in de store is onwaar', createAppStoreContext().store.getState().ui.tutorialOfferAnswered, false);
 
-  // C6. Elke instelling uit het register overleeft bewaren → laden, met haar standaard uit de store. De
-  // algemene lader leest JSON: een keuze als tekst die op een getal lijkt, komt als getal terug. Zo viel een
-  // keuze als '200' na herladen terug op de standaard (review Sol #847, ronde 2). De late host laadt via
-  // dezelfde `loadAllSettings` (`processLateSettings`), dus dit geldt ook daar.
   const ui = createAppStoreContext().store.getState().ui as unknown as Record<string, unknown>;
   const lost: string[] = [];
   for (const d of SETTINGS) {
@@ -128,7 +101,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   eq('C6 elke registerinstelling komt na bewaren en laden terug', lost, []);
 }
 
-// ── D. De Ja-route, gemockt ──────────────────────────────────────────────────────────────────
 const ENTRY: CatalogEntry = {
   id: 'tutorials', name: 'Tutorials', version: '1.0.0', author: 'OpenAEC', description: '', category: 'Other',
   tags: [], minAppVersion: '0.0.0', repository: '', downloadUrl: 'https://example.invalid/tutorials.zip',
@@ -139,12 +111,10 @@ interface MockOpts {
   entries?: CatalogEntry[];
   catalogError?: string | null;
   installResult?: InstallOutcome;
-  /** Status na installeren; standaard `enabled` bij 'installed'. */
   statusAfterInstall?: ExtensionStatus;
   statusAfterSettle?: ExtensionStatus | null;
   statusAfterEnable?: ExtensionStatus;
   tutorialId?: string | null;
-  /** Start de "extensie" een begeleiding op het event? */
   listens?: boolean;
 }
 
@@ -155,7 +125,6 @@ function mock(o: MockOpts) {
   let guideFor: string | null = null;
   const deps: FirstTutorialDeps = {
     extensionStatus: () => status,
-    // Afwachten verandert alleen iets als er een activatie liep (status `loading`).
     whenSettled: async () => { log.push('settle'); if (status === 'loading') status = o.statusAfterSettle ?? 'enabled'; },
     enable: async () => { log.push('enable'); status = o.statusAfterEnable ?? 'enabled'; },
     fetchCatalog: async () => { log.push('fetch'); },
@@ -170,7 +139,6 @@ function mock(o: MockOpts) {
     emit: (event, data) => {
       log.push('emit');
       emitted.push({ event, data });
-      // Een extensie luistert pas als ze actief is (haar onLoad zette de listener).
       if (o.listens !== false && status === 'enabled') guideFor = data.extensionId;
     },
     guideRunningFor: id => guideFor === id,
@@ -245,8 +213,6 @@ function mock(o: MockOpts) {
 }
 
 {
-  // O1 (review PR #261): de installatie keert terug terwijl een al lopende activatie van hetzelfde id
-  // nog bezig is (`enableExtension` wacht daar niet op). Niet "niet actief" melden, maar afwachten.
   const m = mock({ status: null, entries: [ENTRY], statusAfterInstall: 'loading' });
   eq('D14 installatie terug tijdens een lopende activatie → afwachten, dan starten', await startFirstTutorial(m.deps), { kind: 'started' });
   eq('D14 volgorde', m.log, ['fetch', 'install', 'settle', 'emit']);
@@ -257,14 +223,12 @@ function mock(o: MockOpts) {
   eq('D15 volgorde', m.log, ['enable', 'settle', 'emit']);
 }
 
-// ── E. Echte loader: het event komt pas na een trage onLoad ─────────────────────────────────────
 {
   const id = 'tutorials';
   const manifest = {
     id, name: 'Tutorials', version: '1.0.0', apiVersion: '1.4', minAppVersion: '0.0.0', author: 'test',
     description: '', category: 'Other', main: 'main.js', permissions: ['help', 'events'],
   };
-  // onLoad wacht eerst (zoals een extensie die assets leest) en zet PAS DAARNA artikel en listener.
   const code = `
     const sdk = require('open-planner-studio');
     module.exports = {
@@ -293,13 +257,11 @@ function mock(o: MockOpts) {
     enable: x => enableExtension(x, storage),
     fetchCatalog: async () => {},
     catalog: () => ({ entries: [ENTRY], error: null }),
-    // Zoals installFromZipBlob ná de toestemming: opslaan, registreren, activeren (wacht op onLoad).
     install: async () => {
       const parsed = parseExtensionManifest(manifest, 'fresh');
       if (!parsed.ok) throw new Error(parsed.error);
       records[id] = { id, manifest: parsed.value, mainCode: code, enabled: true };
       useAppStore.getState().registerReadyExtension({ kind: 'ready', id, manifest: parsed.value, status: 'disabled' });
-      // Zou de host hier al uitzenden, dan hoort niemand het: onLoad loopt nog.
       emitExtensionEvent(HOST_EVENTS.tutorialRequested, { extensionId: id, tutorialId: 'tut-1-eerste-planning' });
       earlyEvents.push(getGuideView());
       await enableExtension(id, storage);
@@ -319,7 +281,6 @@ function mock(o: MockOpts) {
     showTutorialOffer: false, showUpdateDialog: false });
   openUpdateDialogWhenIdle();
   eq('E4 automatische update wacht op actieve begeleiding', ui().showUpdateDialog, false);
-  // Dezelfde extensie vervangt haar gids: de tijdelijke stop/start mag geen update ertussen openen.
   emitExtensionEvent(HOST_EVENTS.tutorialRequested, { extensionId: id, tutorialId: 'tut-1-eerste-planning' });
   await Promise.resolve();
   eq('E5 gids vervangen blijft geblokkeerd', ui().showUpdateDialog, false);
@@ -328,7 +289,6 @@ function mock(o: MockOpts) {
   eq('E6 gids sluiten opent de wachtende update', ui().showUpdateDialog, true);
   setUI({ showUpdateDialog: false });
 
-  // Beide blokkades moeten weg zijn; hun volgorde maakt niet uit.
   emitExtensionEvent(HOST_EVENTS.tutorialRequested, { extensionId: id, tutorialId: 'tut-1-eerste-planning' });
   setUI({ showWelcomeDialog: true });
   openUpdateDialogWhenIdle();
@@ -357,7 +317,7 @@ function mock(o: MockOpts) {
   setUI({ showUpdateDialog: false });
   emitExtensionEvent(HOST_EVENTS.tutorialRequested, { extensionId: id, tutorialId: 'tut-1-eerste-planning' });
   openUpdateDialogWhenIdle();
-  setUI({ showUpdateDialog: true }); // dezelfde state-overgang als de handmatige updateknop
+  setUI({ showUpdateDialog: true });
   await Promise.resolve();
   setUI({ showUpdateDialog: false });
   stopGuideSession();
@@ -365,13 +325,9 @@ function mock(o: MockOpts) {
   eq('E11 handmatig bekeken update opent na de gids niet opnieuw', ui().showUpdateDialog, false);
 }
 
-// ── F. Netwerk met tijdslimiet: de Ja-route kan niet eeuwig "bezig" blijven ─────────────────────
-//  (M2, review PR #261) Catalogus en ZIP lopen via `fetchWithTimeout`; een hangend verzoek eindigt in
-//  een fout, en die valt in de bestaande foutroute (catalog-error / install-failed → Help › Tutorials).
 {
   const outcome = async <T,>(p: Promise<T>): Promise<string> =>
     p.then(v => `ok:${String(v)}`, e => (e instanceof FetchTimeoutError ? `timeout:${e.timeoutMs}` : `fout:${(e as Error).message}`));
-  // Een server die nooit antwoordt, maar het abort-signaal volgt (zoals de echte fetch).
   let seenSignal: AbortSignal | undefined;
   const hangsHonoring: typeof fetch = (_url, init) => new Promise((_, reject) => {
     seenSignal = init?.signal ?? undefined;
@@ -392,14 +348,12 @@ function mock(o: MockOpts) {
   eq('F5 een gewone netwerkfout blijft zichzelf', await outcome(fetchWithTimeout('u', {}, 20, async () => 1, offline)), 'fout:Failed to fetch');
 
 
-  // Stilte-limiet (de ZIP-download): een body die TRAAG MAAR GESTAAG binnenkomt — samen ruim langer
-  // dan de limiet, maar nooit langer stil dan de limiet — loopt af; een body die stilvalt, breekt af.
   const trickle = (chunks: number, everyMs: number, stallAfter?: number): typeof fetch => async (_url, init) => {
     let sent = 0;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const body = new ReadableStream<Uint8Array>({
       pull: controller => new Promise<void>(resolve => {
-        if (stallAfter !== undefined && sent >= stallAfter) return; // stilgevallen: nooit meer iets
+        if (stallAfter !== undefined && sent >= stallAfter) return;
         timer = setTimeout(() => {
           if (sent === chunks) controller.close(); else { controller.enqueue(new Uint8Array([sent])); sent++; }
           resolve();
@@ -421,12 +375,10 @@ function mock(o: MockOpts) {
     await outcome(fetchWithTimeout('u', {}, 40, res => res.arrayBuffer(), trickle(8, 15))), 'timeout:40');
   eq('F11 zonder stream leest readBodyBytes de body in één keer',
     await outcome(readBodyBytes(new Response(null), () => {}).then(b => b.byteLength)), 'ok:0');
-  // Het signaal is van de helper: een eigen `signal` in `init` is een typefout, geen stille overschrijving.
   // @ts-expect-error -- `signal` hoort niet in FetchInit
   void fetchWithTimeout('u', { signal: new AbortController().signal }, 1, async () => 0, async () => new Response('')).catch(() => {});
 
   const service = readFileSync(join(process.cwd(), 'src/extensions/extensionService.ts'), 'utf8');
-  // Elke fetch-aanroep, ook `window.fetch(`/`globalThis.fetch(`; alleen de eigen helpers mogen.
   const bareFetch = service.replace(/\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '')
     .match(/\bfetch\w*\(/g)?.filter(call => call !== 'fetchWithTimeout(' && call !== 'fetchWithIdleTimeout(' && call !== 'fetchCatalog(') ?? [];
   eq('F6 extensionService: geen fetch zonder tijdslimiet', bareFetch, []);
@@ -437,15 +389,12 @@ function mock(o: MockOpts) {
   ], [true, true, true]);
 }
 
-// ── G. Gewone bouw: feedback, updates en stap 7 blijven (#818) ──────────────────────────────────
 {
-  // Deze bundel is een gewone bouw: `VITE_OPS_PLATFORM` is niet gezet.
   eq('G1 FEEDBACK_AVAILABLE en UPDATES_AVAILABLE aan', [FEEDBACK_AVAILABLE, UPDATES_AVAILABLE], [true, true]);
   eq('G2 de rondleiding heeft zeven stappen, de laatste wijst naar de feedbackknop',
     [TOUR_STEPS.length, TOUR_STEPS[TOUR_STEPS.length - 1]?.anchor], [7, 'feedback-button']);
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: eerste start — ${checks} checks groen`);
 } else {

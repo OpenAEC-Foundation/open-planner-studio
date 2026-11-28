@@ -1,17 +1,3 @@
-// Extensie-API — `api.ui.showNotification` bereikt de gebruiker.
-//
-// WAT HIER VASTLIGT.
-//  - De melding landt in het ene meldingenkanaal van de store (`ui.notifications`), onder de vaste
-//    sleutel `notifications.extensionMessage` met de extensienaam en de onvertaalde tekst.
-//  - Niveaus: `error` → `error` (blijft staan), `warning`/`info` → `info` (verdwijnt na 5 s).
-//  - Overspoel-bescherming: dezelfde tekst vouwt samen tot één melding met een teller; per extensie
-//    hooguit EXT_NOTIFY_MAX_PER_WINDOW nieuwe meldingen per EXT_NOTIFY_WINDOW_MS; een andere
-//    extensie heeft een eigen budget; na het venster mag het weer.
-//  - Elke aanroep gaat óók naar de debuglog (`appLog`), ook een onderdrukte.
-//  - De extensietekst blijft platte tekst: de vertaalde zin bevat de HTML letterlijk (geen escaping,
-//    geen interpretatie — React zet hem als tekstnode neer).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import i18next from 'i18next';
 import nlCommon from '@/i18n/locales/nl/common.json';
@@ -48,7 +34,6 @@ function install(id: string, name: string) {
 const notes = () => ctx.store.getState().ui.notifications;
 const clear = () => { for (const n of [...notes()]) ctx.store.getState().dismissNotification(n.id); };
 
-// ── 1. Melding in het kanaal, met extensienaam ───────────────────────────────
 const api = install('rapport-ext', 'Rapportmaker');
 appLog.clear();
 api.ui.showNotification('Gedaan!');
@@ -60,21 +45,18 @@ eq('1b de debuglog krijgt de melding ook',
   appLog.snapshot().map(e => [e.level, e.channel, e.text]),
   [['info', 'ext:rapport-ext', 'Gedaan!']]);
 
-// ── 2. Niveaus ───────────────────────────────────────────────────────────────
 clear();
 api.ui.showNotification('Let op', 'warning');
 api.ui.showNotification('Mislukt', 'error');
 eq('2 warning → info, error → error', notes().map(n => n.severity), ['info', 'error']);
 eq('2a debuglog-niveaus warn/error', appLog.snapshot().slice(-2).map(e => e.level), ['warn', 'error']);
 
-// ── 3. Dezelfde tekst vouwt samen ────────────────────────────────────────────
 clear();
 clock += EXT_NOTIFY_WINDOW_MS;
 for (let i = 0; i < 10; i++) api.ui.showNotification('Nog bezig');
 eq('3 tien keer dezelfde tekst = één melding met teller 10',
   notes().map(n => [n.params?.message, n.count]), [['Nog bezig', 10]]);
 
-// ── 4. Limiet per extensie per venster ───────────────────────────────────────
 clear();
 clock += EXT_NOTIFY_WINDOW_MS;
 appLog.clear();
@@ -87,7 +69,6 @@ eq('4b alle tien staan wel in de debuglog',
 eq('4c onderdrukking staat in de debuglog',
   appLog.snapshot().filter(e => e.text.includes('overspoel-bescherming')).length, 10 - EXT_NOTIFY_MAX_PER_WINDOW);
 
-// Een andere extensie heeft een eigen budget.
 clear();
 const other = install('andere-ext', 'Andere');
 other.ui.showNotification('Hallo');
@@ -96,13 +77,11 @@ eq('4d andere extensie wordt niet geremd door de eerste',
 api.ui.showNotification('Nog eentje');
 eq('4e de eerste blijft binnen het venster geremd', notes().length, 1);
 
-// Na het venster mag het weer.
 clock += EXT_NOTIFY_WINDOW_MS;
 api.ui.showNotification('Weer toegestaan');
 eq('4f na het venster komt een nieuwe melding door',
   notes().map(n => n.params?.message), ['Hallo', 'Weer toegestaan']);
 
-// ── 5. Platte tekst, geen injectie; lengte begrensd; onbekende extensie ──────
 clear();
 clock += EXT_NOTIFY_WINDOW_MS;
 const html = '<img src=x onerror=alert(1)> **vet** $t(notifications.saveFailed) {{name}}';
@@ -125,7 +104,6 @@ const orphan = createExtensionApi('zonder-record', [], undefined, ctx, host);
 orphan.ui.showNotification('Hoi');
 eq('5c zonder geïnstalleerd record valt de naam terug op de id', notes()[0]?.params?.name, 'zonder-record');
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: extensie-meldingen — ${checks} checks groen`);
 } else {

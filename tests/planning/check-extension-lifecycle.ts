@@ -1,11 +1,3 @@
-// Extensie-levenscyclus (audit 2026-09-26):
-//  1. Verwijderen terwijl `onLoad` nog loopt ⇒ na afloop NIET actief, geen status `enabled`, en
-//     het record wordt niet teruggeschreven (anders herleeft de extensie bij de volgende start).
-//  2. Een `onLoad` die nooit afloopt ⇒ time-out, status `error`, en de volgende extensie laadt wél.
-//  3. Een api na `_cleanup` is ingetrokken: een late registratie gooit in plaats van te lekken.
-//  4. Verwijderen tijdens laden en direct opnieuw installeren ⇒ de nieuwe installatie wordt actief.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import i18next from 'i18next';
 import nlMenu from '@/i18n/locales/nl/menu.json';
 import enMenu from '@/i18n/locales/en/menu.json';
@@ -53,8 +45,6 @@ const register = (id: string, manifest = manifestFor(id)) => {
   useAppStore.getState().registerReadyExtension({ kind: 'ready', id, manifest: m.value, status: 'disabled' });
 };
 
-// Knownbug 64: het echte tutorial-id krijgt bij opstart geen speciale inschakelroute meer.
-// Geen aanname over auteur/catalogus: dit is zelf aangeleverde code met hetzelfde id.
 {
   const id = 'tutorials';
   g.__tutorialStartupEffects = 0;
@@ -70,7 +60,6 @@ const register = (id: string, manifest = manifestFor(id)) => {
   await loadAllExtensions(mem.storage);
   eq('64 herhaalde bootstrap voert geen code uit', g.__tutorialStartupEffects, 0);
 
-  // Positieve controle: expliciet inschakelen blijft werken (ook gebruikt door de tutorialvraag).
   await enableExtension(id, mem.storage);
   eq('64 expliciete keuze evalueert module en voert onLoad uit', g.__tutorialStartupEffects, 2);
   eq('64 expliciete keuze activeert en bewaart enabled',
@@ -87,7 +76,6 @@ const register = (id: string, manifest = manifestFor(id)) => {
   delete g.__tutorialStartupEffects;
 }
 
-// 1. Verwijderen tijdens onLoad.
 {
   const id = 'traag.verwijderd';
   (g as Record<string, unknown>).__releaseTraag = undefined;
@@ -105,7 +93,6 @@ const register = (id: string, manifest = manifestFor(id)) => {
   eq('1 niet meer geregistreerd', useAppStore.getState().installedExtensions[id], undefined);
 }
 
-// 2. Hangende onLoad blokkeert de volgende niet meer.
 {
   const hang = 'hangt.altijd';
   const ok = 'laadt.gewoon';
@@ -113,7 +100,6 @@ const register = (id: string, manifest = manifestFor(id)) => {
     [hang]: record(hang, 'module.exports = { onLoad() { return new Promise(() => {}); } };', true),
     [ok]: record(ok, 'module.exports = { onLoad() {} };', true),
   });
-  // Korte time-out via de testnaad: loadAllExtensions gebruikt de standaard, dus hier per extensie.
   await enableExtension(hang, mem.storage, 20).catch(() => undefined);
   eq('2 hangende extensie krijgt status error', useAppStore.getState().installedExtensions[hang]?.status ?? 'error', 'error');
   eq('2 hangende extensie is niet actief', getActivePlugins().has(hang), false);
@@ -121,7 +107,6 @@ const register = (id: string, manifest = manifestFor(id)) => {
   eq('2 de volgende extensie laadt', getActivePlugins().has(ok), true);
 }
 
-// 3. Late registratie na cleanup gooit (de api van de verwijderde extensie uit scenario 1).
 {
   let late = '';
   try {
@@ -131,8 +116,6 @@ const register = (id: string, manifest = manifestFor(id)) => {
   eq('3 geen lintknop van de verwijderde extensie', useAppStore.getState().extensionRibbonButtons.some((b: { extensionId?: string }) => b.extensionId === 'traag.verwijderd'), false);
 }
 
-// 4. Verwijderen tijdens onLoad en meteen opnieuw installeren ⇒ de nieuwe installatie wordt actief
-//    zodra de oude (geannuleerde) lading klaar is (review 2026-09-28).
 {
   const id = 'traag.herinstalleerd';
   g.__releaseHer = undefined;
@@ -142,7 +125,6 @@ const register = (id: string, manifest = manifestFor(id)) => {
   const first = enableExtension(id, mem.storage);
   for (let i = 0; i < 20 && !g.__releaseHer; i++) await new Promise((r) => setTimeout(r, 0));
   await removeExtension(id, mem.storage);
-  // Herinstallatie (zelfde id, nieuwe code die direct laadt), zoals installFromZip dat doet.
   mem.records[id] = record(id, 'module.exports = { onLoad() {} };');
   register(id);
   const second = enableExtension(id, mem.storage);
@@ -152,9 +134,6 @@ const register = (id: string, manifest = manifestFor(id)) => {
   eq('4 status enabled', useAppStore.getState().installedExtensions[id]?.status, 'enabled');
 }
 
-// 5. De echte activatieroute bewaart taal én concrete context in de bestaande statusfout.
-//    Een te nieuwe extensie wordt zelfs vóór code-uitvoering geweigerd; een permissiefout ruimt
-//    eerdere registraties op. De positieve controle blijft inschakelen en uitschakelen.
 await i18next.init({
   lng: 'en', fallbackLng: 'en', ns: ['menu'],
   resources: { nl: { menu: nlMenu }, en: { menu: enMenu } },

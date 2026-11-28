@@ -1,14 +1,3 @@
-/**
- * Vertaalstraat — termen herstellen: `prepare ui --avoid` / `--keys` (scripts/translate/ui.ts) en
- * `apply-findings` (scripts/translate/findings.ts), plus `_style.quotes` (termbase.ts).
- *
- * Bewaakt: --avoid vindt een avoid-variant met dezelfde regel als de zachte poort (eerst de vormen van de
- * term wegstrepen, hoofdletterongevoelig), slaat onvertaalde eenheden over, geeft `previous`, `avoidHits`,
- * `stale` en `reason: "avoid"` mee en neemt de term mee ook als hij niet in de bron staat; --avoid --stale
- * is de vereniging; --keys kiest precies de genoemde eenheden; apply-findings past goede regels toe en
- * slaat foute over (invulplekken, $t, categorieën, tokens, leeg, onleesbaar, onbekend, nog onvertaald),
- * leest meervoudsvormen die als tekst binnenkomen, en houdt de nl-volgorde aan.
- */
 import { avoidWords, hashUnit, type Concept, type LangTermbase } from '../../scripts/translate/common';
 import { applyFindings, parsePluralText } from '../../scripts/translate/findings';
 import { checkUi } from '../../scripts/translate/gates';
@@ -37,7 +26,6 @@ const tb: LangTermbase = {
   baseline: { term: 'osnovni plan', forms: ['osnovni plan', 'osnovnog plana'], source: 'tbx', status: 'tbx' },
 };
 
-// ── 1. Dezelfde avoid-regel als de zachte poort ──────────────────────────────────────────────
 {
   eq('hoofdletterongevoelig', avoidWords('Prikaži Ključni put', ['kritični put'], ['ključni put']), ['ključni put']);
   eq('vorm van de term eerst weggestreept ("fri slakk" ⊃ "slakk")', avoidWords('Vis fri slakk', ['fri slakk'], ['slakk']), []);
@@ -55,7 +43,6 @@ const tb: LangTermbase = {
   ok('zachte poort waarschuwt nog steeds', checkUi(pkg, { a: 'Prikaži ključni put' }).warnings.some(w => w.includes('vermijd "ključni put"')));
 }
 
-// ── 2. --avoid ───────────────────────────────────────────────────────────────────────────────
 const nl: JsonObject = {
   a: 'Kritiek pad tonen', b: 'Vrije speling', c: 'Opslaan', d: 'Basislijn', e: 'Nog niet vertaald',
   f_one: '{{count}} kritieke taak', f_other: '{{count}} kritieke taken',
@@ -84,7 +71,7 @@ const input = { ns: 'task', nl, en, target: hr };
   const both = selectAvoid(input, 'hr', sources, rules, true);
   eq('--avoid --stale: vereniging in nl-volgorde', both.map(s => [s.unit.key, s.avoidHits ?? null, s.stale ?? null]),
     [['a', ['ključni put'], null], ['c', null, true], ['f', ['ključni put'], null]]);
-  const noHash = selectAvoid(input, 'be', { task: {} }, rules, false); // be: nieuwe taal zonder basislijn
+  const noHash = selectAvoid(input, 'be', { task: {} }, rules, false);
   eq('nieuwe taal: tekst zonder hash = Engelse vulling, niet geselecteerd', noHash.map(s => s.unit.key), []);
   const stale = selectAvoid({ ...input }, 'de', { task: { a: hashUnit('anders') } }, rules, false);
   eq('verouderde eenheid met avoid krijgt stale', stale.filter(s => s.unit.key === 'a').map(s => s.stale), [true]);
@@ -109,7 +96,6 @@ const input = { ns: 'task', nl, en, target: hr };
   ok('gewoon --stale: geen reason, geen avoidHits', plain[0].reason === undefined && plain[0].items.every(i => i.avoidHits === undefined));
 }
 
-// ── 3. --keys ────────────────────────────────────────────────────────────────────────────────
 {
   const r = resolveKeyList(['task:a', 'task:f_few', 'task:e', 'task:zz', 'xx:a', 7], { task: nl });
   eq('geldige sleutels; meervoudsvorm = familie', [...(r.keys.get('task') ?? [])], ['a', 'f', 'e']);
@@ -121,7 +107,6 @@ const input = { ns: 'task', nl, en, target: hr };
   eq('previous waar er een vertaling is', packs[0].items.map(i => i.previous !== undefined), [true, false, true]);
 }
 
-// ── 4. apply-findings ────────────────────────────────────────────────────────────────────────
 {
   eq('JSON-object als tekst', parsePluralText('{"one": "a", "few": "b"}'), { one: 'a', few: 'b' });
   eq('losse schrijfwijze', parsePluralText(`{one: "{{count}} \\"x\\"", few: 'b', other: "c"}`), { one: '{{count}} "x"', few: 'b', other: 'c' });
@@ -142,20 +127,20 @@ const input = { ns: 'task', nl, en, target: hr };
     g: { k_one: '{{count}} zadatak', k_few: '{{count}} zadatka', k_other: '{{count}} zadataka' },
   };
   const findings = [
-    { key: 'task:a', fix: 'Pohrani zadatak {{name}}' },                                  // goed
-    { key: 'task:z', fix: 'Posljednji' },                                                // goed
-    { key: 'task:n', fix: 'i više' },                                                    // $t ontbreekt
-    { key: 'task:r', fix: 'Veza ZP' },                                                   // token FS ontbreekt
-    { key: 'task:e', fix: '  ' },                                                        // leeg
-    { key: 'task:a', fix: 'Pohrani {{naam}}' },                                          // verkeerde invulplek
-    { key: 'task:g.k', fix: '{one: "{{count}} posao", few: "{{count}} posla", other: "{{count}} poslova"}' }, // tekst → vormen
-    { key: 'task:g.k_few', fix: '{{count}} posla!' },                                    // één vorm via _few
-    { key: 'task:g.k', fix: { one: '{{count}} x', two: '{{count}} y' } },                 // two bestaat niet in hr
-    { key: 'task:g.k', fix: 'geen vormen' },                                             // onleesbaar
-    { key: 'task:onbekend', fix: 'x' },                                                  // niet in nl
-    { key: 'zz:a', fix: 'x' },                                                           // onbekende namespace
-    { key: 'task:z', fix: { one: 'x' } },                                                // vormen bij gewone sleutel
-    { fix: 'zonder sleutel' },                                                           // geen key
+    { key: 'task:a', fix: 'Pohrani zadatak {{name}}' },
+    { key: 'task:z', fix: 'Posljednji' },
+    { key: 'task:n', fix: 'i više' },
+    { key: 'task:r', fix: 'Veza ZP' },
+    { key: 'task:e', fix: '  ' },
+    { key: 'task:a', fix: 'Pohrani {{naam}}' },
+    { key: 'task:g.k', fix: '{one: "{{count}} posao", few: "{{count}} posla", other: "{{count}} poslova"}' },
+    { key: 'task:g.k_few', fix: '{{count}} posla!' },
+    { key: 'task:g.k', fix: { one: '{{count}} x', two: '{{count}} y' } },
+    { key: 'task:g.k', fix: 'geen vormen' },
+    { key: 'task:onbekend', fix: 'x' },
+    { key: 'zz:a', fix: 'x' },
+    { key: 'task:z', fix: { one: 'x' } },
+    { fix: 'zonder sleutel' },
   ];
   const res = applyFindings({ lang: 'hr', findings, nl: { task: nlC }, en: { task: enC }, readTarget: () => structuredClone(hrC), concepts, termbase: tb });
   eq('toegepast', res.applied, ['task:a', 'task:z', 'task:g.k', 'task:g.k']);
@@ -177,7 +162,6 @@ const input = { ns: 'task', nl, en, target: hr };
   ok('zachte waarschuwing wordt gemeld, regel wel toegepast', warn.applied.length === 1 && warn.warnings.some(w => w.includes('vermijd')));
 }
 
-// ── 5. _style.quotes ─────────────────────────────────────────────────────────────────────────
 {
   eq('quotes als tekst mag', styleErrors({ address: 'formal', quotes: '„…“' }, 'hr'), []);
   eq('quotes geen tekst', styleErrors({ address: 'formal', quotes: 3 }, 'hr'), ['hr: _style.quotes moet tekst zijn']);

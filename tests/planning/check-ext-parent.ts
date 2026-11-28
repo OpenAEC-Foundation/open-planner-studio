@@ -1,20 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// Ouderwijziging via de extensie-API — `api.data.updateTask(id, { parentId })` en `addTask`.
-//
-// AANLEIDING. `fromExtTaskUpdates` mapte `parentId` rauw op de taak en de store-`updateTask` deed er
-// een kale Object.assign mee. Gemeten gevolg: `kind.parentId = ouder` terwijl `ouder.childIds` leeg
-// bleef — de boom was intern tegenstrijdig, en na `runCPM` werd de ouder daardoor GEEN
-// samenvattingstaak (hij hield zijn eigen datums in plaats van die van het kind te omvatten). Een
-// onbekende ouder werd gewoon aangenomen, net als een ouder onder zijn eigen kind (een kring).
-//
-// WAT HIER VASTLIGT. Een ouderwijziging vanuit een extensie is een VERPLAATSING via dezelfde
-// store-actie als rij-slepen (`moveTaskTo`), dus met exact dezelfde uitkomst als de app zelf; een
-// onbekende ouder of een kring gooit een fout naar de extensie vóór er iets gewijzigd is; `null`
-// hangt de taak aan de wortel; en een `updateTask` zonder (gewijzigde) `parentId` werkt als
-// voorheen — ook het terugschrijven van een ongewijzigd `getTasks()`-object mag de volgorde onder
-// de ouder niet verschuiven.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
 import { capturePayload } from '@/state/documentContract';
@@ -43,13 +26,11 @@ const taskOf = (ctx: AppStoreContext, id: string) => {
   if (!task) throw new Error(`taak ${id} ontbreekt`);
   return task;
 };
-/** De zichtbare taakrijen als [naam, diepte] — wat de gebruiker in het raster ziet. */
 const taskRows = (ctx: AppStoreContext) => ctx.store.getState().viewRows
   .flatMap(row => row.kind === 'task' ? [[row.task.name, row.depth]] : []);
 const appliedDepth = (ctx: AppStoreContext) => ctx.store.getState().historyEvents
   .filter(event => event.state === 'applied').length;
 
-/** Ouder + kind op rootniveau; het kind krijgt eigen, duidelijk andere datums dan de ouder. */
 function ouderEnKind(ctx: AppStoreContext): { ouder: string; kind: string } {
   const S = ctx.store.getState;
   const ouder = S().addTask({ name: 'Ouder' });
@@ -58,11 +39,9 @@ function ouderEnKind(ctx: AppStoreContext): { ouder: string; kind: string } {
   return { ouder, kind };
 }
 
-/** Documentpayload ongewijzigd? Als boolean, zodat een faalregel geen volledige payload dumpt. */
 const sameDocument = (ctx: AppStoreContext, voor: ReturnType<typeof capturePayload>) =>
   JSON.stringify(capturePayload(ctx.store.getState())) === JSON.stringify(voor);
 
-/** Voert `fn` uit en geeft de foutboodschap terug, of `null` als er niets gegooid werd. */
 function thrown(fn: () => void): string | null {
   try {
     fn();
@@ -72,9 +51,7 @@ function thrown(fn: () => void): string | null {
   }
 }
 
-// ── 1. updateTask({ parentId }) = dezelfde verplaatsing als de app zelf ─────────────────────────
 {
-  // Referentie: de store-route die rij-slepen gebruikt.
   const ref = setup();
   const r = ouderEnKind(ref.ctx);
   ref.ctx.store.getState().moveTaskTo(r.kind, { parentId: r.ouder, childIndex: 0 });
@@ -105,7 +82,6 @@ function thrown(fn: () => void): string | null {
   eq('1j undo maakt de kindlijst van de ouder weer leeg', taskOf(ctx, ouder).childIds, []);
 }
 
-// ── 1k. Verplaatsing plus gewone velden in één aanroep: alles toegepast, één undo-stap ─────────
 {
   const { ctx, api } = setup();
   const { ouder, kind } = ouderEnKind(ctx);
@@ -121,7 +97,6 @@ function thrown(fn: () => void): string | null {
     ['Kind', null, []]);
 }
 
-// ── 2. Onbekende ouder ⇒ fout, taak (en document) ongewijzigd ─────────────────────────────────
 {
   const { ctx, api } = setup();
   const { kind } = ouderEnKind(ctx);
@@ -136,7 +111,6 @@ function thrown(fn: () => void): string | null {
   eq('2d geen undo-stap', appliedDepth(ctx), depthVoor);
 }
 
-// ── 3. Kring ⇒ fout (ouder onder eigen kind, en taak onder zichzelf) ─────────────────────────
 {
   const { ctx, api } = setup();
   const { ouder, kind } = ouderEnKind(ctx);
@@ -159,7 +133,6 @@ function thrown(fn: () => void): string | null {
   eq('3f geen undo-stap', appliedDepth(ctx), depthVoor);
 }
 
-// ── 4. parentId: null ⇒ naar de wortel, oude ouder bijgewerkt ─────────────────────────────────
 {
   const { ctx, api } = setup();
   const { ouder, kind } = ouderEnKind(ctx);
@@ -173,7 +146,6 @@ function thrown(fn: () => void): string | null {
     taskRows(ctx), [['Ouder', 0], ['Broer', 1], ['Kind', 0]]);
 }
 
-// ── 5. updateTask zonder (gewijzigde) parentId werkt als voorheen ─────────────────────────────
 {
   const { ctx, api } = setup();
   const { ouder, kind } = ouderEnKind(ctx);
@@ -187,8 +159,6 @@ function thrown(fn: () => void): string | null {
   eq('5b ouder en volgorde ongemoeid', taskOf(ctx, ouder).childIds, [kind, broer]);
   eq('5c één undo-stap, zoals voorheen', appliedDepth(ctx), depthVoor + 1);
 
-  // Het gangbare extensiepatroon: getTasks() → object aanpassen → volledig terugschrijven. Dezelfde
-  // ouder is géén verplaatsing; zou hij dat wel zijn, dan schoof het kind achter zijn broer.
   const ext = api.data.getTasks().find(task => task.id === kind)!;
   ext.name = 'Terug via getTasks';
   api.data.updateTask(kind, ext);
@@ -199,7 +169,6 @@ function thrown(fn: () => void): string | null {
     thrown(() => api.data.updateTask('bestaat-niet', { parentId: ouder })), null);
 }
 
-// ── 6. addTask onder een ouder ────────────────────────────────────────────────────────────────
 {
   const { ctx, api } = setup();
   const ouder = ctx.store.getState().addTask({ name: 'Ouder' });
@@ -216,7 +185,6 @@ function thrown(fn: () => void): string | null {
   eq('6d addTask met parentId null komt aan de wortel', taskOf(ctx, root).parentId, null);
 }
 
-// ── Uitslag ────────────────────────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: extensie-ouderwijziging — ${checks} checks groen`);
 } else {

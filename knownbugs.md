@@ -6625,6 +6625,13 @@ en noem het in je rapport of PR-tekst.
      getoetst. Gelezen in het commentaar bij geval 8n van `check-recovery-integrity.ts` (weggehaald in de opruiming
      van de opslagtests); niet nagespeeld. — S
 
+2812. **Een extensie die het project via `data.loadProject` terugzet, wist de koppeling met de resourcebibliotheek.**
+     `retainActiveDocument` (`src/extensions/retainActiveDocument.ts`) neemt bij een lees-wijzig-laad op hetzelfde
+     project-id wel andere niet-publieke projectvelden over, maar niet `companyId` en `companyName`. In een gerichte
+     proef bij de review van #1416 (GPT-6.2-Sol, xhigh): project gekoppeld aan een bibliotheek, via de extensie-API
+     alleen de projectnaam gewijzigd; het id bleef gelijk en beide bibliotheekvelden vielen weg. Verwant aan 127 (de
+     IFC-tab). Voorstel: de binding bij hetzelfde project-id behouden, zoals de andere bronvelden. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.

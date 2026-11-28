@@ -1,8 +1,3 @@
-// Runtimevalidatie voor niet-vertrouwde extensiemanifesten.
-//
-// Deze batterij toetst bewust de herbouwde uitkomst en niet alleen foutmeldingen: onbekende velden
-// moeten verdwijnen, arrays moeten losstaan van de invoer en legacydefaults mogen uitsluitend de
-// expliciet toegestane gaten vullen. Draait via run.sh. Exit 0 = alles groen.
 import {
   EXTENSION_LIMITS,
   manifestFromJavaScript,
@@ -128,7 +123,6 @@ const expectStoredFail = (
   if (!result.ok) eq(`${label}: opslagfout is concreet`, result.error.length > 0, true);
 };
 
-// ── 1. Topniveau en verplichte identiteit ───────────────────────────────────
 expectFail('null is geen manifest', null);
 expectFail('een array is geen manifest', []);
 expectFail('een string is geen manifest', 'manifest');
@@ -137,21 +131,11 @@ expectFail('id met hoofdletters', { ...volledig(), id: 'Demo.extension' });
 expectFail('prototype-id', { ...volledig(), id: '__proto__' });
 expectFail('id langer dan de grens', { ...volledig(), id: `a${'b'.repeat(EXTENSION_LIMITS.id)}` });
 
-// ── 2. Gesloten unies en verplichte veldvormen ──────────────────────────────
 expectFail('onbekende categorie', { ...volledig(), category: 'Security' });
 expectFail('onbekende fresh permission', { ...volledig(), permissions: ['ribbon', 'commands'] });
 expectFail('permissions is geen array', { ...volledig(), permissions: 'ribbon' });
 expectFail('permission is geen string', { ...volledig(), permissions: ['ribbon', 1] });
 
-// ── 2a. `permissions.ts` (KNOWN_PERMISSIONS) is de ENE bron voor deze validator ─────────────
-// Her-review 2 vond een tweede, handgekopieerde permissielijst in validation.ts die
-// 'importSource' miste: de permissie bestond in de guard-tabel en KNOWN_PERMISSIONS, maar géén
-// installatiepad (ZIP/catalogus, los .js, dev-bridge) kon een manifest met die permissie ooit
-// parsen — 'fresh' weigerde hem exact als de typefout 'bogus'. Dit haalt ELKE permissie die de
-// app kent door de echte 'fresh'-validatieroute en eist dat hij overleeft; een nieuwe permissie
-// die alleen aan permissions.ts wordt toegevoegd kan dus niet meer stil onbereikbaar blijven.
-// Mutatiebewijs: ontkoppel `EXTENSION_PERMISSIONS` in validation.ts weer van `KNOWN_PERMISSIONS`
-// (bv. terug naar de oude losse lijst zonder 'importSource') en dit blok kleurt rood.
 for (const permissie of KNOWN_PERMISSIONS) {
   const parsed = expectOk(`KNOWN_PERMISSIONS bevat een bereikbare permissie: ${permissie}`,
     parseExtensionManifest({ ...volledig(), permissions: [permissie] }, 'fresh'));
@@ -164,7 +148,6 @@ for (const veld of ['name', 'version', 'minAppVersion', 'author', 'description',
   expectFail(`fresh vereist ${veld}`, { ...volledig(), [veld]: undefined });
 }
 
-// ── 3. Relatieve hoofdpaden worden niet genormaliseerd ─────────────────────
 for (const main of [
   '', '/main.js', '../main.js', 'dir/../main.js', './main.js', 'dir//main.js',
   'dir\\main.js', 'dir/./main.js', 'main\0.js', `${'a'.repeat(EXTENSION_LIMITS.main)}.js`,
@@ -172,7 +155,6 @@ for (const main of [
   expectFail(`onveilig main-pad ${JSON.stringify(main)}`, { ...volledig(), main });
 }
 
-// ── 4. Versies, tags, repository en icoon ──────────────────────────────────
 for (const [veld, waarde] of [
   ['version', 'v1.2.3'], ['version', '1.2.3.4.5'], ['version', '1..2'],
   ['apiVersion', '1.x'], ['apiVersion', ''],
@@ -201,7 +183,6 @@ for (const [label, patch] of [
     parseExtensionManifest({ ...volledig(), ...patch }, 'fresh'));
 }
 
-// ── 5. Positieve reconstructie en losstaandheid ─────────────────────────────
 {
   const bron = volledig();
   const parsed = expectOk('volledig fresh manifest', parseExtensionManifest(bron, 'fresh'));
@@ -241,7 +222,6 @@ for (const [label, patch] of [
   }
 }
 
-// ── 6. Legacybeleid is beperkt en zichtbaar ─────────────────────────────────
 {
   const legacy = volledig();
   delete legacy.apiVersion;
@@ -276,7 +256,6 @@ for (const [label, patch] of [
   }
 }
 
-// ── 7. Catalogustopniveau is atomair ────────────────────────────────────────
 expectCatalogFail('null is geen catalogus', null);
 expectCatalogFail('catalogusarray is geen catalogus', []);
 expectCatalogFail('ongeldige catalogusversie', { ...catalog([]), version: 'v1' });
@@ -285,7 +264,6 @@ expectCatalogFail('ongeldige lastUpdated', { ...catalog([]), lastUpdated: '24 au
 expectCatalogFail('onmogelijke lastUpdated', { ...catalog([]), lastUpdated: '2026-02-31' });
 expectCatalogFail('extensions is geen array', catalog({}));
 
-// ── 8. Entries falen geïsoleerd en bewaren hun echte index ──────────────────
 {
   const parsed = expectCatalogOk('geldig-ongeldig-geldig blijft bruikbaar', catalog([
     catalogEntry('eerste'),
@@ -328,7 +306,6 @@ expectCatalogFail('extensions is geen array', catalog({}));
   }
 }
 
-// ── 9. De eerste geldige id wint deterministisch ────────────────────────────
 for (const [label, entries] of [
   ['dezelfde id en versie', [
     catalogEntry('dubbel', { version: '1.0' }),
@@ -364,7 +341,6 @@ for (const [label, entries] of [
   }
 }
 
-// ── 10. Een geldige catalogus wordt losstaand en zonder onbekende velden herbouwd ─────────────
 {
   const bronEntry = catalogEntry('losstaand', { tags: ['een', 'twee', 'een'] });
   const bron = catalog([bronEntry]);
@@ -381,7 +357,6 @@ for (const [label, entries] of [
   }
 }
 
-// ── 11. Cataloguskwaliteit is appglobale, niet-destructieve storestate ───────
 {
   const context = createAppStoreContext();
   eq('catalogusissues starten leeg', context.store.getState().catalogIssues, []);
@@ -406,7 +381,6 @@ for (const [label, entries] of [
   }
 }
 
-// ── 12. Losse JavaScript-manifesten falen gesloten ──────────────────────────
 {
   const generated = manifestFromJavaScript('module.exports = { onLoad() {} };', 'Mijn Tool.js');
   eq('JS zonder marker krijgt een gevalideerd gegenereerd manifest', generated.ok, true);
@@ -456,7 +430,6 @@ for (const [label, entries] of [
   eq('ook een gegenereerd manifest gaat door de fresh parser', onbruikbareFallback.ok, false);
 }
 
-// ── 13. Opgeslagen records worden per echte sleutel opnieuw opgebouwd ──────────────
 {
   const legacyManifest = volledig();
   delete legacyManifest.minAppVersion;
@@ -530,7 +503,6 @@ expectStoredFail('opgeslagen assets blijven samen maximaal 48 MiB', storedRecord
   },
 }));
 
-// ── 14. Een status-writefailure verandert de gekozen runtimestatus niet ──────────
 {
   const id = 'writefailure-test';
   const manifestInput = { ...volledig(), id, minAppVersion: '0.0.0' };
@@ -571,7 +543,6 @@ expectStoredFail('opgeslagen assets blijven samen maximaal 48 MiB', storedRecord
   useAppStore.getState().unregisterExtension(id);
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: extensievalidatie — ${checks} checks groen`);
 } else {

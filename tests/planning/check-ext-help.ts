@@ -1,19 +1,3 @@
-// Extensie-API 1.4.0 — `api.help.*`: permissie `help`, het artikel- en begeleidingsmodel, en de
-// looptijd van het begeleidingspaneel.
-//
-// WAT HIER VASTLIGT.
-//  - `help` is een bekende, HARD afgedwongen permissie: zonder haar gooit elke `help.*`-methode
-//    vóórdat er iets gebeurt (niets in het Help-register, geen begeleiding, geen document).
-//  - `registerArticles` is een dunne laag op het register (bron = extensie-id): ongeldige invoer
-//    registreert niets en gooit met alle problemen; opnieuw registreren vervangt; `_cleanup` ruimt op.
-//  - Afbeeldingen komen uit de eigen assets als blob-URL; bij het opruimen worden die ingetrokken.
-//  - `openBundledProject` opent alleen een bestaande `.ifc`-asset, als NIEUW document naast het
-//    actieve (dat blijft onaangeroerd).
-//  - Een begeleiding wordt vóór het starten volledig gevalideerd; de looptijd roept `check` aan bij
-//    het openen van een stap en na wijzigingen in de app, telt alleen `true`, negeert uitkomsten van
-//    een verlaten stap, en vangt een gooiende `check` op (melding + terugval op "Klaar, volgende").
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import i18next from 'i18next';
 import nlMenu from '@/i18n/locales/nl/menu.json';
@@ -94,7 +78,6 @@ const step = (id: string, extra: Partial<ExtGuide['steps'][number]> = {}): ExtGu
 
 const guide = (steps: ExtGuide['steps']): ExtGuide => ({ id: 'tut-1', title: { nl: 'Eerste planning', en: 'First schedule' }, steps });
 
-// ── 1. Contract en permissie ────────────────────────────────────────────────────
 eq('1 contractversie 1.6.0 (1.4.0 help + 1.4.1 loadProject-fix + 1.6.0 kosten)', EXTENSION_API_VERSION, '1.6.0');
 eq('2 help is een bekende permissie', KNOWN_PERMISSIONS.includes('help'), true);
 eq('3 sanitize laat help staan', sanitizeManifestPermissions(['help', 'onzin'], 'x'), ['help']);
@@ -134,7 +117,6 @@ for (const method of HELP_METHODS) {
   eq('6h geen document geopend', ctx.store.getState().documents.length, docsBefore);
 }
 
-// ── 2. Artikelen ────────────────────────────────────────────────────────────────
 {
   resetRegisteredHelpArticles();
   const { api } = setup('tutorials', ['help']);
@@ -181,7 +163,6 @@ for (const method of HELP_METHODS) {
   eq('13b _cleanup trekt de blob-URL\'s in', resolveObjectURL(urlBefore), undefined);
 }
 
-// ── 3. Meegeleverd project openen ─────────────────────────────────────────────────
 {
   const { ctx, api } = setup('tutorials-open', ['help']);
   const S = ctx.store.getState;
@@ -200,7 +181,6 @@ for (const method of HELP_METHODS) {
   eq('15e het oorspronkelijke document is onaangeroerd', S().tasks.map(t => t.name), ['Mijn eigen werk']);
 }
 
-// ── 4. Het begeleidingsmodel ───────────────────────────────────────────────────────
 {
   const has = (name: string) => name === 'start.ifc';
   eq('16 een geldige begeleiding', validateGuide(guide([step('a', { anchor: 'ribbon:start:addTask', resetAsset: 'start.ifc', check: () => true, prepare: () => {} })]), has), []);
@@ -230,7 +210,6 @@ for (const method of HELP_METHODS) {
   eq('18c zonder scheiding geen uitleg', splitGuideBody('Alleen dit.'), { task: 'Alleen dit.', explanation: '' });
 }
 
-// ── 5. De looptijd ──────────────────────────────────────────────────────────────────
 {
   const { ctx, api } = setup('tutorials-guide', ['help']);
   const S = ctx.store.getState;
@@ -260,13 +239,11 @@ for (const method of HELP_METHODS) {
   eq('20e check draait direct bij het openen van de stap', checkCalls, 1);
   eq('20f nog niet gedaan (leeg project)', getGuideView()?.done, false);
 
-  // Wijzigingen die de controle niet halen: niet gedaan.
   S().setUI({ activeRibbonTab: 'planning' });
   await sleep(GUIDE_CHECK_DEBOUNCE_MS + 30);
   eq('21a na een wijziging opnieuw gecontroleerd', checkCalls, 2);
   eq('21b nog steeds niet gedaan', getGuideView()?.done, false);
 
-  // Een reeks wijzigingen binnen het venster ⇒ één controle.
   S().setUI({ activeRibbonTab: 'start' });
   S().addTask({ name: 'Echte taak' });
   S().setUI({ activeRibbonTab: 'beeld' });
@@ -274,12 +251,10 @@ for (const method of HELP_METHODS) {
   eq('22a gebundeld: één controle voor drie wijzigingen', checkCalls, 3);
   eq('22b nu gedaan', getGuideView()?.done, true);
 
-  // Gedaan blijft gedaan: geen nieuwe controles meer in deze stap.
   S().setUI({ activeRibbonTab: 'start' });
   await sleep(GUIDE_CHECK_DEBOUNCE_MS + 30);
   eq('23 gedaan ⇒ geen verdere controles', checkCalls, 3);
 
-  // Opnieuw: nieuw document met de beginstand, stap weer open.
   const docs = S().documents.length;
   await guideReset();
   await flush();
@@ -287,9 +262,8 @@ for (const method of HELP_METHODS) {
   eq('24b de stap begint opnieuw en wordt meteen gecontroleerd', checkCalls, 4);
   eq('24c het voorbeeldproject heeft taken ⇒ gedaan', getGuideView()?.done, true);
 
-  // Toon mij in een leeg document.
   S().newDocument();
-  guidePrevious(); // op stap 1 is Terug een no-op
+  guidePrevious();
   eq('25a Terug op de eerste stap doet niets', getGuideView()?.stepIndex, 0);
   guideNext();
   guidePrevious();
@@ -300,12 +274,10 @@ for (const method of HELP_METHODS) {
   eq('25c Toon mij roept prepare aan', prepared, 1);
   eq('25d en controleert daarna: gedaan', getGuideView()?.done, true);
 
-  // Stap zonder check: meteen door (het paneel toont "Klaar, volgende").
   guideNext();
   view = getGuideView();
   eq('26a stap 2 zonder check', [view?.stepIndex, view?.step.hasCheck, view?.done], [1, false, false]);
 
-  // Een gooiende check: melding via het meldingenkanaal, stap valt terug op "Klaar, volgende".
   const before = S().ui.notifications.length;
   guideNext();
   await flush();
@@ -318,12 +290,10 @@ for (const method of HELP_METHODS) {
   await sleep(GUIDE_CHECK_DEBOUNCE_MS + 30);
   eq('27d daarna niet eindeloos opnieuw', S().ui.notifications.length, before + 1);
 
-  // Laatste stap: Volgende = Klaar ⇒ sluiten.
   guideNext();
   eq('28 Klaar op de laatste stap sluit de begeleiding', getGuideView(), null);
 }
 
-// ── 6. Oude uitkomsten, eigenaarschap en opruimen ─────────────────────────────────────
 {
   const { api } = setup('tutorials-async', ['help']);
   let release: (v: boolean) => void = () => {};
@@ -331,7 +301,7 @@ for (const method of HELP_METHODS) {
     step('traag', { check: () => new Promise<boolean>(resolve => { release = resolve; }) }),
     step('tweede'),
   ]));
-  guideNext(); // verlaat de stap vóórdat de trage controle antwoordt
+  guideNext();
   release(true);
   await flush();
   eq('29 een uitkomst van een verlaten stap telt niet', [getGuideView()?.stepIndex, getGuideView()?.done], [1, false]);
@@ -352,7 +322,7 @@ for (const method of HELP_METHODS) {
   eq('31c de lopende begeleiding blijft staan', [getGuideView()?.extensionId, getGuideView()?.guideId], ['tutorials-async', 'tut-1']);
   api.help.startGuide({ ...guide([step('c')]), id: 'tut-eigen' });
   eq('31d de eigenaar mag zijn begeleiding wel vervangen', getGuideView()?.guideId, 'tut-eigen');
-  stopGuideSession(); // de gebruiker klikt Sluiten
+  stopGuideSession();
   second.help.startGuide({ ...guide([step('b')]), id: 'tut-2' });
   eq('31e na Sluiten kan de andere extensie starten', getGuideView()?.guideId, 'tut-2');
   second._cleanup();
@@ -360,7 +330,6 @@ for (const method of HELP_METHODS) {
   stopGuideSession();
 }
 
-// ── 7. Late uitkomsten van dezelfde stap (Opnieuw, Terug→Volgende) en busy ─────────────────
 {
   const { api } = setup('tutorials-epoch', ['help']);
   const releases: Array<(v: boolean) => void> = [];
@@ -374,14 +343,14 @@ for (const method of HELP_METHODS) {
   guideNext();
   eq('32a stap 2 controleert (traag)', releases.length, 1);
   guidePrevious();
-  guideNext(); // zelfde index, nieuwe stapsessie ⇒ nieuwe controle
+  guideNext();
   eq('32b opnieuw binnen: nieuwe controle', releases.length, 2);
-  releases[0](true); // uitkomst van de VORIGE sessie van deze stap
+  releases[0](true);
   await flush();
   eq('32c een late uitkomst van een eerdere sessie van dezelfde stap telt niet', getGuideView()?.done, false);
   await guideReset();
   await flush();
-  releases[1](true); // uitkomst van vóór Opnieuw
+  releases[1](true);
   await flush();
   eq('32d ook niet na Opnieuw', getGuideView()?.done, false);
   releases[releases.length - 1](true);
@@ -389,7 +358,6 @@ for (const method of HELP_METHODS) {
   eq('32e de uitkomst van de huidige sessie telt wel', getGuideView()?.done, true);
   stopGuideSession();
 
-  // Toon mij loopt ⇒ Terug/Volgende/nog een Toon mij doen niets (geen tweede prepare).
   let finishPrepare: () => void = () => {};
   let prepares = 0;
   api.help.startGuide(guide([
@@ -409,7 +377,6 @@ for (const method of HELP_METHODS) {
   stopGuideSession();
 }
 
-// ── 8. Na uitschakelen is de help-groep dood; project://-links ──────────────────────────
 {
   resetRegisteredHelpArticles();
   const { ctx, api } = setup('tutorials-dispose', ['help']);
@@ -417,7 +384,6 @@ for (const method of HELP_METHODS) {
   const reg = getRegisteredHelpArticles()[0];
   const S = ctx.store.getState;
 
-  // Een project://-link in een artikel: eigen melding bij een fout (geen begeleidingstekst).
   const before = S().ui.notifications.length;
   reg.openProject!('weg.ifc');
   await flush();
@@ -425,7 +391,6 @@ for (const method of HELP_METHODS) {
   eq('34a mislukte project://-link ⇒ eigen melding', [S().ui.notifications.length, note?.messageKey, note?.params], [
     before + 1, 'notifications.extHelpProjectOpenFailed', { name: 'tutorials-dispose', file: 'weg.ifc' },
   ]);
-  // Dubbelklik op de link: één document.
   const docs = S().documents.length;
   S().addTask({ name: 'eigen werk' });
   reg.openProject!('start.ifc');
@@ -434,7 +399,6 @@ for (const method of HELP_METHODS) {
   await flush();
   eq('34b dubbelklik op een project://-link opent één document', S().documents.length, docs + 1);
 
-  // Een project://-link in een begeleidingsstap: zelfde bescherming.
   api.help.startGuide(guide([step('a')]));
   S().addTask({ name: 'nog meer eigen werk' });
   const docs2 = S().documents.length;
@@ -456,7 +420,6 @@ for (const method of HELP_METHODS) {
   eq('35i de eerder uitgegeven blob-URL is ingetrokken', resolveObjectURL(img), undefined);
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: extensie-help (1.4.0) — ${checks} checks groen`);
 } else {

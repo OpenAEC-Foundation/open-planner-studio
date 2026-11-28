@@ -1,12 +1,3 @@
-/**
- * Vertaalstraat — de poorten van check.mjs (scripts/translate/gates.ts, ontwerp §7) en de
- * termbase-validatie (scripts/translate/termbase.ts, §4.1).
- *
- * Elke harde poort krijgt een goed en een fout voorbeeld: sleutels exact, soort (tekst/familie),
- * CLDR-categorieën exact (cs met `many`), {{invulplekken}} gelijk aan nl ({{count}} mag in een
- * meervoudsvorm uitgeschreven), $t(…) byte-gelijk, geen lege tekst, tokens aanwezig. Daarna de
- * zachte waarschuwingen en de schema's van de concepten-, termen- en blinde-controle-uitvoer.
- */
 import { checkPackage, checkUi, formatResult } from '../../scripts/translate/gates';
 import { sharesStem, validateLangTermbase } from '../../scripts/translate/termbase';
 import { spawnSync } from 'node:child_process';
@@ -33,7 +24,6 @@ const pkg = (lang: string, items: UiPackage['items'], extra: Partial<UiPackage> 
 const errorsOf = (p: UiPackage, out: unknown) => checkUi(p, out).errors;
 const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
 
-// ── 1. Sleutels exact ────────────────────────────────────────────────────────────────────────
 {
   const p = pkg('sv', [{ key: 'a', nl: 'Taak', en: 'Task' }, { key: 'b', nl: 'Taken', en: 'Tasks' }]);
   eq('goed: precies de sleutels', errorsOf(p, { a: 'Uppgift', b: 'Uppgifter' }), []);
@@ -44,7 +34,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   ok('fout: familie waar tekst hoort', has(errorsOf(p, { a: { other: 'x' }, b: 'y' }), 'a: verwacht één tekst'));
 }
 
-// ── 2. CLDR-categorieën exact (cs met many) ──────────────────────────────────────────────────
 {
   const item = {
     key: 'moved', plural: true as const,
@@ -66,7 +55,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   }), []);
 }
 
-// ── 3. {{invulplekken}} gelijk aan nl ────────────────────────────────────────────────────────
 {
   const p = pkg('sv', [{ key: 'opened', nl: '{{name}} geopend op {{date}}', en: '{{name}} opened on {{date}}' }]);
   eq('goed: zelfde invulplekken (andere volgorde mag)', errorsOf(p, { opened: '{{date}}: {{name}} öppnad' }), []);
@@ -76,7 +64,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   ok('fout: {{count}} weglaten in een gewone tekst mag niet', has(errorsOf(c, { n: 'uppgifter' }), 'invulplekken'));
 }
 
-// ── 4. $t(…) byte-gelijk ─────────────────────────────────────────────────────────────────────
 {
   const nl = "De constraint $t(task:constraintType.{{type}}) bepaalt de start van '{{name}}'.";
   const p = pkg('cs', [{ key: 'blocked', nl, en: "The constraint $t(task:constraintType.{{type}}) determines the start of '{{name}}'." }]);
@@ -86,7 +73,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   ok('fout: spatie in $t', has(errorsOf(p, { blocked: "Omezení $t( task:constraintType.{{type}}) '{{name}}'." }), '$t(…) moet byte-gelijk'));
 }
 
-// ── 5. Geen lege tekst; tokens aanwezig ──────────────────────────────────────────────────────
 {
   const p = pkg('cs', [{ key: 'e', nl: 'Leeg', en: 'Empty' }]);
   ok('fout: lege tekst', has(errorsOf(p, { e: '' }), 'lege tekst'));
@@ -98,12 +84,10 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   ok('fout: token vertaald', has(errorsOf(t, { hint: 'Zadejte například 1.2 KZ+2d' }), 'token "FS" ontbreekt'));
 }
 
-// ── 5a. Vaste tekst (172): sleutel én namespace én taal begrenzen het contract ──────────────────
 {
   const key = 'ribbon.calendarDialog.hoursValue';
   const item = { key, nl: '{{hours}}u', en: '{{hours}}h' };
   for (const lang of ['ar', 'fa']) {
-    // Bewust zonder fixedText-metadata: ook een ouder pakket moet door dezelfde poort.
     const p = pkg(lang, [item, { key: 'otherHours', nl: '{{hours}}u', en: '{{hours}}h' }], { namespace: 'menu' });
     const out = { [key]: '{{hours}}h', otherHours: '{{hours}} س' };
     eq(`172 ${lang}: vaste tekst correct, ongerelateerde sleutel vrij`, checkPackage(p, out).errors, []);
@@ -126,7 +110,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   }
 }
 
-// ── 5b. Meervoud met per vorm andere invulplekken ────────────────────────────────────────────
 {
   const p = pkg('ru', [{ key: 'm', plural: true,
     nl: { one: "Mijlpaal '{{phase}}' is nu een verzameltaak.", other: '{{count}} mijlpalen zijn nu verzameltaken.' },
@@ -138,7 +121,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
     one: 'Веха стала суммарной задачей.', few: '{{count}} вехи', many: '{{count}} вех', other: '{{count}} вехи' } }), 'm.one: invulplekken'));
 }
 
-// ── 6. Zachte waarschuwingen (geen fout) ─────────────────────────────────────────────────────
 {
   const p = pkg('cs', [
     { key: 'cp', nl: 'Kritiek pad tonen', en: 'Show critical path' },
@@ -174,7 +156,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   eq('uitvoer bij fout', red, ['XX a: ontbreekt', 'ROOD x: 1 fout(en), 0 waarschuwing(en) — herstel de XX-regels']);
 }
 
-// ── 7. Schema's van concepten-, termen- en blinde-controle-uitvoer ──────────────────────────
 {
   const concept = { id: 'total-float', kind: 'term', nl: 'totale speling', en: ['total float', 'total slack'], enBySource: { msp: 'total slack' }, definition: 'Slack.' };
   eq('concepten: goed', checkPackage({ kind: 'concepts', id: 'candidates-01' }, [concept]).errors, []);
@@ -218,7 +199,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   ok('docs-pakket: niet via checkPackage (checkDocs met .src.md)', has(checkPackage({ kind: 'docs' }, {}).errors, 'checkDocs'));
 }
 
-// ── 8. Termbase-validatie en stam ────────────────────────────────────────────────────────────
 {
   ok('stam: cs verbuiging', sharesStem('celková časová rezerva', 'celkové časové rezervy'));
   ok('stam: fi polku → polun', sharesStem('polku', 'polun'));
@@ -254,7 +234,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
     const errors = validateLangTermbase('de', { ...tb, baseline: entry }, concepts).errors;
     ok('termbase: aanwezige ongeldige regel is rood met taal en id', has(errors, 'de.baseline:'));
   }
-  // Geen alfabet- of scriptfilter: ook korte termen, symbolen en opmaak binnen woorden zijn geldig.
   for (const term of ['終了日', 'مسیر\u200cبحرانی', '\u200fالمسار الحرج', '①', '≤', '🧱', ' Basisplan ']) {
     eq(`termbase: geldige term ${JSON.stringify(term)}`, validateLangTermbase('de', {
       ...tb, baseline: { term, forms: [term], source: 'model', status: 'arbitrated' },
@@ -277,7 +256,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   ok('termbase: avoid mag geen term van een ander concept zijn', has(clash, 'avoid "Basisplan" is een term van baseline'));
 }
 
-// ── 8b. Echte CLI-poorten: nieuwe concepten, lege termen en verdwenen taalbestanden (170) ──────
 {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const work = mkdtempSync(join(tmpdir(), 'ops-termbase-gates-'));
@@ -308,18 +286,15 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
     if (build.status !== 0) throw new Error(`bundelen van translate/cli.ts mislukt: ${build.stderr} ${build.error?.message ?? ''}`);
     write(join(work, 'i18n/termbase/concepts.json'), concepts);
     for (const lang of targets) write(tbPath(lang), { _style: { address: 'informal' }, baseline });
-    // Een complete en actuele UI, zonder doeltermbestanden voor de brontalen nl/en.
     for (const lang of LOCALES) {
       for (const ns of NAMESPACES) write(join(work, 'src/i18n/locales', lang, `${ns}.json`), ns === 'common' ? { sample: `Voorbeeld ${lang}` } : {});
       if (lang !== 'nl') write(join(work, 'i18n/ui-sources', `${lang}.json`), { common: { sample: hashUnit('Voorbeeld nl') } });
     }
-    // Gewone status rapporteert ook docs; de UI-fixture heeft bewust geen artikelen.
     write(join(work, 'public/docs/manifest.json'), { version: 2, articles: [] });
     for (const args of commands) {
       const r = run(args);
       eq(`CLI ${args.join(' ')}: complete termen en UI, geen token/keep- of nl/en-doeltermen (${r.out})`, r.status, 0);
     }
-    // Historische fout: één nieuw concept geregistreerd, nog in geen enkele doeltaal ingevuld.
     write(join(work, 'i18n/termbase/concepts.json'), [...concepts, workCategory]);
     for (const args of commands) {
       const r = run(args);
@@ -328,7 +303,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
         r.out.includes('XX  de.work-category: term ontbreekt') && r.out.includes('XX  lo.work-category: term ontbreekt'));
     }
     for (const lang of targets) write(tbPath(lang), termbase());
-    // Aanwezig zijn is onvoldoende: zowel de gewone als de releasepoort moet lege inhoud weigeren.
     for (const term of ['', ' \t\n\u00a0', '\u200b\u200e\u2060']) {
       write(tbPath('de'), termbase({ ...category, term }));
       for (const args of commands) {
@@ -338,7 +312,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
       }
     }
     write(tbPath('de'), termbase());
-    // Ook als zowel de termbase als de UI-map van een vereiste taal verdwijnen, blijft die taal verplicht.
     rmSync(tbPath('lo'));
     rmSync(join(work, 'src/i18n/locales/lo'), { recursive: true });
     for (const args of commands) {
@@ -364,7 +337,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
       const r = run(args);
       eq(`CLI ${args.join(' ')}: doeltermen én UI herstellen groen (${r.out})`, r.status, 0);
     }
-    // Engels heeft geen doeltermbase, maar is wel een verplichte UI-taal. Oude hashes helpen niet.
     rmSync(join(work, 'src/i18n/locales/en'), { recursive: true });
     const missingEnglish = run(['status', '--strict']);
     eq('200 ook compleet verdwenen Engels blokkeert de release', missingEnglish.status, 1);
@@ -373,7 +345,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
     for (const ns of NAMESPACES) write(join(work, 'src/i18n/locales/en', `${ns}.json`),
       ns === 'common' ? { sample: 'Voorbeeld en' } : {});
     eq('200 alle vereiste talen terug maakt de releasepoort groen', run(['status', '--strict']).status, 0);
-    // De echte geregistreerde concepten en talen moeten in CI eveneens aan het contract voldoen.
     const real = run(['validate-termbase'], root);
     eq(`CLI: repository-termbase compleet en geldig (${real.out})`, real.status, 0);
   } finally {
@@ -381,7 +352,6 @@ const has = (errs: string[], part: string) => errs.some(e => e.includes(part));
   }
 }
 
-// ── 9. Tokens en namen als los woord ───────────────────────────────────────────────────────
 eq('9a ko-partikel aan een Latijnse naam telt', countToken('*Microsoft Project에서 열 수 있습니다.*', 'Microsoft Project'), 1);
 eq('9b Latijnse letter erachter telt niet', countToken('FSx en FS', 'FS'), 1);
 eq('9c Cyrillisch en cijfer blijven grenzen bij een Cyrillische naam', countToken('ГантаX Ганта Ганта1', 'Ганта'), 1);

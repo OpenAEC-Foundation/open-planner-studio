@@ -1,21 +1,3 @@
-// check-docs-resources-voorbeelden.ts — pint de rekenvoorbeelden uit de gebruikersdocumentatie
-// van het domein Resources & werk (`howto-werkregel-kiezen`, `howto-overbezetting-oplossen`,
-// `howto-voortgang-bijwerken`, het veld *Taaktype* in `ref-taak-eigenschappen` en de tutorials). Tot
-// november 2026 stonden een deel van de voorbeelden in `uitleg-werkregels`, `uitleg-nivelleren` en
-// `uitleg-voortgang`; die gidsen zijn weg. De blokken hieronder noemen soms nog die oude gids; hun
-// getallen blijven bewust gepind als rekenpin (tutorial 5 en de how-to's gebruiken dezelfde stand).
-//
-// De artikelen noemen wat-als-getallen op het tutorialproject *Aanbouw woning* (stand na tutorial 4,
-// met de resources en toewijzingen van tutorial 5): oplevering 02-09 bij prioriteit Hoog, 25-08 →
-// 30-08 zonder SNET, Vast werk bij inzet 3, enzovoort. `check-tutorial-project.ts` pint alleen de
-// basisstanden; deze check pint de variaties, zodat een motor- of storewijziging die een getal
-// verandert rood wordt in plaats van de documentatie stil te laten liegen. Verandert een getal
-// bewust, pas dan de pin hieronder ÉN de artikelen (nl en en) aan.
-//
-// F3c: de belasting en de nivelleerder tellen het dagdeel (§3.11), en de motor plaatst een dagtaak in de
-// dagenmaat (§3.14). De urenreferentie onderaan (`hoursReference`) geeft dezelfde uitkomsten.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { workDaySlotsToPeriods } from '@/engine/contour/contourEdit';
@@ -48,7 +30,6 @@ const oplevering = (): string => day(task('msHandover').time.earlyStart);
 let na4Ifc = '';
 let resIds = new Map<ResourceKey, string>();
 
-/** Stand na tutorial 4 + de resources en toewijzingen van tutorial 5 (Stucwerk: Vast werk, inzet 2). */
 async function tutorialBase(opts: { noConstraint?: boolean; plasterRule?: boolean; hoursReference?: boolean } = {}): Promise<void> {
   await S().openExampleFromString(na4Ifc, 'na-tut-4.ifc');
   resIds = new Map();
@@ -58,7 +39,6 @@ async function tutorialBase(opts: { noConstraint?: boolean; plasterRule?: boolea
       ...(r.unitOfMeasure ? { unitOfMeasure: r.unitOfMeasure } : {}),
     }));
   }
-  // Gelijke werkdagen: de urenloper toetst onafhankelijk de einddoelen van §3.14.
   if (opts.hoursReference) for (const task of [...S().tasks]) {
     if (task.time.durationUnit === 'days' && !task.isMilestone && task.childIds.length === 0) {
       S().updateTask(task.id, { time: { ...task.time, durationUnit: 'hours', durationMinutes: task.time.scheduleDuration * 480 } });
@@ -66,8 +46,6 @@ async function tutorialBase(opts: { noConstraint?: boolean; plasterRule?: boolea
   }
   if (opts.noConstraint) S().updateTask(task('frames').id, { constraint: { type: 'ASAP' } as never });
   S().runCPM();
-  // Bewust zonder de toewijzingen op de urentaken (betonstort, vloer, dakelementen): de check pint
-  // geen getallen waarin een urentaak korter dan een werkdag meespeelt.
   const hourKeys = new Set<TaskKey>(HOUR_TASKS.map(h => h.task));
   for (const a of ASSIGNMENTS.filter(x => !hourKeys.has(x.task))) S().assignResource(task(a.task).id, resIds.get(a.res)!, a.units);
   S().runCPM();
@@ -88,7 +66,6 @@ function level(constrainToFloat: boolean) {
 const delaysByName = (r: ReturnType<typeof level>): Record<string, number> =>
   Object.fromEntries(Object.entries(r.delays).map(([id, v]) => [S().tasks.find(t => t.id === id)!.name, v]));
 
-// ── Stucwerk-opstelling (uitleg-werkregels): 4 wd, één stukadoor, 32 uur ────────────────────────
 async function plasterBase(rule: WorkRule, units = 1, maxUnits = 3, second = false): Promise<{ id: string; res: string; res2: string }> {
   await S().openExampleFromString(na4Ifc, 'na-tut-4.ifc');
   S().runCPM();
@@ -107,7 +84,6 @@ async function plasterBase(rule: WorkRule, units = 1, maxUnits = 3, second = fal
 const dur = (id: string): number => S().tasks.find(t => t.id === id)!.time.scheduleDuration;
 const asg = (taskId: string, resId?: string) => S().assignments.find(a => a.taskId === taskId && (!resId || a.resourceId === resId))!;
 const workH = (a: { remainingWorkMinutes?: number }): number | null => a.remainingWorkMinutes === undefined ? null : a.remainingWorkMinutes / 60;
-/** Belasting per werkdag van de resource binnen de taakspanne. */
 function dayLoad(taskId: string, resId: string): number[] {
   const t = S().tasks.find(x => x.id === taskId)!;
   const l = S().resourceLoadResult?.load[resId] ?? {};
@@ -117,11 +93,9 @@ function dayLoad(taskId: string, resId: string): number[] {
 async function main(): Promise<void> {
   na4Ifc = buildTutorialProject('nl').stages.find(s => s.id === 'na-tut-4')!.ifc;
 
-  // ── uitleg-nivelleren: het voorbeeld met de metselaar ──
   console.log('-- docs-resources: nivelleren --');
   {
     await tutorialBase({ plasterRule: true });
-    // Alleen uren §3.4/§3.14: de speling in werkdagen telt het deel van een dag (F2: 6 en 7).
     eq('nivelleren: binnenspouwblad speling', task('innerLeaf').time.totalFloat, 3.875);
     eq('nivelleren: buitenspouwblad speling', task('outerLeaf').time.totalFloat, 5.625);
     eq('nivelleren: alleen de metselaar overbezet', Object.keys(S().resourceLoadResult!.overallocatedDays).filter(id => S().resourceLoadResult!.overallocatedDays[id].length > 0), [resIds.get('bricklayer')]);
@@ -130,7 +104,6 @@ async function main(): Promise<void> {
     eq('nivelleren: buitenspouwblad +5 werkdagen', delaysByName(r), { [name('outerLeaf')]: 5 });
     eq('nivelleren: niets onoplosbaar', Object.keys(r.unresolved).length, 0);
     S().applyLeveling(r);
-    // §3.14: de dagenmaat (F2 hield hele dagen: 2–9 juli en 25 juni – 1 juli).
     eq('nivelleren: buitenspouwblad na nivelleren', span('outerLeaf'), '2027-07-05..2027-07-13');
     eq('nivelleren: binnenspouwblad blijft', span('innerLeaf'), '2027-06-28..2027-07-05');
     eq('nivelleren: oplevering na', oplevering(), '2027-08-30');
@@ -144,20 +117,15 @@ async function main(): Promise<void> {
   }
   {
     await tutorialBase({ noConstraint: true, plasterRule: true });
-    // §3.14 (F2: 30 juli).
     eq('zonder SNET: oplevering voor nivelleren', oplevering(), '2027-08-25');
     const smooth = level(true);
     eq('zonder SNET + smoothing: geen verschuiving', delaysByName(smooth), {});
-    // B1 (§3.11): de belasting telt ook de laatste gedeeltelijke werkdag (5 juli, 07:00–10:00), dus het
-    // conflict beslaat 6 dagen, 28 juni t/m 5 juli; de urenreferentie geeft dezelfde dagen (de gids sinds
-    // F4b ook, knownbugs 240).
     eq('zonder SNET + smoothing: conflict INSUFFICIENT_CAPACITY (6 dagen)',
       [Object.values(smooth.unresolvedReasons), Object.values(smooth.unresolved).map(v => v.length)],
       [['INSUFFICIENT_CAPACITY'], [6]]);
     const plain = level(false);
     eq('zonder SNET: buitenspouwblad +5', delaysByName(plain), { [name('outerLeaf')]: 5 });
     S().applyLeveling(plain);
-    // §3.14 (F2: 26 aug).
     eq('zonder SNET: oplevering na nivelleren', oplevering(), '2027-08-30');
   }
   {
@@ -165,7 +133,6 @@ async function main(): Promise<void> {
     S().updateTask(task('outerLeaf').id, { priority: 900 });
     const r = level(false);
     eq('prioriteit Hoog: binnenspouwblad wijkt 6 werkdagen', delaysByName(r), { [name('innerLeaf')]: 6 });
-    // §3.14: de dagenmaat (F2: 30 aug / 30 aug, 5–9 juli, 25 juni – 2 juli, 30 aug).
     eq('prioriteit Hoog: oplevering voor -> na', [r.projectEndBefore, r.projectEndAfter].map(d => String(d).slice(0, 10)), ['2027-08-30', '2027-09-02']);
     S().applyLeveling(r);
     eq('prioriteit Hoog: binnenspouwblad', span('innerLeaf'), '2027-07-06..2027-07-13');
@@ -191,7 +158,6 @@ async function main(): Promise<void> {
     eq('Max. eenheden 2: geen verschuivingen, niets onoplosbaar', [delaysByName(r), Object.keys(r.unresolved).length], [{}, 0]);
   }
 
-  // ── uitleg-werkregels: het stucwerk ──
   console.log('-- docs-resources: werkregels --');
   {
     const f = await plasterBase('FIXED_WORK');
@@ -215,8 +181,6 @@ async function main(): Promise<void> {
     S().updateAssignment(asg(f.id).id, { unitsPerDay: 3 });
     S().runCPM();
     eq('Vast werk, inzet 3: exact 4/3 werkdagen (32 / 24)', dur(f.id), 4 / 3);
-    // B1 (§3.11): inzet × het deel van de werkdag. De duur is 10 u 40 min: dag 1 is heel (3 × 1 = 3),
-    // dag 2 is 2 u 40 min van 8 u (3 × 1/3 = 1); samen 32 u (uitleg-werkregels sinds F4b, knownbugs 252).
     eq('Vast werk, inzet 3: histogram 3 en 1', dayLoad(f.id, f.res), [3, 1]);
   }
   {
@@ -234,8 +198,6 @@ async function main(): Promise<void> {
     eq('kalender 8 -> 6 uur per dag onder Vast werk: exact 16/3 werkdagen (32 / 6)', dur(f.id), 16 / 3);
   }
   {
-    // Twee resources die elk 32 uur werk en inzet 1 hebben (samen 4 werkdagen): de inzet van de
-    // eerste gaat naar 0,5. Wat de andere resource doet, hangt van de regel af.
     for (const [rule, want] of [
       ['FIXED_WORK', { a: [0.5, 32], b: [0.5, 32], dur: 8 }],
       ['FIXED_RATE', { a: [0.5, 32], b: [1, null], dur: 8 }],
@@ -248,9 +210,8 @@ async function main(): Promise<void> {
     }
   }
 
-  // ── howto-urenverdeling-aanpassen: wat de inzet en de duur doen met een eigen verdeling ──
   console.log('-- docs-resources: urenverdeling --');
-  const SLOTS = [240, 480, 480, 720]; // 4, 8, 8 en 12 uur = 32 uur
+  const SLOTS = [240, 480, 480, 720];
   const sum = (a: number[]): number => a.reduce((x, y) => x + y, 0);
   for (const [rule, load, total] of [
     ['FIXED_DURATION_RATE', [0.5, 1, 1, 1.5], 32],
@@ -284,9 +245,7 @@ async function main(): Promise<void> {
     eq(`eigen verdeling, ${rule}, duur 4 -> 8: totaal uren`, [dur(f.id), sum(dayLoad(f.id, f.res)) * 8], [8, total]);
   }
 
-  // Dezelfde projecten met urenmaat houden de precieze F3-einddoelen groen.
   await tutorialBase({ plasterRule: true, hoursReference: true });
-  // F3c: de productieberekening van de belasting telt de deeldagen (spec §3.11).
   const bricklayer = resIds.get('bricklayer')!;
   const futureLoads = computeResourceLoad(S().resources,
     (['innerLeaf', 'outerLeaf'] as const).map(key => asg(task(key).id, bricklayer)),
@@ -308,10 +267,8 @@ async function main(): Promise<void> {
   S().applyLeveling(futureLevel);
   eq('F3-referentie: prioriteit Hoog binnen/buiten', [span('innerLeaf'), span('outerLeaf')], ['2027-07-06..2027-07-13', '2027-06-28..2027-07-06']);
 
-  // ── F4b (knownbugs 240, 252, 254): de getallen die de gidsen sinds F4b letterlijk noemen ──
   console.log('-- docs-resources: F4b-gidsgetallen --');
   {
-    // uitleg-nivelleren: momenten (B4: midden op de dag met tijd), dagbelasting en speling.
     await tutorialBase({ plasterRule: true });
     const at = (k: TaskKey) => [task(k).time.earlyStart, task(k).time.earlyFinish];
     eq('F4b nivelleren: vloer klaar 28 jun 10:00, beide muren vanaf 10:00',
@@ -340,7 +297,6 @@ async function main(): Promise<void> {
     eq('F4b prioriteit Hoog: oplevering do 2 sep 08:00', r.projectEndAfter, '2027-09-02T08:00');
   }
   {
-    // uitleg-werkregels en howto-werkregel-kiezen: Vast werk is een taak in uren en rondt niet af.
     const f = await plasterBase('FIXED_WORK');
     S().updateAssignment(asg(f.id).id, { unitsPerDay: 3 });
     S().runCPM();
@@ -367,7 +323,6 @@ async function main(): Promise<void> {
       [t.time.durationUnit, t.time.scheduleDuration, t.time.earlyFinish], ['days', 16 / 3, '2027-07-30T09:00']);
   }
   {
-    // uitleg-werkregels, "Een taak met voortgang": 40 % van 5 wd, Vast werk, inzet 1 -> 2.
     await tutorialBase({});
     const inner = task('innerLeaf');
     S().setStatusDate('2027-06-30');
@@ -381,7 +336,6 @@ async function main(): Promise<void> {
       [t.durationUnit, t.durationMinutes, t.remainingMinutes, Math.round(t.completion * 100)], ['hours', 1680, 720, 57]);
   }
   {
-    // howto-werkregel-kiezen en ref-ai-tools: de projectstandaard naar Vast werk zet de erfgenamen om.
     await tutorialBase({});
     const before = [task('innerLeaf').time.earlyStart, task('innerLeaf').time.earlyFinish];
     S().setProject({ defaultWorkRule: 'FIXED_WORK' });
@@ -391,7 +345,6 @@ async function main(): Promise<void> {
       [t.durationUnit, t.durationMinutes, t.earlyStart, t.earlyFinish], ['hours', 2400, ...before]);
   }
   {
-    // uitleg-voortgang en howto-voortgang-bijwerken: de rest van 2 wd is exact (B3).
     await S().openExampleFromString(na4Ifc, 'na-tut-4.ifc');
     S().runCPM();
     S().setStatusDate('2027-06-30');
@@ -401,7 +354,6 @@ async function main(): Promise<void> {
     eq('F4b restduur van 2 wd bij 25/50/75/90 %: 1,5 / 1 / 0,5 / 0,2', rests, [1.5, 1, 0.5, 0.2]);
   }
 
-  // ── howto-resource-toewijzen: de curves ──
   console.log('-- docs-resources: curves --');
   eq('Klokvorm, inzet 1 over 6 dagen: 0,1,2,2,1,0', distributeUnits(1, 6, 'BELL'), [0, 1, 2, 2, 1, 0]);
   eq('Schildpad over 10 dagen bij inzet 1', distributeUnits(1, 10, 'TURTLE'), [0, 1, 1, 2, 2, 1, 1, 1, 1, 0]);

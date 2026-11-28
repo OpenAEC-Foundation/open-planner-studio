@@ -1,28 +1,3 @@
-// Het publieke extensie-contract — volledigheid van de mappers, in beide richtingen.
-//
-// AANLEIDING (K-item 37). `extTypes.ts` bestaat om het interne domeinmodel NIET aan extensies te
-// lekken, en `extMappers.ts` is de enige grensovergang. De kop van die mapper-module zegt het zelf
-// al: verplichte velden vangt de compiler, maar **optionele velden niet** — een veld weglaten uit
-// een object-literal is legaal TypeScript. Voeg je dus `ExtTask.deadline` toe en vergeet je hem in
-// `toExtTask`, dan compileert alles en zien extensies het veld simpelweg nooit. Precies de klasse
-// fout die stil blijft tot een gebruiker hem meldt.
-//
-// WAT HIER STAAT, EN WAAROM IN DEZE VORM.
-//
-//   (a) Per DTO een SLEUTELLIJST op waardeniveau, met een compile-time assertie in beide richtingen
-//       tegen `keyof Required<Ext*>`. Een nieuw (ook optioneel) veld in het contract geeft dus een
-//       COMPILEERFOUT hier, niet een stille lacune. Dit is hetzelfde patroon als
-//       `_assertPickCoversRoles` in `state/snapshot.ts`.
-//   (b) Een MAXIMALE fixture per interne vorm — élk optioneel veld gevuld — met `satisfies` tegen
-//       het interne type. Een nieuw INTERN veld breekt de fixture pas als het verplicht is; voor
-//       optionele interne velden doet de sleutellijst in (c) het werk.
-//   (c) Voor de terugrichting een expliciete lijst interne velden die BEWUST niet oversteken. Dat
-//       is het waardevolste deel: "wat stellen we niet bloot" was tot nu toe nergens vastgelegd en
-//       dus niet te onderscheiden van "vergeten".
-//   (d) De isolatie-eigenschap waar de hele mapper-laag om draait: een extensie krijgt een VERSE,
-//       diepe kopie en kan de (Immer-bevroren) store niet via zijn kopie raken.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { CUSTOM_TASK_TYPE_COLOR_ORDER } from '@/engine/renderer/resourcePalette';
 import i18next from 'i18next';
@@ -84,10 +59,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   }
 };
 
-// ── (a) Sleutellijsten, compile-time vastgeklonken aan de types ──────────────
-//
-// `keys<T>()(lijst)` faalt te compileren zodra de lijst en `keyof Required<T>` uit elkaar lopen —
-// in BEIDE richtingen. Een vergeten sleutel geeft "mist:", een verzonnen sleutel geeft "te veel:".
 function keys<T>() {
   return <K extends readonly (keyof Required<T>)[]>(
     lijst: K & ([keyof Required<T>] extends [K[number]] ? unknown : ['mist:', Exclude<keyof Required<T>, K[number]>]),
@@ -118,14 +89,10 @@ const EXT_TASK_KEYS = keys<ExtTask>()([
   'mandatory', 'priority', 'levelingDelay', 'parentId', 'childIds', 'isSummary', 'time', 'resourceIds', 'color',
   'activityCodes', 'customFields', 'constraint', 'constraint2', 'isHammock', 'externalLinks',
   'deadline', 'calendarId', 'notes',
-  // fase 3.8 (.mpp-datumgetrouwheid): leeskant-velden uit de import, zie extTypes.ts
   'levelingDelayMinutes', 'levelingDelayElapsed', 'splitGaps', 'manuallyScheduled',
   'mspTaskType', 'effortDriven', 'timephasedContours',
   'timephasedFinishFloor', 'timephasedStartAnchor', 'timephasedDurationWalks',
-  // taaktypes-etappe (ontwerp 2026-09-04): de neutrale werkregel
   'workRule',
-  // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde behandeling als de
-  // .mpp-velden hierboven.
   'p6DurationType', 'p6ActivityType', 'p6ProjectId', 'p6TaskId', 'p6ExplicitTargetWindow', 'p6CompletePctType', 'p6ExpectedFinish', 'p6SuspendResume',
 ] as const);
 
@@ -141,54 +108,24 @@ const EXT_RESOURCE_KEYS = keys<ExtResource>()([
 
 const EXT_ASSIGNMENT_KEYS = keys<ExtAssignment>()([
   'id', 'taskId', 'resourceId', 'unitsPerDay', 'curve', 'workWindowStart', 'workWindowFinish', 'curveValues',
-  // taaktypes-etappe (spec §4.3): de drie optionele werkvelden
   'plannedWorkMinutes', 'actualWorkMinutes', 'remainingWorkMinutes',
-  // kostenresource (#815): het vaste bedrag
   'costAmount',
 ] as const);
 
-// ── (c) Interne velden die BEWUST niet oversteken ────────────────────────────
-//
-// Elke entry is een BESLISSING, geen omissie. Staat een intern veld hier niet én niet in het
-// ext-contract, dan valt het onder deel 2 hieronder rood.
 const NIET_PUBLIEK = {
-  // Bibliotheekbinding (spec B1): de bibliotheek is app-globaal en wordt buiten het document
-  // beheerd. Een extensie die deze stempels kon zetten zou een projectkopie kunnen laten dóén
-  // alsof hij uit een bibliotheek komt.
-  // `ifcSchema` en `ifcSchemaUnconfirmed` (issue #292) zijn eigenschappen van het bestand (de kop bij
-  // opslaan en de open schemavraag), geen planningsdata; het extensiecontract blijft ongewijzigd.
-  // Een lees-wijzig-laad op hetzelfde id houdt ze vast (`retainActiveDocument`, N3D-14).
   project: ['companyId', 'companyName', 'ifcSchema', 'ifcSchemaUnconfirmed',
-    // P6 Project-ID van een P6 XML-import (eigenaarsbesluit 2026-10-13): bronidentiteit voor de
-    // P6-export, geen extensie-invoer. `retainActiveDocument` houdt hem bij lees-wijzig-laad vast.
     'p6ProjectCode',
-    // De map met afhankelijke projecten (stap 1.11): een pad op deze computer, geen planningsdata.
-    // `retainActiveDocument` houdt hem bij lees-wijzig-laad vast.
     'dependentProjectsFolder',
-    // Het vinkje *Ankers uit geopende documenten halen* (stap 1.7): een instelling van het afhankelijke project,
-    // geen planningsdata. `retainActiveDocument` houdt hem bij lees-wijzig-laad vast.
     'anchorsFromOpenDocuments'] as readonly string[],
-  // De penaltydiagnose is een IFC-leesdiagnose, geen extensie-invoer of -uitvoer. De geldige
-  // brongegevens zelf (`p6Source` + lijst) blijven wél rondtrippend beschikbaar.
   calendar: ['generation', 'libraryOrigin', 'p6NonWorkPenaltyDatesState', 'ifcTimePeriods'] as readonly string[],
   resource: ['availability', 'libraryOrigin'] as readonly string[],
   task: [] as readonly string[],
-  // Alleen uren §3.4: de speling in minuten is nog geen extensieveld (F3c); de API toont `totalFloat`/`freeFloat`.
-  // De tijdelijke rekenbasis voor voortgang is sessie-informatie buiten het extensiecontract.
   taskTime: ['totalFloatMinutes', 'freeFloatMinutes', 'progressBeforeRecalculation'] as readonly string[],
   sequence: [] as readonly string[],
-  // Het begrote tempo naast een P6-resttempo (resttempo-besluit 2026-10-15) is bronreferentie voor de
-  // P6 XML-export, geen extensie-invoer. Het extensiecontract (apiVersion) blijft ongewijzigd. Een
-  // lees-wijzig-laad op hetzelfde id houdt het vast (`ASSIGNMENT_SOURCE_FIELDS`; 18c, 24, N3D-14).
   assignment: ['plannedUnitsPerDay'] as readonly string[],
 };
 
-// Zichtbare velden die een extensie uitsluitend mag LEZEN. Dit is een andere grens dan
-// `NIET_PUBLIEK`: `toExt*` geeft ze bewust door, maar `fromExt*` accepteert ze niet als generieke
-// solverinvoer. Alleen de native XER-reader mag de relationele P6-bronvlag afleiden.
 const LEES_ALLEEN_EXT = {
-  // Rekenprofielen C8 (apiVersion 1.2.0): het opgeloste profiel is zichtbaar, maar een extensie-import
-  // rekent altijd als OPS — `fromExtProject` neemt het nooit over (spec v3.1 §7).
   project: ['schedulingProfile'] as readonly string[],
   calendar: ['p6Source', 'p6NonWorkPenaltyDates'] as readonly string[],
   resource: [] as readonly string[],
@@ -205,8 +142,6 @@ const PUBLIC_SCHEDULING_OPTION_KEYS = [
   'lagCalendar', 'criticalDefinition', 'totalFloatMode', 'makeOpenEndedCritical',
   'nearCriticalThreshold', 'floatPaths',
 ] as const;
-
-// ── (b) Maximale fixtures — élk optioneel veld gevuld ────────────────────────
 
 const VOL_TIME = {
   durationType: 'WORKTIME',
@@ -251,8 +186,6 @@ const VOL_TASK = {
   mandatory: true,
   priority: 400,
   levelingDelay: 2,
-  // fase 3.8 (.mpp-datumgetrouwheid): de import-tijd-velden, allemaal gevuld — in de VOLGORDE van
-  // `fromExtTask` (de round-trip-check vergelijkt via JSON.stringify en is dus volgorde-gevoelig).
   levelingDelayMinutes: 90,
   levelingDelayElapsed: true,
   splitGaps: [{ afterMinutes: 480, gapMinutes: 960 }],
@@ -260,8 +193,6 @@ const VOL_TASK = {
   mspTaskType: 'FIXED_WORK',
   effortDriven: true,
   workRule: 'FIXED_RATE',
-  // X0 (XER-etappeplan): drie nieuwe .xer-importvelden, allemaal gevuld — zelfde volgorde-eis als
-  // de .mpp-velden hierboven (de round-trip-check vergelijkt via JSON.stringify).
   p6DurationType: 'DT_FixedDUR2',
   p6ActivityType: 'TT_Rsrc',
   p6ProjectId: 'P1', p6TaskId: 'T1', p6ExplicitTargetWindow: true, p6CompletePctType: 'CP_Phys', p6ExpectedFinish: '2026-06-11T17:00',
@@ -339,9 +270,6 @@ const VOL_SEQUENCE = {
   p6StartAtPredecessorFinishBoundary: false,
 } satisfies Required<Sequence>;
 
-// X12-fixronde: P6-relatieherkomst is uitleesbaar voor analyse, maar een gewone extensie-import
-// of `addSequence` mag nooit zelf P6-solvergedrag inschakelen. Alleen de native XER-lezer heeft
-// een expliciete bronmodus die deze vlag mag materialiseren.
 eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug in', {
   exposed: toExtSequence({ ...VOL_SEQUENCE, p6StartAtPredecessorFinishBoundary: true })
     .p6StartAtPredecessorFinishBoundary,
@@ -352,7 +280,7 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
 {
   const hostileOptions = {
     ...VOL_PROJECT.schedulingOptions,
-    p6Source: 'XER' as const, // R8(rekenprofielen): vijandige invoer draagt bewust p6Source
+    p6Source: 'XER' as const,
     useExpectedFinishDates: true,
     preserveActualDatesInBackwardPass: true,
     clampNegativeFreeFloat: true,
@@ -377,23 +305,15 @@ eq('X12 extensie leest de P6-relatievlag uit maar voert haar niet generiek terug
     [...PUBLIC_SCHEDULING_OPTION_KEYS].sort());
 }
 
-// ── C8 (rekenprofielen): ExtProject.schedulingProfile, alleen-lezen ──────────
-// Mutatiebewijs: fromExtProject het profiel laten kopiëren ⇒ C8-03 rood.
 {
   const exposed = toExtProject({ ...VOL_PROJECT, schedulingProfile: builtInProfile('p6') });
   eq('C8-01 toExtProject toont het opgeloste profiel',
     [exposed.schedulingProfile?.id, exposed.schedulingProfile?.conventions.p6RelationFinishBoundary], ['p6', true]);
   eq('C8-02 OPS-project toont het ops-profiel', toExtProject({ ...VOL_PROJECT, schedulingProfile: undefined }).schedulingProfile?.id, 'ops');
   eq('C8-03 fromExtProject neemt NOOIT een profiel over (extensie-import ⇒ OPS)', fromExtProject(exposed).schedulingProfile, undefined);
-  // Taaktypes (PR #101): workRule/defaultWorkRule/werkvelden zijn een MINOR-toevoeging ⇒ 1.3.0;
-  // Help & begeleiding (`api.help.*`, permissie `help`) is de volgende MINOR ⇒ 1.4.0
-  // (tests/planning/check-ext-help.ts).
   eq('C8-04 contractversie 1.6.0 (1.2.0 profiel + 1.3.0 taaktypes + 1.4.0 help + 1.4.1 loadProject-fix + 1.5.0 selectie + 1.6.0 kosten)', EXTENSION_API_VERSION, '1.6.0');
   eq('C8 selectie-API vereist minor 1.5 op oudere host', checkApiCompatibility('1.5', '1.4.1').ok, false);
   eq('C8 oudere extensie blijft compatibel', checkApiCompatibility('1.4', EXTENSION_API_VERSION).ok, true);
-  // Host-events horen bij het contract (namen via `sdk.hostEvents`). `tutorialRequested` kwam erbij
-  // in 1.4.0, dat nog niet was uitgebracht — dus geen nieuwe contractversie. Een naam wijzigen of
-  // weghalen breekt extensies: dan hoort hier (en in apiVersion.ts) een MAJOR bij.
   eq('C8-04a host-events: vaste namen', getExtensionSdk().hostEvents, {
     projectLoaded: 'host:project-loaded',
     projectNew: 'host:project-new',
@@ -498,7 +418,6 @@ const VOL_ASSIGNMENT = {
   costAmount: 1250.5,
 } satisfies Required<ResourceAssignment>;
 
-// ── 1. `toExt*` laat geen contractveld vallen ────────────────────────────────
 const aanwezig = (o: object, k: readonly (string | number | symbol)[]) => k.filter(x => !(x in o));
 
 eq('1 toExtProject vult elk ExtProject-veld', aanwezig(toExtProject(VOL_PROJECT), EXT_PROJECT_KEYS), []);
@@ -509,10 +428,8 @@ eq('5 toExtSequence vult elk ExtSequence-veld', aanwezig(toExtSequence(VOL_SEQUE
 eq('6 toExtResource vult elk ExtResource-veld', aanwezig(toExtResource(VOL_RESOURCE), EXT_RESOURCE_KEYS), []);
 eq('7 toExtAssignment vult elk ExtAssignment-veld', aanwezig(toExtAssignment(VOL_ASSIGNMENT), EXT_ASSIGNMENT_KEYS), []);
 
-// De waarden moeten óók echt overkomen, niet alleen de sleutels — een mapper die overal
-// `undefined` neerzet zou de check hierboven passeren.
 for (const k of EXT_TASK_KEYS) {
-  if (k === 'time') continue; // apart, hieronder
+  if (k === 'time') continue;
   if (k === 'customTaskType') {
     eq('8 toExtTask draagt de stabiele custom-type-id over', toExtTask(VOL_TASK).customTaskType, { id: VOL_TASK.customTaskTypeId });
     continue;
@@ -534,7 +451,6 @@ for (const [naam, ext, bron, sleutels] of [
   ['assignment', toExtAssignment(VOL_ASSIGNMENT), VOL_ASSIGNMENT, EXT_ASSIGNMENT_KEYS],
 ] as [string, object, object, readonly (string | number | symbol)[]][]) {
   for (const k of sleutels) {
-    // Het rekenprofiel wordt OPGELOST blootgesteld (andere vorm dan intern) — gedekt door C8-01…05.
     if (naam === 'project' && k === 'schedulingProfile') continue;
     eq(`10 ${naam}: "${String(k)}" komt over`,
       (ext as Record<string, unknown>)[k as string],
@@ -542,8 +458,6 @@ for (const [naam, ext, bron, sleutels] of [
   }
 }
 
-// De route van `api.data.loadProject` op hetzelfde project-id, voor één toewijzing: naar het contract,
-// terug, en dan `retainActiveDocument` tegen een document dat deze toewijzing al heeft.
 function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | undefined {
   const doc = { ...useAppStore.getState(), assignments: [a] };
   const loaded = fromExtImportResult({
@@ -553,7 +467,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   return retainActiveDocument(loaded, doc).assignments.find((x) => x.id === a.id);
 }
 
-// ── 2. `fromExt*` laat geen intern veld vallen (op de bewuste uitzonderingen na) ──
 {
   const controle = (
     label: string,
@@ -579,8 +492,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   controle('17 fromExtAssignment vult elk intern ResourceAssignment-veld',
     fromExtAssignment(toExtAssignment(VOL_ASSIGNMENT)), VOL_ASSIGNMENT, [...NIET_PUBLIEK.assignment, ...LEES_ALLEEN_EXT.assignment]);
 
-  // En de keerzijde: de niet-publieke velden moeten óók echt WEG zijn aan de ext-kant. Zonder deze
-  // check zou "niet publiek" een lijst worden die je vult zodra iets rood wordt.
   for (const k of NIET_PUBLIEK.project) {
     eq(`18 project-veld "${k}" lekt niet naar het contract`, k in toExtProject(VOL_PROJECT), false);
   }
@@ -593,8 +504,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   for (const k of NIET_PUBLIEK.taskTime) {
     eq(`18b taakveld "${k}" lekt niet naar het contract`, k in toExtTaskTime(VOL_TIME), false);
   }
-  // Review #361 punt 1: het veld steekt niet over, maar gaat bij een lees-wijzig-laad op hetzelfde id
-  // ook niet verloren. Mutatiebewijs: de `assignments`-regel in `retainActiveDocument` weg ⇒ 18c en 24 rood.
   for (const k of NIET_PUBLIEK.assignment) {
     eq(`18c toewijzingsveld "${k}" lekt niet naar het contract`, k in toExtAssignment(VOL_ASSIGNMENT), false);
     eq(`18c toewijzingsveld "${k}" blijft na lees-wijzig-laad op hetzelfde id`,
@@ -603,7 +512,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   }
 }
 
-// ── 3. Round-trip behoudt de waarden ─────────────────────────────────────────
 {
   const stripNietPubliek = (o: object, weg: readonly string[]) =>
     Object.fromEntries(Object.entries(o).filter(([k]) => !weg.includes(k)));
@@ -622,18 +530,11 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     stripNietPubliek(VOL_SEQUENCE, [...NIET_PUBLIEK.sequence, ...LEES_ALLEEN_EXT.sequence]));
   eq('23 resource round-trip',
     fromExtResource(toExtResource(VOL_RESOURCE)), stripNietPubliek(VOL_RESOURCE, NIET_PUBLIEK.resource));
-  // De mapper alleen laat het niet-publieke begrote tempo vallen; de lees-wijzig-laad (mapper +
-  // `retainActiveDocument`) geeft de toewijzing volledig terug, ook `plannedUnitsPerDay`.
-  // Sleutels gesorteerd: `retainActiveDocument` zet het bronveld achteraan, `eq` vergelijkt JSON-tekst.
   const gesorteerd = (o: object | undefined) => o && Object.fromEntries(Object.entries(o).sort(([a], [b]) => a.localeCompare(b)));
   eq('24 toewijzing round-trip via lees-wijzig-laad: niets gaat verloren',
     gesorteerd(leesWijzigLaadToewijzing(VOL_ASSIGNMENT)), gesorteerd(VOL_ASSIGNMENT));
 }
 
-// ── 4. Isolatie: de extensie krijgt een verse, DIEPE kopie ───────────────────
-// Dit is de belofte in de kop van extMappers: een extensie mag zijn kopie muteren zonder de store
-// te raken. De store is Immer-bevroren, dus een gedeelde geneste referentie zou hier gooien in
-// plaats van stil te corrumperen — maar een test die pas in productie afgaat is geen test.
 {
   const bevroren = JSON.parse(JSON.stringify(VOL_TASK)) as Task;
   Object.freeze(bevroren);
@@ -660,7 +561,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   eq('25c idem de geneste sourceRef', bevroren.externalLinks?.[0]?.sourceRef.taskName, 'Taak 9');
   eq('25d idem de notities', bevroren.notes?.[0]?.done, false);
 
-  // Kalender: holidays en de weekdag-banden zijn de geneste gevallen daar.
   const bevrorenCal = JSON.parse(JSON.stringify(VOL_CALENDAR)) as WorkCalendar;
   Object.freeze(bevrorenCal); Object.freeze(bevrorenCal.holidays);
   bevrorenCal.holidays.forEach(h => Object.freeze(h));
@@ -676,7 +576,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   eq('26b en de bron-werkdagen ook', bevrorenCal.workDays.length, 5);
 }
 
-// ── 5. De twee nieuwe UI-grenzen ─────────────────────────────────────────────
 {
   const TABS: readonly ExtRibbonTab[] = [
     'file', 'start', 'planning', 'resources', 'relations',
@@ -689,8 +588,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     TABS.map(fromExtRibbonTab),
     ['file', 'start', 'planning', 'resources', 'table', 'beeld', 'instellingen', 'table', 'ifc', 'report', 'ai']);
 
-  // Font-provider: de host mag NIET het object van de extensie bewaren, en `getBoldBytes` mag niet
-  // als `undefined`-sleutel doorlekken (de pagineerder test op aanwezigheid).
   const bytes = new Uint8Array([1, 2, 3]);
   const zonderBold: ExtFontProvider = {
     id: 'p1',
@@ -713,7 +610,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   const gemapt2 = fromExtFontProvider(metBold);
   eq('28e getBoldBytes komt wél mee als hij bestaat', typeof gemapt2.getBoldBytes, 'function');
 
-  // `this`-binding: een provider met interne state moet blijven werken door de mapper heen.
   class Provider implements ExtFontProvider {
     id = 'p3';
     private hits = 0;
@@ -728,10 +624,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   eq('29 een class-provider overleeft de mapping (this blijft gebonden)', bindGooide, false);
 }
 
-// ── 6. Publieke create-/updatepaden bewaren expliciete samenvattingsidentiteit ────────────────
-// Breuk die dit vangt: `ExtTask.isSummary` staat in het publieke type, maar één van de input- of
-// updatemappers, de SDK-factory of `api.data.addTask/updateTask` laat true/false stil vallen. Een
-// lege summary zou dan als gewone CPM-knoop terugkomen.
 {
   const mappedInput = fromExtTaskInput({ name: 'Mapper-summary', isSummary: true });
   const mappedRegular = fromExtTaskInput({ name: 'Mapper-gewoon' });
@@ -775,10 +667,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   api._cleanup();
 }
 
-// ── 7. Read-only XER-bronroute ──────────────────────────────────────────────
-// Synthetische, privacyveilige fixture: twee generieke projecten en drie generieke taken. De test
-// gebruikt de echte XER-reader zodat de API bovenop precies dezelfde retained archive-grafiek werkt
-// als de gebruikersroute. Geen corpusnaam, bestandspad of privélabel komt in deze bron voor.
 {
   const source = [
     'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
@@ -815,11 +703,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     showNotification: () => {},
   });
 
-  // ── P1-privacyfix: 'importSource' is default-deny, geen kern-API ──────────
-  // Zonder de permissie moet elke methode GOOIEN vóórdat er data gelezen wordt — geen stille null,
-  // geen gedeeltelijk antwoord. `apiNoPerm` deelt hetzelfde document als `api`; het enige verschil
-  // is de permissielijst. Mutatiebewijs: verwijder de drie 'importSource'-entries uit
-  // `API_PERMISSIONS` (permissions.ts) en dit blok kleurt rood (de calls slagen dan gewoon).
   {
     const apiNoPerm = createExtensionApi('xer-source-read-contract-no-perm', [], undefined, appStoreContext, {
       app: appStoreContext,
@@ -829,8 +712,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
       app: appStoreContext,
       showNotification: () => {},
     });
-    // Dezelfde reeds opgebouwde API's blijven weigeren na een taalwissel, mét id en permissie.
-    // Echte bronmethoden tegen het document; geen losse vertaalsleuteltest.
     await i18next.init({
       lng: 'en', fallbackLng: 'en', ns: ['menu'],
       resources: { nl: { menu: nlMenu }, en: { menu: enMenu } },
@@ -862,11 +743,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     apiNoPerm._cleanup();
     apiOtherPerm._cleanup();
   }
-  // Let op: dit toetst alléén de SDK-constante, NIET dat een echt manifest de permissie ook door
-  // de installatievalidatie krijgt — dat gat (een tweede, ontkoppelde permissielijst in
-  // validation.ts) was precies waar her-review 2 'importSource' onbereikbaar voor elke extensie
-  // vond. Die dekking staat in tests/planning/check-extension-validation.ts (KNOWN_PERMISSIONS
-  // door parseExtensionManifest(..., 'fresh') gehaald), niet hier.
   eq('P1b importSource staat in de door de app gekende permissies (SDK-constante)',
     KNOWN_PERMISSIONS.includes('importSource'), true);
   eq('P1c een manifest dat importSource declareert behoudt hem ongewijzigd (geen filtering)',
@@ -874,8 +750,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
 
   eq('37 een niet-XER-document geeft geen broninfo', api.data.getImportSourceInfo(), null);
   eq('37b een niet-XER-document heeft ook geen archief-issue', api.data.getImportSourceIssue(), null);
-  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): een weggelaten, onbruikbaar archief is
-  // onderscheidbaar van "nooit een XER-bron" — info blijft null, de issue-route noemt de reden.
   useAppStore.setState({ xerArchiveIssue: { code: 'hash-mismatch', detail: 'Ongeldig OPS_XerSourceArchive: test' } });
   eq('37c weggelaten archief: info null, issue geeft alleen de code (geen technische detail)', {
     info: api.data.getImportSourceInfo(), issue: api.data.getImportSourceIssue(),
@@ -1005,14 +879,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   try { api.data.getImportSourceCatalogPage('onbekend' as never); } catch (error) { invalidCollection = error instanceof RangeError; }
   eq('44 ongeldige catalogusvragen worden fail-closed gevalideerd', [invalidRange, oversizedRange, invalidCollection], [true, true, true]);
 
-  // ── P2-fix: offset + limit blijft een safe integer, ook aan de rand ──────
-  // Vóór de fix duwde `records.slice(offset, offset + limit)` een losstaand grote offset zo het
-  // safe integer-bereik uit. `taskSourceRows` op het actieve document (P-2) telt 2 rijen; een
-  // offset voorbij het eind moet canoniseren naar `total` — een lege, geldige laatste pagina — in
-  // plaats van te gooien of een numeriek onveilige slice te maken. Mutatiebewijs: verwijder
-  // `resolvePageOffset` (of geef `rawOffset` rechtstreeks aan `records.slice` mee) en de eerste
-  // vier `total`-asserties hieronder wijken af van `2`, terwijl de oude code hier ook geen fout gaf
-  // — precies de stille modus die de review aanwees.
   const maxSafeOffsetPage = api.data.getImportSourceCatalogPage('taskSourceRows', { offset: Number.MAX_SAFE_INTEGER });
   eq('P2 offset Number.MAX_SAFE_INTEGER canoniseert naar total i.p.v. te gooien of te overflowen', {
     offset: maxSafeOffsetPage?.offset, total: maxSafeOffsetPage?.total, items: maxSafeOffsetPage?.items,
@@ -1026,8 +892,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     offset: nearOverflowPage?.offset, total: nearOverflowPage?.total, items: nearOverflowPage?.items,
   }, { offset: 2, total: 2, items: [] });
 
-  // Zelfde twee grenzen, maar dan op een lege (bestaande maar 0-record) collectie: `total` is 0, dus
-  // canoniseren moet naar 0 gaan — niet naar de offset zelf en niet naar een negatief getal.
   const emptyCollectionAtMax = api.data.getImportSourceCatalogPage('resourceCatalogIssues', { offset: Number.MAX_SAFE_INTEGER });
   eq('P2b een offset voorbij het eind van een LEGE collectie canoniseert naar 0, niet naar de offset',
     emptyCollectionAtMax && { offset: emptyCollectionAtMax.offset, total: emptyCollectionAtMax.total },
@@ -1072,14 +936,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     useAppStore.getState().tasks[0]?.p6ExpectedFinish, useAppStore.getState().tasks[0]?.p6SuspendResume,
   ], [undefined, undefined, undefined, undefined, undefined, undefined, undefined, undefined]);
 
-  // ── P2-fix: fail-closed documentdrift bij pagineren (her-review 2) ────────
-  // Zonder bewaking geeft een pagineersessie na een `switchDocument` stil een lege pagina van het
-  // VERKEERDE project terug: page 1 op P-2, wisselen naar P-1, page 2 (offset:1) levert dan
-  // {sourceProjectId:'P-1', total:1, items:[]} zonder enige waarschuwing — een extensie die dat als
-  // "klaar, geen records meer" leest, heeft in werkelijkheid twee projecten door elkaar gehaald.
-  // `expectedSourceProjectId` maakt dit fail-closed. Casus (a) hieronder: het actieve document heeft
-  // ná de hostile `loadProject` hierboven HELEMAAL geen XER-bron meer (`archive === null`) — de
-  // andere risicoklasse (drift naar een niet-XER-document, niet alleen naar een ander XER-project).
   {
     let noArchiveDrift: ExtImportSourceDriftError | null = null;
     try {
@@ -1093,9 +949,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
       api.data.getImportSourceCatalogPage('taskSourceRows'), null);
   }
 
-  // loadProject is deliberately a normal generic load and must not erase/overwrite the XER source
-  // route through an implicit write API. The route is gone with the replaced document; a later
-  // document switch must still restore the retained source of the other XER document.
   const xerDocumentId = applied.documentIds[0];
   if (xerDocumentId) useAppStore.getState().switchDocument(xerDocumentId);
   eq('48 documentwissel herstelt de XER-selector en bronroute', {
@@ -1103,10 +956,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     taskId: cell(api.data.getImportSourceCatalogPage('taskSourceRows', { limit: 1 })?.items[0], 'task_id'),
   }, { selector: 'P-1', taskId: 'T-1' });
 
-  // Casus (b): het actieve document heeft nu weer een archief (P-1) — vraag alsnog om een pagina
-  // met de VERWACHTING van het vorige project (P-2). Mutatiebewijs: verwijder de
-  // `assertNoImportSourceDrift`-aanroep uit `getExtImportSourceCatalogPage`/de wrapper in
-  // extensionApi.ts en D2/D2a kleuren rood (de aanroep slaagt dan gewoon met een pagina van P-1).
   {
     let wrongProjectDrift: ExtImportSourceDriftError | null = null;
     try {
@@ -1130,20 +979,14 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   api._cleanup();
 }
 
-// ── 8. De contract-versiepoort (los van minAppVersion) ───────────────────────
-// CalVer draagt geen breaking-change-signaal; `apiVersion` doet dat wel. De poort moet in BEIDE
-// richtingen dicht: een extensie voor een oudere major mist de brekende wijziging, een voor een
-// nieuwere rekent op iets dat er niet is.
 {
   eq('32 de host-API-versie is een geldige semver', /^\d+\.\d+\.\d+$/.test(EXTENSION_API_VERSION), true);
 
-  // Legacy: geen apiVersion ⇒ toegestaan, maar herkenbaar als legacy.
   eq('31 geen apiVersion ⇒ toegestaan', checkApiCompatibility(undefined, '1.2.0').ok, true);
   eq('31a en gemarkeerd als legacy', checkApiCompatibility(undefined, '1.2.0').legacy, true);
   eq('31b lege string telt als geen', checkApiCompatibility('', '1.2.0').legacy, true);
   eq('31c spaties ook', checkApiCompatibility('   ', '1.2.0').legacy, true);
 
-  // Zelfde major.
   eq('32 gelijke versie mag', checkApiCompatibility('1.2.0', '1.2.0').ok, true);
   eq('32a oudere minor mag (toevoegingen zijn achterwaarts compatibel)', checkApiCompatibility('1.0.0', '1.2.0').ok, true);
   eq('32b nieuwere minor mag NIET', checkApiCompatibility('1.3.0', '1.2.0').ok, false);
@@ -1151,28 +994,22 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   eq('32d patch doet niet mee — lager', checkApiCompatibility('1.2.0', '1.2.9').ok, true);
   eq('32e major.minor zonder patch mag', checkApiCompatibility('1.2', '1.2.0').ok, true);
 
-  // Andere major — beide richtingen dicht.
   eq('33 oudere major mag niet', checkApiCompatibility('0.9.0', '1.2.0').ok, false);
   eq('33a nieuwere major mag niet', checkApiCompatibility('2.0.0', '1.2.0').ok, false);
 
-  // Onzin is geen "0.0.0". Stil naar nul afronden zou een typefout laten passeren als
-  // "compatibel met alles" — precies de stille modus die dit item wil wegnemen.
   for (const onzin of ['abc', '1.x', 'v1.0.0', '1', '1..0', '-1.0.0']) {
     eq(`34 onzin-apiVersion "${onzin}" wordt geweigerd`, checkApiCompatibility(onzin, '1.2.0').ok, false);
   }
 
-  // Elke weigering moet een reden meegeven — een lege foutmelding in de extensielijst helpt niemand.
   for (const slecht of ['0.9.0', '2.0.0', '1.3.0', 'abc']) {
     const r = checkApiCompatibility(slecht, '1.2.0');
     eq(`35 weigering van "${slecht}" draagt een reden`, typeof r.reason === 'string' && r.reason.length > 10, true);
   }
   eq('35a een toestemming draagt géén reden', checkApiCompatibility('1.0.0', '1.2.0').reason, undefined);
 
-  // En tegen de ECHTE hostversie: de huidige waarde moet zichzelf accepteren.
   eq('36 de host accepteert zijn eigen versie', checkApiCompatibility(EXTENSION_API_VERSION).ok, true);
 }
 
-// ── 7. De API-factory maakt document- en hostbinding constructief expliciet ─
 {
   type IsExact<A, B> =
     (<T>() => T extends A ? 1 : 2) extends (<T>() => T extends B ? 1 : 2)
@@ -1207,8 +1044,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     verbodenImports, []);
 
   const loaderSource = readFileSync(join(process.cwd(), 'src/extensions/extensionLoader.ts'), 'utf8');
-  // Het gedrag zelf (kanaal, niveaus, debuglog met `ext:<id>` en ongewijzigde tekst,
-  // overspoel-bescherming) staat in check-ext-notify.ts; hier alleen dat de productiehost het bindt.
   eq('39 productiehost bindt de meldingen aan het kanaal van de app-context',
     /showNotification: createExtensionNotifier\(appStoreContext\)/.test(loaderSource), true);
   const notifierSource = readFileSync(join(process.cwd(), 'src/extensions/extensionNotifications.ts'), 'utf8');
@@ -1216,10 +1051,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     /^import[^;]*\b(useAppStore|appStoreContext)\b[^;]*from/m.test(notifierSource), false);
 }
 
-// ── 8. N3 (review #169): lees-wijzig-laad van HETZELFDE project houdt profiel en opties vast ──
-// Het gedocumenteerde pad om toewijzingen te zetten is `loadProject(…getProject()…)`. Mutatiebewijs:
-// laat `retainActiveScheduling` `loaded` teruggeven en N3-01, -02, -04, -05 en -06 kleuren rood
-// (profiel afwezig = OPS, de vier P6-opties en `leveling` weg).
 {
   const p6Options: Project['schedulingOptions'] = {
     p6CompletedLateFromRemainingWindow: true,
@@ -1261,7 +1092,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   ], [true, 'actualStart', true, true, { preserveScheduledDates: true }]);
   eq('N3-04 het opgeloste profiel via getProject blijft p6', api.data.getProject().schedulingProfile?.id, 'p6');
 
-  // Een publieke optie die de extensie wél wijzigt, volgt de extensie; de rest blijft staan.
   zetP6();
   const gewijzigd = herladen((project) => {
     project.schedulingOptions = { ...project.schedulingOptions, totalFloatMode: 'finish', nearCriticalThreshold: 5 };
@@ -1271,15 +1101,12 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     gewijzigd.schedulingOptions?.useExpectedFinishDates, gewijzigd.schedulingProfile?.id,
   ], ['finish', 5, true, 'p6']);
 
-  // Een meegegeven profiel neemt de app nooit over (B29), ook niet op hetzelfde id.
   zetP6();
   const vreemdProfiel = herladen((project) => {
     (project as unknown as { schedulingProfile: unknown }).schedulingProfile = builtInProfile('msproject');
   });
   eq('N3-06 een profiel van de extensie wint niet van het documentprofiel', vreemdProfiel.schedulingProfile?.id, 'p6');
 
-  // Een publieke optie die de extensie WEGHAALT, is daarna weg; ze valt niet terug op het document.
-  // Mutatiebewijs: laat de publieke sleutels niet uit de documentopties halen ⇒ N3-08a rood.
   zetP6();
   const weggehaald = herladen((project) => {
     const { totalFloatMode: _weg, ...rest } = project.schedulingOptions ?? {};
@@ -1289,7 +1116,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     weggehaald.schedulingOptions?.totalFloatMode, weggehaald.schedulingOptions?.useExpectedFinishDates,
   ], [undefined, true]);
 
-  // Ander project-id ⇒ nieuw project ⇒ OPS, zonder de niet-publieke opties van het vorige document.
   zetP6();
   const ander = herladen((project) => { project.id = 'ander-project'; });
   eq('N3-08 ander project-id ⇒ OPS en alleen publieke opties', [
@@ -1298,10 +1124,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   ], ['ander-project', undefined, undefined, undefined, 'smallest']);
 }
 
-// ── 9. N3-fixronde: documentdata die `ExtImportResult` niet draagt, blijft bij hetzelfde id ──
-// `retainActiveDocument` (src/extensions/retainActiveDocument.ts). Mutatiebewijs per check staat in
-// de PR (#329): elke regel in de return van `retainActiveDocument` weghalen kleurt de bijbehorende
-// N3D-check rood; `cleanDanglingReferences` laten teruggeven wat hij krijgt kleurt N3D-10.
 {
   const api = createExtensionApi('n3-loadproject-document', [], undefined, appStoreContext, {
     app: appStoreContext,
@@ -1342,8 +1164,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   const taakId = zetDocument();
   const voor = useAppStore.getState();
   const na = herladen();
-  // Geen kopie nodig: de gedeelde documentobjecten zijn bevroren, dus een mutatie in place in het
-  // laadpad zou gooien. De load slaagt en de objecten zijn dezelfde referenties.
   eq('N3D-12 vastgehouden documentobjecten zijn bevroren en gaan zonder kopie mee', [
     Object.isFrozen(voor.baselines[0]), Object.isFrozen(voor.activityCodeTypes[0]), Object.isFrozen(voor.customFieldDefs[0]),
     Object.isFrozen(voor.calendars.find((c) => c.id === 'cal-ploeg')),
@@ -1362,10 +1182,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   eq('N3D-07a ongewijzigde projectkalender houdt velden die ExtCalendar niet naar binnen draagt',
     na.calendar.p6NonWorkPenaltyDates, ['2026-01-05']);
 
-  // Review #336 punt 1: het IFC-schema en de open schemavraag horen bij het bestand, niet bij het
-  // contract (`NIET_PUBLIEK`). Een lees-wijzig-laad op hetzelfde id houdt ze vast; anders vroeg de app
-  // daarna niets meer en schreef ze een IFC4-bestand stil als ADD2. Mutatiebewijs: de twee regels in
-  // `retainActiveDocument` weghalen ⇒ N3D-14 rood. Ander id ⇒ een nieuw project: beide weg (N3D-15).
   const schemaGevallen: [string, string | undefined, string | undefined][] = [
     ['IFC4-bestand met open vraag', 'IFC4', 'IFC4'],
     ['IFC2X3-bestand met open vraag', undefined, 'IFC2X3'],
@@ -1388,9 +1204,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   eq('N3D-15 ander id ⇒ nieuw project: geen schema en geen open vraag van het vorige bestand',
     [nieuwId.project.ifcSchema, nieuwId.project.ifcSchemaUnconfirmed, nieuwId.filePath], [undefined, undefined, null]);
 
-  // De extensie wijzigt de projectkalender: die wijziging wint van de bibliotheek-entry, en de
-  // bronvelden van de documentkalender blijven erop staan (reviewproef probe-e E1). Mutatiebewijs:
-  // `withSourceFields` voor de kalender weglaten ⇒ N3D-22 en N3D-07a rood.
   zetDocument();
   useAppStore.setState((s) => {
     const meta = {
@@ -1413,9 +1226,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     kalender.calendar.generation?.ruleSetId,
   ], ['XER', ['2026-01-05'], 'VALID_VALUES', 'NL']);
 
-  // Kalenderwissel via `project.calendarId` (reviewproef probe-d): de oude projectkalender blijft
-  // bestaan, en een taak die er expliciet naar wijst, houdt die verwijzing. Mutatiebewijs: filter op
-  // het OUDE `project.calendarId` (M11) en N3D-16 kleurt rood.
   zetDocument();
   const oudeKalender = useAppStore.getState().project.calendarId;
   const expliciet = api.data.addTask({ name: 'Expliciet op projectkalender' });
@@ -1429,9 +1239,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     wissel.tasks.find((t) => t.id === expliciet)?.calendarId,
   ], ['cal-ploeg', 'cal-ploeg', [oudeKalender, 'cal-ploeg'].sort(), oudeKalender]);
 
-  // Een meegestuurde projectkalender met een ANDER id, terwijl `project.calendarId` ongewijzigd is
-  // (reviewproef probe-e E2): die kalender wordt de projectkalender; de oude blijft in de bibliotheek.
-  // Mutatiebewijs: `project.calendarId` altijd van de extensie ⇒ N3D-20 rood.
   zetDocument();
   const vorigeKalender = useAppStore.getState().project.calendarId;
   const vierdaags = herladen((r) => {
@@ -1442,9 +1249,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     vierdaags.calendars.map((c) => c.id).sort(),
   ], ['cal-vierdaags', 'cal-vierdaags', [1, 2, 3, 4], [vorigeKalender, 'cal-ploeg', 'cal-vierdaags'].sort()]);
 
-  // Wisselt de extensie via `project.calendarId` én stuurt ze een nieuwe kalender mee, dan gaat die
-  // nieuwe kalender niet stil verloren: hij komt in de bibliotheek. Mutatiebewijs: de tak
-  // `...(own ? [] : [sent])` weg (X8) ⇒ N3D-21 rood.
   zetDocument();
   const beide = herladen((r) => {
     r.project = { ...r.project, calendarId: 'cal-ploeg' };
@@ -1454,8 +1258,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     beide.project.calendarId, beide.calendars.some((c) => c.id === 'cal-nieuw'),
   ], ['cal-ploeg', true]);
 
-  // Eigen taaktypes (reviewproef probe-b B1): ongebruikte documententries blijven; bij een botsing op
-  // id of naam wint de extensie. Mutatiebewijs: `customTaskTypes`-regel weg ⇒ N3D-17 rood.
   zetDocument();
   useAppStore.setState((s) => {
     s.customTaskTypes = [
@@ -1467,7 +1269,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   const typen = herladen((r) => {
     r.customTaskTypes = [{ id: 'zelfde-id', name: 'Nieuwe naam' }, { id: 'ext-ruwbouw', name: 'ruwbouw' }];
   });
-  // #856: hetzelfde id houdt de kleur van het document; een nieuwe werksoort krijgt een vrije kleur.
   eq('N3D-17 ongebruikte eigen taaktypes blijven; de extensie wint bij een botsing op id of naam',
     typen.customTaskTypes, [
       { id: 'zelfde-id', name: 'Nieuwe naam', color: '#222222' },
@@ -1475,7 +1276,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
       { id: 'ops-ongebruikt', name: 'Ongebruikt', color: '#111111' },
     ]);
 
-  // Hetzelfde id, maar de extensie wijst naar een kalender die niet bestaat ⇒ terugval op de projectkalender.
   const onbekendTaakId = zetDocument();
   const onbekend = herladen((r) => {
     r.resources = r.resources.map((x) => ({ ...x, calendarId: 'bestaat-niet' }));
@@ -1485,7 +1285,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     onbekend.resources[0]?.calendarId, onbekend.tasks.find((t) => t.id === onbekendTaakId)?.calendarId,
   ], [undefined, undefined]);
 
-  // Ander id ⇒ nieuw project: de velden gaan zoals voorheen weg, verwijzingen vallen terug.
   const anderTaakId = zetDocument();
   const ander = herladen((r) => { r.project = { ...r.project, id: 'ander-project-2' }; });
   eq('N3D-11 ander id ⇒ baselines, resourcekalenders, codes, velden en GlobalIds weg', [
@@ -1497,16 +1296,12 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   ], ['cal-ploeg', 'cal-ploeg']);
 }
 
-// ── 10. Review #329 punt 1: een P6-project rekent na een ONGEWIJZIGDE lees-wijzig-laad hetzelfde ──
-// Fixture uit de reviewproef `probe-a`: een lopende CP_Phys-taak met een verwacht einde. Mutatiebewijs:
-// laat `withSourceFields` zijn invoer teruggeven en N3D-13 kleurt rood (earlyFinish 2026-08-10T10:00).
 {
   eq('N3D-14 de bronveldlijsten zijn precies de velden die niet naar binnen oversteken', [
     [...TASK_SOURCE_FIELDS], [...SEQUENCE_SOURCE_FIELDS], [...CALENDAR_SOURCE_FIELDS].sort(),
     [...ASSIGNMENT_SOURCE_FIELDS].sort(),
   ], [
     LEES_ALLEEN_EXT.task, LEES_ALLEEN_EXT.sequence,
-    // `libraryOrigin` niet: elke niet-gekoppelde load wist hem (`stripLibraryOrigins`).
     [...LEES_ALLEEN_EXT.calendar, ...NIET_PUBLIEK.calendar.filter((k) => k !== 'libraryOrigin')].sort(),
     [...LEES_ALLEEN_EXT.assignment, ...NIET_PUBLIEK.assignment].sort(),
   ]);
@@ -1544,7 +1339,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   ], [voor.earlyFinish, voor.p6ExpectedFinish, 'CP_Phys', 'P1']);
   eq('N3D-13a de fixture zelf rekent met het verwachte einde', voor.earlyFinish, '2026-08-12T16:00');
 
-  // Relatie: de alleen-lezen P6-grensvlag blijft op de relatie met hetzelfde id.
   useAppStore.getState().newProject();
   const a = api.data.addTask({ name: 'A' });
   const b = api.data.addTask({ name: 'B' });
@@ -1561,11 +1355,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     useAppStore.getState().sequences.find((x) => x.id === relatie)?.p6StartAtPredecessorFinishBoundary, true);
 }
 
-// ── 11. Review #329 punt 6: na een extensie-load is het document gewijzigd ──────
-// Zelfde id: het opslagdoel blijft, maar het document is vuil (afsluitcontrole en AutoSave zien het).
-// Ander id: een nieuw project zonder opslagdoel, zodat opslaan het bestand van het vorige project niet
-// overschrijft, en vuil, zodat sluiten waarschuwt. Mutatiebewijs: `markDocumentEdited` weg ⇒ N3D-18
-// en N3D-19 rood; het wissen van het opslagdoel weg ⇒ N3D-19 rood.
 {
   const api = createExtensionApi('n3d-dirty', [], undefined, appStoreContext, {
     app: appStoreContext,
@@ -1586,8 +1375,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   eq('N3D-18 zelfde id ⇒ opslagdoel blijft, document is gewijzigd', [
     useAppStore.getState().filePath, useAppStore.getState().isDirty,
   ], ['bewaard.ifc', true]);
-  // Reviewproef probe-f F1: het laden zette AutoSave naar bestand stil uit. Mutatiebewijs: het
-  // herstel van `autoSaveToFile` weg ⇒ N3D-23 rood.
   eq('N3D-23 zelfde id ⇒ AutoSave naar bestand blijft aan', useAppStore.getState().autoSaveToFile, true);
 
   opgeslagen();
@@ -1601,13 +1388,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   eq('N3D-23a ander id ⇒ geen AutoSave naar bestand (er is geen bestand)', useAppStore.getState().autoSaveToFile, false);
 }
 
-// ── 12. Backstage → Importeren opent een NIEUW document (review #329 fixronde 3 punt 2 en 4) ──────
-// Een importer opent een vreemd bestand en volgt dus de route van de ingebouwde formaten
-// (`openAsDocument`): een eigen tabblad, het actieve document ongemoeid (ook met niet-opgeslagen werk),
-// het nieuwe document actief, niet gewijzigd zoals na elke verse import, en zonder opslagdoel ook als
-// de bestandsnaam op IFC zou terugvallen. Mutatiebewijs: `openExtensionImport` via `loadState` over het
-// actieve document ⇒ N3D-24 rood; `saveTarget: false` weg ⇒ N3D-24a rood; Backstage terug naar
-// `loadState` ⇒ N3D-25 rood.
 {
   const api = createExtensionApi('n3d-importer', [], undefined, appStoreContext, {
     app: appStoreContext,
@@ -1636,9 +1416,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     na.filePath, na.fileHandle, na.siteFileId, na.isDirty,
   ], [null, null, null, false]);
 
-  // Integratie ronde 2 (#325 × #329): de formaatuitleg beschrijft de INGEBOUWDE lezers. Een
-  // extensie-importer las het bestand zelf, dus ook een naam met een bekende extensie (.xer) geeft
-  // geen uitleg (`openAsDocument` zet hem niet; alleen de open-routes van de gebruiker doen dat).
   useAppStore.setState((s) => { s.ui.formatNoticeHidden = []; s.ui.pendingFormatNotice = null; });
   openExtensionImport(useAppStore, importResultaat, 'planning.xer');
   eq('N3D-24b importer met een .xer-naam ⇒ geen formaatuitleg', useAppStore.getState().ui.pendingFormatNotice, null);
@@ -1649,9 +1426,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
     /\bloadState\b/.test(backstage),
   ], [true, false]);
 
-  // Mini-ronde 5: een importer die gooit, geeft een foutmelding in het meldingenkanaal, met de naam
-  // van de importer en de foutboodschap; het actieve document blijft gelijk. Mutatiebewijs: de
-  // `notify` in `importWithExtension` weg ⇒ N3D-26 rood.
   const voorFout = useAppStore.getState();
   const importFouten = (s: typeof voorFout) => s.ui.notifications.filter((n) => n.messageKey === 'notifications.extImportFailed');
   const meldingenVoor = importFouten(voorFout).length;
@@ -1668,7 +1442,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   ], [false, 1, 'error', 'notifications.extImportFailed', { name: 'Kapotte importer' }, 'Kolom "Start" ontbreekt', true, true]);
 }
 
-// Host-events mogen worden beluisterd, maar uitsluitend door de app worden uitgezonden.
 {
   const host = { app: appStoreContext, showNotification: () => {} };
   const api = createExtensionApi('host-event-isolatie', ['events'], undefined, appStoreContext, host);
@@ -1706,7 +1479,6 @@ function leesWijzigLaadToewijzing(a: ResourceAssignment): ResourceAssignment | u
   withoutPermission._cleanup();
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: extensie-contract — ${checks} checks groen`);
 } else {

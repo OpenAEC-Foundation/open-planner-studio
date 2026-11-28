@@ -1,31 +1,3 @@
-// check-tutorial-project.ts — het tutorialproject *Aanbouw woning* / *House extension*
-// (`scripts/tutorial-project.ts`, generator `npm run gen:tutorial-project`).
-//
-// De tutorialtekst noemt letterlijke datums, speling en het kritieke pad per stand. Deze check pint
-// die getallen, zodat een motor- of storewijziging die ze verandert rood wordt in plaats van stil
-// een tutorial te laten liegen. Verandert een getal bewust, pas dan de pin hieronder aan ÉN de
-// tutorialtekst (en het getallenblok bovenin `scripts/tutorial-project.ts`).
-//
-// Wat hij toetst:
-//  1. Per stand (nl) de exacte feiten (zoals de generator ze in het bestand legt): einde oplevering, laatste einde, kritieke taken, per bladtaak
-//     vroege start/einde en totale speling, overbezetting, statusdatum, baseline-einde, tellingen.
-//  2. De tussenresultaten die de tekst gebruikt (einde na alleen de bouwvak, overbezetting vóór
-//     nivelleren, stucwerkduur voor/na de werkregel, nivelleervertraging).
-//  3. en-variant: identieke feiten (alleen de namen verschillen), en de namen zijn echt vertaald.
-//  4. Elk .ifc opent via dezelfde route als Voorbeelden/examples:// (`openExampleFromString`:
-//     lezen → laden → herberekenen) en levert daarna exact dezelfde feiten, zonder dat de
-//     herberekening datums verschuift (geen "datums zoals opgeslagen"-aanbod).
-//  5. De wat-als-stappen uit de tekst die geen eigen stand zijn (tutorial 2: buitenspouwblad 9
-//     werkdagen; tutorial 3: deadline 27 augustus), plus het werkdagengetal op de statusbalk.
-//  6. De tussenstanden van tutorial 5 (resources, toegewezen, werkregel) zoals de lezer ze opent:
-//     statusbalk, overbezette dagen van de metselaar, en werkregel/inzet/duur van het stucwerk.
-//  7. De tussenstanden van tutorial 6 (baseline, statusdatum, voorbereiding, ontgraven, fundering,
-//     metselwerk), nl en en: in het bestand nog niet gerekend (= wat de lezer vóór Bereken ziet), en
-//     geopend zoals de extensie ze opent (de app rekent dan): statusbalk, deadline, baseline, voortgang.
-//  8. De volledige feestdagen en generatieherkomst per stand, nl en en: wizardspanne t/m 2030;
-//     vanaf de expliciete generatie in tutorial 3 t/m 2028 (berekend projecteinde in 2027).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
@@ -67,14 +39,9 @@ interface Pinned {
   overallocated: Partial<Record<string, number>>;
   counts: StageFacts['counts'];
   critical: TaskKey[];
-  /** taaksleutel → "vroege start, vroeg einde, totale speling (werkdagen)". */
   table: Partial<Record<TaskKey, string>>;
 }
 
-/** Gelijk aan de urenreferentie in minute-model-tutorial-f3.json (§3.14; F3c: terug van de F2-stand).
- *  De planning van na-tut-5: ook die van de tussenstanden van tutorial 6 in het BESTAND (daar is nog
- *  niet gerekend; de lezer rekent pas in stap 8). De nivelleerder schuift alleen het buitenspouwblad,
- *  5 werkdagen (F3c, §3.11; dezelfde vertraging als op de urenreferentie in `checkF3Reference`). */
 const NA_TUT_5_PLANNING: Pick<Pinned, 'finish' | 'projectFinish' | 'critical' | 'table'> = {
   finish: "2027-08-30T16:00", projectFinish: "2027-08-30T16:00",
   critical: [
@@ -114,7 +81,6 @@ const NA_TUT_5_PLANNING: Pick<Pinned, 'finish' | 'projectFinish' | 'critical' | 
     },
 };
 
-/** Een tussenstand van tutorial 6 in het bestand: de planning van na-tut-5, met de baseline. */
 function tut6File(statusDate: string | null): Pinned {
   return {
     ...NA_TUT_5_PLANNING,
@@ -124,9 +90,6 @@ function tut6File(statusDate: string | null): Pinned {
   };
 }
 
-// Vanaf tutorial 4 de dagenmaat (§3.14), gelijk aan minute-model-tutorial-f3.json (F3c: terug van de F2-stand).
-// D1/D2/D7 en B6 zijn definitief; broninvoer en letterlijke actuals blijven bewaard.
-// ── De gepinde getallen (nl; en moet identiek zijn). Tutorial 7 = stand 6. ─────────────────────
 const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
   'start-tut-1': {
     finish: "", projectFinish: "",
@@ -402,7 +365,6 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
       "msHandover": "2027-09-01T16:00 2027-09-01T16:00 0"
     },
   },
-  // Tutorial 5 stap 2: vijf resources, nog niets toegewezen — de planning is die van na-tut-4.
   'tussen-tut-5-resources': {
     finish: "2027-09-01T16:00", projectFinish: "2027-09-01T16:00",
     statusDate: null, baselineFinish: null,
@@ -451,9 +413,6 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
       "msHandover": "2027-09-01T16:00 2027-09-01T16:00 0"
     },
   },
-  // Tutorial 5 stap 3–5: alle toewijzingen, berekend. De metselaar staat al dubbel (binnen- en
-  // buitenspouwblad); het stucwerk duurt nog 4 wd met 1 stukadoor.
-  // F3c (§3.11): de belasting per werkdag uit momenten; de metselaar is 6 werkdagen overbezet (`metselaarOver`).
   'tussen-tut-5-toegewezen': {
     finish: "2027-09-01T16:00", projectFinish: "2027-09-01T16:00",
     statusDate: null, baselineFinish: null,
@@ -504,8 +463,6 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
       "msHandover": "2027-09-01T16:00 2027-09-01T16:00 0"
     },
   },
-  // Tutorial 5 stap 6–8: Stucwerk "Vast werk" met 2 stukadoors (4 → 2 wd), berekend; nog
-  // overbezet, vóór het nivelleren. = `beforeLeveling`.
   'tussen-tut-5-werkregel': {
     finish: "2027-08-30T16:00", projectFinish: "2027-08-30T16:00",
     statusDate: null, baselineFinish: null,
@@ -569,9 +526,6 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
       "baselines": 0
     },
   },
-  // Tutorial 6 stap 2–7, zoals de stand in het bestand staat: nog niet gerekend (de lezer rekent pas in
-  // stap 8), dus de datums van na-tut-5 — wat de lezer die de stappen zelf doet vóór Bereken ziet.
-  // Geopend rekent de app wél: zie TUT6_OPENED.
   'tussen-tut-6-baseline': tut6File(null),
   'tussen-tut-6-statusdatum': tut6File('2027-06-28'),
   'tussen-tut-6-voorbereiding': tut6File('2027-06-28'),
@@ -632,13 +586,10 @@ const PINNED: Record<Exclude<StageId, 'na-tut-7'>, Pinned> = {
 };
 
 const PINNED_EXTRA = {
-  /** Tutorial 3: einde na alleen de bouwvak (vóór constraint en deadline). */
   finishAfterBouwvak: '2027-08-27T16:00',
   bouwvak: { name: 'Bouwvak (Midden)', startDate: '2027-08-02', endDate: '2027-08-20' },
-  /** Tutorial 5: na toewijzen en werkregel, vóór nivelleren. */
   beforeLeveling: {
     finish: '2027-08-30T16:00',
-    // F3c (§3.11): 6 werkdagen, van 28 juni t/m 5 juli (zie `metselaarOver`).
     overallocated: { bricklayer: 6 },
     critical: ['frames', 'breakThrough', 'services', 'plaster', 'screed', 'tiling', 'cleaning', 'msHandover'],
   },
@@ -646,18 +597,7 @@ const PINNED_EXTRA = {
   levelingDelays: { outerLeaf: 5 },
 };
 
-/**
- * Tutorial 6: wat de lezer ziet na "Toon mij"/"Opnieuw" (de stand geopend zoals de extensie hem opent). De app
- * rekent een .ifc bij het openen altijd door (`openExampleFromString` → `recompute`), ook een stand die in het
- * bestand nog niet gerekend is. Een statusdatum zonder (volledige) voortgang schuift dan het nog niet begonnen werk
- * naar de statusdatum. `tussen-tut-6-baseline` opent ongewijzigd (geen pin hier) en `tussen-tut-6-metselwerk` opent
- * als na-tut-6: alle invoer is er, de berekening is die van stap 8.
- */
-// Gelijk aan dezelfde standen in de urenreferentie (§3.14; F3c: terug van de F2-stand).
 const TUT6_OPENED: Partial<Record<StageId, Pinned>> = {
-  // Stap 3 (Toon mij) / stap 4 (Opnieuw): statusdatum zonder voortgang. Alles wat niet begonnen is, ligt op of na
-  // de statusdatum: Start bouw 28 juni, oplevering ma 20 sep, 23 kritieke taken, 1 deadline overschreden — wat
-  // de tekst bij stap 3 voorspelt als je dan al zou rekenen.
   'tussen-tut-6-statusdatum': {
     finish: "2027-09-20T10:00", projectFinish: "2027-09-20T10:00",
     statusDate: "2027-06-28", baselineFinish: "2027-08-30T16:00",
@@ -720,8 +660,6 @@ const TUT6_OPENED: Partial<Record<StageId, Pinned>> = {
       "msHandover": "2027-09-20T10:00 2027-09-20T10:00 -5.375"
     },
   },
-  // Stap 4 (Toon mij) / stap 5 (Opnieuw): de voorbereiding klaar; het ontgraven op de statusdatum.
-  // Oplevering di 14 sep, deadline (10 sep) nog overschreden.
   'tussen-tut-6-voorbereiding': {
     finish: "2027-09-14T10:00", projectFinish: "2027-09-14T10:00",
     statusDate: "2027-06-28", baselineFinish: "2027-08-30T16:00",
@@ -777,8 +715,6 @@ const TUT6_OPENED: Partial<Record<StageId, Pinned>> = {
       "msHandover": "2027-09-14T10:00 2027-09-14T10:00 -1.375"
     },
   },
-  // Stap 5 (Toon mij) / stap 6 (Opnieuw): het ontgraven klaar (15 juni); de wapening op de statusdatum.
-  // Oplevering vr 10 sep, precies op de deadline.
   'tussen-tut-6-ontgraven': {
     finish: "2027-09-10T10:00", projectFinish: "2027-09-10T10:00",
     statusDate: "2027-06-28", baselineFinish: "2027-08-30T16:00",
@@ -833,8 +769,6 @@ const TUT6_OPENED: Partial<Record<StageId, Pinned>> = {
       "msHandover": "2027-09-10T10:00 2027-09-10T10:00 0"
     },
   },
-  // Stap 6 (Toon mij) / stap 7 (Opnieuw): wapening, keuring en stort klaar; het funderingsmetselwerk nog niet
-  // begonnen, dus op de statusdatum (28–29 juni). Oplevering wo 1 sep.
   'tussen-tut-6-fundering': {
     finish: "2027-09-01T12:00", projectFinish: "2027-09-01T12:00",
     statusDate: "2027-06-28", baselineFinish: "2027-08-30T16:00",
@@ -911,7 +845,6 @@ function compareFacts(label: string, got: StageFacts, want: Pinned): void {
   }
 }
 
-/** Alles behalve de namen moet tussen nl en en gelijk zijn. */
 function comparableBuild(b: TutorialBuild): unknown {
   return {
     stages: b.stages.map(s => ({ id: s.id, facts: s.facts })),
@@ -923,16 +856,10 @@ function comparableBuild(b: TutorialBuild): unknown {
   };
 }
 
-/** Op deze gelijke werkdagen is urenmaat een onafhankelijke referentie voor de F3-dagdelenloper.
- *  De gepinde standen hierboven moeten er sinds F3c gelijk aan zijn; deze toets houdt de referentie los
- *  van de pinnen, zodat een herpin hem niet stil verandert. */
 function checkF3Reference(build: TutorialBuild): void {
   const goals = JSON.parse(readFileSync(new URL('./fixtures/minute-model-tutorial-f3.json', import.meta.url), 'utf8')) as
     Record<string, { finish: string; duration: number; critical: TaskKey[]; table: Record<TaskKey, string> }>;
   const keyOfName = (name: string) => TASKS.find(d => d.name.nl === name)?.key;
-  // De nivellering van tutorial 5 op de urenreferentie (F3c deel 3, spec §3.11): dezelfde nivelleerder,
-  // dezelfde opties als de generator, maar op de doelplaatsing. Ze moet het doel geven: alleen het
-  // buitenspouwblad, 5 werkdagen = 5 × 480 werkminuten.
   let referenceLeveling: { delays: Partial<Record<TaskKey, number>>; delayMinutes: Partial<Record<TaskKey, number>> } | null = null;
   let leveled = false;
   for (const stage of build.stages) {
@@ -948,8 +875,6 @@ function checkF3Reference(build: TutorialBuild): void {
       } };
     });
     if (leveled && referenceLeveling) {
-      // Het bestand draagt de vertraging die de generator met de dagenmaat vond. Die is gelijk aan de
-      // vertraging van de nivelleerder op de urenreferentie (F3c: motor en belasting samen, §3.11, §3.14).
       const fileDelays = (field: 'levelingDelay' | 'levelingDelayMinutes') => Object.fromEntries(tasks
         .filter(t => t[field] !== undefined).map(t => [keyOfName(t.name)!, t[field]!])) as Partial<Record<TaskKey, number>>;
       eq(`F3-referentie/${stage.id}: vertraging in werkdagen uit het bestand`, fileDelays('levelingDelay'), referenceLeveling.delays);
@@ -986,7 +911,6 @@ function checkF3Reference(build: TutorialBuild): void {
         computeVariance(tasks, baseline, new CalendarEngine(payload.calendar), result.projectEnd).projectEndDelta, 1);
     }
     if (stage.id === 'na-tut-4') {
-      // De langere kraan uit de browservariant (tut-4), op de urenreferentie (§3.14).
       const roof = tasks.find(task => task.name === TASKS.find(t => t.key === 'roofElements')!.name.nl)!;
       roof.time.durationMinutes = 720;
       roof.time.scheduleDuration = 1.5;
@@ -1004,7 +928,6 @@ function checkF3Reference(build: TutorialBuild): void {
 }
 
 async function main(): Promise<void> {
-  // ── 1+2. nl: de gepinde getallen ──
   console.log('-- tutorial-project: nl, gepinde getallen per stand --');
   const nl = buildTutorialProject('nl');
   checkF3Reference(nl);
@@ -1024,7 +947,6 @@ async function main(): Promise<void> {
   eq('tut-5 stucwerk (werkdagen) vóór/na werkregel', nl.plasterDays, PINNED_EXTRA.plasterDays);
   eq('tut-5 nivelleervertraging', nl.levelingDelays, PINNED_EXTRA.levelingDelays);
 
-  // De beoogde effecten nog eens expliciet (los van de pin, zodat een herpin ze niet stil opheft).
   const f = (id: StageId) => nl.stages.find(s => s.id === id)!.facts;
   ok('tut-2: relaties schuiven de oplevering op t.o.v. tut-1', f('na-tut-2').finish > f('na-tut-1').projectFinish);
   ok('tut-3: de bouwvak schuift de oplevering op', nl.finishAfterBouwvak > f('na-tut-2').finish);
@@ -1036,7 +958,6 @@ async function main(): Promise<void> {
   ok('tut-6: de halve dag uitloop van het ontgraven telt mee: einde di 31 aug 12:00 (§3.14)',
     f('na-tut-6').finish === '2027-08-31T12:00');
 
-  // ── 3. en: identiek op de namen na ──
   console.log('-- tutorial-project: en, identiek aan nl --');
   const en = buildTutorialProject('en');
   eq('en = nl (alle feiten)', comparableBuild(en), comparableBuild(nl));
@@ -1049,8 +970,6 @@ async function main(): Promise<void> {
     eq('en-projectnaam', p.project.name, 'House extension');
     eq('en-kalendernaam', p.calendar.name, 'Construction calendar NL');
   }
-  // Tutorial 1 maakt de mijlpalen met Start › Taken › Mijlpaal; het bestand moet hetzelfde taaktype
-  // dragen als die knop (Start-/Eindmijlpaal = Overig, Inspectiemoment = Aanwezigheid), ook na IFC.
   {
     const p = readIFC(nl.stages.find(s => s.id === 'na-tut-1')!.ifc);
     const typeOf = (key: TaskKey) => p.tasks.find(t => t.name === TASKS.find(d => d.key === key)!.name.nl)?.taskType;
@@ -1060,7 +979,6 @@ async function main(): Promise<void> {
     eq('na-tut-1 taaktype gewone taak', typeOf('site'), 'CONSTRUCTION');
   }
 
-  // ── 4. openen zoals de app en opnieuw rekenen ──
   console.log('-- tutorial-project: openen via de voorbeeldroute en herberekenen --');
   for (const build of [nl, en]) {
     for (const stage of build.stages) {
@@ -1068,8 +986,6 @@ async function main(): Promise<void> {
       await S().openExampleFromString(stage.ifc, `${stage.id}.ifc`);
       eq(`${label}: geen datumverschuiving na herberekenen`, S().recordedDates, null);
       ok(`${label}: berekening zonder fout`, !S().cpmResult?.error);
-      // Vast bereik onafhankelijk van computeGenerateSpan: bewaakt de aanroep in de generator.
-      // De wizard houdt zijn aanmaakspanne; tutorial 3 vervangt de lijst via de echte generator.
       const beforeCalendarEdit = ['start-tut-1', 'na-tut-1', 'na-tut-2'].includes(stage.id);
       const expectedCalendar = materializeHolidays(
         { country: 'NL', bouwvak: beforeCalendarEdit ? 'geen' : BOUWVAK_REGION },
@@ -1085,7 +1001,6 @@ async function main(): Promise<void> {
       eq(`${label}: volledige feestdagenlijst`,
         calendar.holidays.map(h => `${h.name} ${h.startDate}..${h.endDate}`).sort(),
         expectedCalendar.holidays.map(h => `${h.name} ${h.startDate}..${h.endDate}`).sort());
-      // Een tussenstand van tutorial 6 is in het bestand nog niet gerekend; geopend wél (TUT6_OPENED).
       const opened = TUT6_OPENED[stage.id];
       if (opened) compareFacts(`${label}:`, collectStageFacts(build.lang), opened);
       else eq(`${label}: feiten`, collectStageFacts(build.lang), stage.facts);
@@ -1096,7 +1011,6 @@ async function main(): Promise<void> {
   for (const build of [nl, en]) await tut6Stages(build);
 }
 
-/** Taak-id in het geopende document op naam (nl). */
 function taskIdOf(key: TaskKey): string {
   const name = TASKS.find(d => d.key === key)!.name.nl;
   const t = S().tasks.find(x => x.name === name);
@@ -1104,20 +1018,14 @@ function taskIdOf(key: TaskKey): string {
   return t.id;
 }
 
-/**
- * 5. De wat-als-stappen die de tutorialtekst doorrekent maar die geen eigen stand zijn: open de
- *    stand zoals de lezer hem heeft, doe de wijziging, bereken, en vergelijk met de tekst.
- */
 async function whatIfs(nl: TutorialBuild): Promise<void> {
   console.log('-- tutorial-project: wat-als-stappen uit de tutorialtekst --');
   const ifcOf = (id: StageId) => nl.stages.find(s => s.id === id)!.ifc;
 
-  // Statusbalk "Kritiek pad: N taken, M werkdagen" = aantal kritieke taken + projectDuration.
   await S().openExampleFromString(ifcOf('na-tut-2'), 'na-tut-2.ifc');
   eq('tut-2 statusbalk: werkdagen', S().cpmResult?.projectDuration, 45);
   eq('tut-2 statusbalk: kritieke taken', collectStageFacts('nl').critical.length, 21);
 
-  // Tutorial 2, uitloop: Buitenspouwblad metselen 9 i.p.v. 6 werkdagen.
   {
     const id = taskIdOf('outerLeaf');
     const t = S().tasks.find(x => x.id === id)!;
@@ -1139,7 +1047,6 @@ async function whatIfs(nl: TutorialBuild): Promise<void> {
   eq('tut-3 na constraint: statusbalk werkdagen', S().cpmResult?.projectDuration, 48);
   eq('tut-3 na constraint: kritieke taken', collectStageFacts('nl').critical.length, 8);
 
-  // Tutorial 3, een deadline die je niet haalt: 27 augustus op de oplevering.
   {
     S().updateTask(taskIdOf('msHandover'), { deadline: '2027-08-27' });
     S().runCPM();
@@ -1153,12 +1060,6 @@ async function whatIfs(nl: TutorialBuild): Promise<void> {
   await tut5Stages(nl);
 }
 
-/**
- * 6. De tussenstanden van tutorial 5, geopend zoals "Toon mij"/"Opnieuw" van de extensie ze
- *    opent: wat de lezer op de statusbalk, in het histogram en bij het stucwerk ziet. De
- *    tutorialtekst na stap 7 + F5: Stucwerk 23–26 juli (2 wd), "Einde: 30-08-2027, Kritiek pad: 8
- *    taken, 46 werkdagen", Metselaar overbezet 29-06-2027 – 05-07-2027.
- */
 async function tut5Stages(nl: TutorialBuild): Promise<void> {
   console.log('-- tutorial-project: tussenstanden tutorial 5 --');
   const ifcOf = (id: StageId) => nl.stages.find(s => s.id === id)!.ifc;
@@ -1172,8 +1073,6 @@ async function tut5Stages(nl: TutorialBuild): Promise<void> {
   const fiveResources = [
     'Timmerploeg CREW 1', 'Metselaar LABOR 1', 'Mobiele kraan EQUIPMENT 1', 'Stukadoor SUBCONTRACTOR 2', 'Beton MATERIAL 50 m³',
   ];
-  // F3c (§3.11, §3.14): de dagenmaat legt het metselwerk op 28 juni 10:00 – 5/6 juli 10:00, en de belasting
-  // per werkdag uit momenten telt daarvan 6 overbezette dagen, 28 juni t/m 5 juli (de plaatsingsreferentie).
   const metselaarOver = ['2027-06-28', '2027-06-29', '2027-06-30', '2027-07-01', '2027-07-02', '2027-07-05'];
 
   await S().openExampleFromString(ifcOf('tussen-tut-5-resources'), 'tussen-tut-5-resources.ifc');
@@ -1205,12 +1104,6 @@ async function tut5Stages(nl: TutorialBuild): Promise<void> {
   eq('tut-5 werkregel: stucwerk datums', [plaster().time.earlyStart, plaster().time.earlyFinish], ['2027-07-23T07:00', '2027-07-26T16:00']);
 }
 
-/**
- * 7. De tussenstanden van tutorial 6, geopend zoals "Toon mij"/"Opnieuw" van de extensie ze opent (nl en en).
- *    De app rekent bij het openen: de statusbalk staat dan niet op "Verouderd", en de datums zijn die van een
- *    berekening met de voortgang tot dan toe (TUT6_OPENED). Hier: statusbalk ("Einde", "Kritiek pad: N taken,
- *    M werkdagen", overschreden deadlines), de actieve baseline, de statusdatum en de ingevoerde voortgang.
- */
 async function tut6Stages(build: TutorialBuild): Promise<void> {
   const { lang } = build;
   console.log(`-- tutorial-project: tussenstanden tutorial 6 (${lang}) --`);
@@ -1224,7 +1117,6 @@ async function tut6Stages(build: TutorialBuild): Promise<void> {
     return `${t.completion} ${t.actualStart ?? '-'} ${t.actualFinish ?? '-'}`;
   };
   const phase = (i: number) => S().tasks.filter(t => t.childIds.length > 0)[i].time.completion;
-  // D1/D2/D7: broninvoer blijft datumloos; de verwachte feiten gebruiken kalendergrenzen.
   const done = (start: string, finish: string) => `1 ${start.includes('T') ? start : start + 'T07:00'} ${finish.includes('T') ? finish : finish + 'T16:00'}`;
   const voorbereiding = {
     msStart: done('2027-06-07T07:00', '2027-06-07T07:00'), site: done('2027-06-07', '2027-06-08'),

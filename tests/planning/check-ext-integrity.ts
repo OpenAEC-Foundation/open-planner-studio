@@ -1,22 +1,3 @@
-// Integriteit en afscherming rond extensie-code (K-item 38, pragmatische helft).
-//
-// Het rapport noemt de Web Worker "de echte grens" en dit item L. Wat hier staat is expliciet NIET
-// die grens, maar de twee dingen die zonder herbouw van de uitvoeringslaag te doen zijn:
-//
-//   1. INTEGRITEIT — een catalogusentry mag een `sha256` dragen; is die er, dan wordt de download
-//      geverifieerd en bij het kleinste verschil geweigerd. Zonder hash zijn "wat de catalogus
-//      beschrijft" en "wat je installeert" alleen door TLS aan elkaar geknoopt.
-//   2. AFSCHERMING — de rauwe host-globals (`__TAURI_INTERNALS__`, `__TAURI__`, `__OPS__`) worden in
-//      de extensie-scope geschaduwd.
-//
-// WEES EERLIJK OVER (2): dit is GEEN sandbox. De code draait in dezelfde realm, dus
-// `globalThis.__TAURI_INTERNALS__` en `Function('return this')()` komen er nog steeds bij. De laatste
-// checks hieronder TONEN dat expliciet aan, in plaats van dat de suite de indruk wekt dat er een
-// grens ligt. Wat de afscherming wél oplevert: de kansloze route (een kale identifier) is weg, dus
-// wie er alsnog bij komt deed dat aantoonbaar met opzet — en dát is wat een toestemmingsmodel nodig
-// heeft om iets te betekenen.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import {
   installFromZipBlob,
@@ -45,10 +26,6 @@ interface StoredZipFixtureEntry {
   declaredUncompressedSize?: number;
 }
 
-/** Kleine local-header-only ZIP-fixture; voldoende voor de echte fallbackparser.
- *  De CRC-32 wordt ECHT ingevuld: de lezer toetst hem sinds de fixronde op issue #27 etappe 3, en
- *  een fixture met een nul-CRC zou dan als "beschadigd archief" stranden — een testartefact, geen
- *  bevinding. */
 const storedZip = (entries: StoredZipFixtureEntry[]): Blob => {
   const chunks: Uint8Array[] = [];
   for (const entry of entries) {
@@ -96,8 +73,6 @@ const manifestJson = (patch: Record<string, unknown> = {}) => bytes(JSON.stringi
   ...patch,
 }));
 
-// ── 1. sha256Hex tegen bekende vectoren ─────────────────────────────────────
-// Zelf-gerolde hex-codering is precies het soort ding dat er goed uitziet en één padStart mist.
 eq('1 lege invoer', await sha256Hex(new Uint8Array(0)),
   'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855');
 eq('2 "abc"', await sha256Hex(bytes('abc')),
@@ -105,15 +80,12 @@ eq('2 "abc"', await sha256Hex(bytes('abc')),
 eq('3 "The quick brown fox jumps over the lazy dog"',
   await sha256Hex(bytes('The quick brown fox jumps over the lazy dog')),
   'd7a8fbb307d7809469ca9abcb0082e4f8d5651e46d3cdb762d02d0bf37c9e592');
-// Een byte met een waarde < 16 moet als "0x" gecodeerd worden; zonder padStart schuift de hele
-// string op en klopt er niets meer. Deze invoer is zo gekozen dat de hash met een nul-nibble begint.
 {
   const h = await sha256Hex(bytes('avalanche'));
   eq('4 hex is 64 tekens lang', h.length, 64);
   eq('4a en uitsluitend hex', /^[0-9a-f]{64}$/.test(h), true);
 }
 
-// ── 2. De verificatie-beslissing ────────────────────────────────────────────
 const data = bytes('dit is de zipinhoud');
 const juist = await sha256Hex(data);
 
@@ -131,7 +103,6 @@ const juist = await sha256Hex(data);
   eq('7 witruimte rond de hash ook niet', v.ok, true);
 }
 {
-  // Eén byte verschil moet al fataal zijn.
   const v = await verifyCatalogDownload({ id: 'e1', sha256: juist }, bytes('dit is de zipinhoud!'));
   eq('8 één byte verschil ⇒ geweigerd', v.ok, false);
   eq('8a met een reden die de verwachte hash noemt', v.reason?.includes(juist), true);
@@ -144,15 +115,12 @@ const juist = await sha256Hex(data);
   const leeg = await verifyCatalogDownload({ id: 'e1', sha256: '   ' }, data);
   eq('9b een lege hash telt als geen hash', leeg.unverified, true);
 }
-// Een AANWEZIGE maar onleesbare hash mag niet stilzwijgend omslaan in "dan maar niet verifiëren" —
-// dat is precies de degradatie die de hele controle waardeloos maakt.
 for (const rommel of ['abc', juist.slice(0, 63), `${juist}0`, `${juist.slice(0, 63)}g`, 'sha256:' + juist]) {
   const v = await verifyCatalogDownload({ id: 'e1', sha256: rommel }, data);
   eq(`10 onleesbare hash "${rommel.slice(0, 12)}…" ⇒ geweigerd`, v.ok, false);
   eq(`10a en niet stil als ongeverifieerd doorgelaten`, v.unverified, undefined);
 }
 
-// ── 3. Afscherming van de rauwe host-globals ────────────────────────────────
 {
   const g = globalThis as unknown as Record<string, unknown>;
   const bewaard = { t: g.__TAURI_INTERNALS__, t2: g.__TAURI__, o: g.__OPS__ };
@@ -160,7 +128,6 @@ for (const rommel of ['abc', juist.slice(0, 63), `${juist}0`, `${juist.slice(0, 
   g.__TAURI__ = { iets: 1 };
   g.__OPS__ = { store: 'ECHT' };
 
-  // De extensie ziet de identifiers als `undefined`, niet als het echte object.
   const plugin = executeExtensionCode(`
     module.exports = {
       onLoad() {},
@@ -183,13 +150,9 @@ for (const rommel of ['abc', juist.slice(0, 63), `${juist}0`, `${juist.slice(0, 
   eq('11a __TAURI__ ook', plugin.gezien.tauri, 'undefined');
   eq('11b de dev-bridge __OPS__ ook', plugin.gezien.ops, 'undefined');
 
-  // EN DIT IS DE EERLIJKE HELFT. Zou een van deze twee ooit 'undefined' worden, dan is er een
-  // echte grens bij gekomen en mag de tekst in docs/extensions.md worden aangescherpt — tot die
-  // tijd staat hier zwart-op-wit dat de afscherming een drempel is en geen muur.
   eq('12 ontsnappen via globalThis kan nog steeds (geen sandbox)', plugin.viaGlobalThis, 'object');
   eq('12a en via Function("return this") ook', plugin.viaFunction, 'object');
 
-  // De normale weg blijft werken: de SDK komt gewoon binnen.
   const sdkPlugin = executeExtensionCode(`
     const sdk = require('open-planner-studio');
     module.exports = { onLoad() {}, heeftVersie: typeof sdk.version, heeftApi: typeof sdk.apiVersion };
@@ -197,14 +160,12 @@ for (const rommel of ['abc', juist.slice(0, 63), `${juist}0`, `${juist.slice(0, 
   eq('13 require("open-planner-studio") werkt nog', sdkPlugin.heeftVersie, 'string');
   eq('13a inclusief de contractversie', sdkPlugin.heeftApi, 'string');
 
-  // Een andere module blijft geweigerd.
   let gooide = false;
   try {
     executeExtensionCode(`require('fs'); module.exports = { onLoad() {} };`);
   } catch { gooide = true; }
   eq('14 require van iets anders gooit', gooide, true);
 
-  // Zonder onLoad is het geen plugin.
   let geenOnLoad = false;
   try { executeExtensionCode(`module.exports = { iets: 1 };`); } catch { geenOnLoad = true; }
   eq('15 een module zonder onLoad wordt geweigerd', geenOnLoad, true);
@@ -214,7 +175,6 @@ for (const rommel of ['abc', juist.slice(0, 63), `${juist}0`, `${juist.slice(0, 
   g.__OPS__ = bewaard.o;
 }
 
-// ── 4. ZIP-namen, selectie en payloadlimieten ──────────────────────────────
 {
   const parsed = await parseZipEntries(await storedZip([
     { name: 'pakket/manifest.json', data: manifestJson() },
@@ -256,7 +216,6 @@ await expectZipReject('19a totaal boven 48 MiB', [
   { name: 'c.bin', declaredUncompressedSize: 17 * 1024 * 1024 },
 ]);
 
-// ── 5. Hoofdbestand en catalogusidentiteit worden vóór consent gecontroleerd ────────────────
 {
   const globals = globalThis as unknown as Record<string, unknown>;
   const hadWindow = Object.prototype.hasOwnProperty.call(globals, 'window');
@@ -312,7 +271,6 @@ await expectZipReject('19a totaal boven 48 MiB', [
   else delete globals.window;
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: extensie-integriteit — ${checks} checks groen`);
 } else {
