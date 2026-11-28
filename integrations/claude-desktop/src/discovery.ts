@@ -1,12 +1,3 @@
-// Vindt de bridge van de draaiende desktop-app via `runtime.json` (contract: `discoveryContract.ts`,
-// uitleg: `docs/mcp-ontdekking.md`). De proxy roept `findApp` bij elke aanvraag aan; het bestand is klein.
-//
-// Regels uit het contract:
-//   - alleen de canonieke naam `runtime.json` (een dev-build: `runtime.<slug>.json`, alleen met
-//     `OPS_MCP_DEV_INSTANCE`, voor tests en ontwikkelaars);
-//   - een onbruikbaar bestand ⇒ niet verbinden;
-//   - een bestand van een proces dat niet meer leeft ⇒ achtergebleven, overslaan. Leeft het pid (of is dat
-//     onbekend), dan beslist de verbindingstest in de proxy: geen verbinding of 401 ⇒ zonder app.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -14,7 +5,6 @@ import {
 } from '../../../src/services/mcp/discoveryContract';
 import type { AppTarget } from './proxy';
 
-/** Leeft proces `pid`? `process.kill(pid, 0)` stuurt geen signaal; `EPERM` betekent: leeft, maar van een ander. */
 export function pidState(pid: number): PidState {
   try {
     process.kill(pid, 0);
@@ -29,7 +19,6 @@ export function pidState(pid: number): PidState {
 
 export interface AppFinderOptions {
   location: DiscoveryLocation;
-  /** Slug van een dev-build (`runtime.<slug>.json`); `null` = de canonieke naam. */
   devInstance: string | null;
   log: (line: string) => void;
   readText?: (file: string) => string | null;
@@ -46,7 +35,6 @@ function readOrNull(file: string): string | null {
   }
 }
 
-/** Maakt `findApp` voor de proxy. Logt een bevinding alleen als die verandert, niet bij elke aanvraag. */
 export function createAppFinder(opts: AppFinderOptions): () => AppTarget | null {
   const dirs = mcpDiscoveryDirs(opts.location);
   const name = mcpDiscoveryNames(opts.devInstance).runtime;

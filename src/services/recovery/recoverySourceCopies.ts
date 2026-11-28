@@ -1,4 +1,3 @@
-// #804: bronbytes staan los van ops-recovery v3, zodat een oudere release blijft herstellen.
 import { recoveryBase } from '@/services/recovery/recoveryPaths';
 import { openDbStores } from '@/utils/idb';
 
@@ -6,7 +5,6 @@ export const SOURCE_COPY_DB = `ops-ifc-sources.${recoveryBase}`;
 const BYTES = 'sources';
 const REFERENCES = 'references';
 
-/** Alleen runtime-invoer; geen bytes of siteversie erbij in het herstelmanifest. */
 export interface RecoverySourceCopy {
   readonly bytes: Uint8Array;
   readonly siteFileId: string | null;
@@ -21,8 +19,6 @@ interface CopyReference {
 }
 export const sourceCopyReferenceKey = (documentKey: string, sha256: string): string => `${documentKey}::${sha256}`;
 
-// Een lees-/wisactie mag nooit een lege database aanmaken, ook niet met de flag uit.
-// IDB kan een nog niet bestaande database alleen herkennen tijdens upgradeneeded: breek die af.
 async function existingDatabase(): Promise<IDBDatabase | null> {
   return new Promise((resolve, reject) => {
     const request = indexedDB.open(SOURCE_COPY_DB);
@@ -40,9 +36,6 @@ async function existingDatabase(): Promise<IDBDatabase | null> {
   });
 }
 
-/** Eén blob per sha256. Een kleine verwijzing beschermt ook een nog niet gecommit manifest:
- * andere tabbladen ruimen alleen hun eigen verwijzingen op. Bytes en verwijzing committen samen.
- */
 export async function writeRecoverySourceCopy(documentKey: string, sha256: string, copy: RecoverySourceCopy): Promise<void> {
   const db = await openDbStores(SOURCE_COPY_DB, 1, [BYTES, REFERENCES]);
   await new Promise<void>((resolve, reject) => {
@@ -50,7 +43,6 @@ export async function writeRecoverySourceCopy(documentKey: string, sha256: strin
     tx.oncomplete = () => resolve();
     tx.onerror = tx.onabort = () => reject(tx.error ?? new Error('De IFC-bronkopie is niet bewaard.'));
     const sourceStore = tx.objectStore(BYTES);
-    // Alleen sleutels lezen; nooit de volledige bron teruglezen tijdens een bewerkingstick.
     const request = sourceStore.getAllKeys();
     request.onerror = () => reject(request.error);
     request.onsuccess = () => {
@@ -64,7 +56,6 @@ export async function writeRecoverySourceCopy(documentKey: string, sha256: strin
   });
 }
 
-/** De gewone herstelroute controleert hierna grootte én sha256, vóór zij een doel teruggeeft. */
 export async function readRecoverySourceCopy(documentKey: string, sha256: string): Promise<RecoverySourceCopy | null> {
   const db = await existingDatabase();
   if (!db) return null;
@@ -90,10 +81,6 @@ export async function readRecoverySourceCopy(documentKey: string, sha256: string
   } finally { db.close(); }
 }
 
-/** Alleen aanroepen na een geslaagde manifestcommit/wisactie en een volledige manifestcontrole.
- * Onbekende herstelsets stoppen de aanroeper. Verwijzingen van andere sessies blijven staan,
- * ook tussen hun kopie en manifest. Pas zonder verwijzing én zonder manifest mag de blob weg.
- */
 export async function cleanupRecoverySourceCopies(
   generations: ReadonlySet<string>, references: ReadonlySet<string>, hashes: ReadonlySet<string>,
 ): Promise<void> {
@@ -124,7 +111,6 @@ export async function cleanupRecoverySourceCopies(
         for (const key of keys.result) {
           if (typeof key === 'string' && /^[0-9a-f]{64}$/.test(key) && !keptHashes.has(key)) { tx.objectStore(BYTES).delete(key); changed = true; }
         }
-        // De kleine headless dubbel voltooit alleen transacties met een write.
         if (!changed) queueMicrotask(resolve);
       };
       refs.onsuccess = keys.onsuccess = done;

@@ -1,14 +1,10 @@
 import i18n from './config';
 import { gregorianDateFormat } from '@/utils/monthLabel';
 
-// Alle opmaak hier loopt via `gregorianDateFormat`: vertaalde maandnamen, maar altijd de
-// Gregoriaanse kalender en Latijnse cijfers — de app rekent overal Gregoriaans.
-
 function uiLocale(locale?: string): string {
   return locale || i18n.language || 'nl';
 }
 
-/** Datum voor weergave, bv. "2 mrt 2026". */
 export function formatDisplayDate(d: Date, locale?: string): string {
   return gregorianDateFormat(uiLocale(locale), { day: 'numeric', month: 'short', year: 'numeric' }).format(d);
 }

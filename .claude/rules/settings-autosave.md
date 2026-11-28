@@ -37,7 +37,8 @@ De zware IFC-serialisatie loopt op één herbruikbare Web Worker (`recoverySnaps
 Besluiten van de herstelopslag (`recoveryStore.ts`): `docs/adr/0190-herstel-desktop-opruimen-binnen-eigen-boekhouding.md`,
 `0191-herstel-volgorde-en-commitpunt.md`, `0192-herstel-desktop-lezen-en-terugval.md`,
 `0193-herstel-web-sessie-per-tabblad.md`, `0194-herstel-web-archiefstore-en-verlopen-generaties.md` en
-`0195-herstelmanifest-optionele-velden.md`.
+`0195-herstelmanifest-optionele-velden.md`. Keuzes in de herstelronde (terugval van de herstelworker, samenvoegen van
+rondes, bevestigen van `pendingSha256`): `docs/adr/1030-herstelronde-keuzes-die-verrassen.md`.
 
 Voor #804 fase 1c gebruikt de inhoudsvergelijking `IFC_DIRTY_KEYS`: een vervangen `ifcSource` maakt geen nieuwe
 herstelsnapshot of bestands-AutoSave nodig. Een bestaande AutoSave-kandidaat toetst die bronidentiteit juist wél,

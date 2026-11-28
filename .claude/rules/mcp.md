@@ -112,6 +112,7 @@ geweigerd tot een geslaagde `planner_switch_document`, `planner_new_document` of
 het anker opnieuw bindt. Nieuw/import mogen als losse herstelactie door, maar worden nooit automatisch herhaald; hernoem of verander je die tools
 of `planner_export_ifc` (of het veld `envelope.activeDocumentId`), loop dan `DOCUMENT_CHOICE_TOOL`, `DOCUMENT_RECOVERY_TOOLS`
 en `EXPORT_TOOL` in `proxy.ts` na; welke tools lezen, haalt de bundel uit `readOnlyHint` in `tools/list`.
+Waarom een wijziging met onbekende uitkomst nooit opnieuw gaat: `docs/adr/1010-claude-desktop-bundel-wijziging-met-onbekende-uitkomst.md`.
 
 **Ontdekkingsbestanden voor de MCP-plugin** (issue #570). `runtime.json` (zolang de bridge draait) en
 `open-files.json` (zolang de desktop-app draait, ook met de MCP-koppeling uit) in `<appDataDir>/mcp/`. Contract

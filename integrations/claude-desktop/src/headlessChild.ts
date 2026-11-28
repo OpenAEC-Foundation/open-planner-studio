@@ -1,33 +1,18 @@
-// Start de headless MCP-server (`server/headless.mjs` in de bundel, gebouwd door
-// `scripts/build-mcp-server.mjs`) als kindproces op de werkmap, en praat er via stdio mee: één JSON-RPC-
-// bericht per regel. Eén kindproces per sessie; de proxy hergebruikt het tot hij naar de app wisselt.
-//
-// Waarom een kindproces en geen import: de server zet per bestandsoperatie de procesmap (`chdir`, zie
-// `headless/mcp-server/src/nodeFs.ts`), en dat mag de bundel zelf niet raken. In een worker kan `chdir` niet.
-// Het kind krijgt de omgeving van de bundel mee: zo draait het op dezelfde Node als de bundel (ook de
-// ingebouwde Node van Claude Desktop, die daar een variabele voor nodig kan hebben).
 import { spawn } from 'node:child_process';
 import { promises as fsp } from 'node:fs';
 import { createInterface } from 'node:readline';
 import type { HeadlessChannel, HeadlessReply, HeadlessStarter } from './proxy';
 
-/** De headless server vraagt Node 22 of nieuwer (`engines` in zijn `package.json`). */
 export const HEADLESS_MIN_NODE_MAJOR = 22;
 
-/** Omgevingsvariabelen van de headless server die de bundel zelf bepaalt (of die er niet horen: geen token). */
 const CHILD_ENV_DROP = ['OPS_MCP_TRANSPORT', 'OPS_MCP_ROOT', 'OPS_MCP_HOST', 'OPS_MCP_PORT', 'OPS_MCP_TOKEN', 'OPS_MCP_TOKEN_FILE', 'OPS_MCP_OPEN'];
 
 export interface HeadlessStarterOptions {
-  /** De werkmap uit het installatievenster, of `null`. */
   root: string | null;
-  /** Absoluut pad van `headless.mjs`. */
   serverFile: string;
-  /** Node om het kind mee te starten (`process.execPath`). */
   execPath: string;
-  /** `process.versions.node`. */
   nodeVersion: string;
   env: Record<string, string | undefined>;
-  /** Waar de gebruiker de werkmap instelt; komt in de foutmeldingen. */
   settingsHint: string;
   log: (line: string) => void;
 }
@@ -103,7 +88,7 @@ function spawnChannel(opts: HeadlessStarterOptions, root: string): HeadlessChann
     if (stderrTail.length > 5) stderrTail.shift();
     opts.log(`headless: ${line}`);
   });
-  child.stdin.on('error', () => { /* het kind is weg; `close` meldt het */ });
+  child.stdin.on('error', () => { });
   child.on('error', (error) => finish(`could not start Node.js: ${error.message}`));
   child.on('close', (code, signal) => finish(signal ? `ended by signal ${signal}` : `exit code ${code}`));
 
@@ -136,7 +121,7 @@ function spawnChannel(opts: HeadlessStarterOptions, root: string): HeadlessChann
     },
     async close() {
       if (!alive) return;
-      child.stdin.end(); // de server stopt als stdin sluit en het laatste antwoord geschreven is
+      child.stdin.end();
       await new Promise<void>((resolve) => {
         const timer = setTimeout(() => { child.kill(); resolve(); }, 2000);
         child.once('close', () => { clearTimeout(timer); resolve(); });
