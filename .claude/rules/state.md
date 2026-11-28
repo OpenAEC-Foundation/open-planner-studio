@@ -222,5 +222,6 @@ voor een taak (0243).
 zei (0330), het rekenresultaat uit de vastlegging (0331), de vastlegging terug in de taken (0332), de verschuiving op
 de getoonde datums en de tellers (0333) en de bouwstenen voor de lezers (0334).
 
+**Keuzes in de domeintypen in `src/types/`** (de typen hangen niet van `src/state/` af, kolomkoppen van de gebruiker gaan niet door `t()`, de eigen File System Access-typen): `docs/adr/0730-domeintypen-keuzes-die-verrassen.md`.
 **Het oprollen van verzameltaken** na een solve (`rollupSummaryTasks` in `engine/scheduler/applyCpmResult.ts`, voortgang in
 `summaryProgress.ts`): `docs/adr/0750-verzameltaken-oprollen.md`.
