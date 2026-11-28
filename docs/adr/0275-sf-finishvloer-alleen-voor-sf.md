@@ -4,8 +4,7 @@ Aanvulling op ADR 0031. SF eist dat de opvolger niet vóór de start van de voor
 herberekent de vroege finish als start plus duur. In `mpp14relations.mpp`, "Task 5", komt die herberekening op het
 blokeinde vóór een weekend uit, terwijl de eis na het weekend ligt (`msp-35-z10-sf-weekendgrens` in
 `cases-msp-pariteit.json`). Daarvoor bestaat de vloer. `forwardFinishFloor` geeft hem alleen voor SF en voor de andere
-relatietypen `null`. Het weggehaalde commentaar gaf als reden om FF geen vloer te geven dat de finish van de
-voorganger een eindmoment is, waar terug- en vooruittellen wel op de eis uitkomen; knownbug 231 beschrijft een
+relatietypen `null`. Knownbug 231 beschrijft een
 FF-geval met een werkelijke finish buiten werktijd waarin de opvolger toch vóór de voorganger eindigt.
 
 ## Gevolgen
