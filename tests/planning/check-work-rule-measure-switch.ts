@@ -1,23 +1,3 @@
-/**
- * Geval 11c (spec §5.2, §6.1; besluit B1a in §3.2 en §8): vast werk maakt een dagenmaat-taak urenmaat,
- * en die maatwijziging is een planningsbewerking.
- *
- * Voorbeeldweek (§0): ma–do 07:00–12:00 + 13:00–16:00 (8 u), vr 07:00–12:00 + 13:00–14:00 (6 u),
- * werktijd per dag 8 u. Taak A: 3 d vanaf wo 07:00 in de dagenmaat, einde vr 14:00 (22 werkuren).
- * Een wissel naar vast werk maakt A 3 × 8 u = 24 u urenmaat. Het einde staat dan meteen op ma 09:00
- * (wo 8 + do 8 + vr 6 + ma 2), niet pas na Bereken. Ctrl+Z geeft in één stap de dagenmaat, de modus
- * "datums zoals opgeslagen" en vr 14:00 terug.
- *
- * Routes: UI (`setTaskWorkRule`, `updateTask`, de rastercel Werkregel), MCP (`planner_update_tasks`,
- * een batch met een leesstap, de drie draft-primitieven). In de UI rekent `useExitRecordedDates` door
- * na het verlaten van de modus; die hook is React en draait hier niet, dus `viaUi` voert zijn besluit
- * uit met dezelfde pure functies (`leftRecordedDatesMode`, `needsExitRecompute`). In MCP rekent de
- * transactie zelf.
- *
- * Plus de varianten van geval 11 (§6.1): duur en vast werk in één aanroep (rekent), en de controle
- * zonder maatwijziging (houdt de modus, nul berekeningen). De variant "ruwe contour vóór de
- * werkregel" en geval 11 zelf staan in `check-minute-model-transition.ts`.
- */
 import { makeMcpContext } from '../mcp/harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpToolResult } from '@/services/mcp/contracts';
@@ -58,12 +38,6 @@ const VR_EINDE = '2026-06-05T14:00';
 const MA_0900 = '2026-06-08T09:00';
 const B_OPGESLAGEN = '2026-06-15T07:00';
 
-/**
- * Een vreemd IFC (`recordedTimesOrigin: 'ifc'`): V (2 d, ma–di) → A (3 d, wo–vr) → B (2 d). B staat in
- * het bestand op 15 jun door een SNET die de lader niet meekrijgt. B verschuift dus bij het rekenen,
- * en de verse import opent in de modus met de opgeslagen datums. A's opgeslagen datums zijn de
- * dagenmaat-datums: wo 07:00 tot vr 14:00.
- */
 function source() {
   const app = createAppStoreContext().store;
   app.setState(s => { s.project.startDate = '2026-06-01'; s.calendar = WEEK; s.calendars = []; });
@@ -85,7 +59,6 @@ interface Fixture { context: AppStoreContext; aId: string; bId: string }
 function fixture(): Fixture {
   const context = createAppStoreContext();
   context.store.getState().applyLoadedProject(structuredClone(SOURCE), { recompute: true });
-  // De rastercel Werkregel staat alleen in een ontsloten document.
   context.store.setState(s => { s.taskTypesVisible = true; });
   const id = (name: string) => context.store.getState().tasks.find(t => t.name === name)!.id;
   return { context, aId: id('A'), bId: id('B') };
@@ -93,7 +66,6 @@ function fixture(): Fixture {
 
 const taskOf = (f: Fixture, id: string) => f.context.store.getState().tasks.find(t => t.id === id)!;
 const applied = (f: Fixture) => f.context.store.getState().historyEvents.filter(e => e.state === 'applied').length;
-/** De stand die 11c toetst: maat, minuten, datums van A, start van B en de modus. */
 function stand(f: Fixture) {
   const s = f.context.store.getState();
   const a = taskOf(f, f.aId).time;
@@ -105,8 +77,6 @@ function stand(f: Fixture) {
 }
 const OPGESLAGEN = { unit: 'days', minutes: null, days: 3, aStart: WO, aFinish: VR_EINDE, bStart: B_OPGESLAGEN, inMode: true, stale: false };
 
-/** Een UI-bewerking plus wat `useExitRecordedDates` daarna doet (zie de kop). Geeft het aantal
- *  berekeningen dat de hook startte. */
 function viaUi(f: Fixture, action: () => void): number {
   const observe = (): RecordedDatesObservation => {
     const s = f.context.store.getState();
@@ -120,13 +90,11 @@ function viaUi(f: Fixture, action: () => void): number {
   return 1;
 }
 
-/** Verwachte stand na een wissel naar vast werk zonder duurwijziging: 24 u, einde ma 09:00. */
 function expectSwitched(label: string, f: Fixture, extra: { bLater: boolean }) {
   const st = stand(f);
   eq(`${label}: vast werk maakt A urenmaat, 3 d × 8 u = 24 u`, [st.unit, st.minutes, st.days], ['hours', 24 * 60, 3]);
   eq(`${label}: het einde staat meteen op ma 09:00, de modus is uit en de planning vers`,
     [st.aStart, st.aFinish, st.inMode, st.stale, f.context.store.getState().recordedDates], [WO, MA_0900, false, false, null]);
-  // B rekende mee: de opgeslagen 15 jun is weg en B volgt het nieuwe einde van A.
   eq(`${label}: B is doorgerekend`, [st.bStart !== B_OPGESLAGEN, st.bStart >= MA_0900], [extra.bLater, extra.bLater]);
 }
 
@@ -137,15 +105,12 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   eq(`${label}: …en één undo-stap`, applied(f), appliedBefore);
 }
 
-// ── Voorwaarde: de fixture opent in de modus met A in de dagenmaat ──────────────
 {
   const f = fixture();
   eq('voorwaarde: A en B zoals opgeslagen, in de modus', stand(f), OPGESLAGEN);
   eq('voorwaarde: A heeft geen eigen werkregel en het project geen standaard', [taskOf(f, f.aId).workRule, f.context.store.getState().project.defaultWorkRule], [undefined, undefined]);
 }
 
-// ── UI ─────────────────────────────────────────────────────────────────────────
-// (u1) Het menu Taaktype (`setTaskWorkRule`).
 {
   const f = fixture();
   const before = applied(f);
@@ -155,7 +120,6 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   eq('u1 setTaskWorkRule: één undo-stap voor wissel en berekening', applied(f), before + 1);
   expectUndone('u1 setTaskWorkRule', f, before);
 }
-// (u2) De taakdialoog (`updateTask` met alleen de werkregel).
 {
   const f = fixture();
   const before = applied(f);
@@ -165,7 +129,6 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   eq('u2 updateTask: één undo-stap', applied(f), before + 1);
   expectUndone('u2 updateTask', f, before);
 }
-// (u3) De rastercel Werkregel.
 {
   const f = fixture();
   const before = applied(f);
@@ -178,9 +141,7 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   expectUndone('u3 rastercel', f, before);
 }
 
-// ── MCP ────────────────────────────────────────────────────────────────────────
 async function mcp() {
-  // (m1) planner_update_tasks met alleen de werkregel.
   {
     const f = fixture();
     const before = applied(f);
@@ -190,7 +151,6 @@ async function mcp() {
     eq('m1 planner_update_tasks: één undo-stap', applied(f), before + 1);
     expectUndone('m1 planner_update_tasks', f, before);
   }
-  // (m2) Een batch met een leesstap: de leesstap ziet al het nieuwe einde.
   {
     const f = fixture();
     const before = applied(f);
@@ -206,7 +166,6 @@ async function mcp() {
     eq('m2 batch: één undo-stap', applied(f), before + 1);
     expectUndone('m2 batch', f, before);
   }
-  // (m3–m5) De drie draft-primitieven die een werkregel schrijven.
   const primitives: [string, (f: Fixture, tx: ReturnType<typeof createMcpTransactions>) => void][] = [
     ['m3 draft.setTaskWorkRule', (f, tx) => tx.draft.setTaskWorkRule(f.aId, 'FIXED_WORK')],
     ['m4 draft.updateTaskFields', (f, tx) => { tx.draft.updateTaskFields(f.aId, { workRule: 'FIXED_WORK' }); }],
@@ -222,8 +181,6 @@ async function mcp() {
     expectUndone(label, f, before);
   }
 
-  // ── Varianten van geval 11 (§6.1) ──────────────────────────────────────────
-  // (v1) Duur 2 d plus vast werk in één aanroep: 2 × 8 u = 960 min, einde do 16:00, rekent.
   {
     const f = fixture();
     const before = applied(f);
@@ -243,7 +200,6 @@ async function mcp() {
       [st.unit, st.minutes, st.aFinish, st.inMode, runs], ['hours', 960, '2026-06-04T16:00', false, 1]);
     expectUndone('v1 UI duur plus vast werk', f, before);
   }
-  // (v2) Controle: een wissel die de maat niet verandert, blijft datumneutraal.
   for (const rule of ['FIXED_DURATION_WORK', 'FIXED_RATE'] as WorkRule[]) {
     const f = fixture();
     const before = applied(f);
@@ -254,19 +210,15 @@ async function mcp() {
     eq(`v2 MCP ${rule}: houdt de dagenmaat, de modus en vr 14:00`, [res.ok, stand(f)], [true, OPGESLAGEN]);
   }
 
-  // ── B1a: geen invoer maakt een taak onder vast werk dagenmaat (§3.2, §3.12) ───────────
   {
     const f = fixture();
     f.context.store.getState().setTaskWorkRule(f.aId, 'FIXED_WORK');
     f.context.store.getState().runCPM();
-    // UI: een duur in werkdagen ("5d") gaat naar de urenbron: 5 × 8 u.
     f.context.store.getState().updateTask(f.aId, { time: { ...taskOf(f, f.aId).time, scheduleDuration: 5, durationUnit: 'days' } });
     eq('w1 UI: 5 d onder vast werk wordt 40 u urenmaat', [taskOf(f, f.aId).time.durationUnit, taskOf(f, f.aId).time.durationMinutes, taskOf(f, f.aId).time.scheduleDuration], ['hours', 2400, 5]);
-    // Raster: de maatcel weigert de dagenmaat.
     const cell: CellEditIntent = { kind: 'cell-edit', taskId: f.aId, columnId: 'task.time.durationUnit' as CellEditIntent['columnId'], route: 'task-schedule', value: 'days' };
     const res = f.context.store.getState().runGridMutation([cell]);
     eq('w2 raster: de maatcel weigert dagen onder vast werk', [res.ok, res.ok ? null : JSON.stringify(res).includes('fixedWorkIsHours'), taskOf(f, f.aId).time.durationUnit], [false, true, 'hours']);
-    // MCP: dagen blijven als invoer toegestaan (§3.13) en gaan naar de urenbron.
     const mcpRes = await getTool('planner_update_tasks')!.handler({ updates: [{ id: f.aId, fields: { duration: 2.5, durationUnit: 'days' } }] }, makeMcpContext(f.context)) as McpToolResult;
     eq('w3 MCP: 2,5 d onder vast werk wordt 20 u urenmaat', [mcpRes.ok, taskOf(f, f.aId).time.durationUnit, taskOf(f, f.aId).time.durationMinutes], [true, 'hours', 1200]);
   }

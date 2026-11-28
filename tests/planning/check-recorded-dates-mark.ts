@@ -1,18 +1,3 @@
-/**
- * "Datums zoals opgeslagen" (issue #63, XER-etappeplan laag 3, T6) — de taaktabel-/eigenschappen-
- * paneelmarkering. Corpusloos, twee lagen:
- *
- *  1. `src/state/recordedDatesSelectors.ts` (`unrecordedAxes`/`recordedTaskMark`) als pure functie,
- *     los van de store en los van de taakgrid.
- *  2. De draadverbinding in `taskColumnRegistry.ts`: de nieuwe kolom `recorded.source`
- *     (`available` alleen met `ctx.recordedMark`) en de "niet vastgelegd"-tak op de vier bestaande
- *     late-/floatkolommen (`ctx.recordedUnrecordedAxes`).
- *
- * MUTATIEBEWIJS (handmatig geverifieerd, niet in deze suite herhaald): het verwijderen van de
- * `ctx.recordedUnrecordedAxes?.(task).includes(axis)`-tak uit `recordedAxisFormat`
- * (`taskColumnRegistry.ts`) laat de assertie "onvolledige late/floatas toont 'niet vastgelegd', niet
- * de rauwe `?? 0`-terugval" hieronder ROOD gaan — de kolom toont dan weer een verzonnen `0`.
- */
 import type { Task } from '@/types/task';
 import type { RecordedDatesState, RecordedTime } from '@/engine/scheduler/recordedDates';
 import type { TaskColumnContext } from '@/types/taskGrid';
@@ -40,7 +25,6 @@ function ok(label: string, condition: boolean): void {
   if (!condition) diffs.push(label);
 }
 
-// ── unrecordedAxes ──────────────────────────────────────────────────────────────────────────
 const fullRecord: RecordedTime = {
   start: '2026-01-01', finish: '2026-01-02',
   lateStart: '2026-01-01', lateFinish: '2026-01-02', totalFloat: 0, freeFloat: 0, isCritical: true,
@@ -56,7 +40,6 @@ eq('alle vier optionele assen ontbreken', unrecordedAxes({
   start: '2026-01-01', finish: '2026-01-02',
 }), ['ls', 'lf', 'tf', 'ff']);
 
-// ── recordedTaskMark ────────────────────────────────────────────────────────────────────────
 function taskWith(time: Partial<Task['time']>): Task {
   return {
     id: 't-1', name: 'Taak', description: '', wbsCode: '1', taskType: 'CONSTRUCTION',
@@ -84,9 +67,6 @@ eq('geen vastlegging (recordedDates === null) ⇒ undefined, ongeacht datesAsRec
 eq('taak niet in de vastlegging ⇒ undefined',
   recordedTaskMark(recordedState({ 'ander-id': fullRecord }), false, taskWith({})), undefined);
 
-// Geen aanbod-stand meer (eigenaar, 2026-10-17, optie 1): buiten de modus markeert niets, ook
-// niet als de datums afwijken of de vastlegging onvolledig is (vangnet voor een schrijver die
-// `recordedDates` buiten de modus zou laten staan).
 eq('buiten de modus, afwijkende datums ⇒ undefined (geen "wijkt af" meer)',
   recordedTaskMark(
     recordedState({ 't-1': fullRecord }), false,
@@ -111,7 +91,6 @@ eq('IN de modus, ONVOLLEDIGE vastlegging ⇒ partly-unrecorded (eigenschap van h
     taskWith({ earlyStart: fullRecord.start, earlyFinish: fullRecord.finish }),
   ), 'partly-unrecorded');
 
-// ── Draadverbinding: taskColumnRegistry.ts ─────────────────────────────────────────────────
 const registryInput = {
   projectId: 'project:1', activityCodeTypes: [], customFieldDefs: [], baselines: [],
 };
@@ -156,9 +135,6 @@ eq('recorded.source toont een streepje zonder markering',
 eq('recorded.source valt terug op de Engelse sleutelnaam zonder labelForText (nooit een lege cel)',
   recordedSourceColumn.format('partly-unrecorded', task, { ...withMarkCtx, labelForText: undefined }), 'partly-unrecorded');
 
-// Klembord (critreview laag 3, bevinding 11): zonder eigen `copy` leverde `copyScalar` het rauwe
-// token `partly-unrecorded` terwijl de cel "Deels niet vastgelegd" toont. MUTATIEBEWIJS: haal de `copy`-functie uit de
-// kolomdefinitie ⇒ de eerste van deze twee slaat rood.
 const copyCtx = {
   ...withMarkCtx,
   labelForText: (key: string) => ({
@@ -170,14 +146,9 @@ eq('recorded.source kopieert dezelfde tekst als de cel toont, niet het rauwe tok
 eq('recorded.source kopieert een LEGE cel zonder markering (geen em-dash in een plakactie)',
   recordedSourceColumn.copy(task, { ...copyCtx, recordedMark: () => undefined }), '');
 
-// Integratie groep B (audit "weergaven"): speling toont sindsdien in werkdagen met eenheid
-// (`workDaysCellText`, bv. "0 d" — in deze headless context zonder vertalingen de ruwe sleutel).
-// Waar het hier om gaat is "het getal, geen niet-vastgelegd": de tekst begint met het getal.
 const showsNumber = (text: string | undefined, n: number): boolean =>
   text !== undefined && text !== 'Niet vastgelegd' && text.startsWith(String(n));
 
-// De vier late-/floatkolommen: alleen de assen die `recordedUnrecordedAxes` noemt tonen "niet
-// vastgelegd"; de rest blijft de gewone geformatteerde waarde (byte-identiek aan vóór T6).
 const lateStartCol = registryPlain.find(c => c.id === 'task.time.lateStart')!;
 const lateFinishCol = registryPlain.find(c => c.id === 'task.time.lateFinish')!;
 const totalFloatCol = registryPlain.find(c => c.id === 'task.time.totalFloat')!;
@@ -198,18 +169,12 @@ eq('totalFloat IS in de onvastgelegde-assenlijst ⇒ "niet vastgelegd" i.p.v. ee
 eq('freeFloat is NIET in de onvastgelegde-assenlijst ⇒ gewoon het getal 0, geen "niet vastgelegd"',
   showsNumber(freeFloatCol.format(freeFloatCol.read(task, axisCtx), task, axisCtx), 0), true);
 
-// Zonder de naad (ctx.recordedUnrecordedAxes ontbreekt, zoals op elk niet-XER-document) blijft
-// het gedrag van vóór T6 volledig intact — dit is de "geen regressie op bestaande documenten"-poort.
 const noAxisCtx = baseContext();
 eq('zonder recordedUnrecordedAxes: totalFloat toont gewoon het getal, geen "niet vastgelegd"',
   showsNumber(totalFloatCol.format(totalFloatCol.read(task, noAxisCtx), task, noAxisCtx), 0), true);
 eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
   lateFinishCol.format(lateFinishCol.read(task, noAxisCtx), task, noAxisCtx), task.time.lateFinish);
 
-// ── recordedNoticeState: de badge in het eigenschappenpaneel ─────────────────────────────────
-// Zelfde bron als de tabelkolom (critreview laag 3, bevinding 1): buiten de modus geen
-// "deels niet vastgelegd" meer, en IN de modus wint dat signaal juist van het kale "actief" —
-// anders zegt de badge iets anders dan de kolom `recorded.source` over dezelfde taak.
 {
   const volledig = recordedState({ 't-1': fullRecord });
   const onvolledig = recordedState({ 't-1': { ...fullRecord, totalFloat: undefined } });
@@ -228,19 +193,12 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
     recordedNoticeState(recordedState({}), true, gelijk), undefined);
 }
 
-// ── recordedGridBinding: de POORT tussen documentstate en de taakgrid-naad ──────────────────
-// Critreview laag 3, bevinding 1 (BEVESTIGD, regressie op de bestaande #63-route): de naad hing op
-// `recordedDates !== null`, dus in de AANBOD-stand verving de tabel echte CPM-uitvoer door "Niet
-// vastgelegd" — permanent, want in die stand wist zelfs F5 de vastlegging niet.
 {
   const recorded = recordedState({ 't-1': { start: '2026-01-01', finish: '2026-01-02' } });
 
   const aanbod = recordedGridBinding(recorded, false);
   ok('buiten de modus (vangnet): geen kolom recorded.source',
     aanbod.recordedMark === undefined);
-  // `ok(... === undefined)` en niet `eq(..., undefined)`: `JSON.stringify` van een FUNCTIE is óók
-  // `undefined`, dus een eq-vergelijking hier zou een aanwezige naad niet van een afwezige kunnen
-  // onderscheiden — de assertie zou vacuüm zijn (gemeten tijdens het mutatiebewijs).
   ok('buiten de modus (vangnet): GEEN onvastgelegde-assennaad — de late-/floatkolommen tonen de echte berekening',
     aanbod.recordedUnrecordedAxes === undefined);
 
@@ -254,17 +212,6 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
     zonder.recordedMark === undefined && zonder.recordedUnrecordedAxes === undefined);
 }
 
-// ── Einde-tot-eind door de ECHTE store ───────────────────────────────────────────────────────
-// Geen synthetische context maar de documentstate zoals `applyLoadedProject` hem achterlaat, door
-// dezelfde binding en dezelfde kolomdescriptor.
-//  1. Een BUITEN de modus opgeslagen, bewerkt eigen IFC (dus zonder `SourceFormat`, dat de app alleen
-//     in de modus schrijft): de app vergeet de opgeslagen datums, de late-/floatkolommen tonen onze
-//     echte berekening. Een bewerkt bestand MET `SourceFormat` is in de modus opgeslagen en opent
-//     sinds 2026-10-17 weer in de modus ("zoals je het achterliet", zie check-recorded-dates 7aj6c).
-//  2. Hetzelfde bestand ONBEWERKT, in de modus opgeslagen: "Niet vastgelegd" is het eerlijke antwoord.
-// Onder 1 is er geen vastlegging meer, dus de modus-poort in `recordedGridBinding` wordt hier niet
-// geraakt: 1 is een tegenproef op de echte store (onze berekening in de kolommen). Dat buiten de modus
-// geen vastlegging blijft staan, bewaakt check-recorded-dates 8a.
 {
   const S = () => useAppStore.getState();
   const eigenIfc = (importPristine: boolean) => ({
@@ -306,12 +253,6 @@ eq('zonder recordedUnrecordedAxes: lateFinish toont gewoon de datum',
     lateStartCol.format(lateStartCol.read(modusTask, modusCtx), modusTask, modusCtx), 'Niet vastgelegd');
 }
 
-// ── De ECHTE naad: `taskGridAdapter.getCell` mét dateNotation (her-check laag 3, bev. 1 en 2) ──
-// De asserties hierboven riepen `descriptor.format(...)` rechtstreeks aan. Het product doet dat
-// niet: `getCell` slaat `format` over voor datumkolommen zodra `domain.dateNotation` gezet is (en
-// dat is in het product altijd zo), en `copyText` ging via `copyScalar(read(...))`. Gemeten vóór de
-// fix: `text="01-01-2026"` en `copyText="0"` waar "Niet vastgelegd" en "" hoorden. Deze sectie meet
-// daarom op `getCell().text`/`.copyText` en `copyCell`, met de productinstelling `dateNotation: 'dmy'`.
 {
   const gridTask = taskWith({ lateStart: '2026-01-01', lateFinish: '2026-01-02', totalFloat: 0, freeFloat: 0 });
   const makeAdapter = (recordedUnrecordedAxes: ((task: Task) => readonly ('ls' | 'lf' | 'tf' | 'ff')[]) | undefined) =>

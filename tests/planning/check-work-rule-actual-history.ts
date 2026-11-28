@@ -1,5 +1,3 @@
-// Verricht resourcewerk blijft een feit bij een regel- en inzetwijziging, ook bij de latere
-// voortgangsboeking. Echte store-acties; de fixture zet alleen geïmporteerde actuals/contouren.
 import './domStub';
 import { createAppStore } from '@/state/appStore';
 import { assignmentDayUnits } from '@/engine/scheduler/ResourceLoad';
@@ -23,7 +21,6 @@ function ok(label: string, value: boolean): void {
 for (const sample of [
   { id: 'h50', days: 4, completion: 0.5 },
   { id: 'h32', days: 5, completion: 0.32 },
-  // De urenmaat levert nu al de exacte 32%-rest van B3; dageninvoer wordt in F3c aangesloten.
   { id: 'h32-exact', days: 5, completion: 0.32, hours: true },
   { id: 'expliciet-nul', days: 4, completion: 0.5, actual: 0 },
   { id: 'expliciet', days: 4, completion: 0.5, actual: 321.5 },
@@ -71,7 +68,6 @@ for (const sample of [
   ok(`${sample.id}: actual-contourperiodes ook na voltooien behouden`, actualPeriods() === originalActualPeriods);
 }
 
-/** Vier dagen, één resource en 50% via echte store-acties. Opzoeken op naam overleeft IFC-ids. */
 function started(name: string, units = [1]) {
   const store = createAppStore();
   const S = () => store.getState();
@@ -96,8 +92,6 @@ function started(name: string, units = [1]) {
   return { S, task, own, snapshot, roundTrip };
 }
 
-// Zonder vast werk moet voortgang de vastgelegde actuals blijven aanvullen. Een latere
-// regelwissel of IFC-rondgang mag geen werk laten verdwijnen: 960 + 2 d × inzet 7 = 7680 min.
 for (const fixedAt75 of [false, true]) {
   for (const viaIfc of [false, true]) {
     const name = `standaard/vast-bij-75=${fixedAt75}/IFC=${viaIfc}`;
@@ -135,8 +129,6 @@ for (const fixedAt75 of [false, true]) {
   }
 }
 
-// Een nieuwe resource deelt alleen in de toekomst. Vast werk verdeelt de 960 resterende minuten;
-// de standaardregel voegt 2880 minuten toe. Geen van beide geeft de nieuwkomer verrichte uren.
 for (const fixed of [false, true]) {
   const name = `resource-erbij/vast=${fixed}`;
   const f = started(name);
@@ -160,7 +152,6 @@ for (const fixed of [false, true]) {
   near(`${name}: geen restwerk`, f.own().reduce((sum, a) => sum + a.remainingWorkMinutes!, 0), 0);
 }
 
-// Goedgekeurde randgevallen: verschillende inzetten en behoud van de blijvende actual bij eraf.
 {
   const f = started('verschillende-inzetten', [0.5, 2]);
   f.S().setTaskWorkRule(f.task().id, 'FIXED_WORK');

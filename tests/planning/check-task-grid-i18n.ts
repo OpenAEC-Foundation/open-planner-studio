@@ -8,8 +8,6 @@ const LOCALES = [
   'ro', 'ru', 'sk', 'sr', 'sv', 'tr', 'uk', 'zh',
 ] as const;
 
-/** Alle door de nieuwe taakgrid zelf gebruikte teksten; bestaande domeinlabels staan hier ook in,
- * zodat hergebruik niet stil terug kan vallen op de standaardtaal. */
 const TASK_GRID_KEYS = [
   'table.addColumn',
   'table.chooseColumn',
@@ -105,13 +103,6 @@ const COUNTED_TASK_GRID_KEYS = [...new Set(
   [...registrySource.matchAll(/labelForText\?\.\(\s*'([^']+)'\s*,\s*\{\s*count\s*:/g)]
     .map(match => match[1]),
 )].sort();
-// Issue #89: een validatiecode zonder vertaling viel terug op een Nederlandse `defaultValue`, ook in
-// een Engelse interface. Elke code die de bron kan opleveren moet daarom in álle talen bestaan;
-// de lijst wordt hier uit de bron gelezen, zodat een nieuwe code zonder tekst de poort rood zet.
-// De scan kent de helperfuncties die `taskGrid.validation.<code>` bouwen bij naam; een NIEUWE
-// helper met dat sjabloon die hier niet in staat, zet de poort eveneens rood (zie hieronder), zodat
-// het gat dat de eerste versie van deze scan had (tokenError/globalError in relationPlan.ts) niet
-// stil terug kan komen.
 const VALIDATION_SOURCE_FILES = [
   ...fs.readdirSync(path.join(root, 'src/engine/taskGrid'))
     .filter(name => name.endsWith('.ts'))
@@ -125,22 +116,15 @@ const VALIDATION_SOURCE_FILES = [
 const VALIDATION_HELPERS = ['failure', 'fail', 'error', 'localError', 'validationError', 'tokenError', 'globalError'];
 const helperAlternation = VALIDATION_HELPERS.join('|');
 const VALIDATION_CODE_PATTERNS = [
-  // helper('code', …) en helper(iets, 'code', …)
   new RegExp(`\\b(?:${helperAlternation})\\((?:[^,()]+,\\s*)?'([a-zA-Z]+)'`, 'g'),
-  // helper(voorwaarde ? 'a' : 'b', …) — beide takken
-  // (de voorwaarde mag haakjes bevatten, zoals `slice.text.includes('/')`)
-  // — maar geen komma: dan is het ternair niet het eerste argument)
   new RegExp(`\\b(?:${helperAlternation})\\([^,?]{0,160}?\\?\\s*'([a-zA-Z]+)'\\s*:\\s*'([a-zA-Z]+)'`, 'g'),
   /\bcode:\s*'([a-zA-Z]+)'/g,
   /taskGrid\.validation\.([a-zA-Z]+)/g,
-  // Kolomeigen weigerreden van een alleen-lezen cel (`readOnlyReason`, audit "weergaven" bev. 2).
   /\breadOnlyReason:[^\n]*?'([a-zA-Z]+)'/g,
 ];
 const validationSources = new Map(VALIDATION_SOURCE_FILES.map(file => (
   [file, fs.readFileSync(path.join(root, file), 'utf8')] as const
 )));
-// relationPlan.ts geeft `relationStructureVerdict`-redenen door als code ('unknown-task' wordt
-// 'unknownTask'); die literals staan in de scheduler, buiten de gescande mappen.
 const relationRules = fs.readFileSync(path.join(root, 'src/engine/scheduler/relationRules.ts'), 'utf8');
 const STRUCTURE_REASONS = [...new Set([...relationRules.matchAll(/reason:\s*'([a-z-]+)'/g)].map(match => match[1]))];
 const structureCodes = STRUCTURE_REASONS.map(reason => reason === 'unknown-task' ? 'unknownTask' : reason);
@@ -150,8 +134,6 @@ const VALIDATION_KEYS = [...new Set([
   ))),
   ...structureCodes,
 ])].sort().map(code => `taskGrid.validation.${code}`);
-// Elke functie die zelf `taskGrid.validation.${…}` bouwt moet in VALIDATION_HELPERS staan, anders
-// ziet de scan haar aanroepen niet.
 const UNSCANNED_HELPERS = [...validationSources.entries()].flatMap(([file, source]) => (
   [...source.matchAll(/function (\w+)\([^)]*\)[^{]*\{[\s\S]*?\n\}/g)]
     .filter(match => match[0].includes('taskGrid.validation.${'))
@@ -175,13 +157,9 @@ const at = (value: unknown, dotted: string): unknown => dotted.split('.').reduce
 const variables = (text: string): string[] => [...text.matchAll(/{{\s*([A-Za-z0-9_]+)\s*}}/g)]
   .map(match => match[1]).sort();
 
-// Besluit B5 (2026-10-10): een nieuwe tekst vraagt alleen nl + en. In een andere taal mag een sleutel
-// (of een hele meervoudsfamilie) nog ontbreken — de app valt terug op en, en de vertaalstraat vult hem
-// aan vóór een release (`npm run verify:translations`). Wat er wél staat, moet kloppen.
 const optional = (locale: string): boolean => !(REQUIRED_LOCALES as readonly string[]).includes(locale);
 const taskByLocale = new Map(LOCALES.map(locale => [locale, readJson(locale, 'task')] as const));
 const dutch = taskByLocale.get('nl')!;
-// knownbugs #63: één Nederlands label voor werkelijk einde in raster, paneel en voortgangsimport.
 const actualFinishLabel = at(readJson('nl', 'common'), 'progressImport.field.actualFinish');
 for (const key of ['taskGrid.columns.actualFinish', 'properties.progress.actualFinish']) {
   ok(`nl.${key} gebruikt hetzelfde label voor werkelijk einde als de voortgangsimport`,
@@ -205,7 +183,6 @@ ok('De bronscan vindt de validatiecodes uit clipboard, editplan, transactie, edi
   ['taskGrid.validation.required', 'taskGrid.validation.pasteBounds', 'taskGrid.validation.tsvQuote',
     'taskGrid.validation.documentChanged', 'taskGrid.validation.prepareRejected',
     'taskGrid.validation.clearNotPossible', 'taskGrid.validation.relationSetConflict',
-    // via tokenError/globalError, een ternair eerste argument en de structuurredenen
     'taskGrid.validation.duplicateRelationId', 'taskGrid.validation.cycle',
     'taskGrid.validation.externalRelationRequiresDialog', 'taskGrid.validation.relationToken',
     'taskGrid.validation.unknownTask', 'taskGrid.validation.self', 'taskGrid.validation.ancestor']
@@ -222,7 +199,6 @@ for (const key of COUNTED_TASK_GRID_KEYS) {
       at(taskLocale, key) === undefined);
     const categories = new Intl.PluralRules(locale).resolvedOptions().pluralCategories;
     const familyKey = (category: string) => key.replace(/([^.]+)$/, `$1_${category}`);
-    // Een helemaal ontbrekende familie mag (B5); een halve familie niet.
     if (optional(locale) && categories.every(category => at(taskLocale, familyKey(category)) === undefined)) continue;
     for (const category of categories) {
       const pluralKey = key.replace(/([^.]+)$/, `$1_${category}`);
@@ -280,7 +256,6 @@ for (const key of [
   'resource.curve.bell',
   'resource.curve.earlyPeak',
   'resource.curve.latePeak',
-  // "Herstel standaard" onderaan de kolomkiezer.
   'view.columns.resetDefault',
 ] as const) {
   for (const locale of LOCALES) {
@@ -291,9 +266,6 @@ for (const key of [
 }
 
 const english = taskByLocale.get('en')!;
-// Een nieuwe taal (geen basislijn in de vertaalstraat) staat eerst met Engels als vulling. Daar geldt
-// "niet stil Engels" pas voor een sleutel die de straat vertaalde, dus die een bron-hash heeft in
-// i18n/ui-sources/<taal>.json. Zo wordt de controle per sleutel strenger naarmate de straat vult.
 const translatedByStraat = (locale: string, ns: string, key: string): boolean => {
   const file = path.join(root, 'i18n/ui-sources', `${locale}.json`);
   if (!fs.existsSync(file)) return false;
@@ -382,7 +354,6 @@ ok('Assignment-validatie staat op de focusbare invoervelden en niet op de sameng
     && (cellEditor.match(/aria-describedby=\{inputProps\['aria-describedby'\]\}/g)?.length ?? 0) >= 3);
 ok('Relatie-validatie staat op type-, lag- en zoekvelden en niet op de samengestelde wrapper',
   relationEditor.includes('const validationProps = {')
-    // De typekeuze is sinds review 2026-10-06 de gedeelde `Select` (geen native `<select>`).
     && (relationEditor.match(/<Select\s+\{\.\.\.validationProps\}/g)?.length ?? 0) === 2
     && (relationEditor.match(/<input\s+\{\.\.\.validationProps\}/g)?.length ?? 0) === 3
     && !/<div[^>]*className="task-grid-relation-editor"[^>]*validationProps/.test(relationEditor));

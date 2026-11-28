@@ -1,14 +1,3 @@
-// check-work-rule-mapping.ts — taaktypes-etappe, bouwstap 2 (ontwerp 2026-09-04 §4.2/§4.3/§4.4):
-// de importvertaling van de werkregel en de drie werkvelden, headless tegen de echte adapters.
-//   (a) de pure vertaaltabellen (`workRuleMapping.ts`): MSP-type+vlag ↔ werkregel, MSPDI-codes,
-//       P6-labels ↔ werkregel (tolerant voor "&"), XER-tokens ↔ werkregel, en de importregel
-//       "afwezig ⇒ afgeleid" voor de werkvelden;
-//   (b) `deriveImportedWorkRules`: MSP-velden gaan voor, een bestaande regel blijft, geen bron ⇒ geen veld;
-//   (c) MSPDI: writer → reader round-trip van <Type>/<EffortDriven> en de werkvelden op de toewijzing,
-//       inclusief beslispunt 8-B (Fixed Units zonder effort-driven) en de byte-identieke tak;
-//   (d) P6 XML: <DurationType>-labels beide kanten (Oracle-datamap) en de units-velden in uren;
-//   (e) XER: `duration_type` → werkregel en TASKRSRC-hoeveelheden → werkvelden, alleen bij afwijking.
-// Draait via run.sh. Exit 0 = groen.
 import {
   MSPDI_TASK_TYPE_CODE, P6_DURATION_TYPE_NAME, XER_DURATION_TYPE_TOKEN, importedWorkFields, mspFromWorkRule,
   mspTaskTypeFromCode, workRuleFromMsp, workRuleFromP6DurationType, workRuleFromXerDurationType,
@@ -66,7 +55,6 @@ const res = (id: string): Resource => ({ id, name: id, type: 'LABOR', descriptio
 const assign = (id: string, taskId: string, resourceId: string, unitsPerDay: number, extra?: Partial<ResourceAssignment>): ResourceAssignment =>
   ({ id, taskId, resourceId, unitsPerDay, ...extra });
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (a) vertaaltabellen --');
 {
   eq('a1 MSP → werkregel (vijf combinaties, spec §2.3)', [
@@ -102,7 +90,6 @@ console.log('-- (a) vertaaltabellen --');
     workRuleFromXerDurationType('DT_FixedDrtn') === workRuleFromP6DurationType('Fixed Duration and Units/Time')
     && workRuleFromXerDurationType('DT_FixedDUR2') === workRuleFromP6DurationType('Fixed Duration and Units'));
 
-  // "Afwezig ⇒ afgeleid" bij import.
   eq('a10 niets in de bron ⇒ niets', importedWorkFields({}, 2400), {});
   eq('a11 bron gelijk aan de afleiding (binnen 1 min) ⇒ niets', importedWorkFields({ plannedMinutes: 2400.5, remainingMinutes: 2400 }, 2400), {});
   eq('a12 begroot wijkt af ⇒ alle aanwezige velden', importedWorkFields({ plannedMinutes: 3000, remainingMinutes: 3000 }, 2400), { plannedWorkMinutes: 3000, remainingWorkMinutes: 3000 });
@@ -115,7 +102,6 @@ console.log('-- (a) vertaaltabellen --');
   eq('a16 alleen resterend, afwijkend van de afleiding ⇒ veld', importedWorkFields({ remainingMinutes: 1200 }, 2400), { remainingWorkMinutes: 1200 });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (b) deriveImportedWorkRules --');
 {
   const tasks: Task[] = [
@@ -130,22 +116,17 @@ console.log('-- (b) deriveImportedWorkRules --');
   ok('b2 de importvelden zelf blijven onaangeraakt', tasks[0].mspTaskType === 'FIXED_DURATION' && tasks[0].effortDriven === true && tasks[0].p6DurationType === 'DT_FixedQty');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (c) MSPDI round-trip --');
 {
   const project = createDefaultProject();
   const tFixedWork = task('fw', '2026-06-01', '2026-06-05', 5, { workRule: 'FIXED_WORK' });
-  // Beslispunt 8-B: een MSP-taak "Fixed Units, niet effort-driven" — bewaard `mspTaskType` zonder
-  // `effortDriven` ⇒ de export schrijft EffortDriven 0 (de vlag wint van de P6-lezing van FIXED_RATE).
   const tFuNoEd = task('fu', '2026-06-01', '2026-06-05', 5, { workRule: 'FIXED_RATE', mspTaskType: 'FIXED_UNITS' });
   const tFdEd = task('fd', '2026-06-01', '2026-06-05', 5, { workRule: 'FIXED_DURATION_WORK' });
   const tPlain = task('plain', '2026-06-01', '2026-06-05', 5);
   const r1 = res('r1');
   const assignments = [
-    // 5 d × 8 u × 1,0 = 40 u afgeleid; bron zegt 60 u begroot, 20 verricht, 40 rest ⇒ velden.
     assign('a1', 'fw', 'r1', 1, { plannedWorkMinutes: 3600, actualWorkMinutes: 1200, remainingWorkMinutes: 2400 }),
-    assign('a2', 'plain', 'r1', 1), // niets ⇒ Work = duur × units, komt zonder velden terug
-    // E3: alleen verricht werk (zo bewaart een import zonder afwijking het) ⇒ Work blijft de afleiding.
+    assign('a2', 'plain', 'r1', 1),
     assign('a3', 'fd', 'r1', 1, { actualWorkMinutes: 600 }),
   ];
   const xml = writeMSPDI(project, CAL, [tFixedWork, tFuNoEd, tFdEd, tPlain], [], [r1], assignments, []);
@@ -176,7 +157,6 @@ console.log('-- (c) MSPDI round-trip --');
   eq('c8 lezer: toewijzing zonder afwijking krijgt geen werkvelden (byte-identiek)', [backA2.plannedWorkMinutes, backA2.actualWorkMinutes, backA2.remainingWorkMinutes], [undefined, undefined, undefined]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (d) P6 XML round-trip --');
 {
   const project = createDefaultProject();
@@ -189,15 +169,11 @@ console.log('-- (d) P6 XML round-trip --');
     assign('a2', 'plain', 'r1', 0.5),
   ];
   const xml = writeP6XML(project, CAL, [...tasks, tToken, tPlain], [], [r1], assignments, []);
-  // Het hele <Activity>-blok rond de naam: de writer schrijft in schemavolgorde (sinds 2026-10), en
-  // daarin staat <DurationType> vóór <Name>.
   const actXml = (name: string): string => {
     const at = xml.indexOf(`<Name>${name}</Name>`);
     return xml.slice(xml.lastIndexOf('<Activity>', at), xml.indexOf('</Activity>', at));
   };
   eq('d1 writer: <DurationType>-label per regel', WORK_RULES.map((r) => (actXml(r).match(/<DurationType>([^<]*)<\/DurationType>/) ?? [])[1]), WORK_RULES.map((r) => P6_DURATION_TYPE_NAME[r]));
-  // Een taak zonder eigen regel erft de projectstandaard (`effectiveWorkRule`), ook met een bewaard token. Ze krijgt
-  // geen eigen <DurationType>; zo erft ze na heropenen weer, zoals bij de XER-schrijver (review Sol #781).
   ok('d2 writer: bewaard XER-token zonder regel ⇒ geen eigen <DurationType> (erft de projectstandaard)', !actXml('token').includes('<DurationType>'));
   ok('d3 writer: geen regel/token ⇒ geen <DurationType>', !actXml('plain').includes('<DurationType>'));
   ok('d4 writer: units in uren op hun alfabetische plek', /<ActualUnits>20<\/ActualUnits>[\s\S]*<PlannedUnits>60<\/PlannedUnits>\s*<PlannedUnitsPerTime>1<\/PlannedUnitsPerTime>[\s\S]*<RemainingUnits>40<\/RemainingUnits>/.test(xml));
@@ -212,7 +188,6 @@ console.log('-- (d) P6 XML round-trip --');
   eq('d8 lezer: zonder afwijking geen werkvelden', [backA2.plannedWorkMinutes, backA2.remainingWorkMinutes], [undefined, undefined]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (e) XER --');
 {
   const lines = [
@@ -227,10 +202,7 @@ console.log('-- (e) XER --');
     '%F\ttask_id\tproj_id\ttask_name\ttask_code\ttarget_start_date\ttarget_end_date\ttarget_drtn_hr_cnt\ttask_type\tduration_type\tstatus_code\tact_start_date\tremain_drtn_hr_cnt',
     '%R\tT1\tP1\tMetselen\tA1\t2026-01-05\t2026-01-09\t40\tTT_Task\tDT_FixedQty\tTK_NotStart',
     '%R\tT2\tP1\tStellen\tA2\t2026-01-05\t2026-01-09\t40\tTT_Task\tDT_FixedDrtn\tTK_NotStart',
-    // Niet-standaard token: de XER-lezer valt gerapporteerd terug op de projectstandaard
-    // (def_duration_type, hier DT_FixedDUR2) — de werkregel volgt dus die standaard.
     '%R\tT3\tP1\tVreemd\tA3\t2026-01-05\t2026-01-09\t40\tTT_Task\tDT_FixedDUR\tTK_NotStart',
-    // E3 (critreview PR #101 baan 1): twee gestarte taken, 40 u, 10 u verricht.
     '%R\tT4\tP1\tGestart zonder afwijking\tA4\t2026-01-05\t2026-01-09\t40\tTT_Task\tDT_FixedDrtn\tTK_Active\t2026-01-05 08:00\t30',
     '%R\tT5\tP1\tGestart met afwijking\tA5\t2026-01-05\t2026-01-09\t40\tTT_Task\tDT_FixedDrtn\tTK_Active\t2026-01-05 08:00\t30',
     '%T\tRSRC',
@@ -238,13 +210,9 @@ console.log('-- (e) XER --');
     '%R\tR1\tMetselaar\tRT_Labor\tCP\t1',
     '%T\tTASKRSRC',
     '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\ttarget_qty_per_hr\tremain_qty_per_hr\tremain_qty\ttarget_qty\tact_reg_qty\tact_ot_qty',
-    // T1: 40 u × 1,0 = 40 u afgeleid; bron zegt 60 begroot, 10 + 2 verricht, 48 rest ⇒ velden.
     '%R\tA1\tP1\tT1\tR1\t1\t1\t48\t60\t10\t2',
-    // T2: bron consistent (40 u × 0,5 = 20 begroot = 20 rest, niets verricht) ⇒ geen velden.
     '%R\tA2\tP1\tT2\tR1\t0.5\t0.5\t20\t20\t0\t0',
-    // T4: 40 begroot = afleiding, 10 verricht, 30 rest = begroot − verricht ⇒ ALLEEN verricht werk.
     '%R\tA4\tP1\tT4\tR1\t1\t1\t30\t40\t10\t0',
-    // T5: 40 begroot, 10 verricht, maar 50 rest (herschat) ⇒ het werk wijkt af ⇒ het drietal.
     '%R\tA5\tP1\tT5\tR1\t1\t1\t50\t40\t10\t0',
     '%E',
   ];
@@ -260,10 +228,6 @@ console.log('-- (e) XER --');
     const a2 = parsed.assignments.find((a) => a.taskId === 'T2')!;
     eq('e2 TASKRSRC-hoeveelheden (uren) → werkvelden (minuten), verricht = regulier + overwerk', [a1.plannedWorkMinutes, a1.actualWorkMinutes, a1.remainingWorkMinutes], [3600, 720, 2880]);
     eq('e3 consistente bron ⇒ geen werkvelden (afspraak met de XER-etappe)', [a2.plannedWorkMinutes, a2.actualWorkMinutes, a2.remainingWorkMinutes], [undefined, undefined, undefined]);
-    // E3: spec §4.3 (geval c: "bij import wanneer de bron een waarde levert die van de afleiding
-    // afwijkt") en §4.4 (XER: "alleen wanneer target_qty afwijkt van duur × target_qty_per_hr").
-    // Verricht werk zonder afwijking mag de belasting NIET van laag 4 (formule) naar laag 3 (werk als
-    // data) duwen: het histogram moet byte-identiek zijn aan de import zonder werkvelden (vóór #101).
     const a4 = parsed.assignments.find((a) => a.taskId === 'T4')!;
     const a5 = parsed.assignments.find((a) => a.taskId === 'T5')!;
     const t4 = byId('T4')!;
@@ -284,7 +248,6 @@ console.log('-- (e) XER --');
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 if (diffs.length > 0) {
   console.log(`XX  check-work-rule-mapping: ${checks} checks, ${diffs.length} afwijking(en):`);
   for (const d of diffs) console.log(`    ${d}`);

@@ -39,10 +39,6 @@ const registry = buildTaskColumnRegistry({
 const validation = validateCoverageAgainstRegistry(registry);
 ok(`iedere vaste coverage-id bestaat in de registry: ${validation.missing.join(', ')}`, validation.missing.length === 0);
 
-// MUTATIEBEWIJS (handmatig): voeg `extraBronveld: string` toe aan één van de dertien broninterfaces.
-// `npm run typecheck` moet dan op de bijbehorende `satisfies Record<keyof X, FieldCoverage>`-tabel
-// falen. Deze compileerbare spiegel bewijst daarnaast dat een fixture met een extra veld niet door
-// het exacte Record-contract past; verwijder tijdelijk `@ts-expect-error` om de compilerfout te zien.
 type MutationFixture = Task & { extraBronveld: string };
 // @ts-expect-error extraBronveld ontbreekt bewust: dit is het compile-time mutatiebewijs.
 const mutationMustFail: Record<keyof MutationFixture, FieldCoverage> = TASK_FIELD_COVERAGE;

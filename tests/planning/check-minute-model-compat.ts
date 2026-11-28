@@ -18,7 +18,6 @@ async function main() {
   const old = await import(pathToFileURL(reader).href) as { readIFC: (text: string) => ImportResult };
   const files = readdirSync('examples').filter(f => f.endsWith('.ifc')).map(name => ({ name, text: readFileSync(join('examples', name), 'utf8'), rewrite: true }));
   files.push(...['W0', 'W1', 'W2'].map(name => ({ name, text: readFileSync(join(fixtures, `${name}.ifc`), 'utf8'), rewrite: false })));
-  // D0/D1: de dagenmaat met breuken, de lagmaat en de speling (check-ifc-dagenmaat.ts schrijft ze).
   const dayMeasure = ['D0', 'D1'].filter(name => existsSync(join(fixtures, `${name}.ifc`)));
   if (dayMeasure.length < 2) console.log('Dagenmaat-bestanden D0/D1: niet gemeten (draai eerst check-ifc-dagenmaat.ts met OPS_MINUTE_MODEL_COMPAT_OUT).');
   files.push(...dayMeasure.map(name => ({ name, text: readFileSync(join(fixtures, `${name}.ifc`), 'utf8'), rewrite: false })));
@@ -44,8 +43,6 @@ async function main() {
         const trim = (s: string | undefined) => s?.slice(0, b?.includes('T') ? 16 : 10);
         eq(`${key(task)} ${field}`, trim(a), trim(b));
       }
-      // Dagenmaat met een breuk (alleen uren §3.10, §5.4): het bestand draagt duur en rest als `PT…` met
-      // een record. v2026.9.0 leest dan een urentaak met precies de geschreven minuten.
       const records = readDayMeasureDurations(task);
       const dayFraction = task.time.durationUnit !== 'hours' && records?.ScheduleDuration !== undefined;
       if (dayFraction) {
@@ -56,7 +53,6 @@ async function main() {
       for (const field of ['scheduleDuration', 'durationMinutes', 'remainingTime'] as const) {
         if (!dayFraction && task.time[field] !== undefined) eq(`${key(task)} ${field}`, got.time[field], task.time[field]);
       }
-      // Speling (T5): het slot draagt hele dagen; v2026.9.0 leest die, de exacte waarde staat in `ExactFloat`.
       for (const field of ['totalFloat', 'freeFloat'] as const) {
         const want = task.time[field];
         if (want !== undefined) eq(`${key(task)} ${field}`, got.time[field], wholeFloatDays(want));
@@ -65,8 +61,6 @@ async function main() {
       eq(`${key(task)} beperking`, got.constraint?.date?.slice(0, 16), task.constraint?.date?.slice(0, 16));
     }
     eq('aantal relaties', back.sequences.length, expected.sequences.length);
-    // Lag in dagen met een breuk (T21): het standaardveld draagt de minuten van het record; v2026.9.0 leest
-    // een lag in de urenmaat met precies die minuten.
     const lagRecords = parseDayMeasureLags(text.match(/IFCPROPERTYSINGLEVALUE\('DayMeasureLags',\$,IFCTEXT\('(.*?)'\),\$\)/)?.[1]) ?? new Map();
     for (let i = 0; i < expected.sequences.length; i++) {
       const seq = expected.sequences[i];
