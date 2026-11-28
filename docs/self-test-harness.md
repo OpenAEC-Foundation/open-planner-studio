@@ -234,6 +234,7 @@ beschikbaar (`roundTrip` werkt ook in Tier 1; `saveToPath`/`openFromPath` alleen
 
 ### Wat het bewust niet doet
 De native OS-picker aanklikken — die zit buiten de webview. Standaardpraktijk: omzeilen met een vast pad.
+Buiten een dev-bouw starten, ook niet in de benchmarkbouw met `VITE_OPS_BENCH_BRIDGE=1`: zie `docs/adr/1090-dev-brug-bestandskanaal-alleen-in-een-dev-bouw.md`.
 
 ### (Toekomst) echte desktop-UI-automatisering
 Moet ooit gerenderd webview-gedrag in de echte shell geautomatiseerd worden (géén native dialoog), dan is
