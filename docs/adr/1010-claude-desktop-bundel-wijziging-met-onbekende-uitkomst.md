@@ -4,7 +4,8 @@ Het schakelstuk (`integrations/claude-desktop/src/proxy.ts`) stuurt een wijzigen
 vaststaat dat de planner haar niet kreeg: twee keer uitvoeren is erger dan één keer een fout. Alleen een geweigerde
 verbinding (`ECONNREFUSED`) bewijst dat de bridge niets kreeg; een verbroken verbinding, een andere netwerkfout of een
 HTTP-fout kan na aflevering komen. Dan krijgt het model meteen een fout, en pas bij de volgende aanvraag kiest de
-bundel opnieuw (`viaApp`, `maybeDelivered` in `postApp`). Een leesaanvraag en de documentkeuze
+bundel opnieuw (`viaApp`, `maybeDelivered` in `postApp`). Een geweigerd token (HTTP 401, `token`) telt niet zo: dan
+kiest de bundel meteen opnieuw. Een leesaanvraag en de documentkeuze
 (`planner_switch_document`) tellen niet als wijziging en mogen wel opnieuw.
 
 ## Gevolgen
