@@ -1,3 +1,4 @@
+// Bron: MPXJ `MSPDIReader`, `MSPDIWriter` en `TimephasedHelper` als referentie voor de MSPDI- en P6-vorm van tijdgefaseerd werk (LGPL-2.1, github.com/joniles/mpxj).
 import type { Task, TaskSplitGap, TaskTimephasedContour, TimephasedContourPeriod } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import type { CalendarEngine } from '@/engine/scheduler/CalendarEngine';

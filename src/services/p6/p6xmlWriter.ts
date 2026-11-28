@@ -1,3 +1,4 @@
+// Bron: MPXJ `XmlContextWriter`, `RelationTypeHelper` en `XmlWriter` als referentie voor curves, relatietypen, tarieven en eindtijden (LGPL-2.1, github.com/joniles/mpxj).
 import { Task } from '@/types/task';
 import { Sequence, SequenceType } from '@/types/sequence';
 import { isoDayOfWeek, parseDate } from '@/utils/dateUtils';
