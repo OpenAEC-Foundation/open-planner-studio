@@ -1,8 +1,4 @@
 #!/usr/bin/env node
-// Mechanische poort voor de eigendomsgrens tussen app-composition en storegebonden runtimecode.
-// De parser kijkt naar echte importdeclaraties en AST-aanroepen; woorden in commentaar of strings
-// veroorzaken dus geen vals alarm. Met `--root <pad>` kan de planningstest geïsoleerde bronfixtures
-// aanbieden zonder een productiefile tijdelijk te vergiftigen.
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -74,8 +70,6 @@ function report(file, sourceFile, node, message) {
   violations.push(`${ownPath(file)}:${location(sourceFile, node)} — ${message}`);
 }
 
-// In runtimefactories en tools zijn app-singletons én hun compatibiliteitsadapters categorisch
-// verboden. Type-only imports uit appStore blijven toegestaan voor AppState/AppStoreContext.
 const strictFiles = [
   ...sourceFiles(resolve(root, 'src/state/runtime')),
   ...sourceFiles(resolve(root, 'src/services/mcp/tools')),
@@ -95,10 +89,6 @@ for (const file of strictFiles) {
   }
 }
 
-// De headless kern (`src/core/`) bouwt per document een eigen context via `appStoreFactory`. Elke
-// waarde-import uit `appStore` laadt de app-singleton mee, dus die is daar helemaal verboden (ook
-// `createAppStoreContext`: die komt uit `appStoreFactory`). Transitieve lekken vangt
-// `npm run build:core` op de bundel-metafile.
 const coreFiles = sourceFiles(resolve(root, 'src/core'));
 for (const file of coreFiles) {
   const sourceFile = parse(file);
@@ -108,8 +98,6 @@ for (const file of coreFiles) {
   }
 }
 
-// De opslagworker (#804 stap 4, `src/services/ifc/saveWorker/`) laadt de storefabriek voor de heropening van de merge,
-// nooit de app-singleton. Transitieve lekken vangt `tests/browser/save-worker-production.spec.ts` (de echte Vite-bouw).
 const saveWorkerFiles = sourceFiles(resolve(root, 'src/services/ifc/saveWorker'));
 for (const file of saveWorkerFiles) {
   const sourceFile = parse(file);
@@ -119,9 +107,6 @@ for (const file of saveWorkerFiles) {
   }
 }
 
-// De headless MCP-server (`headless/mcp-server/src/`, issue #570) en de MCP-modules die hij bundelt
-// buiten `tools/` om, bouwen op een eigen storecontext. Elke waarde-import uit `appStore` laadt de
-// app-singleton mee, dus die is daar verboden; transitieve lekken vangt `npm run build:mcp-server`.
 const stateRoot = slash(resolve(root, 'src/state'));
 const ifcxCoreFiles = sourceFiles(resolve(root, 'src/services/ifc/ifcx'));
 for (const file of ifcxCoreFiles) {
@@ -213,8 +198,6 @@ for (const file of headlessMcpFiles) {
   }
 }
 
-// staleGuard mag de appcontext uitsluitend als compatibiliteitsdefault aanbieden. De functiebody
-// moet altijd de expliciete `app`-parameter volgen.
 const staleFile = resolve(root, 'src/services/mcp/staleGuard.ts');
 if (existsSync(staleFile)) {
   const sourceFile = parse(staleFile);
@@ -235,8 +218,6 @@ if (existsSync(staleFile)) {
   }
 }
 
-// backup.ts bevat bewust publieke appwrappers. Alleen de kleine `service()`-adapter mag de
-// singleton rechtstreeks gebruiken; realDeps/createAppBackupService en alle backupkernlogica niet.
 const backupFile = resolve(root, 'src/services/mcp/backup.ts');
 if (existsSync(backupFile)) {
   const sourceFile = parse(backupFile);
@@ -255,8 +236,6 @@ if (existsSync(backupFile)) {
   }
 }
 
-// server.ts is de expliciete app-composition root. Ook daar beperken we singletongebruik tot de
-// drie functies die de live app of de standaardrequestcontext samenstellen.
 const serverFile = resolve(root, 'src/services/mcp/server.ts');
 if (existsSync(serverFile)) {
   const sourceFile = parse(serverFile);
@@ -276,8 +255,6 @@ if (existsSync(serverFile)) {
   }
 }
 
-// De twee publieke adapters mogen alleen bestaande factories binden en een kleine resultaatvorm
-// converteren. Directe storetoegang of snapshots betekenen dat domeinlogica teruglekt.
 for (const relativeAdapter of ['src/state/batchTransaction.ts', 'src/state/mcpTransaction.ts']) {
   const file = resolve(root, relativeAdapter);
   if (!existsSync(file)) continue;

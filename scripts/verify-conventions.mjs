@@ -1,53 +1,4 @@
 #!/usr/bin/env node
-// Mechanische poort voor de rekenprofielen (spec docs/superpowers/specs/2026-09-22-rekenprofielen-design.md
-// §4; plan 2026-09-22 taak D10): de rekenmotor (src/engine/**) stuurt uitsluitend op conventies, nooit
-// op het bronformaat.
-//  1. Verboden: elke identifier `p6Source`, `importFormat`, `readFormat` en de XER-bronsignalen
-//     `xerSourceProjectId`/`xerSourceArchive`/`xerImportMetadata` (ook als string-index, als `'…' in x`
-//     en in destructuring); imports (statisch, re-export, dynamisch of `require`) uit
-//     src/services/{xer,mpp,msproject,p6,csv}, src/services/formatRegistry of src/services/xerSourceArchive;
-//     en elke dynamische import/require met een NIET-letterlijke specifier (onscanbaar ⇒ rood).
-//  2. Herkomst-datagates (bijlage A: p6ProjectId e.d.) zijn toegestaan maar geteld — als property-,
-//     string-index-, destructuring- en `in`-lezing; de telling per veld staat gepind in
-//     scripts/verify-conventions.datagates.json en mag alleen omlaag.
-//  Gescand: src/engine/** plus de motorhelpers buiten die map (`ENGINE_HELPERS`, nu
-//  src/utils/p6SuspendResume.ts: de solver roept hem aan; verhuizen zou acht importeurs raken, waarvan
-//  vier in de bestandskaart van baan C — bij de integratie opnieuw bekijken).
-//  4. De opties-sleutelgrens (Fable-critreview PR #169, bevinding 4): de sleutels komen uit het register
-//     (`convention('…')` in CONVENTIONS, src/engine/scheduler/conventions/registry.ts) plus de projectopties
-//     (de overige leden van `interface SchedulingOptions` in src/types/project.ts). Elke lezing op een
-//     opties-object — `schedulingOptions`, een variabele/parameter/klasseveld die daaruit komt of het type
-//     SchedulingOptions/EffectiveSchedulingOptions/… draagt, ook via een hernoemde import (`as SO`), een
-//     lokale type-alias of `import('…').SchedulingOptions` — moet een van die sleutels zijn: een onbekende
-//     sleutel, een niet-letterlijke sleutel (`so[k]`), een berekende destructuring, `Reflect.get/has` met
-//     een onbekende of niet-letterlijke sleutel en `Object.keys/values/entries/getOwnPropertyNames` op
-//     een opties-object zijn rood. De map src/engine/scheduler/conventions/ zelf (het register, dat
-//     generiek over de sleutels loopt) is vrij.
-//  5. Elke conventie uit het register wordt gelezen in een bestand dat vanuit de solver bereikbaar is
-//     (importgraaf vanaf solveProject.ts, `import type` telt niet); een registerconventie zonder zo'n
-//     lezing is rood (een knop die niets doet). Alleen als het register onder --root bestaat; fixtures
-//     zonder register lenen de sleutels van deze repository en slaan dit over.
-//  6. Herkomstnamen (`p6…`/`xer…`/`mpp…`/`msp…`/`mpx…` + hoofdletter) als property-lezing in de motor
-//     moeten een registersleutel, projectoptie of datagate zijn — of een EIGEN lid in hetzelfde bestand:
-//     een klasselid gelezen op `this`, of een eigenschap van een in dat bestand gedeclareerd object-literal
-//     of `new EigenKlasse()`, gelezen op die variabele. Zo is een nieuw bronveld (bv.
-//     `calendar.p6NonWorkPenaltyDates`) geen gratis formaat-if meer.
-//  7. De uitlegvelden van een registerconventie (`requires`: "alleen bij uurplanning/.xer-taken", en
-//     `theme`: de groep in Projectinfo) zijn tekst voor de gebruiker, geen rekengedrag. Een vanuit de
-//     solver bereikbaar bestand leest ze dus niet: als eigenschap, via string-index, via `'…' in` of via
-//     destructuring is rood. Wat een conventie nodig heeft, staat in haar eigen code; check-conventions-
-//     p6-flags bewijst dat het label daarmee klopt. Bestanden buiten de solver (de Gantt-renderer met zijn
-//     eigen `theme`) vallen hier niet onder.
-//  Wat deze syntactische poort NIET ziet (bewust, geen typechecker): een opties-object dat via een helper
-//  in een ANDER bestand wordt doorgegeven onder een naam die daar geen opties-naam of -type draagt; een
-//  waarde die al als `any`/onbekend type binnenkomt en daarna gelezen wordt; aliassen worden per bestand
-//  op naam bijgehouden. Voor getypte code vangt `tsc` een onbekende sleutel op een opties-type al.
-//  3. Tijdelijke allowlist (scripts/verify-conventions.allowlist.json, `{ pad: reden }`): een vermeld
-//     bestand onder src/engine/ is vrijgesteld van regel 1-namen (NIET van de import-regel). Elke reden
-//     moet `TIJDELIJK` bevatten en het bestand moet bestaan — een verouderde regel is rood, zodat de
-//     lijst leeg raakt zodra de overgangscode weg is (baan C, taak C3: legacyP6Source.ts).
-// AST-scan: commentaar en gewone strings geven geen vals alarm. `--root <pad>` voor de fixtures van
-// tests/planning/check-conventions-boundary.ts; `--write-baseline` herpint, alleen als er niets rood is.
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -55,12 +6,6 @@ import ts from 'typescript';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-/**
- * De poort als functie: `args` zoals op de commandoregel, uitkomst als bij `spawnSync` (exitcode plus
- * stdout/stderr). De CLI hieronder is een dunne schil; tests/planning/check-conventions-boundary.ts
- * draait zijn bronfixtures zo in één proces in plaats van per fixture een nieuwe Node + TypeScript.
- * Alle toestand staat binnen de functie, dus elke aanroep begint schoon.
- */
 export function verifyConventions(args) {
   const stdout = [];
   const stderr = [];
@@ -89,15 +34,12 @@ export function verifyConventions(args) {
     'timephasedStartAnchor', 'timephasedFinishFloor', 'timephasedDurationWalks', 'resume', 'mspTaskType',
     'p6StartAtPredecessorFinishBoundary',
   ];
-  /** Typen waarvan een waarde een opties-object is (regel 4). */
   const OPTION_TYPE_NAMES = new Set([
     'SchedulingOptions', 'EffectiveSchedulingOptions', 'ProjectSchedulingOptions', 'SchedulingConventions',
     'LegacySchedulingOptions',
   ]);
   const OPTION_TYPE_WRAPPERS = new Set(['Pick', 'Partial', 'Required', 'Readonly', 'Omit']);
-  /** Herkomstnaam-patroon (regel 6). */
   const SOURCE_NAME = /^(?:p6|xer|mpp|msp|mpx)[A-Z]/;
-  /** Motorcode buiten src/engine/ die de solver direct aanroept; wordt meegescand als hij bestaat. */
   const ENGINE_HELPERS = ['src/utils/p6SuspendResume.ts'];
 
   const slash = (value) => value.split(sep).join('/');
@@ -135,7 +77,6 @@ export function verifyConventions(args) {
 
   const violations = [];
 
-  // De tijdelijke allowlist. Afwezig ⇒ leeg (de eindtoestand).
   const allowed = new Map();
   if (existsSync(allowlistPath)) {
     let parsed = null;
@@ -168,7 +109,6 @@ export function verifyConventions(args) {
   const parse = (file) => ts.createSourceFile(file, readFileSync(file, 'utf8'), ts.ScriptTarget.Latest, true,
     file.endsWith('.tsx') ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
 
-  // ── Regel 4/5: de sleutels uit het register en uit `interface SchedulingOptions` ──────────────────
   const CONVENTIONS_DIR = 'src/engine/scheduler/conventions/';
   const registryRel = 'src/engine/scheduler/conventions/registry.ts';
   const typesRel = 'src/types/project.ts';
@@ -208,14 +148,10 @@ export function verifyConventions(args) {
   const OPTION_KEYS = new Set([...conventionKeys, ...projectOptionKeys]);
   const conventionReads = new Map([...conventionKeys].map((key) => [key, 0]));
 
-  /** De opties-typenamen van het bestand dat nu gescand wordt: de letterlijke namen plus hernoemde
-   *  imports (`SchedulingOptions as SO`) en lokale type-aliassen daarvan; per bestand gezet. */
   let fileOptionTypeNames = OPTION_TYPE_NAMES;
-  /** Is dit type(knoop) een opties-type (eventueel `| undefined`, of via Pick/Partial/…)? */
   function isOptionsType(typeNode) {
     if (!typeNode) return false;
     if (ts.isParenthesizedTypeNode(typeNode)) return isOptionsType(typeNode.type);
-    // `import('…').SchedulingOptions`
     if (ts.isImportTypeNode(typeNode)) {
       const q = typeNode.qualifier;
       const last = q && (ts.isIdentifier(q) ? q.text : ts.isQualifiedName(q) ? q.right.text : undefined);
@@ -237,9 +173,6 @@ export function verifyConventions(args) {
     return false;
   }
 
-  // ── Regel 6: herkomstnamen die de motor zelf declareert — alleen per bestand, alleen op `this` of op
-  // een in hetzelfde bestand gedeclareerd object-literal / `new EigenKlasse()` (critreview 2e ronde: een
-  // losse variabele of functie met dezelfde naam ergens in de motor stelt de naam NIET vrij).
   const parsed = new Map(files.map((file) => [file, parse(file)]));
   function ownMembersOf(sourceFile) {
     const classMembers = new Map();
@@ -263,8 +196,6 @@ export function verifyConventions(args) {
       ts.forEachChild(node, walk2);
     };
     walk2(sourceFile);
-    // `this.x` telt alleen als lid van de OMSLUITENDE klasse (her-check 24-09: alle klassen van het bestand
-    // samenvoegen liet klasse A `this.p6X` lezen zodra klasse B die naam declareerde).
     const enclosingClassMembers = (node) => {
       for (let n = node; n; n = n.parent) {
         if ((ts.isClassDeclaration(n) || ts.isClassExpression(n))) return n.name ? classMembers.get(n.name.text) : memberNames(n.members);
@@ -279,8 +210,6 @@ export function verifyConventions(args) {
       return false;
     };
   }
-  // ── Regel 5: alleen lezingen in bestanden die vanuit de solver bereikbaar zijn tellen (importgraaf over
-  // de gescande motorbestanden, vanaf solveProject.ts; `import type` telt niet mee).
   const SOLVER_ROOTS = ['src/engine/scheduler/solveProject.ts'];
   function resolveEngineImport(fromFile, specifier) {
     let base;
@@ -312,7 +241,6 @@ export function verifyConventions(args) {
     }
   }
   const knownSourceName = (name) => OPTION_KEYS.has(name) || DATAGATES.includes(name);
-  // Regel 7: uitlegvelden van een registerconventie die de solver niet leest.
   const DESCRIPTOR_TEXT_FIELDS = new Set(['requires', 'theme']);
 
   const allowedHits = [];
@@ -320,7 +248,6 @@ export function verifyConventions(args) {
     const sourceFile = parsed.get(file);
     const exempt = allowed.has(own(file));
     const isOwnMember = ownMembersOf(sourceFile);
-    // Opties-typenamen van dit bestand: hernoemde imports en lokale type-aliassen erbij.
     fileOptionTypeNames = new Set(OPTION_TYPE_NAMES);
     for (let grewType = true; grewType;) {
       grewType = false;
@@ -334,10 +261,7 @@ export function verifyConventions(args) {
       };
       walkTypes(sourceFile);
     }
-    // De map conventions/ is vrijgesteld van de optiesleutelregels (het register en de tijdelijke
-    // allowlist-bestanden uit check-conventions-boundary 13 leven daar); de naamregels gelden er wél.
     const optionRules = !own(file).startsWith(CONVENTIONS_DIR);
-    // Pre-pass: welke namen (variabelen, parameters, klassevelden) dragen in dit bestand een opties-object?
     const aliases = new Set(['schedulingOptions']);
     const strip = (expr) => {
       let current = expr;
@@ -393,12 +317,10 @@ export function verifyConventions(args) {
       if (ts.isIdentifier(node) && FORBIDDEN_NAMES.has(node.text)) {
         reportName(node, `'${node.text}' in de motor (regel B: een per-profiel-verschil is een conventie in het register)`);
       }
-      // Een lezing via een letterlijke sleutel: x['naam'], 'naam' in x, of { 'naam': y } = x.
       const literalKey = (name, how) => {
         if (FORBIDDEN_NAMES.has(name)) reportName(node, `'${name}' ${how} in de motor`);
         if (Object.hasOwn(counts, name)) counts[name]++;
       };
-      // Regel 4: een sleutel op een opties-object.
       const optionKey = (name, how) => {
         if (!optionRules) return;
         if (name === null) {
@@ -410,7 +332,6 @@ export function verifyConventions(args) {
           conventionReads.set(name, conventionReads.get(name) + 1);
         }
       };
-      // Regel 6: een herkomstnaam die de motor niet zelf declareert en die nergens gepind is.
       const sourceName = (name, how, receiver) => {
         if (SOURCE_NAME.test(name) && !FORBIDDEN_NAMES.has(name) && !knownSourceName(name)
             && !(receiver && isOwnMember(receiver, name))) {
@@ -428,7 +349,6 @@ export function verifyConventions(args) {
         if (isOptionsExpr(node.expression)) optionKey(name, name === null ? 'via een niet-letterlijke sleutel' : 'via string-index');
         else if (name !== null) sourceName(name, 'via string-index', node.expression);
       }
-      // Generieke lezingen die de sleutel verbergen: Reflect.get/has en Object.keys/values/entries/assign-bron.
       if (ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression)) {
         const callee = `${node.expression.expression.text}.${node.expression.name.text}`;
         const first = node.arguments[0];
@@ -466,7 +386,6 @@ export function verifyConventions(args) {
         else if (ts.isIdentifier(key) && Object.hasOwn(counts, key.text)) counts[key.text]++;
       }
       if (ts.isPropertyAccessExpression(node) && Object.hasOwn(counts, node.name.text)) counts[node.name.text]++;
-      // Regel 7: `requires`/`theme` van een registerconventie in de solver.
       const textField = (name, how) => {
         if (solverReachable.has(file) && DESCRIPTOR_TEXT_FIELDS.has(name)) {
           report(node, `registerveld '${name}' ${how} in de solver — dat is uitleg voor de gebruiker, geen rekengedrag`
