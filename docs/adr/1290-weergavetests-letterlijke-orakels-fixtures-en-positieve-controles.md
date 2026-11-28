@@ -18,7 +18,8 @@ ze dubbel lijken. Hetzelfde geldt voor de lijsten met verwachte waarden die er m
 - Lijsten met de hand: `recentsVerwacht` in `check-export-guard.ts` noemt elk exportformaat met de hand, en de check
   ernaast eist dat elk formaat uit `EXPORT_FORMATS` erin staat. De verwachte DCMA-uitkomsten in `check-dcma.ts` staan
   er als getallen, niet afgeleid uit `dcmaAssessment.ts`, met één uitzondering: punt 12 (de kritiek-padtest) verwacht
-  de verschuiving `CRITICAL_PATH_TEST_SLIP_DAYS` uit `dcmaAssessment.ts`.
+  de verschuiving `CRITICAL_PATH_TEST_SLIP_DAYS` uit `dcmaAssessment.ts`. De formules en normen per punt komen uit DCMA-EA
+  PAM 200.1 (oktober 2012), hoofdstuk 4 en §3.1.2.3–3.1.2.4.
 - De fixture van `check-gantt-render-options.ts` wijkt bewust af van de standaard. Velden in `baseInput` zoals
   `weekStartDay: 'sunday'`, `barSplitMode: 'always'`, `showFloatBand: false` en `showBarDates: true` hebben een andere
   waarde dan de terugval van de renderer bij een ontbrekend veld (niet elk veld: `durationDisplay: 'auto'` en
