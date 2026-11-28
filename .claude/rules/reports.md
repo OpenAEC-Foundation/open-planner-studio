@@ -223,3 +223,5 @@ het gedeelde XObject en de tekst per blad staan in ADR 0383 en 0350, de renders 
 `docs/adr/0560-dcma-kritiek-padtest-en-ongeldige-datums.md` en `0561-tabelrapporten-gewicht-vensters-en-tellingen.md`.
 
 **Getallen in rapporten** (`src/utils/reportNumber.ts`): `docs/adr/0620-getallen-in-rapporten-latijnse-cijfers-en-bidi-markering.md`.
+**Besluiten van het Rapport-tabblad** (`src/components/panels/reportStudio/`):
+`docs/adr/0650-rapporttabblad-keuzes-die-verrassen.md`.

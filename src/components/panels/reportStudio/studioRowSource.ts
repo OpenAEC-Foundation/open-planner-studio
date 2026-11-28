@@ -13,7 +13,6 @@ export interface StudioRowSource {
   window: ResolvedPeriod | undefined;
 }
 
-/** De velden van `PrintOptions` die uit de rijenbron volgen. */
 export type StudioRowPrintFields = Pick<PrintOptions,
   'rows' | 'showDeps' | 'showCritical' | 'pageBreakBeforeGroups' | 'timeWindow' | 'assignmentColumns' | 'rowAssignments'>;
 

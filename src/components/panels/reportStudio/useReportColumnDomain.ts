@@ -10,13 +10,6 @@ import { createBaselineOldDayCheck } from '@/engine/baselineOldDay';
 import { recordedGridBinding } from '@/state/recordedDatesSelectors';
 import { useEffectiveDurationDisplay, useProfileCountsWorkdays } from '@/hooks/useDurationMeasure';
 
-/**
- * Het kolomregister van het taakraster, voor de kolommen van de Gantt-afdruk (issue #817 deel B).
- *
- * Dezelfde domeininvoer als `TaskGridSurface` in `FullTaskGrid.tsx` (zonder de spookregel en de
- * editors: de afdruk bewerkt niets), zodat een kolom op papier precies de tekst en de kop van de tabel
- * draagt. Wijzig je daar een invoer die de celtekst raakt, wijzig hem dan ook hier.
- */
 export function useReportColumnDomain(): { domain: TaskGridAdapterDomain; labelForColumn: (key: string) => string } {
   const { t: tTask, i18n: taskI18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
