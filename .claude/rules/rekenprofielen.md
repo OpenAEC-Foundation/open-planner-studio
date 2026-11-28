@@ -74,6 +74,9 @@ uitzondering wint van een feestdag (0221), een werkblok hoort bij zijn begindag 
 elkaars spiegel (0223) en de lopers van de dagenmaat (0224). Besluiten in de relatiewiskunde (`relationMath.ts`): een ingang per richting (0270), mijlpaalgrenzen (0271), FS zonder lag tussen twee kalenders (0272), kalendertijd (0273), een taak in de dagenmaat op een relatiegrens (0274) en de SF-finishvloer alleen voor SF (0275). Besluiten bij de typen in `src/types/project.ts`: nivelleerinstellingen als data (0180), projectopties uit het
 P6-bronbestand (0181), het bewijs achter de conventies (0182) en het rekenprofiel en zijn typen (0183).
 Besluiten bij de taakvelden in `src/types/task.ts` staan in `docs/adr/0300` tot en met `0305`.
+Het oprollen van verzameltaken staat in `docs/adr/0750`; kleinere keuzes elders in `src/engine/scheduler/` (splitgaten
+in dagen, kringtoetsen, lange vrije periodes, de verklaring van een verschuiving, conventies die in elk ingebouwd
+profiel uit staan) in `docs/adr/0751`.
 
 ### Het nivelleringsfundament (projectoptie `leveling`)
 

@@ -890,6 +890,22 @@ en noem het in je rapport of PR-tekst.
      1,25, geeft geen waarschuwing. Alleen een kenmerk in de baseline zelf dat via IFC heen en terug gaat, lost het op
      (ADR 0550). Gezien in het commentaar van dat bestand (review #363), niet nagespeeld. — S
 
+2720. **De vrije speling van een relatie naar een kalendertijd-opvolger kan stil fout zijn en de relatie uit driving
+     halen.** `computeScheduleResults` (`src/engine/scheduler/scheduleAnalysis.ts`) rekent de relatie-vrije speling
+     altijd in werktijd op de opvolgerkalender. De geëiste start wordt gesnapt (`snapOnOrAfter`), de vroege start van
+     een ELAPSEDTIME-opvolger niet; dan vergelijkt de formule een gesnapte grens met een ongesnapt moment en kan het
+     vangnet "einde vóór start ⇒ 0" een waarde als −1 geven. Zo'n speling ongelijk aan 0 haalt de relatie uit
+     `drivingSequenceIds`, en daarmee uit `floatPath` en de kritiek-modus `longestPath`. Volgens het weggehaalde
+     commentaar gepind in `cases-msp-pariteit.json` (msp-21, msp-23, msp-24); een herstel vraagt een eigen
+     kalendertijdtak in de stijl van `signedElapsedSpan`. Gezien in het commentaar, niet nagespeeld. — S
+
+2721. **Een splitgat korter dan een halve werkdag verdwijnt in dagmodus uit de balk en de belasting.**
+     `computeSplitSegments` en `splitDayPattern` (`src/engine/scheduler/splitWalk.ts`) ronden in dagmodus elk gat en
+     elk werkstuk af op hele werkdagen (`Math.round(minuten / (hoursPerDay × 60))`). Een gat onder een halve werkdag
+     wordt 0 dagen en geeft geen segment; een gat van een halve werkdag of iets meer wordt een hele werkdag. De
+     solver telt het gat wel als breuk (`splitTotalSpanDays` in `duration.ts`). Gezien in de code en het weggehaalde
+     commentaar, niet nagespeeld. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B

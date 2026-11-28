@@ -221,3 +221,6 @@ voor een taak (0243).
 **Besluiten in `engine/scheduler/recordedDates.ts`** staan in `docs/adr/`: de vastlegging zegt alleen wat het bestand
 zei (0330), het rekenresultaat uit de vastlegging (0331), de vastlegging terug in de taken (0332), de verschuiving op
 de getoonde datums en de tellers (0333) en de bouwstenen voor de lezers (0334).
+
+**Het oprollen van verzameltaken** na een solve (`rollupSummaryTasks` in `engine/scheduler/applyCpmResult.ts`, voortgang in
+`summaryProgress.ts`): `docs/adr/0750-verzameltaken-oprollen.md`.

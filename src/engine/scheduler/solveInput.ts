@@ -1,10 +1,3 @@
-// De ENIGE weg van een project naar de solver.
-//
-// `solveOptionsFor` levert de volledige solve-opties van een project: de effectieve reken-opties
-// (conventies uit het profiel, projectopties uit het bestand — `effectiveSchedulingOptions`), plus
-// statusdatum, voortgangsmodus en de twee projectdatums. `solveInputFor` plakt daar de vier
-// invoerlijsten bij. `CPMOptions.schedulingOptions` is verplicht `EffectiveSchedulingOptions`: wie deze
-// helper overslaat en een kale `project.schedulingOptions` doorgeeft, compileert niet.
 import type { EffectiveSchedulingOptions, Project, ProgressMode } from '@/types/project';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
