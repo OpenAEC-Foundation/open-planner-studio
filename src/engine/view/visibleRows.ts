@@ -1,8 +1,3 @@
-// De gedeelde, headless zichtbare-rijen-selector.
-// Pijplijn: filter → groepeer → sorteer → flatten(collapse). PUUR: geen React-/store-imports
-// (alleen type-only). Tabel én Gantt consumeren exact dezelfde ViewRow[], zodat divergentie
-// structureel onmogelijk is.
-
 import type { Task } from '@/types/task';
 import type {
   FieldRef, FilterNode, GroupLevel, SortLevel, ViewState,
@@ -20,12 +15,8 @@ export type { ViewContext } from './filterEval';
 export type ViewRow =
   | {
       kind: 'task'; rowKey: string; task: Task; depth: number; dimmed: boolean;
-      /** Issue #868: deze taak is de eerste van een uitgeklapte mijlpalenreeks van `runSize` mijlpalen
-       *  (het pijltje om de reeks in te klappen). Ontbreekt bij elke andere rij. */
       runSize?: number;
     }
-  /** Issue #868: een ingeklapte mijlpalenreeks, één rij met alle ruitjes. `tasks` in lijstvolgorde;
-   *  de eerste is de kop, wiens id in `collapsedTaskIds` staat. */
   | { kind: 'milestones'; rowKey: string; tasks: Task[]; depth: number; dimmed: boolean }
   | {
       kind: 'group';
@@ -47,23 +38,16 @@ export interface ViewRowOpts {
   within?: (task: Task) => boolean;
 }
 
-/** Rauwe sleutel voor de "(geen)"-band (taak zonder waarde op dit groepniveau). */
 export const NONE_RAWKEY = '\u0000__none__';
 
-/** Pad-gecodeerde bandsleutel: JSON van de rauwe waardes t/m dit niveau. Uniek & escaping-vrij. */
 export function encodeBandKey(rawKeys: string[]): string {
   return JSON.stringify(rawKeys);
 }
 
-/** Stabiele occurrence-key voor een taak in een gegroepeerd rauw bandpad. */
 export function encodeGroupedTaskRowKey(groupPath: readonly string[], taskId: string): string {
   return JSON.stringify({ kind: 'task', groupPath, taskId });
 }
 
-/**
- * Pure boommodus: structuur-mutaties (indent/outdent/row-move) zijn alleen dan zinvol.
- * Eén gedeelde selector zodat tabel, Gantt én ribbon dezelfde regel afdwingen.
- */
 export function isTreeMode(view: Pick<ViewState, 'filter' | 'group' | 'sort'>): boolean {
   return (
     (view.filter ?? null) === null &&
@@ -72,9 +56,6 @@ export function isTreeMode(view: Pick<ViewState, 'filter' | 'group' | 'sort'>): 
   );
 }
 
-// --- Vergelijken (sort + bandvolgorde) ---
-
-/** Getallen numeriek, datums/strings lexicografisch, undefined/leeg altijd laatst. */
 function cmpValues(a: FieldValue, b: FieldValue): number {
   const ea = a === undefined || (Array.isArray(a) && a.length === 0) || a === '';
   const eb = b === undefined || (Array.isArray(b) && b.length === 0) || b === '';
@@ -88,8 +69,6 @@ function cmpValues(a: FieldValue, b: FieldValue): number {
   return sa < sb ? -1 : sa > sb ? 1 : 0;
 }
 
-/** Sorteersleutel van één veld. Resourcetype sorteert in de vaste bandvolgorde (arbeid eerst), niet
- *  alfabetisch op het vertaalde label; een taak met meerdere typen telt met haar eerste. */
 function sortValue(field: FieldRef, task: Task, ctx: ViewContext): FieldValue {
   if (field.src === 'resourceType') {
     const types = resourceTypes(task, ctx);
@@ -98,8 +77,6 @@ function sortValue(field: FieldRef, task: Task, ctx: ViewContext): FieldValue {
   return resolveField(field, task, ctx);
 }
 
-/** Stabiele multi-key sort. `sort: []` ⇒ oorspronkelijke volgorde behouden. Ook gebruikt door het
- *  Rapport-tabblad (#861) voor de taken binnen een resourceband (`layoutReport.ts`). */
 export function sortTasks(tasks: Task[], sort: SortLevel[], ctx: ViewContext): Task[] {
   if (sort.length === 0) return tasks;
   return tasks
@@ -109,32 +86,23 @@ export function sortTasks(tasks: Task[], sort: SortLevel[], ctx: ViewContext): T
         const c = cmpValues(sortValue(lvl.field, a, ctx), sortValue(lvl.field, b, ctx));
         if (c !== 0) return lvl.dir === 'asc' ? c : -c;
       }
-      return ia - ib; // stabiliteit: gelijke sleutels behouden invoervolgorde
+      return ia - ib;
     })
     .map(([t]) => t);
 }
 
-// --- Banden (groeperen) ---
-
 interface BandBucket {
   rawKey: string;
   label: string;
-  order: FieldValue; // sorteersleutel voor de bandvolgorde
+  order: FieldValue;
   isNone: boolean;
 }
 
-/**
- * Het bereik van een geneste band. Resource en resourcetype zijn twee kanten van
- * dezelfde toewijzingen: onder de typeband Arbeid hoort alleen de ARBEIDSresource van een taak,
- * niet ook het beton dat op dezelfde taak staat. Zo geeft Resourcetype → Resource dezelfde indeling
- * als het rapport Resourcediagram, en Resource → Resourcetype alleen het type van die resource.
- */
 interface BandScope {
   resourceType?: string;
   resourceName?: string;
 }
 
-/** De band(en) waarin een taak op dit groepniveau valt. Resource kan er MEERDERE zijn. */
 function bucketsForLeaf(field: FieldRef, task: Task, ctx: ViewContext, scope: BandScope): BandBucket[] {
   if (field.src === 'resource') {
     const names = scope.resourceType === undefined
@@ -144,7 +112,6 @@ function bucketsForLeaf(field: FieldRef, task: Task, ctx: ViewContext, scope: Ba
     return names.map(n => ({ rawKey: n, label: n, order: n, isNone: false }));
   }
   if (field.src === 'resourceType') {
-    // Net als resource: een taak met resources van twee typen staat onder beide typebanden.
     const types = scope.resourceName === undefined
       ? resourceTypes(task, ctx)
       : resourceTypes(task, ctx).filter(type => assignedResources(task, ctx)
@@ -161,10 +128,8 @@ function bucketsForLeaf(field: FieldRef, task: Task, ctx: ViewContext, scope: Ba
     const idx = type ? type.values.findIndex(v => v.id === valueId) : -1;
     const val = idx >= 0 ? type!.values[idx] : undefined;
     const label = val ? (val.description ? `${val.code} — ${val.description}` : val.code) : valueId;
-    // Bandvolgorde volgt de definitievolgorde van het codetype (idx); onbekend achteraan.
     return [{ rawKey: valueId, label, order: idx >= 0 ? idx : Number.MAX_SAFE_INTEGER, isNone: false }];
   }
-  // builtin / customField: enkelvoudige waarde
   const v = resolveField(field, task, ctx);
   if (v === undefined || v === null || v === '') return [noneBucket(ctx)];
   const s = String(v);
@@ -175,7 +140,6 @@ function noneBucket(ctx: ViewContext): BandBucket {
   return { rawKey: NONE_RAWKEY, label: ctx.noneLabel, order: undefined, isNone: true };
 }
 
-/** Partitioneer bladeren in gesorteerde banden op één niveau; "(geen)" altijd achteraan. */
 function partition(
   leaves: Task[], level: GroupLevel, ctx: ViewContext, scope: BandScope,
 ): { rawKey: string; label: string; leaves: Task[]; isNone: boolean }[] {
@@ -201,17 +165,10 @@ function partition(
   return out;
 }
 
-// --- Mijlpalenreeksen (issue #868) ---
-
-/** Mag deze taak in een reeks: een nulduurmijlpaal zonder kinderen. */
 function isRunMilestone(task: Task): boolean {
   return isZeroDurationMilestone(task) && isLeafTask(task);
 }
 
-/**
- * Deelt een rij broers (in lijstvolgorde) op in losse taken en reeksen: twee of meer
- * nulduurmijlpalen direct achter elkaar. Al het andere breekt een reeks.
- */
 function splitIntoRuns(siblings: readonly Task[]): (Task | Task[])[] {
   const out: (Task | Task[])[] = [];
   let run: Task[] = [];
@@ -228,12 +185,10 @@ function splitIntoRuns(siblings: readonly Task[]): (Task | Task[])[] {
   return out;
 }
 
-/** De kinderen van `task` in lijstvolgorde (onbekende ids vallen weg). */
 function childrenOf(task: Task, byId: ReadonlyMap<string, Task>): Task[] {
   return task.childIds.map(id => byId.get(id)).filter((t): t is Task => !!t);
 }
 
-/** Ids van de eerste mijlpaal van elke reeks in de boom: wat "alles inklappen" ook inklapt. */
 export function milestoneRunHeads(tasks: readonly Task[]): string[] {
   const byId = new Map(tasks.map(t => [t.id, t]));
   const heads: string[] = [];
@@ -245,7 +200,6 @@ export function milestoneRunHeads(tasks: readonly Task[]): string[] {
   return heads;
 }
 
-/** De kop van de reeks waar `taskId` in zit, of `null` als die taak niet in een reeks staat. */
 export function milestoneRunHeadOf(tasks: readonly Task[], taskId: string): string | null {
   const byId = new Map(tasks.map(t => [t.id, t]));
   const task = byId.get(taskId);
@@ -258,8 +212,6 @@ export function milestoneRunHeadOf(tasks: readonly Task[], taskId: string): stri
   return null;
 }
 
-// --- De pijplijn ---
-
 export function leavesWithAncestors(
   tasks: readonly Task[],
   keep: (leaf: Task) => boolean,
@@ -269,9 +221,6 @@ export function leavesWithAncestors(
   for (const leaf of tasks) {
     if (!isLeafTask(leaf) || !keep(leaf)) continue;
     selected.set(leaf.id, false);
-    // Stoppen bij de eerste al zichtbare ouder: die kreeg zijn hele keten al eerder mee. Dat is
-    // ook de cyclusbewaking (zoals `ancestorIds` in utils/wbs, maar zonder per blad een generator
-    // en Set — dit draait na elke mutatie): een `parentId`-kring liep hier anders eindeloos rond.
     for (let p = leaf.parentId; p && !selected.has(p); p = byId.get(p)?.parentId ?? null) selected.set(p, true);
   }
   return selected;
@@ -286,7 +235,6 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   const visible = { has: (id: string) => selected === null || selected.has(id) };
   const dimmed = { get: (id: string) => filter !== null && selected?.get(id) === true };
 
-  // Stap 2 — gegroepeerde modus: platte banden op zichtbare bladeren.
   if (group.length > 0) {
     const rows: ViewRow[] = [];
     const visibleLeaves = tasks.filter(t => isLeafTask(t) && visible.has(t.id));
@@ -322,10 +270,6 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
     return rows;
   }
 
-  // Stap 2' — boommodus: behoud de WBS-boom. Ook ingeklapte nakomelingen bezoeken,
-  // zodat het wees-vangnet ze niet oppikt. Een expliciete stack bewaart diepte en verborgenheid
-  // zonder één JavaScript-aanroep per WBS-niveau.
-  // Reeksen alleen in de zuivere boom (#868, punt 9): bij een filter of sortering staan ze uitgeklapt.
   const runs = filter === null && sort.length === 0;
   const rows: ViewRow[] = [];
   const seen = new Set<string>();
@@ -365,11 +309,9 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
       pushSiblings(stack, sortTasks(childrenOf(task, byId), sort, ctx), depth + 1, hideChildren);
     }
   };
-  // Eén stapel voor alle wortels, zodat ook een reeks bovenaan (broers zonder ouder) herkend wordt.
   const rootStack: Item[] = [];
   pushSiblings(rootStack, sortTasks(tasks.filter(t => !t.parentId), sort, ctx), 0, false);
   emit(rootStack);
-  // Wees-vangnet: taken met een onbekende ouder alsnog tonen.
   for (const t of tasks) {
     if (!seen.has(t.id) && visible.has(t.id)) {
       rows.push({ kind: 'task', rowKey: t.id, task: t, depth: 0, dimmed: dimmed.get(t.id) });
@@ -378,17 +320,6 @@ export function computeViewRows(tasks: Task[], opts: ViewRowOpts, ctx: ViewConte
   return rows;
 }
 
-/**
- * Alle bandsleutels van de huidige groepering — óók die van banden die op dit moment ingeklapt
- * zijn. Voor "alle groepen inklappen".
- *
- * Bewust NIET afgeleid uit de bestaande `viewRows`: `walk()` hierboven daalt niet af in een
- * ingeklapte band, dus zodra er ook maar één band dicht staat ontbreken de sleutels van al zijn
- * subbanden in `viewRows`. "Alles inklappen" zou dan precies de takken overslaan die de gebruiker
- * al eerder had dichtgeklapt — en na één keer uitklappen zouden die weer open staan. Daarom draaien we
- * de pijplijn hier één keer met een LEGE collapse-set: dan emit elk niveau al zijn banden.
- * Zonder groepering zijn er per definitie geen banden ⇒ lege lijst.
- */
 export function allBandKeys(tasks: Task[], opts: ViewRowOpts, ctx: ViewContext): string[] {
   if (opts.group.length === 0) return [];
   const keys: string[] = [];
@@ -398,15 +329,10 @@ export function allBandKeys(tasks: Task[], opts: ViewRowOpts, ctx: ViewContext):
   return keys;
 }
 
-/**
- * taskId → eerste rij-index in `viewRows`: bij multi-band-duplicaten wint de laagste index,
- * zodat de pijl-renderer één keer verbindt i.p.v. pijl-spaghetti.
- */
 export function firstRowIndexByTask(rows: ViewRow[]): Map<string, number> {
   const map = new Map<string, number>();
   rows.forEach((row, i) => {
     if (row.kind === 'task' && !map.has(row.task.id)) map.set(row.task.id, i);
-    // Een ingeklapte reeks: al haar mijlpalen staan op deze ene rij (#868).
     if (row.kind === 'milestones') for (const t of row.tasks) if (!map.has(t.id)) map.set(t.id, i);
   });
   return map;
@@ -414,7 +340,6 @@ export function firstRowIndexByTask(rows: ViewRow[]): Map<string, number> {
 
 export type TaskViewRow = Extract<ViewRow, { kind: 'task' }>;
 
-/** Het deterministische eerste zichtbare voorkomen van een domeintaak. */
 export function firstTaskOccurrence(
   rows: readonly ViewRow[],
   taskId: string,
@@ -425,7 +350,6 @@ export function firstTaskOccurrence(
   return { rowKey: row.rowKey, rowIndex, row };
 }
 
-/** Alle taakoccurrences tussen twee zichtbare rowKeys; groepsrijen blijven alleen afstand dragen. */
 export function taskRowsInRange(
   rows: readonly ViewRow[],
   fromRowKey: string,
@@ -439,14 +363,10 @@ export function taskRowsInRange(
   return rows.slice(start, end + 1).filter((row): row is TaskViewRow => row.kind === 'task');
 }
 
-/** De datum waarop het ruitje van een mijlpaal in een ingeklapte reeks staat (#868), dezelfde kant
- *  als `milestoneAnchorX`. */
 export function milestoneAnchorDate(task: Task): string {
   return shownStart(task) || shownFinish(task) || '';
 }
 
-/** De leden van een ingeklapte mijlpalenreeks zoals ze getekend staan: van links naar rechts.
- *  Stabiel, dus gelijke momenten houden de volgorde van de reeks (review #1004, ronde 11). */
 export function milestonesInDrawnOrder(tasks: readonly Task[]): Task[] {
   return [...tasks].sort((a, b) => {
     const left = milestoneAnchorDate(a);
@@ -455,7 +375,6 @@ export function milestonesInDrawnOrder(tasks: readonly Task[]): Task[] {
   });
 }
 
-/** Geordende domeinselectie uit occurrences; een taak-id komt hoogstens één keer terug. */
 export function uniqueTaskIds(rows: readonly ViewRow[]): string[] {
   const ids = new Set<string>();
   for (const row of rows) {
@@ -465,12 +384,6 @@ export function uniqueTaskIds(rows: readonly ViewRow[]): string[] {
   return [...ids];
 }
 
-/**
- * Minimale headless rijcursorreconciliatie voor Task 7. De aanroeper bewaart de absolute rijindex
- * van de actieve occurrence. Blijft de rowKey bestaan, dan wint die; anders wint de taakrij met de
- * kleinste absolute indexafstand (bij gelijke afstand de eerdere rij). Zonder taakrij is er geen
- * geldige cel meer en wordt de cursor leeg.
- */
 export interface TaskRowCursor {
   rowKey: string;
   rowIndex: number;

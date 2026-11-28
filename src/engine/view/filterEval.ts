@@ -1,7 +1,3 @@
-// Filter-evaluator + gedeelde veld-resolver.
-// PUUR & HEADLESS: geen React-, geen store-imports (alleen type-only imports, compile-time erased),
-// zodat de tests deze functies rechtstreeks kunnen aanroepen.
-
 import type { Task } from '@/types/task';
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Resource, ResourceAssignment, ResourceType } from '@/types/resource';
@@ -9,34 +5,17 @@ import { groupBy } from '@/utils/collections';
 import type { FieldRef, FilterNode, FilterOperator } from '@/types/view';
 import { shownStart, shownFinish, shownSpanOverlapsDays } from '@/utils/taskDates';
 
-/** Gedeelde context voor filter/groep/sort/kolom-resolutie. */
 export interface ViewContext {
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   resources: Resource[];
   assignments: ResourceAssignment[];
-  /** = t('structure.none'). */
   noneLabel: string;
-  /** Vertaalde bandlabels voor groeperen op resourcetype; ontbreekt ⇒ de enum-naam. */
   resourceTypeLabels?: Partial<Record<ResourceType, string>>;
 }
 
-/** Ruwe, vergelijkbare veldwaarde (filter/sort). `resource` levert een array van namen. */
 export type FieldValue = string | number | boolean | string[] | undefined;
 
-/**
- * Indexen op een `ViewContext`, lui gebouwd en gecachet op de context-INSTANTIE.
- *
- * Waarom een WeakMap en geen extra velden op `ViewContext`: de context wordt in `src/` op drie
- * plekken opgebouwd (`viewRowInputs` in `state/viewRows.ts`, `derivePayloadViewRows` in
- * `state/documentActivation.ts`, de benchmark-runner; daarnaast in testfixtures) en die zouden alle
- * drie de indexen moeten vullen — foutgevoelig met-de-hand-bijhouden. De cache is veilig omdat
- * élke bouwplek per aanroep een VERS objectliteraal maakt en niemand een context over een mutatie
- * heen vasthoudt (de UI bouwt er zelf geen: taakraster
- * en Gantt lezen de kant-en-klare `viewRows` uit de store). Een gewijzigde `assignments` betekent
- * dus altijd een nieuwe context en daarmee een nieuwe index. Een WeakMap laat de oude bovendien
- * vanzelf vallen.
- */
 interface ViewIndexes {
   assignmentsByTask: Map<string, ResourceAssignment[]>;
   resourceById: Map<string, Resource>;
@@ -48,23 +27,12 @@ function indexesFor(ctx: ViewContext): ViewIndexes {
   if (hit) return hit;
   const assignmentsByTask = groupBy(ctx.assignments, a => a.taskId);
   const resourceById = new Map<string, Resource>();
-  // `!has` en niet kaal `set`: `Map.set` houdt bij een dubbele id de LAATSTE, terwijl de
-  // `find()` die dit verving de EERSTE koos. Onbereikbaar met de huidige id-generatie, maar deze
-  // wijziging hoort een pure prestatiewijziging te zijn en dan mag ook een onbereikbaar
-  // semantisch verschil er niet in sluipen.
   for (const r of ctx.resources) if (!resourceById.has(r.id)) resourceById.set(r.id, r);
   const built = { assignmentsByTask, resourceById };
   indexCache.set(ctx, built);
   return built;
 }
 
-/**
- * Namen van de aan de taak toegewezen resources (join via assignments).
- *
- * `visibleRows` roept deze functie voor élke taak aan, op het pad dat na iedere mutatie opnieuw
- * loopt (`recomputeViewRows`). Met de index erboven is het O(toewijzingen van deze taak), niet
- * O(taken × toewijzingen × resources).
- */
 export function resourceNames(task: Task, ctx: ViewContext): string[] {
   const { assignmentsByTask, resourceById } = indexesFor(ctx);
   const mine = assignmentsByTask.get(task.id);
@@ -77,12 +45,6 @@ export function resourceNames(task: Task, ctx: ViewContext): string[] {
   return out;
 }
 
-/**
- * Bandvolgorde van de resourcetypen: wie het werk doet eerst, dan waarmee, dan waarvan. Bewust vast
- * en niet op vertaald label gesorteerd, zodat een uitgedeeld vel in elke taal dezelfde blokvolgorde
- * heeft. Gedeeld door de schermgroepering en het rapport Resourcediagram. Een type dat
- * hier zou ontbreken (kan niet met het huidige enum) komt achteraan.
- */
 export const RESOURCE_TYPE_BAND_ORDER: readonly ResourceType[] = ['LABOR', 'CREW', 'SUBCONTRACTOR', 'EQUIPMENT', 'MATERIAL', 'COST'];
 
 export function resourceTypeRank(type: ResourceType): number {
@@ -90,7 +52,6 @@ export function resourceTypeRank(type: ResourceType): number {
   return i < 0 ? RESOURCE_TYPE_BAND_ORDER.length : i;
 }
 
-/** De aan de taak toegewezen resources zelf (join via assignments), in toewijzingsvolgorde. */
 export function assignedResources(task: Task, ctx: ViewContext): Resource[] {
   const { assignmentsByTask, resourceById } = indexesFor(ctx);
   const out: Resource[] = [];
@@ -101,7 +62,6 @@ export function assignedResources(task: Task, ctx: ViewContext): Resource[] {
   return out;
 }
 
-/** De verschillende TYPES van de aan de taak toegewezen resources, in de vaste bandvolgorde. */
 export function resourceTypes(task: Task, ctx: ViewContext): ResourceType[] {
   const { assignmentsByTask, resourceById } = indexesFor(ctx);
   const mine = assignmentsByTask.get(task.id);
@@ -114,16 +74,10 @@ export function resourceTypes(task: Task, ctx: ViewContext): ResourceType[] {
   return [...types].sort((a, b) => resourceTypeRank(a) - resourceTypeRank(b));
 }
 
-/** Komma-gescheiden resource-namen voor de resource-kolom. */
 export function resourceCellValue(task: Task, ctx: ViewContext): string {
   return resourceNames(task, ctx).join(', ');
 }
 
-/**
- * De gedeelde resolver (ook door groep/sort gebruikt). Kiest per builtin-key het JUISTE pad:
- * totalFloat/isCritical/completion staan onder `task.time`, NIET direct op `Task`. Onbekende
- * refs (layout uit een ander document) → `undefined`, nooit een throw.
- */
 export function resolveField(field: FieldRef, task: Task, ctx: ViewContext): FieldValue {
   switch (field.src) {
     case 'builtin':
@@ -138,8 +92,6 @@ export function resolveField(field: FieldRef, task: Task, ctx: ViewContext): Fie
         case 'completion': return task.time.completion;
         case 'taskType': return task.taskType;
         case 'isMilestone': return task.isMilestone;
-        // Analysevelden. freeFloat is altijd aanwezig; de andere drie zijn optioneel (undefined tot
-        // de bijbehorende analyse draait) — undefined-tolerant.
         case 'freeFloat': return task.time.freeFloat;
         case 'interferingFloat': return task.time.interferingFloat;
         case 'isNearCritical': return task.time.isNearCritical;
@@ -157,14 +109,12 @@ export function resolveField(field: FieldRef, task: Task, ctx: ViewContext): Fie
   }
 }
 
-/** Stringrepresentatie voor substring-/gelijkheids-vergelijkingen. Arrays → kommalijst. */
 function strOf(v: FieldValue): string {
   if (v === undefined || v === null) return '';
   if (Array.isArray(v)) return v.join(', ');
   return String(v);
 }
 
-/** Numerieke waarde als beide zijden als getal te lezen zijn, anders undefined. */
 export function asNum(v: unknown): number | undefined {
   if (typeof v === 'number') return Number.isFinite(v) ? v : undefined;
   if (typeof v === 'string' && v.trim() !== '' && !isNaN(Number(v))) return Number(v);
@@ -180,7 +130,6 @@ function looseEq(v: FieldValue, value: unknown): boolean {
   return strOf(v) === strOf(value as FieldValue);
 }
 
-/** Vergelijk twee waarden numeriek (indien mogelijk) of lexicografisch (ISO-datums werken zo). */
 function cmp(v: FieldValue, value: unknown): number {
   const na = asNum(v), nb = asNum(value);
   if (na !== undefined && nb !== undefined) return na - nb;
@@ -188,7 +137,6 @@ function cmp(v: FieldValue, value: unknown): number {
   return sa < sb ? -1 : sa > sb ? 1 : 0;
 }
 
-/** Past één operator toe. Undefined-tolerant: geen throw, ontbrekende waarde matcht niet. */
 export function applyOperator(
   operator: FilterOperator,
   v: FieldValue,
@@ -224,27 +172,15 @@ export function applyOperator(
   }
 }
 
-/**
- * "Actief tussen"-synthetisch filterveld: een taak is actief in [van, tot]
- * wanneer haar eigen interval [start, finish] dát overlapt — de klassieke interval-overlaptest
- * (start ≤ tot ÉN finish ≥ van). Dit past niet in de generieke resolver: die levert per veld één
- * scalar die de operator tegen `value`/`value2` legt, terwijl deze check start ÉN finish
- * tegelijk nodig heeft. Vandaar de special-case hier in plaats van een uitbreiding van
- * `resolveField`/`applyOperator`. Vergeleken op dagniveau (`shownSpanOverlapsDays`, dezelfde test
- * als de rapportvensters), zodat een uurtaak die op de tot-dag begint meetelt.
- */
 function evaluateActiveDuring(task: Task, value?: string | number | boolean | string[], value2?: string | number): boolean {
   if (typeof value !== 'string' || typeof value2 !== 'string') return false;
   if (!shownStart(task) || !shownFinish(task)) return false;
   return shownSpanOverlapsDays(task, value, value2);
 }
 
-/**
- * Evalueer een filterknoop op één taak. Een lege groep matcht alles (neutraal element).
- */
 export function evaluate(node: FilterNode, task: Task, ctx: ViewContext): boolean {
   if (node.kind === 'group') {
-    if (node.children.length === 0) return true; // lege groep = neutraal (matcht)
+    if (node.children.length === 0) return true;
     return node.op === 'AND'
       ? node.children.every(c => evaluate(c, task, ctx))
       : node.children.some(c => evaluate(c, task, ctx));
@@ -253,8 +189,6 @@ export function evaluate(node: FilterNode, task: Task, ctx: ViewContext): boolea
     return evaluateActiveDuring(task, node.value, node.value2);
   }
   const v = resolveField(node.field, task, ctx);
-  // Een datumfilter omvat de hele ingevoerde dag, ook sinds D1/D2 momenten opslaan.
-  // Een expliciete tijd in de filterwaarde blijft een vergelijking op momenten.
   if (node.field.src === 'builtin' && (node.field.key === 'start' || node.field.key === 'finish')
     && typeof v === 'string' && typeof node.value === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(node.value)
     && (node.value2 === undefined || (typeof node.value2 === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(node.value2)))) {
