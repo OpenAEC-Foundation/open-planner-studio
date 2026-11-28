@@ -24,5 +24,5 @@ begeleidingspaneel.
   kleine wijzigingen doet (hover, scroll) zou een debounce de controle eindeloos laten uitstellen.
 - **`CatalogEntry.sha256` is optioneel** (`types.ts`; de controle in `extensionService.ts`). De catalogus is een
   extern bestand (`open-planner-studio-extensions`) dat niet met de app meebeweegt; een verplichte hash zou elke
-  bestaande entry zonder hash onbruikbaar maken. Het doel is dat een entry mét hash niet stil vervangen kan worden;
-  een entry zonder hash installeert met een melding in de debug-terminal.
+  bestaande entry zonder hash onbruikbaar maken. Bij een entry mét hash weigert de app een gedownloade ZIP
+  die er niet bij past; een entry zonder hash installeert met een melding in de debug-terminal.
