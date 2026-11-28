@@ -1,108 +1,30 @@
-// MCP-bridge — de VIER DOCUMENT-TOOLS.
-//
-// `list_documents` / `new_document` / `duplicate_document` / `switch_document`. De AI sluit bewust
-// GEEN documenten en beslist niet over opslaan — die tools bestaan hier dus niet.
-//
-// Drie ontwerpbesluiten:
-//
-//  1. DRIFT-ANKER. `new_document`, `duplicate_document` en `switch_document` verzetten het anker
-//     (`bindExpectedDoc`) ná hun documentwissel, zodat de eerstvolgende mutatie tegen het nieuwe
-//     document ankert. Of een tool ZELF eerst op drift faalt, hangt af van of hij de INHOUD van het
-//     actieve document gebruikt:
-//       - `duplicate_document` doet dat (hij kopieert het actieve document) ⇒ volle
-//         `guardNonTransactional` incl. drift-check: dupliceren van het verkeerde document zou een
-//         onopgemerkt verkeerde variant opleveren.
-//       - `switch_document` is juist de BEVESTIGING die drift oplost en mag dus
-//         nooit zelf op drift falen.
-//       - `new_document` maakt een leeg document; de inhoud van het actieve document doet er niet
-//         toe en het anker gaat sowieso mee. Geen drift-check.
-//  2. GEEN TRANSACTIE. Documentwissels zijn geen planningsmutaties: ze pushen geen undo-snapshot en
-//     horen niet in `runInMcpTransaction` (dat zou een snapshot van het VERKEERDE document nemen).
-//     Daarom de veiligheidsvlag-guards los, via `guardBridgeFlags` hieronder.
-//  3. GEEN AI-BACKUP. Document-tools triggeren zelf géén auto-backup; hun `kind` is `'document'`
-//     (alleen `'mutate'`/`'batch'` triggeren). Wel MOET `duplicate_document` het nieuwe document als
-//     "duplicate-born" registreren (backup-contract) — via dezelfde contextbinding die
-//     ook de volgende backupbeslissing neemt.
-//
-// Batch-uitsluiting: document-tools horen niet in `batch` ⇒ `batchable: false` op alle
-// vier (ook op de leestool `list_documents`, die als document-tool meeloopt).
-
 import type { AppState } from '@/state/appStore';
 import { bindExpectedDoc, buildEnvelope, guardNonTransactional, mcpDocumentTitle, preBackupGuards, runReadTool, toolError } from './runtime';
 import type { McpContext, McpToolDef, McpToolErr, McpToolResult } from '../contracts';
 import { READ_ANNOTATIONS, WRITE_ANNOTATIONS } from './helpers';
 
-// --- Gedeelde veiligheidsvlag-guard --------------------------------------------------------------
-
-/**
- * Pauze → alleen-lezen → dialoog: EXACT dezelfde guards en volgorde als
- * `runMutateTool`/`guardNonTransactional`, maar ZONDER de drift-check
- * en zonder transactie/backup — die is hier per tool verschillend (zie de kopcomment).
- *
- * Bewust een dunne doorgeefpost naar de ÉNE guard-implementatie in `runtime.ts`
- * (`preBackupGuards`, daarvoor geëxporteerd) in plaats van een tweede kopie. Een kopie zou (a) de
- * guard-volgorde kunnen laten afdrijven en (b) de eis missen dat de DIALOG_OPEN-fout BENOEMT wélke
- * dialoog blokkeert; die naamgeving zit in de runtime-versie.
- *
- * Waarom óók `readOnly` op tools die de planning niet wijzigen: fail-closed. Een document aanmaken/
- * wisselen of een bestand wegschrijven zijn zichtbare neveneffecten op de werkomgeving van de user;
- * "alleen-lezen" hoort dan te betekenen dat de AI niets doet behalve lezen.
- *
- * Gedeeld met `fileTools.ts`.
- */
 export function guardBridgeFlags(ctx: McpContext): McpToolErr | null {
   return preBackupGuards(ctx);
 }
 
-// --- list_documents ------------------------------------------------------------------------------
-
-/** Eén regel in `list_documents`. Compact: velden die niet van toepassing zijn ontbreken. */
 interface DocumentRow {
   id: string;
   title: string;
   isActive: boolean;
   isDirty: boolean;
   taskCount: number;
-  /** Projectanker (`project.startDate`) — waar de planning vanaf rekent. */
   projectStart: string;
-  /** Berekend projecteinde (`cpmResult.projectEnd`); ontbreekt zonder (geldig) rekenresultaat. */
   projectEnd?: string;
-  /** Alleen aanwezig (en dan `true`) wanneer er nog nooit gerekend is: `cpmResult == null`. */
   notCalculated?: true;
-  /** Alleen aanwezig wanneer er wél gerekend is maar met een fout (kringverwijzing) — dát is de
-   *  reden dat `projectEnd` ontbreekt, en die reden mag niet als "niet doorgerekend" wegvallen. */
   calculationError?: string;
-  /** Alleen aanwezig (en dan `true`) wanneer de invoer na de laatste berekening is gewijzigd. Het
-   *  actieve document is dan al vers doorgerekend (de tool rekent het eerst door); een geparkeerd
-   *  document kan de tool niet doorrekenen zonder ernaar te wisselen, dus daar meldt hij het. */
   scheduleStale?: true;
-  /** Alleen aanwezig (en dan `true`) in "datums zoals opgeslagen": `projectEnd` is dan het
-   *  vastgelegde einde uit het bestand, geen berekening. */
   datesAsRecorded?: true;
 }
 
-/**
- * Alle open documenten met hun verrijkte kop-gegevens.
- *
- * Het "niet doorgerekend"-signaal komt uit `cpmResult == null` en NADRUKKELIJK niet uit
- * `scheduleStale`. De twee vlaggen beantwoorden verschillende vragen: `scheduleStale` zegt of de
- * uitkomst nog kán kloppen, `cpmResult == null` of er überhaupt een uitkomst ís. Een document dat
- * verouderd is maar wél een `cpmResult` draagt, is doorgerekend — alleen niet meer actueel — en
- * hoort dus géén "niet doorgerekend" te melden; er is immers een (verouderde) einddatum te tonen.
- * Op `scheduleStale` sturen zou dat verwarren, in beide richtingen (een via crash-herstel
- * teruggekomen document is bijvoorbeeld verouderd gemarkeerd).
- *
- * Titels komen uit `getOpenDocuments()` — dezelfde afleiding als de tabbladen (bestandsnaam zonder
- * extensie, anders de projectnaam), zodat er één bron voor de titel blijft. Een NAAMLOOS document
- * levert daar bewust een lege titel; `mcpDocumentTitle` zet daar de vaste Engelse terugval
- * `MCP_UNTITLED_TITLE` (+ volgnummer bij meerdere naamloze) voor in de plaats, zodat de AI-client
- * nooit een lege titel te zien krijgt. Zie de onderbouwing bij `MCP_UNTITLED_TITLE` in `runtime.ts`.
- */
 function listDocuments(s: AppState): { activeDocumentId: string; documents: DocumentRow[] } {
   const infos = new Map(s.getOpenDocuments().map((d) => [d.id, d]));
   const documents = s.documents.map((entry) => {
     const isActive = entry.id === s.activeDocumentId;
-    // Het actieve document leeft op top-level; de rest in zijn geparkeerde payload.
     const project = isActive ? s.project : entry.payload!.project;
     const tasks = isActive ? s.tasks : entry.payload!.tasks;
     const cpm = isActive ? s.cpmResult : entry.payload!.cpmResult;
@@ -123,21 +45,12 @@ function listDocuments(s: AppState): { activeDocumentId: string; documents: Docu
       if (cpm.projectEnd) row.projectEnd = cpm.projectEnd;
       if (cpm.error) row.calculationError = cpm.error;
     }
-    // Een rij-veld van de respons, geen storevlag; `= stale` (genarrowd tot `true`) houdt de
-    // broncontrole 11c in tests/planning/check-recorded-dates.ts zuiver.
     if (stale) row.scheduleStale = stale;
     if (asRecorded) row.datesAsRecorded = asRecorded;
     return row;
   });
   return { activeDocumentId: s.activeDocumentId, documents };
 }
-
-// --- Annotaties ----------------------------------------------------------------------------------
-
-// Schrijvende document-tools gebruiken `WRITE_ANNOTATIONS` ongewijzigd: niet destructief (er gaat
-// geen planningsdata verloren), niet idempotent (elke aanroep maakt een NIEUW document), binnen de app.
-
-// --- Tooldefinities ------------------------------------------------------------------------------
 
 export const documentTools: McpToolDef[] = [
   {
@@ -147,7 +60,7 @@ export const documentTools: McpToolDef[] = [
       'display title, not the project name. Only the active document is recalculated; others may be ' +
       '`scheduleStale`.',
     kind: 'document',
-    batchable: false, // document-tools zijn uitgesloten van batch
+    batchable: false,
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: READ_ANNOTATIONS,
     handler: (_args, ctx) => runReadTool(ctx, (s) => listDocuments(s), { freshSchedule: true }),
@@ -162,7 +75,6 @@ export const documentTools: McpToolDef[] = [
     inputSchema: { type: 'object', properties: {}, additionalProperties: false },
     annotations: WRITE_ANNOTATIONS,
     handler: (_args, ctx): McpToolResult => {
-      // Geen drift-check: een leeg document is onafhankelijk van welk tabblad nu actief is (zie kop).
       const blocked = guardBridgeFlags(ctx);
       if (blocked) return blocked;
       const s = ctx.app.store.getState();
@@ -191,8 +103,6 @@ export const documentTools: McpToolDef[] = [
     },
     annotations: WRITE_ANNOTATIONS,
     handler: (args, ctx): McpToolResult => {
-      // VOLLE guard incl. drift: deze tool kopieert de INHOUD van het actieve document — na een
-      // tabwissel van de user zou dat stilzwijgend de verkeerde planning zijn.
       const blocked = guardNonTransactional(ctx);
       if (blocked) return blocked;
       const raw = (args ?? {}) as { name?: unknown };
@@ -201,8 +111,6 @@ export const documentTools: McpToolDef[] = [
       }
       const name = typeof raw.name === 'string' && raw.name.trim() !== '' ? raw.name.trim() : undefined;
       const documentId = ctx.app.store.getState().duplicateDocument(name);
-      // Backup-contract: dit document is deze sessie "geboren" uit een duplicaat en
-      // slaat daarom de automatische backup over.
       ctx.markDuplicateBorn(documentId);
       bindExpectedDoc(ctx);
       const s = ctx.app.store.getState();
@@ -213,10 +121,6 @@ export const documentTools: McpToolDef[] = [
         data: {
           documentId,
           title: mcpDocumentTitle(info),
-          // BEWUST rauw: dit is het echte `project.name`-veld, geen weergavetitel. Leeg betekent
-          // hier dus "dit project heeft geen naam" — een signaal waar de AI iets mee kan (bv.
-          // update_project) en dat verdwijnt zodra je er een terugval in zou schrijven. De
-          // weergaveterugval hoort in `title`, dat daar wél voor bedoeld is.
           projectName: s.project.name,
           taskCount: s.tasks.length,
         },
@@ -238,10 +142,8 @@ export const documentTools: McpToolDef[] = [
       required: ['documentId'],
       additionalProperties: false,
     },
-    // idempotentHint op o.a. switch_document
     annotations: { ...WRITE_ANNOTATIONS, idempotentHint: true },
     handler: (args, ctx): McpToolResult => {
-      // BEWUST geen drift-check: deze tool ÍS de drift-bevestiging.
       const blocked = guardBridgeFlags(ctx);
       if (blocked) return blocked;
       const raw = (args ?? {}) as { documentId?: unknown };
@@ -253,7 +155,7 @@ export const documentTools: McpToolDef[] = [
       if (!s.documents.some((d) => d.id === documentId)) {
         return toolError(ctx, 'NOT_FOUND', `Unknown document id '${documentId}'; open documents are: ${s.documents.map((d) => d.id).join(', ')}`);
       }
-      s.switchDocument(documentId); // no-op wanneer het al actief is
+      s.switchDocument(documentId);
       bindExpectedDoc(ctx);
       const after = ctx.app.store.getState();
       const info = after.getOpenDocuments().find((d) => d.id === documentId);

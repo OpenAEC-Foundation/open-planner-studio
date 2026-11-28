@@ -1,26 +1,3 @@
-// MCP-bridge — begrensde, alleen-lezen inspectie van retained XER/P6-bronsemantiek.
-//
-// Deze tool leest uitsluitend het reeds opgeslagen `xerSourceArchive` en de actieve
-// `xerImportMetadata`-view. Hij parset geen bytes opnieuw en raakt de store nooit. Summary is
-// bewust vrij van raw rows en raw bytes; bronrijen en bytes zijn aparte, expliciet gepagineerde
-// secties.
-//
-// DE EIGENSCHAP: geen blocklist van vrije-tekstvelden — die vergeet onvermijdelijk een synoniem
-// (`text`/`comment`/`memo`/`remark`/`title`/`longName`) of een geneste vorm (`taskProjections.notes`
-// is een objectarray, geen string). `sanitizeProvenanceValue` hieronder is DENY-BY-DEFAULT: hij loopt
-// recursief over WAT een sectiefunctie ook teruggeeft, herkent een XER-bronrij STRUCTUREEL (elk plain
-// object met een numerieke `line` en een `cells`-veld van louter strings — dus ook op plekken waar
-// niemand een allowlist-regel voor had geschreven, en ook als de rij méér dan die twee velden draagt,
-// zoals `XerScheduleOptionsSourceRow`'s `table`) en classificeert elke LOSSE string op sleutelnaam
-// tegen `SAFE_LABEL_KEYS`: staat de sleutel er niet expliciet in — ook een onbekende toekomstige
-// sleutel — dan is de waarde zonder `includeRawRows` VOLLEDIG onzichtbaar en met opt-in afgekapt op
-// 2.000 tekens. Staat de sleutel er wél in (id's, codes, korte labels, enum-/tokenvelden), dan blijft
-// hij altijd zichtbaar maar hard afgekapt op 200 tekens. Cel-/veldNAMEN (de `%F`-kolomkop van het
-// bronbestand) lopen door dezelfde afkap- en budgetlogica als celWAARDEN — anders ontsnapt een
-// aanvaller-gecontroleerde kolomnaam aan zowel de zichtbaarheidsgrens als de responsbegroting.
-// `summary` (de default-sectie) loopt door DEZELFDE poort plus dezelfde responsgrens; er is geen
-// aparte, ongesaneerde vorm.
-
 import type { AppState } from '@/state/appStore';
 import type { McpContext, McpErrorCode, McpToolDef, McpToolResult } from '../contracts';
 import { runReadTool, toolError } from './runtime';
@@ -48,8 +25,6 @@ const DIAGNOSTIC_COLLECTIONS = [
 const ALL_COLLECTIONS = [...RESOURCE_COLLECTIONS, ...METADATA_COLLECTIONS, ...DIAGNOSTIC_COLLECTIONS] as const;
 
 type Collection = typeof ALL_COLLECTIONS[number];
-/** De enum van `collection`: elke naam één keer (`issues` bestaat in twee secties; een validator die unieke
- *  enumwaarden eist, weigert anders het hele schema). */
 const COLLECTION_ENUM: Collection[] = [...new Set<Collection>(ALL_COLLECTIONS)];
 
 interface XerProvenanceArgs {
@@ -63,86 +38,28 @@ interface XerProvenanceArgs {
   includeResourceNames?: unknown;
 }
 
-/** Sections die `includeResourceNames` accepteren: alleen daar kan een resourcenaam de respons in
- *  (`resourceCatalog/resources[].name`, de RSRC-cellen van `resourceCatalog/resourceSources`, en de
- *  ruwe bronbytes van `rawSource`). Elders is de optie een VALIDATION-fout, geen stille no-op. */
 const RESOURCE_NAMES_SECTIONS: readonly Section[] = ['resourceCatalog', 'rawSource'];
 
-/** Sections die door de generieke bronrij-/vrije-tekstpoort lopen. `diagnostics` hoort erbij:
- *  `documentViews` draagt via `resources.assignments[].rawRow` dezelfde vrije XER-cellen als de
- *  andere drie secties. */
 const RAW_ROWS_SECTIONS: readonly Section[] = ['resourceCatalog', 'metadataCatalog', 'taskSourceRowsByProject', 'diagnostics'];
 
-/** Lagere paginalimiet zodra `includeRawRows` echte celwaarden ontgrendelt — spiegelt de aparte,
- *  strakkere grens die `rawSource` al had voor ruwe bytes. */
 const RAW_ROWS_OPT_IN_MAX_LIMIT = 100;
-/** Per-cel/per-string afkapgrens voor VRIJE tekst (rawRow-cellen, notities, customFields-waarden). */
 const RAW_CELL_MAX_CHARS = 2000;
-/** Per-string afkapgrens voor korte LABEL-achtige velden (namen, omschrijvingen buiten `rawRow`) die
- *  altijd zichtbaar blijven — zonder deze cap kan een misbruikt `name`-veld ongehinderd megabytes
- *  meesturen ("genormaliseerd" is niet "veilig"). */
 const LABEL_MAX_CHARS = 200;
-/** Cap op het aantal cellen/velden per bronrij of vrije-tekstkaart — zonder deze cap bepaalt de
- *  `%F`-kolomkop van het bronbestand ongehinderd hoeveel cellen één rij draagt (een
- *  aanvaller-gecontroleerd bestand kan er 20.000 declareren). */
 const MAX_CELLS_PER_ROW = 200;
-/** Harde bovengrens op de totale geserialiseerde paginarespons, in ECHTE UTF-8-bytes
- *  (`String.length` telt UTF-16-code-units, geen bytes — voor CJK/Arabisch/emoji
- *  zit daar een factor 2–3 tussen). */
 const MAX_SECTION_RESPONSE_BYTES = 256 * 1024;
 
-/** DENY-BY-DEFAULT allowlist: id-/code-/labelachtige sleutels die
- *  zonder opt-in zichtbaar mogen blijven (afgekapt op 200 tekens). Alles wat hier niet in staat —
- *  `text`/`comment`/`memo`/`remark`/`title`/`longName`, een taaknotitie, een onbekende toekomstige
- *  sleutel — is zonder `includeRawRows` volledig onzichtbaar. Bewust een allowlist en geen blocklist:
- *  een vergeten sleutel hier betekent "verbergen" (fail-safe), een vergeten sleutel in een blocklist
- *  betekent "lekken" (fail-open).
- *
- *  RESOURCENAMEN (eigenaarsbesluit 22-09, bevestigd 2026-10-07: "codes altijd; resourcenamen alleen
- *  achter een opt-in, en de AI-client moet die opt-in aan zijn gebruiker vragen"). Een P6-resource is
- *  in de praktijk routinematig een persoon, dus `name` staat hier wel, maar wordt op de enige plekken
- *  waar hij een persoonsnaam draagt VÓÓR deze poort weggehaald tenzij `includeResourceNames:true`
- *  (`projectResourceItem`/`projectResourceSourceItem`): `resourceCatalog/resources[].name` (= RSRC
- *  `rsrc_name`), de RSRC-cellen van `resourceCatalog/resourceSources[].rawRow` (`rsrc_name`, maar ook
- *  `email_addr`/`employee_code`/telefoon — daarom de HELE rij, geen celblocklist) en `rawSource` (de
- *  bytes bevatten de RSRC-tabel). De resourcecode (`rsrc_short_name`, als `code`) blijft altijd
- *  zichtbaar. Afweging per overige `name`-sleutel in de blootgestelde grafiek — géén persoonsnaam in
- *  opzet, dus zichtbaar zonder opt-in:
- *   - `roleSources[].name`/`shortName` (ROLES): een functie ("Uitvoerder"), geen persoon;
- *   - `curves[].name` (RSRCCURVDATA): een verdelingscurve;
- *   - `activityCodeTypes[].name`, `customFieldDefs[].name`: kolom-/codetypelabels; de
- *     activiteitscodewaarden tonen alleen `code` — hun `description` is vrije tekst (achter
- *     `includeRawRows`), ook als een codetype als "Verantwoordelijke" namen bevat;
- *   - `unknownTables[].name`/`unknownFields[].name`: tabel-/kolomnamen uit de `%T`/`%F`-koppen.
- *  Project-, taak-, WBS- en kalendernamen komen deze tool alleen via bronrij-CELLEN binnen (deny by
- *  default, achter `includeRawRows`); ook die zijn geen persoonsgegevens-in-opzet.
- *
- *  Elke sleutel hieronder is nagelopen tegen de daadwerkelijk blootgestelde grafiek (resourceCatalog,
- *  metadataCatalog, diagnostics, taskSourceRowsByProject, summary) — geen sleutel "voor het geval
- *  dat". `unit`/`currShortName` staan er daarom niet in (komen nergens exposed voor;
- *  `curr_short_name` is alleen een interne XER-kolomnaam voor numberFormat-detectie, geen
- *  responsveld). `unitOfMeasure` staat er wél echt (Resource.unitOfMeasure, `xerResources.ts`). */
 const SAFE_LABEL_KEYS = new Set([
-  // id's/verwijzingen
   'id', 'sourceId', 'internalId', 'taskId', 'predecessorTaskId', 'projectId', 'sourceProjectId',
   'currentProjectId', 'resourceId', 'roleId', 'curveId', 'parentId', 'parentSourceId', 'calendarId',
   'calendarSourceId', 'defaultRoleSourceId', 'unitSourceId', 'taskSourceId', 'companyId',
   'libraryItemId', 'syncedHash',
-  // korte labels/codes
   'name', 'shortName', 'code', 'taskCode', 'wbsCode', 'unitOfMeasure', 'currencyCode',
   'defaultCurrencyCode',
-  // structurele/enum-/tokenvelden
   'kind', 'type', 'rawType', 'table', 'field', 'reason', 'fallback', 'bestFit', 'encoding',
   'newline', 'bom', 'format', 'source', 'algorithm', 'status', 'from', 'token', 'decimal', 'group',
   'progressMode', 'mappedProgressMode', 'effectiveDate',
-  // vaste, systeemeigen waarden (geen bronvrije tekst). `value` is vandaag uitsluitend
-  // `summary.source.digest.value` (de SHA-256) — de generiekste naam hier en dus de eerste kandidaat
-  // om ooit per ongeluk vrije tekst te dragen; bij twijfel eerst hercontroleren tegen de grafiek.
   'sha256', 'value', 'availableProjectIds', 'baselineFallbackReasons',
 ]);
-/** Vrije-tekstkáárten (UDF-/activiteitswaarden e.d.): net als een rawRow geeft dit zonder opt-in
- *  alleen een `fieldCount` (transparant dát er iets verborgen is), i.p.v. een leeg object — dat zou
- *  de generieke deny-by-default-recursie anders ook al doen, maar dan zonder die transparantie. */
 const FREE_TEXT_MAP_KEYS = new Set(['customFields']);
 
 class XerProvenanceError extends Error {
@@ -151,9 +68,6 @@ class XerProvenanceError extends Error {
   }
 }
 
-/** Codepoint-veilig afkappen: `slice(0, n)` op code-units kan een surrogaatpaar
- *  doormidden knippen (bv. een emoji), wat een well-formed maar kapotte string oplevert voor de
- *  client. Schuif de grens één code-unit terug zodra hij op een eenzame high surrogate uitkomt. */
 function truncateAt(value: string, maxChars: number): string {
   if (value.length <= maxChars) return value;
   let end = maxChars;
@@ -174,20 +88,11 @@ function isPlainRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/** Structurele herkenning van een XER-bronrij: een numerieke `line` plus een `cells`-kaart van
- *  louter strings. Bewust op VORM, niet op een exact sleutelaantal: een "exact twee sleutels"-eis
- *  faalt OPEN zodra een rijvorm een derde veld draagt (`XerScheduleOptionsSourceRow` =
- *  `{table, line, cells}`) — zo'n rij valt dan door naar de generieke objecttak, waar `cells` een
- *  gewoon record wordt en elke celwaarde als LABEL zichtbaar komt, zonder opt-in. Overige velden
- *  naast `line`/`cells` (zoals `table`) projecteert `projectSourceRow` gewoon mee via dezelfde poort
- *  — fail-CLOSED in plaats van fail-open. */
 function isRawSourceRowLike(value: Record<string, unknown>): value is Record<string, unknown> & { line: number; cells: Record<string, string> } {
   if (typeof value.line !== 'number' || !isPlainRecord(value.cells)) return false;
   return Object.values(value.cells).every((cell) => typeof cell === 'string');
 }
 
-/** Voegt `key` toe aan `used` zonder een bestaande sleutel te overschrijven — nodig omdat
- *  afgekapte kolomnamen (`truncateLabel`) op elkaar kunnen samenvallen. */
 function uniqueTruncatedKey(candidate: string, used: Set<string>): string {
   let key = candidate;
   let suffix = 1;
@@ -199,11 +104,6 @@ function uniqueTruncatedKey(candidate: string, used: Set<string>): string {
   return key;
 }
 
-/** Houdt de opgebouwde UTF-8-bytegrootte van een pagina bij TERWIJL cellen/labels geprojecteerd
- *  worden, en breekt meteen af zodra het budget vol is — vóór de dure, autoritatieve
- *  `JSON.stringify`-meting in `finalizeBounded` ("begroot vóór serialisatie"). Dit
- *  voorkomt dat één rij met bv. 20.000 cellen alsnog een tientallen-MB-tussenstring opbouwt: de
- *  teller breekt al af halverwege díé ene rij. */
 interface ByteBudget {
   charge(text: string): void;
 }
@@ -223,13 +123,6 @@ function createByteBudget(maxBytes: number): ByteBudget {
   };
 }
 
-/** Projecteert één bronrij (`line` + `cells`, plus eventuele overige velden zoals `table`). Zonder
- *  `includeRawRows`: alleen `line` + het WERKELIJKE celaantal + de overige velden (die zelf weer door
- *  de generieke poort gaan — geen kortsluiting). Met opt-in: tot `MAX_CELLS_PER_ROW` cellen; zowel de
- *  celNAAM als de celWAARDE wordt afgekapt én budget-gecharged (anders komt een
- *  aanvaller-gecontroleerde kolomnaam van 60.001 tekens verbatim mee en telt hij als nul in het
- *  budget). Botsende afgekapte kolomnamen krijgen een `#N`-suffix i.p.v. elkaar stil te
- *  overschrijven. Méér cellen dan de cap krijgen een expliciete `cellsTruncatedAt`-marker. */
 function projectSourceRow(
   row: Record<string, unknown> & { line: number; cells: Record<string, string> },
   includeRawRows: boolean,
@@ -266,9 +159,6 @@ function projectSourceRow(
   return projected;
 }
 
-/** Zelfde cap/afkap-/opt-in-/sleutelbegroting-regime als `projectSourceRow`, voor een vrije-
- *  tekstkáárt (`customFields` e.d.) die geen `{line,cells}`-vorm heeft maar dezelfde
- *  privacy-eigenschap draagt. */
 function projectFreeTextMap(map: Record<string, unknown>, includeRawRows: boolean, budget: ByteBudget): unknown {
   const keys = Object.keys(map);
   if (!includeRawRows) return { fieldCount: keys.length };
@@ -289,13 +179,8 @@ function projectFreeTextMap(map: Record<string, unknown>, includeRawRows: boolea
   return projected;
 }
 
-/** Markering op een resource waarvan de naam bewust is weggelaten (geen `includeResourceNames`). Een
- *  boolean i.p.v. een vervangende string onder `name`: een AI-client mag een markering nooit voor de
- *  naam zelf aanzien. */
 const NAME_HIDDEN_KEY = 'nameHidden';
 
-/** De resourcecode (P6 "Resource ID" = RSRC `rsrc_short_name`). `Resource` zelf heeft geen codeveld
- *  (`name` valt in de lezer terug op deze code), dus de code komt uit de bronrij. Leeg ⇒ geen `code`. */
 function resourceCodeOf(cells: Readonly<Record<string, string>> | undefined): string | undefined {
   const code = cells?.rsrc_short_name?.trim();
   return code ? code : undefined;
@@ -310,9 +195,6 @@ function resourceCodesByInternalId(archive: XerSourceArchive): Map<string, strin
   return codes;
 }
 
-/** `resourceCatalog/resources`: zonder `includeResourceNames` verdwijnt `name` (een persoonsnaam)
- *  en komt `nameHidden: true` ervoor in de plaats; de code komt er altijd bij. Vers object, daarna
- *  nog steeds door de generieke poort. */
 function projectResourceItem(item: unknown, codes: ReadonlyMap<string, string>, includeResourceNames: boolean): unknown {
   if (!isPlainRecord(item)) return item;
   const { name, ...rest } = item;
@@ -324,9 +206,6 @@ function projectResourceItem(item: unknown, codes: ReadonlyMap<string, string>, 
   };
 }
 
-/** `resourceCatalog/resourceSources`: de code altijd; de RSRC-cellen alleen met BEIDE opt-ins
- *  (`includeRawRows` voor vrije tekst, `includeResourceNames` voor persoonsgegevens). Zonder de
- *  tweede blijft `rawRow` de gesloten `{line, fieldCount}`-vorm, ook als `includeRawRows` aan staat. */
 function projectResourceSourceItem(
   item: unknown,
   includeRawRows: boolean,
@@ -350,22 +229,6 @@ function projectResourceSourceItem(
   return out;
 }
 
-/**
- * DE ENE POORT (deny-by-default): elke waarde die een sectiefunctie
- * teruggeeft loopt hierdoor vóór hij de respons in gaat. Regels, in volgorde:
- *   1. een string onder een sleutel die NIET in `SAFE_LABEL_KEYS` staat is zonder opt-in VOLLEDIG
- *      onzichtbaar (de sleutel verdwijnt uit het resultaat), met opt-in afgekapt op 2.000 tekens —
- *      dit is het deny-by-default-hoofdpad en dekt zo ook geneste vrije tekst (`notes[].text`) zonder
- *      dat de context expliciet hoeft te worden doorgegeven: de LEAF-sleutel (`text`) bepaalt het lot;
- *   2. een string onder een `SAFE_LABEL_KEYS`-sleutel blijft ALTIJD zichtbaar maar hard afgekapt op
- *      200 tekens (labels/namen/ids/codes/enum-tokens);
- *   3. een object dat STRUCTUREEL een XER-bronrij is (`line`+string-`cells`, zie `isRawSourceRowLike`)
- *      gaat via `projectSourceRow`, ongeacht waar in de boom hij zit en ongeacht overige velden;
- *   4. een object onder een vrije-tekstkáárt-sleutel (`customFields`) gaat via `projectFreeTextMap`;
- *   5. arrays en overige objecten recurseren; getallen/booleans/`null` gaan ongewijzigd mee.
- * Nooit een alias naar de bevroren archiefstate: elke tak bouwt een vers object/array op, dus er is
- * ook geen `structuredClone` nodig.
- */
 function sanitizeProvenanceValue(value: unknown, key: string | null, includeRawRows: boolean, budget: ByteBudget): unknown {
   if (typeof value === 'string') {
     const isSafeLabel = key !== null && SAFE_LABEL_KEYS.has(key);
@@ -380,9 +243,6 @@ function sanitizeProvenanceValue(value: unknown, key: string | null, includeRawR
     return truncated;
   }
   if (Array.isArray(value)) {
-    // Een verborgen string-element mapt anders naar `undefined` → `null`
-    // in JSON (`[null, null]`) — geen lek, maar onduidelijk voor de lezer. Verborgen elementen eruit
-    // filteren i.p.v. ze als `null` te laten staan.
     return value
       .map((item) => sanitizeProvenanceValue(item, key, includeRawRows, budget))
       .filter((item) => item !== undefined);
@@ -394,10 +254,6 @@ function sanitizeProvenanceValue(value: unknown, key: string | null, includeRawR
     if (key !== null && FREE_TEXT_MAP_KEYS.has(key)) {
       return projectFreeTextMap(value, includeRawRows, budget);
     }
-    // Dezelfde afkap-/budgetbehandeling voor de SLEUTEL als voor de
-    // waarde — anders overleeft een bronvrije sleutel (bv. een 80.000-tekens proj_id die als
-    // objectsleutel wordt gebruikt, zoals `catalogCounts.taskSourceRowsByProject`) altijd zodra zijn
-    // waarde overleeft, want een getal overleeft altijd.
     const out: Record<string, unknown> = {};
     const usedKeys = new Set<string>();
     for (const [childKey, childValue] of Object.entries(value)) {
@@ -412,10 +268,6 @@ function sanitizeProvenanceValue(value: unknown, key: string | null, includeRawR
   return value;
 }
 
-/** Autoritatieve, echte-bytes backstop: meet de UITEINDELIJKE geserialiseerde
- *  respons met `TextEncoder`, niet `String.length`. De budget-tijdens-projectie hierboven vangt de
- *  dominante kosten al vroeg af; dit is de correctheidsgarantie voor de rest (JSON-structuuroverhead,
- *  velden die niet via de budget-charge liepen). */
 function finalizeBounded<T extends Record<string, unknown>>(result: T): T {
   const byteLength = new TextEncoder().encode(JSON.stringify(result)).length;
   if (byteLength > MAX_SECTION_RESPONSE_BYTES) {
@@ -462,12 +314,8 @@ function requireOnlyKeys(args: unknown): XerProvenanceArgs {
 }
 
 interface PageOptions {
-  /** Verlaagt de generieke bovengrens van 1000; gebruikt voor `rawSource` (8 chunks) en de
-   *  `includeRawRows`-opt-in (100 rijen). */
   maxLimit?: number;
-  /** Naam voor de foutmelding zodra `limit` de verlaagde grens overschrijdt. */
   label?: string;
-  /** Eenheid in de foutmelding ("chunks" voor rawSource, "rijen" voor raw rows). */
   unit?: string;
 }
 
@@ -477,8 +325,6 @@ function requirePage(args: XerProvenanceArgs, options: PageOptions = {}): { limi
   const offset = args.offset === undefined ? 0 : args.offset;
   if (typeof limit !== 'number' || !Number.isInteger(limit) || limit < 1 || limit > maxLimit) {
     if (options.label) {
-      // Een expliciete raw-data-call mag nooit ongemerkt een onbeperkte respons worden. Boven deze
-      // grens moet de client nog een pagina opvragen.
       throw new XerProvenanceError(
         'VALIDATION',
         `\`${options.label}\` accepts at most ${maxLimit} ${options.unit ?? 'items'} per answer; use offset for the next pages.`,
@@ -505,9 +351,6 @@ interface Paginated<T> {
   readonly offset: number;
 }
 
-/** Slice EERST (op de ongesaneerde bron), sanitize DAARNA alleen de teruggegeven pagina — nooit
- *  andersom. Werk is zo ∝ `limit`, niet ∝ collectiegrootte, en de budget-tijdens-projectie hierboven
- *  charged alleen wat ook echt de respons in gaat. */
 function paginateRaw<T>(items: readonly T[], args: XerProvenanceArgs, options: PageOptions = {}): Paginated<T> {
   const { limit, offset } = requirePage(args, options);
   return { slice: items.slice(offset, offset + limit), total: items.length, offset };
@@ -538,10 +381,6 @@ function collectionOf<T>(section: Section, collection: unknown, allowed: readonl
   return value;
 }
 
-/** ÉÉN selectorbron: de unie van `documentViews` (daadwerkelijk geopende projecten) en
- *  `taskSourceRowsByProject` (elk project met TASK-rijen, óók leeg/baseline-uitgesloten). Zo keurt de
- *  `projectId`-precheck precies de projecten goed die `summary.catalogCounts.taskSourceRowsByProject`
- *  adverteert. */
 function projectIds(archive: XerSourceArchive): string[] {
   const ids = new Set<string>([
     ...Object.keys(archive.diagnostics.documentViews),
@@ -550,10 +389,6 @@ function projectIds(archive: XerSourceArchive): string[] {
   return Array.from(ids).sort();
 }
 
-/** "Openen met melding": onderscheid "nooit een XER-bron" van "er
- *  WAS een archief, maar het was bij het openen onbruikbaar". De code komt uit de gesloten unie
- *  `XerArchiveIssueCode` en is dus veilig letterlijk te tonen; de technische `detail` bevat
- *  bestandsgestuurde namen en blijft daarom buiten deze tool. */
 function missingArchiveNote(state: AppState): string {
   const issue = state.xerArchiveIssue;
   return issue
@@ -586,11 +421,6 @@ function validateProjectSelector(archive: XerSourceArchive, projectId: unknown):
 
 function summary(state: AppState, archive: XerSourceArchive | null): unknown {
   if (!archive) {
-    // `state.xerSourceProjectId` is GEEN statische tekst — het is een
-    // documentveld dat uit het bestand komt en de IFC-round-trip overleeft, dus hoort net als elke
-    // andere bronstring door de poort + responsgrens. Alleen de hardcoded systeemmelding (`note`) is
-    // echt statisch; die wordt bewust NA het saneren toegevoegd (anders zou de sleutel `note` — niet
-    // op `SAFE_LABEL_KEYS`, met reden — zichzelf verbergen).
     const budget = createByteBudget(MAX_SECTION_RESPONSE_BYTES);
     const sanitized = sanitizeProvenanceValue(
       { sourcePresent: false, source: null, selector: { currentProjectId: state.xerSourceProjectId, availableProjectIds: [] } },
@@ -599,7 +429,6 @@ function summary(state: AppState, archive: XerSourceArchive | null): unknown {
       budget,
     ) as Record<string, unknown>;
     sanitized.note = missingArchiveNote(state);
-    // Statisch, na het saneren (net als `note`): `code` is een gesloten enum, geen bronstring.
     sanitized.archiveIssue = state.xerArchiveIssue ? { code: state.xerArchiveIssue.code } : null;
     return finalizeBounded(sanitized);
   }
@@ -633,7 +462,6 @@ function summary(state: AppState, archive: XerSourceArchive | null): unknown {
       retainedSource: schedule?.retainedSource ?? {},
       mappedProgressMode: state.project.progressMode,
       mappedSchedulingOptions: state.project.schedulingOptions ?? null,
-      // Rekenprofiel: het profiel en de OPGELOSTE set i.p.v. een optieblob met bronmarkering.
       schedulingProfileId: state.project.schedulingProfile?.id ?? 'ops',
       effectiveSchedulingOptions: effectiveSchedulingOptions(state.project),
       sourceRowCount: schedule?.sourceRows.length ?? 0,
@@ -673,11 +501,6 @@ function summary(state: AppState, archive: XerSourceArchive | null): unknown {
       ),
     },
   };
-  // Ook `summary` (de default-sectie!) loopt door de poort: anders komt `numberFormat.currencyCode`
-  // onafgekapt mee en is `importReport` een LEVENDE ALIAS naar het bevroren archief (het kopcommentaar
-  // van `sanitizeProvenanceValue` belooft "nooit een alias"). `summary` zit niet in
-  // `RAW_ROWS_SECTIONS`, dus `includeRawRows` is hier altijd `false` — vrije tekst is altijd volledig
-  // onzichtbaar, nooit slechts afgekapt ("bewust vrij van raw rows").
   const budget = createByteBudget(MAX_SECTION_RESPONSE_BYTES);
   const sanitized = sanitizeProvenanceValue(raw, null, false, budget) as Record<string, unknown>;
   return finalizeBounded(sanitized);
@@ -745,8 +568,6 @@ function diagnostics(archive: XerSourceArchive, args: XerProvenanceArgs): unknow
     if (args.limit !== undefined || args.offset !== undefined) {
       throw new XerProvenanceError('VALIDATION', '`limit` and `offset` do not belong to diagnostics/importReport.');
     }
-    // Ook het scalaire importReport-pad loopt door de poort + responsgrens —
-    // structureel onbegrensd blijven is fout, ongeacht wat het type vandaag toevallig bevat.
     const budget = createByteBudget(MAX_SECTION_RESPONSE_BYTES);
     const report = sanitizeProvenanceValue(file.importReport, null, includeRawRows, budget);
     return finalizeBounded({ section: 'diagnostics', collection, report });
@@ -759,9 +580,6 @@ function diagnostics(archive: XerSourceArchive, args: XerProvenanceArgs): unknow
     relationResolutionIssues: file.relationResolutionIssues,
     resourceCatalogIssues: file.resourceCatalogIssues,
     metadataCatalogIssues: file.metadataCatalogIssues,
-    // Draagt via `resources.assignments[].rawRow` dezelfde vrije XER-cellen als de andere secties
-    // — `sanitizeProvenanceValue` vindt die structureel, ook zonder dat deze
-    // regel er iets specifieks voor doet.
     documentViews: Object.entries(archive.diagnostics.documentViews).sort(([left], [right]) => left.localeCompare(right)).map(([projectId, view]) => ({ projectId, view })),
   };
   const pageOptions: PageOptions = includeRawRows
@@ -794,16 +612,11 @@ function taskSourceRows(archive: XerSourceArchive, args: XerProvenanceArgs): unk
   return finalizeBounded({ section: 'taskSourceRowsByProject', projectId, ...envelope(paged, items) });
 }
 
-/** Bewust NIET door `finalizeBounded`/de 256 kB-responsgrens: één chunk is 192 KiB bron, dus 256 KiB
- *  base64, en rawSource is daarom per chunk-aantal begrensd (maxLimit 8 ≈ 2,1 MB). De toolbeschrijving
- *  noemt de uitzondering; param `limit` noemt de grootte per chunk. */
 function rawSource(archive: XerSourceArchive, args: XerProvenanceArgs): unknown {
   if (args.includeRawSource !== true) {
     throw new XerProvenanceError('VALIDATION', 'rawSource requires `includeRawSource: true`; source bytes can contain names and free notes.');
   }
   if (args.includeResourceNames !== true) {
-    // De bronbytes bevatten de RSRC-tabel en dus elke resourcenaam: dezelfde toestemming als
-    // `resourceCatalog/resources[].name` (eigenaarsbesluit 22-09).
     throw new XerProvenanceError(
       'VALIDATION',
       'rawSource also requires `includeResourceNames: true`: the source bytes contain resource names (often names of people). Ask the user for permission first.',

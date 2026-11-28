@@ -1,32 +1,3 @@
-// MCP-bridge — EXPLICIETE veld-allowlist voor taak-invoer (`planner_add_tasks` items en
-// `planner_update_tasks.fields`).
-//
-// WAAROM DIT BESTAAT: een kale `Partial<Task>`-merge (`Object.assign`) van `fields` geeft twee
-// faalvormen:
-//   1. STILLE NO-OP — `fields: { duration: 10 }` (de naam die de LEEStools teruggeven) plakt
-//      `duration` als rommelveld op het Task-object; de tool antwoordt `ok` en er verandert niets.
-//      De echte duur woont op `time.scheduleDuration`.
-//   2. TAK-OVERSCHRIJVING — `fields: { time: {...} }` vervangt de HELE `time`-tak, waarmee
-//      CPM-datums, floats, actuals en completion in één klap verdwijnen.
-//
-// Daarom: één allowlist met PLATTE, agent-vriendelijke namen die exact spiegelen wat
-// `planner_get_task` teruggeeft (`duration`, `durationType`, `name`, …). Alles wat er niet in staat
-// wordt HARD geweigerd met een bruikbare reden; niets wordt ooit stil geslikt. Geneste takken
-// (`time`) zijn nooit rechtstreeks zetbaar — `duration`/`durationType` worden hier vertaald naar een
-// veld-voor-veld `TaskTimePatch` die de draft-laag individueel toepast.
-//
-// DUUR-SEMANTIEK: `duration` staat in de eenheid van `durationUnit` (default `days`). In dagen mag
-// een fractie (2.5) en wordt niet afgerond (de app kent fractionele dagtaken: CSV-import, Tabel
-// "1d 4u"; afronden zou een ontwerpkeuze zijn, geen validatie) — WERKdagen voor de default
-// `durationType: 'WORKTIME'`, KALENDERdagen (24/7, geen kalenderband-toetsing) voor
-// `durationType: 'ELAPSEDTIME'` (zie `duration.ts`'s `elapsedMinutesOf` voor de bron van waarheid).
-// `TaskTime.durationMinutes` is nooit rechtstreeks zetbaar. Bij `durationUnit: 'days'` wordt hij
-// GEWIST — precies zoals de dag-tak van de gedeelde duurbediening (`time.scheduleDuration = durDays;
-// time.durationMinutes = undefined`). Dat is de éne-bron-invariant: daarna mag uitsluitend
-// `scheduleDuration` invoerbron zijn; een achtergebleven minutenwaarde zou een tweede, concurrerende
-// bron vormen. Bij `durationUnit: 'hours'` (vereist een taakkalender met werkblokken) berekent de
-// bridge de exacte minutenbron zelf.
-
 import type {
   ConstraintType,
   DurationType,
@@ -47,46 +18,28 @@ import {
   type ConstraintPairIssue,
 } from '@/engine/scheduler/constraintValidation';
 
-// --- Patch-vorm ----------------------------------------------------------------------------------
-
-/** Veld-voor-veld-patch op `task.time`. NOOIT een hele `TaskTime` — alleen losse sleutels. */
 export interface TaskTimePatch {
   scheduleDuration?: number;
   durationUnit?: 'days' | 'hours';
-  /** Exacte minutenbron wanneer `durationUnit === 'hours'`. */
   durationMinutes?: number;
   durationType?: DurationType;
-  /** true ⇒ `durationMinutes` VERWIJDEREN (dag-modus-schrijfregel, zie de kop). */
   clearDurationMinutes?: boolean;
 }
 
-/** Resultaat van een geldige veld-set: top-level velden + (optioneel) losse `time`-sleutels. */
 export interface TaskFieldPatch {
   top: Partial<Task>;
   time?: TaskTimePatch;
   customTaskType?: CustomTaskTypeDraft;
-  /** De werkregel loopt NIET via de kale veld-merge maar via `draft.setTaskWorkRule` — een
-   *  werkbeschermende regel legt bij het zetten het huidige restwerk van de toewijzingen vast. `null`
-   *  = terug naar de projectstandaard. */
   workRule?: WorkRule | null;
 }
 
-/** Wat de validator over de DOELTAAK moet weten (bij aanmaak: een verse, lege taak). */
 export interface TaskFieldContext {
-  /** Huidige mijlpaal-status van de doeltaak (bij `add_tasks`: false). */
   currentIsMilestone: boolean;
-  /** Heeft de doeltaak kinderen? (verzameltaak ⇒ geen mijlpaal). */
   hasChildren: boolean;
-  /** Heeft de doeltaak resource-toewijzingen? (mijlpaal mag er geen dragen). */
   hasAssignments: boolean;
-  /** De bestaande SECUNDAIRE constraint van de doeltaak (bij `add_tasks`: geen). Niet zetbaar via de
-   *  bridge, maar een nieuw primair constraint moet er wél mee kloppen — en ASAP/ALAP/null wist hem,
-   *  net als paneel en raster (`withPrimaryConstraint`). */
   currentConstraint2?: TaskConstraint;
-  /** Bestaat deze kalender-id in de bibliotheek? */
   calendarExists: (id: string) => boolean;
   customTaskTypes: readonly CustomTaskType[];
-  /** Effectieve kalender na een eventueel gelijktijdig `calendarId`-veld. */
   durationCalendar: (calendarId: string | null | undefined) => { hoursPerDay: number; hasWorkBlocks: boolean };
 }
 
@@ -96,33 +49,9 @@ export const SUMMARY_DURATION_READ_ONLY =
 const DURATION_TYPES: DurationType[] = ['WORKTIME', 'ELAPSEDTIME'];
 const CONSTRAINT_TYPES: ConstraintType[] = ['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO'];
 const MILESTONE_KINDS: MilestoneKind[] = ['START', 'FINISH'];
-/** Constraint-types zónder eigen datum (de rest vereist er één). */
 const DATELESS_CONSTRAINTS: ConstraintType[] = ['ASAP', 'ALAP'];
-/** Alleen op deze types heeft `hard` (P6 Mandatory) betekenis. */
 const HARD_CONSTRAINTS: ConstraintType[] = ['MSO', 'MFO'];
 
-/**
- * De volledige allowlist, in de volgorde waarin hij in foutmeldingen en schema's verschijnt.
- *
- * KEUZE-VERANTWOORDING (waarom deze, en niet meer):
- *  - `name`/`description`/`taskType`/`mandatory`/`milestoneKind` — platte, valideerbare
- *    top-level velden die de leestools ook teruggeven; geen enkel neveneffect.
- *  - `duration`/`durationType` — de ontbrekende hoofdrolspelers (zie de kop).
- *  - `isMilestone` — een taak alsnog tot mijlpaal maken is een reële agent-behoefte; de
- *    duur-0-invariant + de "geen kinderen/toewijzingen"-guard worden hier afgedwongen.
- *  - `priority` — stuurt `planner_level_resources`; er is geen andere weg om hem te zetten.
- *  - `constraint`/`deadline` — de hefbomen voor wat-als-werk die de tool-beschrijving al belooft.
- *  - `calendarId` — taak-kalender; geen aparte tool, en een onbekend id zou stil op de
- *    projectkalender terugvallen — daarom hier gevalideerd.
- * BEWUST NIET (elk met een gerichte weiger-hint hieronder): `time`/`status` (voortgangspad =
- * `progress`), `parentId` (`planner_move_task`), `resourceIds` (`planner_manage_assignments`),
- * `constraint2` (P6-combinatieregels die de bridge niet valideert), `isHammock` (maakt de duur
- * AFGELEID en zou duur-invoer opnieuw stil laten verdampen), `wbsCode`/`childIds`/`id`
- * (afgeleid/structureel), en de vrije-vorm-bakken `notes`/`color`/`activityCodes`/`customFields`/
- * `externalLinks`/`levelingDelay` (geen validatie mogelijk, geen leestool-tegenhanger), en evenzo
- * `levelingDelayMinutes`/`levelingDelayElapsed`, `manuallyScheduled` (isHammock-patroon) en
- * `splitGaps` (eigen tool: `planner_set_task_splits`).
- */
 export const TASK_FIELD_NAMES = [
   'name',
   'description',
@@ -141,7 +70,6 @@ export const TASK_FIELD_NAMES = [
   'workRule',
 ] as const;
 
-/** Gerichte hints voor sleutels die een agent redelijkerwijs probeert maar die hier niet horen. */
 const REJECT_HINTS: Record<string, string> = {
   time: 'set the duration with `duration` and its measure with `durationUnit` (`days` = day measure, a fraction such as 2.5 is allowed; `hours` = hour measure) and the duration type with `durationType` (ELAPSEDTIME = calendar time, 1 d = 24 h) — the `time` branch itself is not settable (that would clear CPM dates, floats and actuals)',
   scheduleDuration: 'use `duration` with `durationUnit` (`days` = day measure, a fraction such as 2.5 is allowed; `hours` = hour measure)',
@@ -158,24 +86,16 @@ const REJECT_HINTS: Record<string, string> = {
   constraint2: 'a secondary constraint is not settable via the bridge (P6 combination rules are not validated here)',
   isHammock: 'hammock/LOE is not settable via the bridge (the duration is then derived and ignores `duration`)',
   notes: 'task notes are not settable via the bridge',
-  // Niet via `fields` zetbaar. `manuallyScheduled` volgt het isHammock-patroon (leesbaar via de
-  // leestools, hier geweigerd); levelingDelayMinutes/levelingDelayElapsed volgen de "vrije-vorm-bak,
-  // geen leestool-tegenhanger"-redenering van levelingDelay; splitGaps heeft een eigen tool.
   splitGaps: 'work interruptions (splits) are set with planner_set_task_splits (`interruptions` on the work axis: afterWorkDays/pauseDays or afterWorkHours/pauseHours), not via `fields`',
   manuallyScheduled: 'manual scheduling is not settable via the bridge (the dates then stay RAW, regardless of calendar/relationships/`duration`)',
   levelingDelayMinutes: 'sub-day leveling delay is not settable via the bridge (no read-tool counterpart, see `levelingDelay`)',
   levelingDelayElapsed: 'sub-day leveling delay is not settable via the bridge (no read-tool counterpart, see `levelingDelay`)',
-  // Drie .mpp-importvelden, puur data — read-only, geen agent-invoervorm; geen van drieën heeft een
-  // schrijf-workflow om te valideren.
   mspTaskType: 'MSP\'s own Task Type is not settable via the bridge (pure .mpp import data, no calculation behaviour — see planner_get_task)',
   effortDriven: 'MSP\'s "Effort Driven" flag is not settable via the bridge (pure .mpp import data, no calculation behaviour — see planner_get_task)',
   timephasedContours: 'the raw contour periods are not settable via the bridge (derived from an .mpp import, no agent input form — see planner_get_task)',
-  // De werkvelden per TOEWIJZING zijn geen taakvelden.
   remainingWorkMinutes: 'remaining work belongs to an ASSIGNMENT: planner_manage_assignments `update` with `remainingWorkMinutes`',
   plannedWorkMinutes: 'budgeted work is not settable via the bridge (reference value from an import — see planner_get_task)',
   actualWorkMinutes: 'actual work is not settable via the bridge (a fact from an import; progress goes through `progress`)',
-  // P6/.xer-importvelden, zelfde "read-only, geen agent-invoervorm"-redenering als
-  // mspTaskType/effortDriven hierboven.
   p6DurationType: 'P6\'s own Duration Type is not settable via the bridge (pure .xer import data, no calculation behaviour — see planner_get_task)',
   p6ActivityType: 'P6\'s own Activity Type is not settable via the bridge (pure .xer import data, no calculation behaviour — see planner_get_task)',
   p6ExplicitTargetWindow: 'the P6 XER provenance for an explicit target window is not settable via the bridge (pure .xer import data, no agent input form — see planner_get_task)',
@@ -186,7 +106,6 @@ const REJECT_HINTS: Record<string, string> = {
   p6ExpectedFinish: 'P6\'s Expected Finish is not settable via the bridge (pure .xer import data, no agent input form — see planner_get_task)',
 };
 
-/** Uitkomst van de veldvalidatie. */
 export type TaskFieldResult =
   | { ok: true; patch: TaskFieldPatch }
   | { ok: false; reason: string };
@@ -202,12 +121,10 @@ function rejectUnknown(key: string): string {
     : `unknown field '${key}'; allowed: ${allowedList()}`;
 }
 
-/** ISO-datum (date-only of datetime) die ook echt parseert. */
 function isIsoDate(v: unknown): v is string {
   return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}([T ].*)?$/.test(v) && !Number.isNaN(new Date(v).getTime());
 }
 
-/** Validatie van één `constraint`-object. */
 function parseConstraint(raw: unknown): { ok: true; value: TaskConstraint } | { ok: false; reason: string } {
   if (!isRecord(raw)) return { ok: false, reason: '`constraint` must be an object ({ type, date?, hard? }) or null to clear it' };
   const type = raw.type;
@@ -225,7 +142,6 @@ function parseConstraint(raw: unknown): { ok: true; value: TaskConstraint } | { 
   if (raw.hard !== undefined) {
     if (typeof raw.hard !== 'boolean') return { ok: false, reason: '`constraint.hard` must be a boolean' };
     if (raw.hard && !HARD_CONSTRAINTS.includes(ct)) {
-      // Stil negeren zou weer een no-op zijn: `hard` doet alleen iets op MSO/MFO.
       return { ok: false, reason: `\`constraint.hard\` only has meaning for ${HARD_CONSTRAINTS.join('/')}, not for ${ct}` };
     }
   }
@@ -244,7 +160,6 @@ function parseConstraint(raw: unknown): { ok: true; value: TaskConstraint } | { 
   };
 }
 
-/** Waarom een nieuw primair constraint niet naast de bestaande secundaire past — agent-leesbaar. */
 const CONSTRAINT_PAIR_REASONS: Record<ConstraintPairIssue, string> = {
   'no-secondary-with-mandatory-or-on': 'MSO/MFO (or a hard pin) already fixes start and finish and tolerates no secondary constraint',
   'no-secondary-with-asap-alap': 'ASAP/ALAP carries no date bound and tolerates no secondary constraint',
@@ -265,12 +180,6 @@ function constraintPairReason(
     'the other side of the bound';
 }
 
-/**
- * Valideer + vertaal een veld-set (uit `update_tasks.fields` of een `add_tasks`-item) naar een
- * `TaskFieldPatch`. ALLES-OF-NIETS: bij de eerste fout komt er géén (halve) patch terug — de
- * aanroeper weigert het item in zijn geheel, zodat een rotte sleutel nooit een deel-mutatie
- * achterlaat.
- */
 export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldResult {
   if (!isRecord(raw)) return { ok: false, reason: '`fields` must be an object' };
   const keys = Object.keys(raw);
@@ -284,7 +193,6 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   const time: TaskTimePatch = {};
   let customTaskType: CustomTaskTypeDraft | undefined;
 
-  // Effectieve mijlpaal-status: wat er ná deze patch geldt (de duur-0-invariant hangt daaraan).
   const effMilestone = 'isMilestone' in raw ? raw.isMilestone === true : ctx.currentIsMilestone;
 
   if ('name' in raw) {
@@ -364,11 +272,9 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   if ('isMilestone' in raw) {
     if (typeof raw.isMilestone !== 'boolean') return { ok: false, reason: '`isMilestone` must be a boolean' };
     if (raw.isMilestone) {
-      // Dezelfde "wordt mijlpaal"-regel als paneel, dialoog, contextmenu, store en raster.
       const refusal = milestoneRefusal(ctx);
       if (refusal === 'summary') return { ok: false, reason: 'a summary task (with children) cannot become a milestone' };
       if (refusal === 'assignments') return { ok: false, reason: 'a task with work or material assignments cannot become a milestone; remove those assignments first (assignments to a COST resource may stay on a milestone)' };
-      // Mijlpaal ⇒ duur 0 (en géén achtergebleven minutenduur), spiegelt TaskDialog/TaskMilestoneFields.
       time.scheduleDuration = 0;
       time.durationUnit = 'days';
       time.clearDurationMinutes = true;
@@ -399,9 +305,6 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
       if (!c.ok) return { ok: false, reason: c.reason };
       next = c.value;
     }
-    // Zelfde canonicalisatie als paneel en raster: null/ASAP wist ook de secundaire constraint,
-    // ALAP eveneens; een datumconstraint moet met de bestaande secundaire een geldig paar vormen.
-    // Anders blijft `constraint2` na "constraint wissen" stil staan en blijft de taak begrensd.
     const pair = withPrimaryConstraint(next, ctx.currentConstraint2);
     const validation = validateConstraintPair(pair.constraint, pair.constraint2);
     if (!validation.ok) return { ok: false, reason: constraintPairReason(pair, validation.issues) };
@@ -439,19 +342,8 @@ export function parseTaskFields(raw: unknown, ctx: TaskFieldContext): TaskFieldR
   };
 }
 
-// --- Voortgangs-allowlist (`update_tasks.progress`) ----------------------------------------------
-//
-// ZELFDE RISICO ALS `fields`, ANDERE TAK: `progress.applyProgressUpdate` leest exact drie sleutels
-// (`completion`/`actualStart`/`actualFinish`). `progress: { percent: 50 }` raakt geen van die drie ⇒
-// `touchesProgress` blijft false ⇒ zelfs de statusdatum-guard slaat over ⇒ `{ applied: true }` ⇒ de
-// tool zou `updated: ['t1']` antwoorden terwijl de taak op 0% blijft. Idem voor `progress: {}`.
-// Daarom hier dezelfde behandeling als `fields`: expliciete allowlist, onbekende sleutel bij NAAM
-// geweigerd, en een `progress` zonder ook maar één bekende sleutel geweigerd.
-
-/** De enige sleutels die `applyProgressUpdate` daadwerkelijk leest. */
 export const PROGRESS_FIELD_NAMES = ['completion', 'actualStart', 'actualFinish'] as const;
 
-/** Gerichte hints voor voortgangs-sleutels die een agent redelijkerwijs probeert. */
 const PROGRESS_REJECT_HINTS: Record<string, string> = {
   percent: 'use `completion` (PERCENT 0–100)',
   percentage: 'use `completion` (PERCENT 0–100)',
@@ -470,7 +362,6 @@ const PROGRESS_REJECT_HINTS: Record<string, string> = {
   remainingTime: 'the remaining duration is derived from `completion`',
 };
 
-/** Wat `applyProgressUpdate` als update-object verwacht. */
 export interface ProgressPatch {
   completion?: number;
   actualStart?: string;
@@ -481,13 +372,6 @@ export type ProgressParseResult =
   | { ok: true; value: ProgressPatch }
   | { ok: false; reason: string };
 
-/**
- * Valideer één `progress`-blok tegen de allowlist. ALLES-OF-NIETS, net als `parseTaskFields`.
- *
- * `actualStart`/`actualFinish` mogen `null` of `''` zijn: dat is de bestaande WIS-vorm
- * (`applyProgressUpdate` doet `update.actualX || undefined`, en de sleutel-aanwezigheid is wat telt).
- * Die vorm wordt hier naar een expliciete `undefined` genormaliseerd, zodat de sleutel aanwezig blijft.
- */
 export function parseProgress(raw: unknown): ProgressParseResult {
   if (!isRecord(raw)) return { ok: false, reason: '`progress` must be an object ({ completion?, actualStart?, actualFinish? })' };
   const keys = Object.keys(raw);
@@ -519,7 +403,7 @@ export function parseProgress(raw: unknown): ProgressParseResult {
     if (!(k in raw)) continue;
     const v = raw[k];
     if (v === null || v === undefined || v === '') {
-      value[k] = undefined; // WIS-vorm: sleutel aanwezig, waarde leeg
+      value[k] = undefined;
       continue;
     }
     if (!isIsoDate(v)) {
@@ -530,12 +414,6 @@ export function parseProgress(raw: unknown): ProgressParseResult {
   return { ok: true, value };
 }
 
-// --- JSON-schema ---------------------------------------------------------------------------------
-
-/** De schema-properties van de allowlist — gedeeld door `add_tasks`-items en `update_tasks.fields`,
- *  zodat schema en runtime-validatie niet uit elkaar kunnen lopen. */
-// Beschrijvingen zijn bewust kort (#818): ze gaan bij elke API-aanroep mee. Zet hier alleen wat een foute
-// aanroep of een foute planning voorkomt; wat de naam of het type al zegt, blijft weg.
 export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
   name: { type: 'string' },
   description: { type: 'string' },
@@ -597,10 +475,6 @@ export const TASK_FIELD_SCHEMA_PROPERTIES: Record<string, unknown> = {
   },
 };
 
-/** Dezelfde properties zonder beschrijvingen, voor `update_tasks.fields`: de uitleg staat één keer, bij
- *  `add_tasks` (#818). Types, enums en grenzen blijven gelijk, dus het invoercontract ook. Let op: het
- *  taakveld `description` heet ook zo; alleen een TEKST onder die sleutel is een beschrijving
- *  (`cases-taskfields.ts` bewaakt dat alle velden blijven). */
 export const TASK_FIELD_SCHEMA_PROPERTIES_BARE: Record<string, unknown> = withoutDescriptions(TASK_FIELD_SCHEMA_PROPERTIES);
 
 function withoutDescriptions(value: unknown): Record<string, unknown> {
@@ -616,6 +490,5 @@ function withoutDescriptions(value: unknown): Record<string, unknown> {
   return strip(value) as Record<string, unknown>;
 }
 
-/** Eén zin voor in de beschrijving van `update_tasks`: welke routes NIET via `fields` lopen. */
 export const TASK_FIELDS_DOC =
   '`status`/`parentId`/`resourceIds`: use `progress`/planner_move_task/planner_manage_assignments.';

@@ -1,13 +1,3 @@
-// MCP-bridge — de gedeelde SPLITS-VELDLAAG: één implementatie van de notatie waarin de
-// leestools onderbrekingen TONEN en `planner_set_task_splits` ze ACCEPTEERT. Zelfde precedent als
-// `sequenceFields.ts`: de schrijfkant spreekt de leeskant — wat `interruptionsOf` produceert, moet
-// `planTaskSplits` in dezelfde vorm terugnemen.
-//
-// De agentvorm staat op de WERK-as (zonder pauzes, zie `splitEdit.ts`): `afterWorkDays` = hoeveel
-// werk er vóór de onderbreking ligt, gerekend vanaf de taakstart; `pauseDays` = de lengte van de
-// onderbreking in werkdagen. Een uur-taak spreekt `afterWorkHours`/`pauseHours`. Rauwe
-// `afterMinutes`/`gapMinutes` (de opslag-as, waar elk gat meetelt in de positie van het volgende) krijgt
-// een agent nooit te zien als invoervorm — die rekenen al het rekenwerk hier via `splitEdit.ts` om.
 import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { durationMinutesOf, taskDurationUnit } from '@/engine/scheduler/duration';
@@ -18,7 +8,6 @@ import {
 } from '@/engine/scheduler/splitEdit';
 import { taskCalendarHoursPerDay } from '@/utils/taskDefaults';
 
-/** Eén onderbreking in de leesbare agentvorm; precies één `after*`- en één `pause*`-sleutel. */
 export interface Interruption {
   afterWorkDays?: number;
   afterWorkHours?: number;
@@ -26,7 +15,6 @@ export interface Interruption {
   pauseHours?: number;
 }
 
-/** Kalenderbron voor de werkdaglengte: dezelfde twee velden als elders in de toollaag. */
 export interface SplitCalendars {
   calendars: WorkCalendar[];
   calendar: WorkCalendar;
@@ -54,11 +42,6 @@ function hoursPerDayOf(task: Task, cals: SplitCalendars): number {
   return taskCalendarHoursPerDay(task, cals.calendars, cals.calendar);
 }
 
-/**
- * De leesbare vorm van `task.splitGaps`. `null` wanneer de taak geen onderbrekingen heeft of wanneer
- * de lijst niet wélgevormd is (een importsplit die het bewerkmodel niet kan dragen — dan blijft alleen
- * de rauwe `splitGaps` over, en weet de agent via `splitsEditable: false` dat hij hem niet kan zetten).
- */
 export function interruptionsOf(task: Task, cals: SplitCalendars): { interruptions: Interruption[] | null; editable: boolean } {
   if (!task.splitGaps || task.splitGaps.length === 0) return { interruptions: null, editable: true };
   const hoursPerDay = hoursPerDayOf(task, cals);
@@ -82,18 +65,11 @@ export type SplitPlan =
   | { ok: true; pieces: SplitPiece[] | null }
   | { ok: false; reason: string };
 
-/**
- * Vertaal de agentvorm naar het stukkenmodel (`null` = alle onderbrekingen opheffen). Alles-of-niets:
- * de eerste afwijzing geeft een reden MET de index van het item, en er wordt niets geschreven.
- * Nooit stil normaliseren: een niet-hele eenheid, een pauze van 0 of gemengde dag-/uursleutels zijn
- * een weigering, geen afronding.
- */
 export function planTaskSplits(task: Task, interruptions: unknown, cals: SplitCalendars): SplitPlan {
   if (!Array.isArray(interruptions)) return { ok: false, reason: '`interruptions` must be an array (empty = clear all interruptions)' };
   const hoursPerDay = hoursPerDayOf(task, cals);
   const refusal = canSplitTask(task, hoursPerDay, isSummaryTask(task));
   if (interruptions.length === 0) {
-    // Opheffen mag ook op een alleen-lezen importsplit — dezelfde uitzondering als het paneel.
     if (refusal !== null && refusal !== 'not-editable') return { ok: false, reason: `task '${task.id}': ${REFUSAL_TEXT[refusal]}` };
     return { ok: true, pieces: null };
   }

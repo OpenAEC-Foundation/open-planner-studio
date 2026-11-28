@@ -1,14 +1,6 @@
-// De leesvorm van externe relaties (koppelingen naar een taak in een ander projectbestand) voor de MCP-leestools
-// (keuze 11, Ethan 2026-11-03; stap 1.10 in `docs/relaties-tussen-projecten.md`). Alles wat de agent leest is
-// Engels; dit commentaar is Nederlands.
-//
-// Een externe relatie op een fase geldt voor elke bladtaak in die fase (`effectiveExternalLinks` in
-// `expandSummaryRelations.ts`, zoals de berekening en de rapporten). `planner_get_task` toont daarom naast de
-// eigen koppelingen ook de geërfde, met de fase erbij.
 import type { ExternalLink, Task } from '@/types/task';
 import { formatExternalLagShort } from '@/engine/taskGrid/relationFormat';
 
-/** Eén koppeling zoals de agent haar leest. */
 export function externalLinkView(link: ExternalLink) {
   const ref = link.sourceRef;
   return {
@@ -28,7 +20,6 @@ export function externalLinkView(link: ExternalLink) {
   };
 }
 
-/** De fasen boven een taak, van dichtbij naar ver; cyclusvast. */
 function ancestorsOf(task: Task, byId: ReadonlyMap<string, Task>): Task[] {
   const out: Task[] = [];
   const visited = new Set<string>([task.id]);
@@ -43,7 +34,6 @@ function ancestorsOf(task: Task, byId: ReadonlyMap<string, Task>): Task[] {
   return out;
 }
 
-/** De koppelingen die een taak erft van haar fasen, met de fase erbij (`fromTaskId`, `fromWbs`). */
 export function inheritedExternalLinkViews(task: Task, byId: ReadonlyMap<string, Task>) {
   return ancestorsOf(task, byId).flatMap(phase => (phase.externalLinks ?? []).map(link => ({
     ...externalLinkView(link),
@@ -52,7 +42,6 @@ export function inheritedExternalLinkViews(task: Task, byId: ReadonlyMap<string,
   })));
 }
 
-/** Hoeveel externe relaties gelden voor deze taak: eigen plus geërfd van haar fasen. */
 export function externalRelationCount(task: Task, byId: ReadonlyMap<string, Task>): number {
   return (task.externalLinks?.length ?? 0)
     + ancestorsOf(task, byId).reduce((sum, phase) => sum + (phase.externalLinks?.length ?? 0), 0);
