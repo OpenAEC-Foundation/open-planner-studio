@@ -1,16 +1,3 @@
-// De EXPORTSTAND van het voortgangsblad: wat er per taak in de planning stond op het moment van
-// exporteren. De invulkolommen zijn daarvoor geen bron: de invuller overschrijft ze, en daarna is niet
-// meer te zien of een waarde van de invuller komt of nog de exportwaarde is. Zonder dit gegeven zet een
-// onaangeraakte rij voortgang die de planner na de export bijwerkte stil terug (issue #743).
-//
-// Eén tekstcel per taak, in de verborgen kolom `OPS Export`: een tekst overleeft het opslaan in een
-// spreadsheet, waar een aparte datumcel van opmaak kan veranderen. Formaat:
-//
-//   ops1|<exportmoment UTC>|<voltooiing in procenten>|<werkelijke start>|<werkelijk einde>|<berekende start>|<berekend einde>
-//
-// Een lege plek is een leeg veld. Een cel die niet exact in deze vorm past telt als AFWEZIG: een
-// half gelezen exportstand zou een verkeerde vergelijking opleveren. Puur, geen I/O.
-
 import type { Task } from '@/types/task';
 import { computedFinish, computedStart } from '@/utils/taskDates';
 import type { ProgressExportState } from './types';
@@ -21,7 +8,6 @@ const FIELD_COUNT = 7;
 
 const ISO_VALUE = /^\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:\d{2})?)?$/;
 
-/** Procenten met vier decimalen, geklemd: dezelfde precisie als de voltooiingscel van het blad. */
 function percentText(completion: number): string {
   if (!Number.isFinite(completion)) return '0';
   const clamped = Math.min(1, Math.max(0, completion));
