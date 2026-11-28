@@ -1,15 +1,3 @@
-/**
- * CRC-32 (IEEE 802.3), de checksum die elke ZIP-entry in zijn local header én in de central
- * directory draagt.
- *
- * Puur en zonder state: de tabel hieronder is een eenmalig afgeleide lookup-tabel (een constante,
- * geen cache — er wordt nooit iets in bijgewerkt), zodat `crc32` zelf een gewone functie blijft.
- *
- * Waarom dit ertoe doet: een fout CRC is precies het soort bug dat pas bij de gebruiker opduikt,
- * en dan als "Excel wil het bestand herstellen". De test pint daarom drie bekende vectoren van
- * buiten in plaats van onze eigen uitkomst.
- */
-
 const TABLE: Uint32Array = (() => {
   const table = new Uint32Array(256);
   for (let n = 0; n < 256; n++) {
@@ -22,7 +10,6 @@ const TABLE: Uint32Array = (() => {
   return table;
 })();
 
-/** De CRC-32 over `data`, als unsigned 32-bits getal. */
 export function crc32(data: Uint8Array): number {
   let crc = 0xffffffff;
   for (let i = 0; i < data.length; i++) {

@@ -18,4 +18,6 @@ Waarom het blad weigert of vraagt in plaats van raden (datumvolgorde, percentage
 
 Het formaat zelf staat in `public/docs/en/ref-import-exportformaten.md` (nl + en samen bijwerken).
 
+Besluiten in de ZIP-laag: [ADR 0940](../../docs/adr/0940-zip-laag-keuzes-die-verrassen.md).
+
 Besluiten in de XLSX-laag: [ADR 0710](../../docs/adr/0710-xlsx-lezer-eigen-scanner-en-rijnummers.md) (lezer) en [ADR 0711](../../docs/adr/0711-xlsx-schrijver-van-het-voortgangsblad.md) (schrijver en escaper).
