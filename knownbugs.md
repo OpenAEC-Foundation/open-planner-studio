@@ -6601,13 +6601,16 @@ en noem het in je rapport of PR-tekst.
       `src-tauri/Cargo.lock` heeft 2.14.1 en 0.3.0. Gezien in `Cargo.lock`; of de controles nog precies passen bij de
       nieuwe versies is niet nagegaan. — S
 
-2803. **De herpinroutes van de XER-getrouwheid schrijven commentaarregels die `verify:comments` weigert.**
-      `OPS_XER_CELLS_WRITE` herschrijft in `tests/planning/check-fidelity-cells-gate.ts` een gegenereerd blok met
-      `HERPIN …`-regels in commentaar (`fidelityCells.ts`, `xerManifestExclusions.ts`), en de cellenpoort eist die
-      regels letterlijk. `scripts/README.md` vraagt bij stap 3 en 5 van het herpinrecept ook om een `HERPIN`-toelichting
-      als commentaar in de check. Een nieuwe regel die niet op de basiscommit staat, laat `verify:comments` op een PR
-      rood worden (ADR 0001). Voorstel: de herpinregels als gegevens bewaren (een string of een JSON-bestand) in plaats
-      van als commentaar. — S
+2803. **De herpinroutes van de XER-getrouwheid schrijven commentaarregels die `verify:comments` weigert.** Dat gebeurt
+      in twee stappen. Eerst herschrijft de schrijfroute van de X12-check (`check-xer-product-fidelity-x12.ts`, met
+      `OPS_XER_CELLS_WRITE`) de pinblokken in commentaar in `tests/planning/check-fidelity-cells-gate.ts`
+      (`fidelityCells.ts`, `xerManifestExclusions.ts`), en print ze de `HERPIN`-regels die erbij horen. Daarna voegt
+      iemand die regels met de hand als commentaar boven het blok in; de cellenpoort eist ze letterlijk, vanaf
+      `uitsluiting`. `scripts/README.md` vraagt bij stap 3 en 5 van het herpinrecept om die toelichting. In een proef
+      bij de review van PR #1408 markeerde `verify:comments` twee nieuwe commentaarregels uit het gegenereerde blok, en
+      een derde na het invoegen met de hand. Een nieuwe regel die niet op de basiscommit staat, laat `verify:comments`
+      op een PR rood worden (ADR 0001). Voorstel: de herpinregels als gegevens bewaren (een string of een JSON-bestand)
+      in plaats van als commentaar. — S
 
 ## Wensen en open taken (geen bug)
 

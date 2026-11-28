@@ -24,4 +24,5 @@ bij MSPDI (ADR 0255).
   (`runningAtFullIds`, ADR 0282); een andere taak krijgt `isCritical` als ze een totale speling heeft (kritiek als die
   hoogstens de kritiekgrens van ADR 0284 is) en anders geen `isCritical`. Dat is
   MPXJ `Task.calculateCritical`, zonder de uitzondering die MPXJ maakt voor handmatige taken met een duur, start of
-  einde als tekst: die tekstvelden leest deze lezer niet.
+  einde als tekst: die tekstvelden leest deze lezer niet. Een tweede verschil: zonder totale speling geeft MPXJ
+  `false`, deze lezer geen `isCritical`.

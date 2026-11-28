@@ -1,7 +1,9 @@
 # MPP lezen: de decoder levert werkminuten en wandelt geen kalender, anders dan MPXJ
 
-MPXJ weeft het irreguliere en het reguliere blok samen (kalenderbewust, `splitItem`)
-en zet het de periodegrenzen om in echte kalendermomenten (`ProjectCalendar.getDate`, `getNextWorkStart`): de
+MPXJ weeft het irreguliere en het reguliere blok samen en zet de periodegrenzen om in echte kalendermomenten
+(`ProjectCalendar.getDate`, `getNextWorkStart`). In MPXJ 2b43a48417 (de versie van ADR 0411) gebeurt het samenweven
+kalenderbewust in `splitItem`; MPXJ 63cdc4e8dd bouwt eerst met de extra uren een tijdelijke werkkalender en splitst
+daarna de periodes (`TimephasedAdditionalHoursHelper.splitItems`, in `getCompleteWork`). In beide versies geldt: de
 verstreken werkminuten in het bestand zijn werktijd, geen 24-uursklok. `mppTimephased.ts` doet bewust minder. Het
 blijft een pure omzetting van bytes in periodes, zonder kalender en zonder planningsgedrag, zodat de enige
 kalenderwandeling op één plek staat: de verschuiving van een toewijzing naar de as van de taak in `mppReader.ts`

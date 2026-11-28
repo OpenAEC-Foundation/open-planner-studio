@@ -35,4 +35,5 @@ het (`fileTools.ts`).
   `PlannedStartDate`. Een ontbrekend anker is de start van de taak (`axisOffsetMinutes` op de taakkalender). Alleen een
   activiteit krijgt een contour, en alleen bij meer dan één periode en werk in minstens één ervan
   (`p6SpreadToContourPeriods`, `attachContours`; regel `contour`). MPXJ leest deze drie velden met dezelfde ankers
-  (`XmlProjectReader`, `TimephasedHelper.read`).
+  zolang die datums zijn ingevuld (`XmlProjectReader`, `TimephasedHelper.read`); ontbreekt een datum, dan slaat MPXJ
+  die spreiding over, waar OPS de start van de taak neemt.

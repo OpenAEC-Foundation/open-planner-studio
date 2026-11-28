@@ -13,7 +13,7 @@ outline-level, waarbij een taak het kind wordt van de laatste taak met een lager
 - Het ruwe outline-level is een SHORT (0 tot en met 65535) en stuurt de diepte van de stapel en de lengte van de
   WBS-code (één segment per niveau). `clampOutlineLevel` klemt het op 1 tot en met `MAX_OUTLINE_LEVEL` (256); een
   ontbrekend veld is niveau 1. Zonder klem gaf een gemaakt bestand met steeds oplopende niveaus kwadratisch veel
-  WBS-tekst. Een taak dieper dan
+  WBS-tekst (461 MB bij 20.000 niveaus, commit e0b187244). Een taak dieper dan
   de grens wordt een broer op niveau 256. `check-mpp-import.ts` (C1) toetst de grenzen van de klem en 20.000 taken
   die cyclisch tot voorbij de grens lopen: binnen de tijdslimiet en met hoogstens 256 segmenten per code.
 - Een record dat te kort is voor `ID` krijgt het unique-id als `ID`.

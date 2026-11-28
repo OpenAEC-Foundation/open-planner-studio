@@ -41,6 +41,7 @@ regel `mpp` zegt. De veld-id's en offsets staan in de veldkaart `fieldMap14.ts`,
 ## Overwogen
 
 MPXJ `createTaskMap` (`MPP14Reader.java`) heeft twee filters die hier niet zijn overgenomen: een
-aanwezig `Fixed2Data`-record eisen, en een `FixedData`-record van minstens 75 % van `fieldMap.getMaxFixedDataSize(0)`.
+aanwezig `Fixed2Data`-record eisen, en een `FixedData`-record waarvan de grootte, als geheel percentage van `fieldMap.getMaxFixedDataSize(0)`,
+groter is dan 75 (een record op precies 75 % valt af).
 Dat maximum gaat over alle taakvelden van MPXJ en is met de veldenlijst van deze lezer niet betrouwbaar te berekenen.
 Wijkt een telling ooit af, dan zijn deze filters de eerste kandidaat.
