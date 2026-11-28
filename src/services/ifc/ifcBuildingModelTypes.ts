@@ -1,10 +1,3 @@
-// Gegenereerd door scripts/ifc-product-types.py; niet met de hand aanvullen.
-// IfcProduct + IfcTypeProduct en alle subtypen: fysieke/ruimtelijke objecten, ook zonder geometrie.
-// Taken, resources en hun gedeelde geometrische context zijn geen IfcProduct.
-// Bron: https://github.com/buildingSMART/Standards-builds/tree/main/IFC/RELEASE
-// IFC2X3_TC1.exp: SHA-256 bf89eda341bccec041df37dffb79f0b8d4e3d5411d07541560d05bf69d53fc3a
-// IFC4.exp: SHA-256 a3e46d39a85c2b683e7167572165d74b4ff6f8ef7e7c1e7f314a4980a63c9edb
-// IFC4X3_ADD2.exp: SHA-256 f67c8762b13a099c28082061e6f16b9ef1284ceec34069792afc702725675860
 export const IFC_BUILDING_MODEL_TYPES: ReadonlySet<string> = new Set([
   'IFCACTUATOR',
   'IFCACTUATORTYPE',

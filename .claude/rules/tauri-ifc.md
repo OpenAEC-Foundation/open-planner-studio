@@ -168,7 +168,8 @@ Besluiten van de lezer: `docs/adr/0040-ifc-lezen-integriteitspoort.md`, `0041-st
 `0044-ifc-lezen-welke-taken-en-kalenders.md`, `0045-ifc-lezen-toewijzingen.md`,
 `0046-ifc-lezen-verwijzingen-terugvinden.md`, `0047-ifc-lezen-ops-sequences-een-bron.md`,
 `0048-xer-vastlegging-via-bronreconstructie.md`, `0049-ifc-lezen-opties-van-de-bytesroute.md` en
-`0050-ifc-lezen-oude-en-vreemde-vormen.md`.
+`0050-ifc-lezen-oude-en-vreemde-vormen.md`. De bestandsgrammatica (`stepFileGrammar.ts`):
+`docs/adr/0770-step-grammatica-waar-ze-van-de-norm-afwijkt.md`.
 
 ### De IFC-writer (`ifcWriter.ts`)
 
@@ -176,7 +177,8 @@ Besluiten van de writer: `docs/adr/0140-ifc-schrijven-globalids-uniek-per-bestan
 `0141-ifc-schrijven-kop-en-verplichte-tekst.md`, `0142-ifc-schrijven-projectinstellingen.md`,
 `0143-ifc-schrijven-standaard-ifc-naast-eigen-json.md`, `0144-ifc-schrijven-kalenders.md`,
 `0145-ifc-schrijven-datums-duren-en-lags.md`, `0146-ifc-schrijven-met-een-vreemd-deel.md`,
-`0147-ifc-schrijven-resources-en-toewijzingen.md` en `0148-ifc-schrijven-een-invoerobject.md`.
+`0147-ifc-schrijven-resources-en-toewijzingen.md`, `0148-ifc-schrijven-een-invoerobject.md` en
+`0771-ifc-voortgang-en-dagenrecord-lezen-exact-terug.md`.
 
 ### Het register van de eigen psets (`ifcPsets.ts`)
 

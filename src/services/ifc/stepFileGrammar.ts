@@ -1,39 +1,4 @@
 import { StepStringState, isStepControl, stepString } from './stepLexical';
-// De grammatica van een heel STEP-bestand (ISO 10303-21 editie 3), van `ISO-10303-21;` tot `END-ISO-10303-21;` (#870,
-// besluit Trias, wrakko 10 november 2026, review van #870 ronde 10). De grammatica beslist twee dingen:
-//  - ziet zij ergens een modeltype, dan weigert `readIFC` het openen en de doelcontrole het schrijven, ook als het
-//    bestand later breekt. Verder opent `readIFC` precies zoals main (`stepDataSection.ts`, `parseSTEP`);
-//  - de doelcontrole schrijft alleen over een bestand dat helemaal in de grammatica past met één datasectie. Breekt het
-//    bestand, of heeft het meer datasecties, dan weigert zij (de regel van #867: bij twijfel weigeren), behalve over een
-//    eigen bestand: daar de regel van main.
-//
-// Wat de grammatica leest (tabel 3 en §8 tot §11 van de norm):
-//   `ISO-10303-21;`
-//   `HEADER;` FILE_DESCRIPTION(2 parameters) FILE_NAME(7) FILE_SCHEMA(1) { eigen kopentiteit } `ENDSEC;`
-//   [ `ANCHOR;` … `ENDSEC;` ] [ `REFERENCE;` … `ENDSEC;` ]
-//   { DATAKOP { entiteit } `ENDSEC;` }
-//   `END-ISO-10303-21;`
-// - Een kopentiteit is `NAAM ( parameters ) ;`.
-// - Een DATAKOP is `DATA ;` of `DATA ( 'naam' , ( 'schema' { , 'schema' } ) ) ;` (§11.1; meer schema's laat de app toe).
-// - Een entiteit is `#n = TYPE ( parameters ) ;` of complex: `#n = ( TYPE ( parameters ) { TYPE ( parameters ) } ) ;`.
-// - Een parameter is een string, een binaire waarde `"…"`, een URI `<…>`, een getal, een enumeratie `.X.`, `$`, `*`, een
-//   verwijzing `#n` of `@n`, een lijst `( … )` of een getypeerde waarde `TYPE ( parameter )`.
-// - In een ANCHOR- of REFERENCE-sectie is een statement `<naam> = … ;` of `#n = … ;`; daar telt alleen dat de haakjes
-//   kloppen.
-// Tokens:
-// - Stuurtekens (onder U+0020, en U+007F) vallen overal weg, ook midden in een token of een string (§5.2, §5.6).
-// - Een string is `'…'` met `''` als aanhalingsteken, `\\` als backslash, en `\S\` plus één teken (ook `\S\'`, §6.4.3).
-//   Elke andere backslash is een gewoon teken: oude eigen bestanden schreven JSON met `\"` letterlijk.
-// - Commentaar `/* … */` en de afdrukcodes `\N\` en `\F\` zijn scheiding.
-// - Sleutelwoorden lezen hoofdletterongevoelig (alleen ASCII), zoals de app altijd deed.
-// - Een niet-ASCII-teken buiten een string past nergens.
-//
-// De grammatica ziet ook de modeltypes (`IFC_BUILDING_MODEL_TYPES`) als type van een entiteit, ook als deel van een
-// complexe instantie, vóór een syntactische fout en in een tweede datasectie. De stringgrenzen deelt zij met
-// de planningparser en de doelcontrole (`stepLexical.ts`, #1050).
-//
-// De grammatica leest teken voor teken (`step`), zodat een stroom hem in stukken kan voeden. Als UTF-16-tekst
-// (`readIFC`) is elk teken een code-eenheid; als UTF-8-bytes (de doelcontrole) is elk teken een byte. Alleen ASCII telt.
 import { IFC_BUILDING_MODEL_TYPES } from './ifcBuildingModelTypes';
 
 const QUOTE = 0x27;
@@ -65,23 +30,16 @@ const BOM_BYTES = [0xef, 0xbb, 0xbf];
 const upper = (c: number) => (c >= 0x61 && c <= 0x7a ? c - 0x20 : c);
 const isUpper = (u: number) => (u >= 0x41 && u <= 0x5a) || u === UNDERSCORE;
 const isDigit = (u: number) => u >= 0x30 && u <= 0x39;
-/** Een teken van een woord: sleutelwoord, getal, enumeratie, `$`, `*`, `#12`, `@3`, `!EIGEN`. */
 const isWordChar = (u: number) => isUpper(u) || isDigit(u)
   || u === MINUS || u === PLUS || u === DOT || u === DOLLAR || u === STAR || u === HASH || u === AT || u === BANG;
 
-/** Langer is geen token van een geldig bestand; een langer woord breekt de grammatica (de buffer groeit tot hier). */
 const WORD_MAX = 1 << 20;
-/** Zo diep mogen lijsten en getypeerde waarden in elkaar zitten; dieper breekt de grammatica. */
 const DEPTH_MAX = 4096;
-/** De verplichte kopentiteiten, in deze volgorde, met hun aantal parameters (§8.1, §8.2). */
 const HEADER_ENTITIES: readonly (readonly [string, number])[] = [['FILE_DESCRIPTION', 2], ['FILE_NAME', 7], ['FILE_SCHEMA', 1]];
 
-// FNV-1a over het type. Een tabel van de laagste 16 bits van de hash van elk modeltype: alleen bij een treffer maakt de
-// grammatica een string van het type. Zo kost een gewone entiteit geen string.
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 const MODEL_HASH = new Uint8Array(1 << 16);
-/** De lengte van het langste modeltype. */
 const MODEL_TYPE_MAX = Math.max(...[...IFC_BUILDING_MODEL_TYPES].map(type => type.length));
 for (const type of IFC_BUILDING_MODEL_TYPES) {
   let h = FNV_OFFSET;
@@ -89,64 +47,36 @@ for (const type of IFC_BUILDING_MODEL_TYPES) {
   MODEL_HASH[h & 0xffff] = 1;
 }
 
-/** Lexicale toestand. */
 const enum Lex { Code, Word, Str, BinFirst, Bin, Uri, Slash, Comment, CommentStar, Back, BackLetter }
-/** Waar in het bestand de grammatica is. */
 const enum Sec { Start, Pre, Header, Between, Anchor, Reference, Data, End }
-/** Waar in het statement de grammatica is. */
 const enum P {
-  /** Begin van een statement. */
   Stmt,
-  /** Na een sleutelwoord dat een `;` vraagt (`ISO-10303-21`, `HEADER`, `ENDSEC`, …). */
   Semi,
-  /** Na de naam van een kopentiteit: `(`. */
   HeadOpen,
-  /** In de parameters van een record (kopentiteit of entiteit). */
   Params,
-  /** Na de `)` van een kopentiteit: `;`. */
   HeadSemi,
-  /** In de DATAKOP na `DATA`. */
   DataHead,
-  /** Na `#n` in een datasectie: `=`. */
   InstEq,
-  /** Na `#n =`: een type (enkelvoudig) of `(` (complex). */
   InstVal,
-  /** Na het type van een record: `(`. */
   RecOpen,
-  /** Na een enkelvoudig record: `;`. */
   SimpleSemi,
-  /** In een complexe instantie: het volgende type, of `)`. */
   ComplexNext,
-  /** Na de `)` van een complexe instantie: `;`. */
   ComplexSemi,
-  /** In een ANCHOR- of REFERENCE-sectie na de naam: `=`. */
   AnchorEq,
-  /** In een ANCHOR-sectie na `=`: haakjes tot de `;` (geen getypeerde waarde; een sleutelwoord alleen als tag na `{`). */
   AnchorVal,
-  /** In een REFERENCE-sectie na `=`: precies één URI (`<…>`), dan `;`. */
   RefVal,
 }
-/** In een parameterlijst: wat er na het vorige token mag komen. */
 const enum X { ValueOrClose, Value, AfterKeyword, Sep }
-/** Soort open haakje in een parameterlijst. */
 const enum Ctx { Record, List, Typed }
-/** Soort woord. */
 const enum W { Keyword, Name, Enum, Number, Dollar, Star, Bad }
 
-/** Uitkomst van de grammatica: nog bezig, het hele bestand past, of het bestand breekt. */
 export type StepGrammarState = 'running' | 'valid' | 'failed';
 
 export class StepFileGrammar {
-  /** Zoveel datasecties las de grammatica (een DATAKOP telt). Opslaan over een bestand met meer dan één datasectie
-   *  weigert de doelcontrole, behalve over een eigen bestand (besluit Trias, wrakko 10 november 2026). */
   dataSections = 0;
-  /** Een entiteit met een modeltype als type (ook als deel van een complexe instantie), vóór het bestand brak. */
   model = false;
-  /** Waar het bestand brak (het teken dat niet paste), of -1. */
   failedAt = -1;
 
-  // De bestaande OPS-tekstcodering bepaalt ook de quotegrenzen, niet alleen het decoderen achteraf.
-  // Alleen de relevante top-level velden worden begrensd verzameld; geen kopie van grote strings.
   private meta: 'application' | 'pset' | undefined;
   private capture: 'version' | 'identifier' | 'pset' | undefined;
   private captured = '';
@@ -161,14 +91,11 @@ export class StepFileGrammar {
   private stringState = StepStringState.Text;
   private p = P.Stmt;
   private x = X.ValueOrClose;
-  // ── Het woord dat nu gelezen wordt ──
   private word = new Uint16Array(128);
   private wordLength = 0;
   private wordAt = -1;
   private wordHash = FNV_OFFSET;
-  /** De lexer leest een woord na `\` of een `/` die geen commentaar werd: die tekens zijn geen scheiding. */
   private lexBack = Lex.Code;
-  // ── Statement ──
   private nextSec = Sec.Start;
   private headerIndex = 0;
   private headerParams = -1;
@@ -178,47 +105,33 @@ export class StepFileGrammar {
   private complexParts = 0;
   private dataHeadK = 0;
   private anchorDepth = 0;
-  /** Na `{` in een anker: de naam van de tag (een sleutelwoord). */
   private anchorTag = false;
-  /** Review van #870, ronde 8 (Sol): de volgorde van de secties (tabel 3): 0 na de kop, 1 na ANCHOR, 2 na REFERENCE,
-   *  3 na een datasectie. ANCHOR en REFERENCE staan hoogstens één keer, vóór de eerste datasectie. */
   private stage = 0;
-  // ── BOM ──
   private bom = 0;
   private sec = Sec.Start;
 
-  /** `utf8`: de tekens zijn UTF-8-bytes, anders UTF-16-code-eenheden. */
   constructor(private readonly utf8: boolean) {}
 
   get state(): StepGrammarState { return this.result; }
   get failed(): boolean { return this.result === 'failed'; }
 
-  /** Eén teken op positie `at`. Na 'failed' of 'valid' telt niets meer, behalve dat 'valid' na `END-ISO-10303-21;` nog
-   *  breekt op iets anders dan scheiding. */
   step(c: number, at: number): void {
     if (this.result === 'failed') return;
     if (this.bom >= 0) {
-      // Bytes: de BOM vooraan (EF BB BF) haalt de decoder weg; hij hoort niet bij de tekst. Als tekst: één U+FEFF vooraan
-      // telt niet, zoals in `assertIfcIntegrity` (review van #870, ronde 11: de headless MCP-server leest met
-      // `Buffer.toString`, die de BOM houdt, en een bestand met twee BOM's houdt er na de decoder één).
-      // Als bytes dus ook een tweede BOM direct na de eerste: dat is die U+FEFF.
       if (!this.utf8 && at === 0 && c === 0xfeff) { this.bom = -1; return; }
       if (this.utf8 && at === this.bom && c === BOM_BYTES[this.bom % 3]) { if (++this.bom === 6) this.bom = -1; return; }
-      if (this.utf8 && this.bom % 3 !== 0) { this.fail(at); return; } // een half BOM
+      if (this.utf8 && this.bom % 3 !== 0) { this.fail(at); return; }
       this.bom = -1;
     }
     if (isStepControl(c)) {
-      // De grammatica negeert ze; de bestaande tekstversiemarker vergelijkt de oorspronkelijke veldtekst.
       if (this.capture && this.stringState !== StepStringState.Quote && this.captured.length < 6) {
         this.captured += String.fromCharCode(c);
       }
       return;
-    } // stuurtekens vallen weg, vóór elke andere regel (§5.2, §5.6)
+    }
     this.lexStep(c, at);
   }
 
-  /** Een hele tekst: hetzelfde als `step` voor elk teken. In een string tellen alleen `'` en `\`, in commentaar alleen
-   *  `*`: daar slaat de lus de andere tekens over (ook stuurtekens, die `step` toch weglaat). */
   run(content: string): void {
     const n = content.length;
     for (let i = 0; i < n; i++) {
@@ -236,7 +149,6 @@ export class StepFileGrammar {
     }
   }
 
-  /** Het einde van de tekst. */
   end(at: number): StepGrammarState {
     if (this.result === 'failed') return this.result;
     if (this.lex === Lex.Word) this.wordDone();
@@ -252,8 +164,6 @@ export class StepFileGrammar {
     return 'failed';
   }
 
-  // ── Lexer ──────────────────────────────────────────────────────────────────────────────────────────────────────────
-
   private lexStep(c: number, at: number): void {
     switch (this.lex) {
       case Lex.Str:
@@ -268,8 +178,6 @@ export class StepFileGrammar {
         this.capture = undefined;
         this.lex = Lex.Code;
         break;
-      // Review van #870, ronde 8 (Sol): binair is `"` met een cijfer 0–3 en dan hexadecimale cijfers (tabel 2). Een ander
-      // teken breekt het bestand; anders verstopte `"…"` een wand.
       case Lex.BinFirst:
         if (c < 0x30 || c > 0x33) { this.fail(at); return; }
         this.lex = Lex.Bin;
@@ -283,7 +191,7 @@ export class StepFileGrammar {
         return;
       case Lex.Slash:
         if (c === STAR) { this.lex = Lex.Comment; return; }
-        this.fail(at - 1); // een losse `/` past nergens
+        this.fail(at - 1);
         return;
       case Lex.Comment:
         if (c === STAR) this.lex = Lex.CommentStar;
@@ -293,12 +201,12 @@ export class StepFileGrammar {
         else if (c !== STAR) this.lex = Lex.Comment;
         return;
       case Lex.Back:
-        if (c !== LETTER_N && c !== LETTER_F) { this.fail(at); return; } // een losse `\` past nergens
+        if (c !== LETTER_N && c !== LETTER_F) { this.fail(at); return; }
         this.lex = Lex.BackLetter;
         return;
       case Lex.BackLetter:
         if (c !== BACKSLASH) { this.fail(at); return; }
-        this.lex = this.lexBack; // `\N\` of `\F\`: scheiding
+        this.lex = this.lexBack;
         return;
       case Lex.Word: {
         const u = upper(c);
@@ -312,7 +220,7 @@ export class StepFileGrammar {
         break;
     }
     if (this.sec === Sec.End && this.p === P.Stmt && c !== SPACE && c !== SLASH && c !== BACKSLASH) {
-      this.fail(at); // na `END-ISO-10303-21;` alleen scheiding
+      this.fail(at);
       return;
     }
     const u = upper(c);
@@ -332,12 +240,11 @@ export class StepFileGrammar {
       case DQUOTE: this.lex = Lex.BinFirst; this.atom(at); return;
       case LT: this.lex = Lex.Uri; this.atom(at); return;
       case OPEN: case CLOSE: case COMMA: case SEMI: case EQUALS: this.punct(c, at); return;
-      // Een tag bij een anker (`<a> = #1{x:'y'};`, §9.2): binnen de waarde van een anker tellen alleen de haakjes.
       case 0x7b: case 0x7d: case 0x3a:
         if (this.sec !== Sec.Anchor || this.p !== P.AnchorVal) { this.fail(at); return; }
         if (c === 0x7b) this.anchorTag = true;
         return;
-      default: this.fail(at); // niet-ASCII of een teken dat nergens past
+      default: this.fail(at);
     }
   }
 
@@ -378,7 +285,6 @@ export class StepFileGrammar {
       for (let k = 2; k < n - 1; k++) if (!isUpper(w[k]) && !isDigit(w[k])) return W.Bad;
       return W.Enum;
     }
-    // Getal: [+-] cijfers [ . cijfers [ E [+-] cijfers ] ]
     let k = c0 === PLUS || c0 === MINUS ? 1 : 0;
     const digits = k;
     while (k < n && isDigit(w[k])) k++;
@@ -396,7 +302,6 @@ export class StepFileGrammar {
     return k === n && k > exp ? W.Number : W.Bad;
   }
 
-  /** Is het woord (een sleutelwoord) gelijk aan `text`? */
   private wordIs(text: string): boolean {
     if (this.wordLength !== text.length) return false;
     for (let k = 0; k < text.length; k++) if (this.word[k] !== text.charCodeAt(k)) return false;
@@ -404,15 +309,10 @@ export class StepFileGrammar {
   }
 
   private isModelWord(): boolean {
-    // Review van #870, ronde 11: een woord langer dan elk modeltype is geen modeltype; zo maakt een woord van 1 MiB geen
-    // string (`String.fromCharCode.apply` liep daar over de stapel).
     if (this.wordLength > MODEL_TYPE_MAX || MODEL_HASH[this.wordHash & 0xffff] === 0) return false;
     return IFC_BUILDING_MODEL_TYPES.has(this.wordText());
   }
 
-  // ── Parser ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-  /** Een woord is af. */
   private wordDone(): void {
     const at = this.wordAt;
     const kind = this.wordKind();
@@ -424,7 +324,7 @@ export class StepFileGrammar {
           this.p = P.InstEq;
           return;
         }
-        if (kind === W.Name && this.sec === Sec.Reference) { this.p = P.AnchorEq; return; } // `#n = <uri>;`
+        if (kind === W.Name && this.sec === Sec.Reference) { this.p = P.AnchorEq; return; }
         this.fail(at);
         return;
       case P.Params:
@@ -439,12 +339,10 @@ export class StepFileGrammar {
         this.appIdentifier = false;
         if (this.isModelWord()) this.model = true;
         if (this.p === P.ComplexNext) this.complexParts++;
-        else this.complexParts = -1; // enkelvoudig
+        else this.complexParts = -1;
         this.p = P.RecOpen;
         return;
       case P.AnchorVal:
-        // Review van #870, ronde 8 (Sol): een ankerwaarde is geen getypeerde waarde (`IFCWALL(…)`). Een sleutelwoord
-        // alleen als naam van een tag (`{x:…}`).
         if (kind === W.Keyword) {
           if (!this.anchorTag) { this.fail(at); return; }
           this.anchorTag = false;
@@ -455,7 +353,6 @@ export class StepFileGrammar {
     }
   }
 
-  /** Een sleutelwoord aan het begin van een statement. */
   private statementKeyword(at: number): void {
     switch (this.sec) {
       case Sec.Start:
@@ -502,7 +399,6 @@ export class StepFileGrammar {
     this.nextSec = next;
   }
 
-  /** Een string, binaire waarde of URI begint op `at`. */
   private atom(at: number): void {
     switch (this.p) {
       case P.Params:
@@ -512,7 +408,6 @@ export class StepFileGrammar {
             : this.meta === 'pset' && this.params === 3 ? 'pset' : undefined;
           this.captured = '';
         }
-        // Review van #870, ronde 8 (Sol): een URI is geen parameter (alleen in ANCHOR en REFERENCE, tabel 3).
         if (this.lex === Lex.Uri) break;
         if (this.x === X.Value || this.x === X.ValueOrClose) { this.value(); this.x = X.Sep; return; }
         break;
@@ -520,14 +415,14 @@ export class StepFileGrammar {
         if ((this.dataHeadK === 0 || this.dataHeadK === 3) && this.lex === Lex.Str) { this.dataHeadK = this.dataHeadK === 0 ? 1 : 4; return; }
         break;
       case P.Stmt:
-        if (this.sec === Sec.Anchor && this.lex === Lex.Uri) { this.p = P.AnchorEq; return; } // `<naam> = …`
+        if (this.sec === Sec.Anchor && this.lex === Lex.Uri) { this.p = P.AnchorEq; return; }
         break;
       case P.AnchorVal:
         if (this.anchorTag) break;
         return;
       case P.RefVal:
         if (this.lex !== Lex.Uri) break;
-        this.p = P.HeadSemi; // daarna alleen `;`
+        this.p = P.HeadSemi;
         return;
       default:
         break;
@@ -535,7 +430,6 @@ export class StepFileGrammar {
     this.fail(at);
   }
 
-  /** Een waarde op diepte 1 van een kopentiteit telt als parameter (de komma's tellen de rest). */
   private value(): void {
     if (this.depth === 1 && this.params === 0) this.params = 1;
   }
@@ -588,7 +482,7 @@ export class StepFileGrammar {
         return;
       case P.InstVal:
         if (c !== OPEN) break;
-        this.p = P.ComplexNext; // complexe instantie
+        this.p = P.ComplexNext;
         this.complexParts = 0;
         return;
       case P.SimpleSemi:
@@ -625,7 +519,7 @@ export class StepFileGrammar {
     const top = this.stack[this.depth - 1];
     switch (this.x) {
       case X.AfterKeyword:
-        if (c !== OPEN) break; // een sleutelwoord als parameter is altijd een getypeerde waarde
+        if (c !== OPEN) break;
         this.push(Ctx.Typed, at);
         this.x = X.Value;
         return;
@@ -646,11 +540,9 @@ export class StepFileGrammar {
     this.fail(at);
   }
 
-  /** Een `)` in de parameters. */
   private close(at: number): void {
     this.depth--;
     if (this.depth > 0) { this.x = X.Sep; return; }
-    // De `)` van het record.
     if (this.sec === Sec.Header) {
       if (this.headerParams >= 0 && this.params !== this.headerParams) { this.fail(at); return; }
       this.p = P.HeadSemi;
@@ -659,7 +551,6 @@ export class StepFileGrammar {
     this.p = this.complexParts < 0 ? P.SimpleSemi : P.ComplexNext;
   }
 
-  /** De DATAKOP: `;`, of `( 'naam' , ( 'schema' { , 'schema' } ) ) ;`. */
   private dataHeadPunct(c: number, at: number): void {
     switch (this.dataHeadK) {
       case -1:
@@ -695,7 +586,6 @@ export class StepFileGrammar {
   }
 }
 
-/** De grammatica over een hele tekst (`readIFC`). */
 export function stepFileGrammar(content: string): StepFileGrammar {
   const grammar = new StepFileGrammar(false);
   grammar.run(content);
