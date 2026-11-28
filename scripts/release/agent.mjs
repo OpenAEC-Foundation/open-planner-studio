@@ -1,7 +1,3 @@
-// De opdrachten voor de tekstagent (`claude -p`, Opus 5.5 high). De agent schrijft alleen teksten; het script
-// controleert daarna de grenzen en draait de bestaande checks. Hij commit, pusht en publiceert niets.
-
-/** De bestanden die de tekstagent mag wijzigen of aanmaken. Een map eindigt op `/`. */
 export const TEKST_PADEN = versie => [
   `docs/release-notes/v${versie}.md`,
   'docs/CHANGELOG.md',
@@ -15,7 +11,6 @@ export const TEKST_PADEN = versie => [
   '.claude/rules/',
 ];
 
-/** Wat de websiteagent mag wijzigen: het Nederlandse `#whats-new`-blok en de vier woordenboeken. */
 export const WEBSITE_TEKST_PADEN = [
   'open-planner-studio/index.html',
   'shared/translations/open-planner-studio.json',
@@ -78,7 +73,6 @@ Je mag alleen deze bestanden wijzigen: ${WEBSITE_TEKST_PADEN.join(', ')}. Draai 
 Antwoord aan het eind in één zin wat de nieuwe titel is.`;
 }
 
-/** Ingebouwde tools en vooraf toegestane opdrachten per agent (`--tools` en `--allowedTools`). */
 export const TEKST_TOOLS = {
   tools: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash'],
   toegestaan: ['Read', 'Write', 'Edit', 'Glob', 'Grep', 'Bash(git log:*)', 'Bash(git show:*)', 'Bash(git diff:*)'],

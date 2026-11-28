@@ -1,12 +1,4 @@
 #!/usr/bin/env node
-// Het releasescript van Open Planner Studio: de vaste stappen van de wekelijkse release in vaste volgorde.
-//
-//   node scripts/release/run.mjs            # de release (de release-thread start dit, zie de release-skill)
-//   node scripts/release/run.mjs --droog    # leest alles, stopt vóór de eerste stap die iets schrijft
-//
-// De laatste regel is altijd één van: RELEASE-KLAAR, RELEASE-STOP <code>, RELEASE-TAAK <code> of RELEASE-DROOG
-// (zie uitkomst.mjs). Het script draait vanuit een eigen losse worktree op origin/main (`release-script`);
-// de releasebranch staat in de werkplek `release-werk`. Alleen Node-ingebouwde modules: geen npm ci nodig.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { closeSync, cpSync, existsSync, mkdirSync, openSync, readFileSync, rmSync, statSync, unlinkSync, writeFileSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -19,7 +11,6 @@ const REPO = 'OpenAEC-Foundation/open-planner-studio';
 const MODEL = 'claude-opus-5-5';
 const BUFFER = 256 * 1024 * 1024;
 
-/** Een fout van een opdracht, met stderr erbij (voor de 404-herkenning). */
 class OpdrachtFout extends Error {
   constructor(cmd, args, res) {
     super(`${cmd} ${args.join(' ')} faalde (exit ${res.status}): ${String(res.stderr || res.error?.message || '').trim().slice(0, 500)}`);
@@ -42,7 +33,6 @@ function moetSlagen(cmd, args, opts) {
   return res.stdout;
 }
 
-/** `claude -p` met Opus 5.5 high, beperkte tools, zonder MCP en zonder sessie. */
 export function claudeArgs(prompt, { tools, toegestaan }) {
   return ['-p', prompt, '--model', MODEL, '--effort', 'high', '--output-format', 'json', '--no-session-persistence',
     '--permission-mode', 'dontAsk', '--tools', tools.join(','), '--allowedTools', ...toegestaan, '--strict-mcp-config',
@@ -52,7 +42,7 @@ export function claudeArgs(prompt, { tools, toegestaan }) {
 function claude(prompt, { cwd, tools, toegestaan }) {
   const res = draai('claude', claudeArgs(prompt, { tools, toegestaan }), { cwd, timeoutMs: 90 * 60_000 });
   let json;
-  try { json = JSON.parse(res.stdout); } catch { /* hieronder */ }
+  try { json = JSON.parse(res.stdout); } catch { }
   if (res.status !== 0 || !json || json.is_error || json.subtype !== 'success') {
     const reden = json?.result ?? json?.subtype ?? (res.stderr.trim().split('\n').at(-1) || `exit ${res.status}`);
     return { ok: false, fout: `claude -p faalde: ${String(reden).slice(0, 300)}` };
@@ -61,21 +51,18 @@ function claude(prompt, { cwd, tools, toegestaan }) {
 }
 
 function http(url, { method = 'GET' } = {}) {
-  // `-I` voor HEAD: met `-X HEAD` wacht curl op een body die niet komt.
   const res = draai('curl', ['-sS', '-L', '--max-time', '60', ...(method === 'HEAD' ? ['-I'] : []), '-o', '-', '-w', '\n%{http_code}', url]);
   if (res.status !== 0) return { status: 0, text: null };
   const i = res.stdout.lastIndexOf('\n');
   return { status: Number(res.stdout.slice(i + 1)), text: res.stdout.slice(0, i) };
 }
 
-/** De echte omgeving. `droog`: elke schrijvende stap stopt de run vóórdat hij gebeurt. */
 export function maakContext({ droog, scriptRoot, root, log }) {
   const ctx = {
     repo: REPO, droog, scriptRoot, root, home: homedir(), acties: 0, npmGedaan: new Set(),
     now: () => Date.now(),
     sleep: ms => { Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms); },
     log,
-    // Een melding voor wrakko die de release niet stopt; de thread geeft elke RELEASE-MELDING-regel door.
     meldingen: [],
     meld: (code, tekst) => {
       ctx.meldingen.push(code);
@@ -118,7 +105,6 @@ export function maakContext({ droog, scriptRoot, root, log }) {
   return ctx;
 }
 
-/** Eén run tegelijk: een slotbestand met het proces-id; een dood proces laat geen slot achter. */
 export function neemSlot(pad, pid = process.pid, leeft = p => { try { process.kill(p, 0); return true; } catch { return false; } }) {
   mkdirSync(dirname(pad), { recursive: true });
   for (let poging = 0; poging < 2; poging++) {
@@ -126,7 +112,7 @@ export function neemSlot(pad, pid = process.pid, leeft = p => { try { process.ki
       const fd = openSync(pad, 'wx');
       writeFileSync(fd, String(pid));
       closeSync(fd);
-      return () => { try { unlinkSync(pad); } catch { /* al weg */ } };
+      return () => { try { unlinkSync(pad); } catch { } };
     } catch (err) {
       if (err.code !== 'EEXIST') throw err;
       const ander = Number(readFileSync(pad, 'utf8'));
@@ -144,7 +130,6 @@ function main(argv) {
   let uitkomst;
   let laat = () => {};
   try {
-    // De hoofdrepo: de gedeelde .git-map van deze worktree.
     const root = resolve(execFileSync('git', ['rev-parse', '--path-format=absolute', '--git-common-dir'], { cwd: scriptRoot, encoding: 'utf8' }).trim(), '..');
     if (!droog) laat = neemSlot(join(homedir(), '.local/state/ops-release/slot'));
     uitkomst = release(maakContext({ droog, scriptRoot, root, log }));
