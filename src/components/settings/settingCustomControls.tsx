@@ -1,7 +1,3 @@
-// De bediening van de rijen die geen gewone schakelaar of keuze zijn: thema, muiswiel per toets,
-// uitleg per bestandsformaat, Experimenteel en de knoppen onder Over de app. Elke component leest
-// en schrijft zelf de store; de rij eromheen (SettingRow) zorgt voor naam, uitleg en terugzetten.
-
 import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import type { TFunction } from 'i18next';
@@ -22,15 +18,10 @@ import { SettingToggle, THEME_LABEL_KEYS } from './settingControls';
 import { ThemeSwatches, WheelMapVisual } from './settingVisuals';
 import { VisualChoice } from './VisualChoice';
 
-/** Knoppen die een ander venster openen sluiten eerst de Instellingen-dialoog (tandwiel/lint) én
- *  Backstage (activeRibbonTab terug naar 'start'), zodat dat venster vrij opent. */
 function openFromSettings(patch: Partial<UIState>): void {
   useAppStore.getState().setUI({ showSettingsDialog: false, activeRibbonTab: 'start', ...patch });
 }
 
-// --- Thema ---------------------------------------------------------------------------------------
-
-/** Zoekteksten van het thema: de kaarten en de schakelaar eronder. */
 export const themeSearchTexts = (t: TFunction<'common'>): string[] => [
   ...UI_THEMES.map(({ id }) => t(THEME_LABEL_KEYS[id])), t('settings.themeFollowSystem'),
 ];
@@ -38,8 +29,6 @@ export const themeSearchTexts = (t: TFunction<'common'>): string[] => [
 export function ThemeControl() {
   const { t } = useTranslation('common');
   const currentTheme = useAppStore(s => s.ui.uiTheme);
-  // Zolang de systeemschakelaar aanstaat is er geen eigen keuze om te tonen: de kaarten staan uit
-  // en de kaart die het systeem oplevert is de gemarkeerde.
   const resolvedTheme = useResolvedUITheme();
   const followSystem = currentTheme === 'system';
   return (
@@ -56,8 +45,6 @@ export function ThemeControl() {
           cardProps: { 'data-ops-theme-card': id },
         }))}
       />
-      {/* Uitzetten landt op het thema dat op dát moment op het scherm staat, niet op een vaste
-          waarde: zo springt er niets bij het omzetten en kies je daarna verder vanaf wat je ziet. */}
       <SettingToggle
         label={t('settings.themeFollowSystem')}
         checked={followSystem}
@@ -73,8 +60,6 @@ export function ThemeControl() {
   );
 }
 
-// --- Muiswiel per toets --------------------------------------------------------------------------
-
 type ControlKey = keyof ModifierMap;
 const CONTROL_KEYS: ControlKey[] = ['plain', 'ctrl', 'shift'];
 const FUNCTIONS: WheelFunction[] = ['vertical', 'horizontal', 'zoom'];
@@ -89,7 +74,6 @@ const FUNCTION_LABEL_KEYS = {
   zoom: 'settings.wheelFnZoom',
 } as const;
 
-/** Zoekteksten: de namen van de functies en de toetsen in de keuzelijsten. */
 export const modifierMapSearchTexts = (t: TFunction<'common'>): string[] => [
   ...FUNCTIONS.map(fn => t(FUNCTION_LABEL_KEYS[fn])), ...CONTROL_KEYS.map(k => t(CONTROL_LABEL_KEYS[k])),
 ];
@@ -98,8 +82,6 @@ function controlForFunction(map: ModifierMap, fn: WheelFunction): ControlKey {
   return CONTROL_KEYS.find(k => map[k] === fn)!;
 }
 
-/** Eén keuzelijst per wielfunctie. Kies je een toets die al in gebruik is, dan wisselt hij met de
- *  functie die hem had; omdat alle drie de lijsten en het plaatje in beeld blijven, zie je die wissel. */
 export function ModifierMapControl() {
   const { t } = useTranslation('common');
   const modifierMap = useAppStore(s => s.ui.modifierMap);
@@ -130,9 +112,6 @@ export function ModifierMapControl() {
   );
 }
 
-// --- Uitleg na het openen van een ander formaat --------------------------------------------------
-
-/** Per formaat aan/uit. "Niet meer tonen" in die uitleg zet hier het vinkje uit; hier zet je hem weer aan. */
 export function FormatNoticesControl() {
   const { t } = useTranslation('common');
   const hidden = useAppStore(s => s.ui.formatNoticeHidden);
@@ -155,24 +134,17 @@ export function FormatNoticesControl() {
   );
 }
 
-// --- Versie en Experimenteel ---------------------------------------------------------------------
-
-/** Zoekteksten: het versienummer en de knoppen voor updates (niet in de platformbouw). */
 export const versionSearchTexts = (t: TFunction<'common'>): string[] => [
   __APP_VERSION__,
   ...(UPDATES_AVAILABLE ? [t('updates.checkButton'), t('updates.justUpdated.whatsNewButton')] : []),
 ];
 
-/** De versie met de knoppen voor updates. Het versienummer is ook de verborgen ontgrendeling van
- *  Experimenteel: 5 seconden lang activeren, met hoogstens 0,5 s tussen twee activeringen. */
 export function VersionControl() {
   const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const experimentalVisible = useAppStore(s => s.ui.experimentalSettingsVisible);
   const unlockSequence = useRef<{ start: number; last: number } | null>(null);
 
-  // Geen timer: alleen een nieuwe activering kan ontgrendelen. Een pauze van > 0,5 s begint opnieuw.
-  // De native knop levert ook clicks bij Enter-toetsherhaling.
   const activateVersion = () => {
     if (experimentalVisible) return;
     const now = performance.now();
@@ -187,8 +159,6 @@ export function VersionControl() {
     }
   };
 
-  // "Wat is er nieuw" handmatig: JustUpdatedDialog voor de HUIDIGE versie (zonder "van"-versie).
-  // `@tauri-apps/*` alleen dynamisch achter `isTauri()`; in de web-build de versie uit vite-define.
   const openWhatsNew = async () => {
     let version = __APP_VERSION__;
     if (isTauri()) {
@@ -196,7 +166,6 @@ export function VersionControl() {
         const { getVersion } = await import('@tauri-apps/api/app');
         version = await getVersion();
       } catch {
-        /* terugval op __APP_VERSION__ */
       }
     }
     setUI({ justUpdated: { from: null, to: version }, showSettingsDialog: false });
@@ -216,7 +185,6 @@ export function VersionControl() {
           {__APP_VERSION__}
         </button>
       </div>
-      {/* Platformbouw (#818): geen update-check en geen releasegegevens van GitHub. */}
       {UPDATES_AVAILABLE && (
         <div className="settings-button-row">
           <button className="settings-link" onClick={() => setUI({ showSettingsDialog: false, showUpdateDialog: true })}>
@@ -231,18 +199,15 @@ export function VersionControl() {
   );
 }
 
-/** Zoekteksten: naam en uitleg van elke schakelaar en de knop Verbergen. */
 export const experimentalSearchTexts = (t: TFunction<'common'>): string[] => [
   ...FEATURE_FLAGS.flatMap(flag => (flag.descriptionKey ? [t(flag.nameKey), t(flag.descriptionKey)] : [t(flag.nameKey)])),
   t('settings.experimentalHide'),
 ];
 
-/** De verborgen experimentele functies; zichtbaarheid en keuzes worden los van elkaar bewaard. */
 export function ExperimentalControl() {
   const { t } = useTranslation('common');
   const featureFlags = useAppStore(s => s.ui.featureFlags);
   const hide = (button: HTMLButtonElement) => {
-    // De versie staat direct boven dit blok; daar komt de focus terug.
     const version = button.closest('.settings-content')?.querySelector<HTMLButtonElement>('[data-ops-settings-version]');
     applySetting('experimentalSettingsVisible', false, saveExperimentalSettingsVisible);
     version?.focus();
@@ -273,11 +238,8 @@ export function ExperimentalControl() {
   );
 }
 
-// --- Knoppen die een ander venster openen --------------------------------------------------------
-
 export function TourControl() {
   const { t } = useTranslation('common');
-  // Start altijd vanaf een schone body (zoals Backstage's eigen closeBackstage()), ongeacht de ingang.
   return (
     <div className="settings-button-row">
       <button className="settings-link" onClick={() => openFromSettings({ showTourOverlay: true, tourStepIndex: 0 })}>
@@ -287,7 +249,6 @@ export function TourControl() {
   );
 }
 
-/** Bewust een knop en geen eigen groep: de gemiddelde gebruiker heeft niets aan de downloadcijfers. */
 export function StatsControl() {
   const { t } = useTranslation('common');
   return (

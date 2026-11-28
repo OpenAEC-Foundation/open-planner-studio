@@ -66,3 +66,9 @@ jobs:
         run: |
           mkdir -p dist
           cargo test --manifest-path src-tauri/Cargo.toml launch_files
+
+      - name: Rust-tests van open_backup_folder
+        shell: bash
+        run: |
+          mkdir -p dist
+          cargo test --manifest-path src-tauri/Cargo.toml open_backup_folder

@@ -67,7 +67,7 @@ fn reveal_window_fallback(app: tauri::AppHandle) {
 /// De MCP-plugin leest `runtime.json` en `open-files.json` in `<appDataDir>/mcp/` en herkent een
 /// achtergebleven bestand aan een proces-id dat niet meer leeft (`docs/mcp-ontdekking.md`). Geen
 /// JS-API van Tauri of een plugin geeft dat id, en een command hiervoor zou nieuw publiek oppervlak
-/// zijn (AGENTS.md: precies vier commands). Daarom zet deze plugin zonder commands het id vóór de
+/// zijn (AGENTS.md: precies vijf commands). Daarom zet deze plugin zonder commands het id vóór de
 /// eerste regel app-code als alleen-lezen `window.__OPS_PROCESS__.pid`, net zoals `tauri-plugin-os`
 /// zijn platformgegevens injecteert. Alleen het hoofdframe; het id is geen geheim.
 fn process_info_plugin<R: tauri::Runtime>() -> tauri::plugin::TauriPlugin<R> {
@@ -154,6 +154,7 @@ fn main() {
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
         .plugin(tauri_plugin_clipboard_manager::init())
+        .plugin(tauri_plugin_opener::Builder::new().open_js_links_on_click(false).build())
         .plugin(process_info_plugin())
         // MCP-bridge-state (fase 1, Tauri-only): één actieve bridge of geen.
         .manage(mcp_bridge::BridgeState::default())
@@ -185,6 +186,7 @@ fn main() {
         .invoke_handler(tauri::generate_handler![
             commands::install_kind,
             commands::place_file::place_file_exclusive,
+            commands::open_backup_folder::open_backup_folder,
             mcp_bridge::mcp_bridge_start,
             mcp_bridge::mcp_bridge_stop,
         ])

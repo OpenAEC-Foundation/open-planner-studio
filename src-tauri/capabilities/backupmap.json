@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "backupmap-beschermd",
+  "description": "De backupmap $APPDATA/ai-backups zelf (niet wat eronder ligt: backupService verwijdert oude backups en lege submappen en dat moet blijven werken) en $APPDATA zelf mogen via fs rename en remove niet verplaatst of verwijderd worden, op elk platform (#1245). open_backup_folder controleert de map op het klikmoment en opent hem daarna; zonder deze deny kon de webview de map tussen controle en openen hernoemen/verwijderen en een ander object op dezelfde naam zetten. Mappen boven $APPDATA vallen onder de bestaande grens van knownbug 1775.",
+  "windows": ["main"],
+  "permissions": [
+    {
+      "identifier": "fs:allow-rename",
+      "deny": [{ "path": "$APPDATA" }, { "path": "$APPDATA/ai-backups" }]
+    },
+    {
+      "identifier": "fs:allow-remove",
+      "deny": [{ "path": "$APPDATA" }, { "path": "$APPDATA/ai-backups" }]
+    }
+  ]
+}

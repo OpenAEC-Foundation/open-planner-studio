@@ -12,16 +12,8 @@ import type { SettingEntry } from './catalog/types';
 import { matchesSearch, searchTerms, splitKeywords } from './catalog/settingsSearch';
 import { SettingRow, choiceOptionLabel } from './SettingRow';
 
-/** Hoe lang een instelling oplicht na een directe link (`openSettingsAt`). */
 const HIGHLIGHT_MS = 2000;
 
-/**
- * Eén gedeelde settings-UI die in alle drie de toegangspunten draait (tandwiel, Instellingen-lint →
- * dialoog, en Bestand → Backstage). Links de groepen, rechts de instellingen van de gekozen groep.
- * Zoeken of "Alleen gewijzigd" toont de passende instellingen uit alle groepen, per groep onder een
- * kop. Alle wijzigingen gelden meteen en worden bewaard; er is geen OK of Annuleren.
- * De instellingen zelf staan in `catalog/settingsCatalog.tsx`.
- */
 export function SettingsPanelContent() {
   const { t, i18n } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
@@ -29,14 +21,10 @@ export function SettingsPanelContent() {
   const [query, setQuery] = useState('');
   const [changedOnly, setChangedOnly] = useState(false);
   const [highlight, setHighlight] = useState<SettingId | null>(null);
-  // Een directe link naar een instelling die in haar groep verborgen is (bv. Schermverdeling buiten de
-  // modus Positie) laat haar zien tot je een andere groep kiest of gaat zoeken; oplichten duurt korter.
   const [revealed, setRevealed] = useState<SettingId | null>(null);
   const rootRef = useRef<HTMLDivElement>(null);
   const searchRef = useRef<HTMLInputElement>(null);
 
-  // Welke instellingen nu beschikbaar en gewijzigd zijn, als tekst zodat de selector alleen bij een
-  // echte verandering opnieuw rendert (de ui-state verandert ook om andere redenen).
   const availableIds = useAppStore(s => SETTINGS_CATALOG
     .filter(e => settingMet(e, s)).map(e => e.id).join(' '));
   const changedIds = useAppStore(s => SETTINGS_CATALOG
@@ -44,9 +32,7 @@ export function SettingsPanelContent() {
   const available = useMemo(() => new Set(availableIds.split(' ')), [availableIds]);
   const changed = useMemo(() => new Set(changedIds === '' ? [] : changedIds.split(' ')), [changedIds]);
 
-  // De zoekteksten per instelling in de huidige taal.
   const searchIndex = useMemo(() => new Map(SETTINGS_CATALOG.map(entry => [entry.id, searchTextsOf(entry, t)])),
-    // `i18n.language`: de teksten veranderen met de taal, ook als `t` dezelfde functie blijft.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [t, i18n.language]);
 
@@ -64,15 +50,11 @@ export function SettingsPanelContent() {
   const shown = SETTINGS_CATALOG.filter(visible);
   const shownGroups = filtering ? SETTINGS_GROUPS.filter(g => shown.some(e => e.group === g)) : [group];
 
-  // Directe link: een ander scherm zet `settingsFocusId` (via `openSettingsAt`). Het paneel gaat naar
-  // de groep, laat de instelling oplichten en geeft hem de focus; daarna is de link verbruikt.
   const focusId = useAppStore(s => s.ui.settingsFocusId);
   useEffect(() => {
     if (!focusId) return;
     setUI({ settingsFocusId: null });
     const linked = settingEntry(focusId);
-    // Een vergrendeld blok (Experimenteel) blijft verborgen; de link landt dan op het versienummer
-    // waarmee je het ontgrendelt.
     const locked = !!linked && settingHidden(linked, settingMet(linked, useAppStore.getState()));
     const entry = locked ? settingEntry('version') : linked;
     if (!entry) return;
@@ -87,15 +69,12 @@ export function SettingsPanelContent() {
     if (!highlight) return;
     const row = rootRef.current?.querySelector<HTMLElement>(`[data-ops-setting="${highlight}"]`);
     row?.scrollIntoView({ block: 'center' });
-    // De eerste bediening die werkt; staat alles uit (de instelling doet nu niets), dan de rij zelf.
     const control = row?.querySelector<HTMLElement>('input:not(:disabled), button:not(:disabled)');
     (control ?? row)?.focus({ preventScroll: true });
     const timer = window.setTimeout(() => setHighlight(null), HIGHLIGHT_MS);
     return () => window.clearTimeout(timer);
   }, [highlight]);
 
-  // "/" of Ctrl+F (Cmd+F) springt naar de zoekbalk zolang de instellingen open zijn, ook vanuit de kop
-  // en voet van de dialoog of de Backstage-navigatie. Niet als een ander venster erboven de focus heeft.
   useEffect(() => {
     const onKeyDown = (e: globalThis.KeyboardEvent) => {
       const root = rootRef.current;
@@ -114,7 +93,6 @@ export function SettingsPanelContent() {
     return () => document.removeEventListener('keydown', onKeyDown);
   }, []);
 
-  // Escape in een gevulde zoekbalk wist eerst de zoekterm; pas de volgende sluit de dialoog.
   const onSearchKeyDown = (e: KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Escape' && query !== '') {
       e.stopPropagation();
@@ -206,7 +184,6 @@ export function SettingsPanelContent() {
   );
 }
 
-/** Velden waarin "/" een teken is; in een vinkje, knop of keuzelijst is het de sneltoets. */
 const NON_TEXT_INPUTS = new Set(['checkbox', 'radio', 'button', 'submit', 'reset', 'range', 'color', 'file', 'image']);
 function isTextEntry(el: Element): boolean {
   if (el instanceof HTMLTextAreaElement) return true;
@@ -214,7 +191,6 @@ function isTextEntry(el: Element): boolean {
   return el instanceof HTMLElement && el.isContentEditable;
 }
 
-/** Alles waarop een instelling gevonden moet worden: naam, uitleg, keuzes, zoekwoorden en groep. */
 function searchTextsOf(entry: SettingEntry, t: ReturnType<typeof useTranslation<'common'>>['t']): string[] {
   const texts = [t(entry.labelKey), t(GROUP_LABEL_KEYS[entry.group])];
   if (entry.hintKey) texts.push(t(entry.hintKey));
