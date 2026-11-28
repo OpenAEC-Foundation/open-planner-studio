@@ -1,11 +1,3 @@
-// Audit "weergaven" bevinding 2: de standaardkolommen van de Tabel tonen dezelfde datums als de
-// Gantt-balk (`earlyStart || scheduleStart`), en een ander Einde verandert na F5 echt de planning.
-// Vóór de fix stonden de invoerankers "Geplande start/Gepland einde" in de standaardset: in het
-// instapvoorbeeld week elke bladtaak met een voorganger af van de balk, en een bewerking van
-// "Gepland einde" werd geaccepteerd maar deed na F5 niets.
-//
-// Echte events: het voorbeeld opent via Bestand → Voorbeelden, de Tabel via het lint, de cel via
-// klik + Enter + typen + Enter, en herberekenen via F5. De `__OPS__`-brug leest alleen state.
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
@@ -17,7 +9,6 @@ function taskCell(page: Page, taskId: string, columnId: string): Locator {
   );
 }
 
-/** `2027-05-24` of `2027-05-24T08:00` → `24-05-2027`, de dmy-notatie van de cel. */
 const dmy = (iso: string) => `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}`;
 
 async function openExample(page: Page, name: RegExp): Promise<void> {
@@ -35,7 +26,6 @@ async function shownTasks(page: Page): Promise<ShownTask[]> {
     const s = window.__OPS__!.store.getState();
     return s.tasks.map(task => ({
       id: task.id,
-      // Precies wat de Gantt-balk tekent: de berekende datum, anders het anker.
       start: task.time.earlyStart || task.time.scheduleStart,
       finish: task.time.earlyFinish || task.time.scheduleFinish,
       anchorStart: task.time.scheduleStart,
@@ -55,10 +45,8 @@ test('tabel: Start/Einde tonen de datums van de Gantt-balk, Einde bewerken verze
 
   const tasks = await shownTasks(page);
   const drifted = tasks.filter(task => task.leaf && !task.manual && task.preds > 0 && task.start !== task.anchorStart);
-  // Het voorbeeld is juist gekozen omdat de ankers daar afwijken van de berekende datums.
   expect(drifted.length).toBeGreaterThan(3);
 
-  // Elke gemounte rij: Start/Einde in de standaardkolommen = de datum van de Gantt-balk.
   const rowKeys = await surface(page).locator('[data-grid-data-row="true"]').evaluateAll(
     rows => rows.map(row => row.getAttribute('data-grid-row-key')!),
   );
@@ -73,10 +61,8 @@ test('tabel: Start/Einde tonen de datums van de Gantt-balk, Einde bewerken verze
     compared++;
   }
   expect(compared).toBeGreaterThan(3);
-  // De invoerankers staan niet meer in de standaardset.
   await expect(surface(page).locator('[data-grid-column-id="task.time.scheduleStart"]')).toHaveCount(0);
 
-  // Einde van een verschoven taak een week later zetten, op een werkdag van haar eigen kalender.
   const target = drifted[0];
   const newFinish = await page.evaluate(({ id, finish }) => {
     const s = window.__OPS__!.store.getState();
@@ -105,10 +91,9 @@ test('tabel: Start/Einde tonen de datums van de Gantt-balk, Einde bewerken verze
   await expect.poll(() => page.evaluate(id => {
     const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
     return task.time.earlyFinish || task.time.scheduleFinish;
-  }, target.id)).toBe(`${newFinish}T16:00`); // D2: opslag draagt het laatste blokeinde.
+  }, target.id)).toBe(`${newFinish}T16:00`);
   const after = (await shownTasks(page)).find(task => task.id === target.id)!;
   expect(after.start).toBe(target.start);
-  // Het ingevoerde einde blijft invoer: de fix leidt het niet af uit de berekende planning.
   expect(after.anchorFinish).toBe(target.anchorFinish);
   await expect(finishCell).toHaveText(dmy(newFinish));
 });
@@ -116,7 +101,6 @@ test('tabel: Start/Einde tonen de datums van de Gantt-balk, Einde bewerken verze
 test('tabel: Gepland einde van een automatisch geplande taak weigert met een reden', async ({ page, ops: _ops }) => {
   await openExample(page, /Refurbishment/i);
   const target = (await shownTasks(page)).find(task => task.leaf && !task.manual && task.preds > 0)!;
-  // Fixture: de kiesbare kolom zichtbaar maken, zoals via de kolomkiezer.
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     const columns = s.taskGridSurfaces['full-task-grid'].columns;

@@ -1,8 +1,3 @@
-// Voert een stapscript (`dsl.ts`) uit in de echte app: elke handeling is een echt browser-event (klik,
-// toets, sleep), elke controle wacht tot de app de toestand uit de tutorial heeft, en met `capture`
-// wordt elke uitsnede als WebP weggeschreven. De dev-brug (`window.__OPS__`) opent alleen de startstand
-// (dezelfde route als een `project://`-link in een tutorial: `openExampleFromString`) en leest de
-// toestand; hij vervangt nooit een handeling van de lezer.
 import { readFileSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { expect, type Locator, type Page } from '@playwright/test';
@@ -19,17 +14,12 @@ declare global {
 
 export interface RunOptions {
   lang: Lang;
-  /** Map met de standen van `gen:tutorial-project` (`<map>/<taal>/<stand>.ifc`). */
   stagesDir: string;
-  /** Uitvoermap voor de beelden (`<map>/<taal>/<naam>.webp`); weglaten = niets vastleggen. */
   captureDir?: string;
-  /** Kwaliteit van de WebP-codering (0–1; 1 = verliesvrij). */
   webpQuality?: number;
-  /** Map voor een volledige schermafdruk (PNG) na elke stap: hulp bij het kiezen van uitsneden. */
   debugDir?: string;
 }
 
-/** Ruime grens voor controles: rekenen en dialogen zijn asynchroon. */
 const CHECK_TIMEOUT = 10_000;
 
 const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -42,8 +32,6 @@ export function resolveTarget(page: Page, target: Target, lang: Lang): Locator {
     return base(target.within).getByRole(target.role, { name: pick(target.name, lang), exact: target.exact ?? true }).first();
   }
   if ('field' in target) {
-    // Labels in de app zijn niet aan hun veld gekoppeld (geen for/id): het veld is het eerstvolgende
-    // invoerelement ná het label (of ná een kopje met die tekst).
     return base(target.within)
       .locator('label, legend, h2, h3, h4, span', { hasText: exactRe(pick(target.field, lang)) })
       .first()
@@ -63,15 +51,12 @@ export function resolveTarget(page: Page, target: Target, lang: Lang): Locator {
   return page.getByRole('dialog').last();
 }
 
-/** xpath-letterlijke tekst (een naam kan een apostrof bevatten). */
 const xq = (s: string) => (s.includes("'") ? `"${s}"` : `'${s}'`);
 
-/** De rij van een taak in het takenraster (takenlijst in de Gantt-weergave, of de Tabel-weergave). */
 function taskRow(page: Page, task: string): Locator {
   return page.locator(`xpath=//*[@role='grid']//*[@role='row'][.//*[@data-grid-column-id='task.name'][normalize-space(.)=${xq(task)}]]`).first();
 }
 
-/** Een cel van het takenraster: de rij met de taaknaam, de kolom met de koptekst. */
 function tableCell(page: Page, task: string, column: string): Locator {
   const col = `//*[@role='grid']//*[@role='columnheader'][normalize-space(.)=${xq(column)}]/@aria-colindex`;
   return page.locator(`xpath=//*[@role='grid']//*[@role='row'][.//*[@data-grid-column-id='task.name'][normalize-space(.)=${xq(task)}]]/*[@role='gridcell'][@aria-colindex=${col}]`).first();
@@ -139,13 +124,9 @@ async function act(page: Page, action: Action, opts: RunOptions, where: string):
     const el = resolveTarget(page, action.select, lang);
     const option = pick(action.option, lang);
     if ((await el.evaluate(e => e.tagName)) === 'SELECT') {
-      // Een native keuzelijst: focussen (zoals een klik of Tab) en de optie kiezen.
       await el.focus();
       await el.selectOption({ label: option });
     } else {
-      // De eigen keuzelijst van de app (`aria-haspopup="listbox"`): openklikken, optie aanklikken. Een
-      // optie met een korte regel eronder (`hint`, bijv. bij *Taaktype*) heeft meer tekst dan haar label:
-      // die vinden we aan het label zelf.
       await el.click();
       const exact = exactRe(option);
       const options = page.locator('[role="option"]:visible');
@@ -156,7 +137,6 @@ async function act(page: Page, action: Action, opts: RunOptions, where: string):
     return;
   }
   if ('date' in action) {
-    // Datumsegmenten springen zelf door naar het volgende vakje: typ alleen de cijfers.
     await resolveTarget(page, action.date, lang).click();
     await page.keyboard.type(pick(action.value, lang).replace(/\D/g, ''));
     return;
@@ -166,7 +146,6 @@ async function act(page: Page, action: Action, opts: RunOptions, where: string):
     return;
   }
   if ('dragColumnEdge' in action) {
-    // De breedtegreep aan de rechterrand van de kolomkop (4 px).
     const head = page.locator('[role="grid"] [role="columnheader"]', { hasText: exactRe(pick(action.dragColumnEdge.column, lang)) }).first();
     const box = await head.locator('.task-grid-resize-handle').boundingBox();
     if (!box) throw new Error(`breedtegreep van kolom ${pick(action.dragColumnEdge.column, lang)} niet in beeld`);
@@ -186,9 +165,6 @@ async function act(page: Page, action: Action, opts: RunOptions, where: string):
     return;
   }
   if ('histogramPick' in action) {
-    // De kiezer is getekend (HistogramRenderer: TOP_PAD 8, ROW_H 18 bij de standaard fontschaal; zelfde
-    // geometrie als gantt-histogram.spec.ts). Rij 0 is "Alle resources", daarna de resources van de
-    // (on)geselecteerde taken in projectvolgorde; zonder selectie dus alle resources.
     const name = pick(action.histogramPick, lang);
     const index = (await snapshot(page)).resources.findIndex(r => r.name === name);
     if (index < 0) throw new Error(`resource "${name}" bestaat niet`);
@@ -200,8 +176,6 @@ async function act(page: Page, action: Action, opts: RunOptions, where: string):
   }
 }
 
-/** Relatiemodus: van het midden van de ene balk naar het midden van de andere (Canvas; de brug geeft
- *  alleen de geometrie, de sleep is een echte muisbeweging). */
 async function dragBar(page: Page, from: string, to: string): Promise<void> {
   const point = async (name: string) => {
     let p: { x: number; y: number } | null = null;
@@ -224,7 +198,6 @@ async function dragBar(page: Page, from: string, to: string): Promise<void> {
   await page.mouse.up();
 }
 
-/** De toestand van het actieve document (alleen lezen). */
 export async function snapshot(page: Page): Promise<Snap> {
   return page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
@@ -318,7 +291,6 @@ async function verify(page: Page, check: Check, lang: Lang, where: string): Prom
   await expect(resolveTarget(page, check.gone, lang), `${where}: weg`).toHaveCount(0, { timeout: CHECK_TIMEOUT });
 }
 
-/** Opent een stand van de generator als nieuw document — dezelfde route als `project://` in een tutorial. */
 export async function openStage(page: Page, stagesDir: string, lang: Lang, stage: string): Promise<void> {
   const content = readFileSync(join(stagesDir, lang, `${stage}.ifc`), 'utf8');
   const ok = await page.evaluate(([c, n]) => window.__OPS__!.store.getState().openExampleFromString(c, n), [content, `${stage}.ifc`] as const);
@@ -346,15 +318,12 @@ async function capture(page: Page, shot: Shot, lang: Lang, dir: string, quality:
   x = Math.round(x); y = Math.round(y);
   const clip = { x, y, width: Math.round(right) - x, height: Math.round(bottom) - y };
   if (!shot.keepToasts) {
-    // Een melding van een eerdere handeling hoort niet in het beeld: sluiten met het kruisje, zoals
-    // de lezer dat kan (een klik op de melding zelf sluit hem niet meer, eigenaarsbesluit 2026-10-12).
     const toasts = page.locator('.ops-toast-stack > *');
     for (let i = 0; i < 10 && (await toasts.count()) > 0; i++) {
       await toasts.first().locator('[data-ops-toast-close]').click();
     }
     await expect(toasts).toHaveCount(0);
   }
-  // De muis weg van het onderwerp: geen hover-markering in het beeld.
   await page.mouse.move(vp.width - 2, 2);
   const png = await page.screenshot({ clip, animations: 'disabled', caret: 'hide' });
   const webp = await toWebp(page, png, quality);
@@ -362,7 +331,6 @@ async function capture(page: Page, shot: Shot, lang: Lang, dir: string, quality:
   writeFileSync(join(dir, lang, `${shot.name}.webp`), webp);
 }
 
-/** PNG → WebP met de encoder van Chromium zelf (geen extra afhankelijkheid). In een aparte, lege pagina. */
 async function toWebp(page: Page, png: Buffer, quality: number): Promise<Buffer> {
   const scratch = await page.context().newPage();
   try {
@@ -384,7 +352,6 @@ async function toWebp(page: Page, png: Buffer, quality: number): Promise<Buffer>
   }
 }
 
-/** De toestand die vergeleken wordt met de eindstand: alles wat de tutorial bouwt, niet de weergave. */
 export function documentFacts(s: Snap): unknown {
   return {
     projectName: s.projectName, startDate: s.startDate, statusDate: s.statusDate,
@@ -399,7 +366,6 @@ async function shoot(page: Page, shot: Shot, opts: RunOptions, where: string): P
   const before = page.viewportSize()!;
   if (shot.viewport) {
     await page.setViewportSize(shot.viewport);
-    // Twee frames: de app heeft dan op de nieuwe maat opnieuw ingedeeld en getekend.
     await page.evaluate(() => new Promise<void>(r => requestAnimationFrame(() => requestAnimationFrame(() => r()))));
   }
   try {
@@ -407,7 +373,6 @@ async function shoot(page: Page, shot: Shot, opts: RunOptions, where: string): P
       await capture(page, shot, opts.lang, opts.captureDir, opts.webpQuality ?? 0.9);
       return;
     }
-    // Zonder vastleggen toch controleren dat het onderwerp van elk beeld in beeld is.
     for (const t of Array.isArray(shot.of) ? shot.of : [shot.of]) {
       await expect(resolveTarget(page, t, opts.lang), `${where}: onderwerp van beeld ${shot.name}`).toBeVisible();
     }
@@ -426,7 +391,6 @@ async function runActions(page: Page, actions: Action[], opts: RunOptions, where
   }
 }
 
-/** Eén stap: de handelingen, de controles, de beeldhandelingen en de beelden. */
 export async function runStep(page: Page, script: TutorialScript, step: Step, index: number, opts: RunOptions): Promise<void> {
   const where = `${script.id} [${opts.lang}] stap ${index + 1} (${step.id})`;
   await runActions(page, step.do, opts, where, 'handeling');
@@ -439,10 +403,6 @@ export async function runStep(page: Page, script: TutorialScript, step: Step, in
   }
 }
 
-/**
- * Draait het hele script. De pagina moet de app al geladen hebben (taal en licht thema gezet). Na de
- * laatste stap moet het project exact gelijk zijn aan de eindstand van de generator.
- */
 export async function runTutorial(page: Page, script: TutorialScript, opts: RunOptions): Promise<void> {
   if (script.start) await openStage(page, opts.stagesDir, opts.lang, script.start);
   for (const [i, step] of script.steps.entries()) await runStep(page, script, step, i, opts);

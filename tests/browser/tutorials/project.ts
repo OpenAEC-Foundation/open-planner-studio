@@ -1,5 +1,3 @@
-// Het tutorialproject *Aanbouw woning* / *House extension*: de namen zoals de tutorial ze laat typen (gelijk
-// aan `scripts/tutorial-project.ts`; wijkt er één af, dan faalt de vergelijking met de eindstand).
 import { l, type L, type Lang, type Snap } from './dsl';
 
 export const PROJECT = l('Aanbouw woning', 'House extension');
@@ -63,7 +61,6 @@ export interface TaskExpect {
   actualFinish?: string | null;
 }
 
-/** Afwijkingen van één taak ten opzichte van wat de tutorial zegt (lege lijst = in orde). */
 export function taskIs(s: Snap, lang: Lang, name: L, want: TaskExpect): string[] {
   const t = s.tasks.find(x => x.name === name[lang]);
   if (!t) return [`taak "${name[lang]}" ontbreekt`];
@@ -77,12 +74,11 @@ export function taskIs(s: Snap, lang: Lang, name: L, want: TaskExpect): string[]
   cmp('fase', t.parent, want.parent === undefined ? undefined : want.parent === null ? null : want.parent[lang]);
   cmp('duur (werkdagen)', t.days, want.days);
   cmp('duur (minuten)', t.minutes, want.minutes);
-  // D1/D2/D7: de tutorialkalender is 07:00–16:00; expliciete tijden blijven exact.
   const instant = (value: string | null | undefined, end: boolean, actual = false) => {
     if (!value || value.includes('T')) return value;
     const loose = !s.links.some(link => link.includes(` → ${t.name} `));
     const atEnd = t.milestone && t.days === 0
-      ? t.milestoneKind === 'FINISH' || (!actual && loose) // B6
+      ? t.milestoneKind === 'FINISH' || (!actual && loose)
       : end;
     return `${value}T${atEnd ? '16:00' : '07:00'}`;
   };

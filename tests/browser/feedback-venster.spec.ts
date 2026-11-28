@@ -1,11 +1,6 @@
 import { expect, test, seedProject } from './fixtures/ops';
 import type { Locator, Page, Request, Route } from '@playwright/test';
 
-// Het feedbackvenster: bewaard concept, Leegmaken, drie soorten, hint bij de grijze knop,
-// de regel Meegestuurd, Afdekken en Annuleren in de editor. Elke test vangt de API af met
-// `page.route`: er gaat NOOIT een echte melding naar productie. De handelingen zijn echte klikken
-// en toetsaanslagen; de verstuurde body lezen we uit het afgevangen verzoek.
-
 const ENDPOINT = 'https://open-feedback-studio.pages.dev/api/feedback';
 const TITLE = 'Balk springt terug';
 const DESCRIPTION = 'Na slepen van de balk staat hij weer op de oude plek.';
@@ -66,7 +61,6 @@ async function seed(page: Page) {
   ]);
 }
 
-/** Sleep op het editorcanvas van (fx0,fy0) naar (fx1,fy1), als fracties van het canvas. */
 async function dragOnCanvas(page: Page, fx0: number, fy0: number, fx1: number, fy1: number) {
   const canvas = page.locator('canvas.annotator-editor-canvas');
   await expect.poll(() => canvas.evaluate(el => (el as HTMLCanvasElement).width)).toBeGreaterThan(0);
@@ -93,13 +87,11 @@ test('concept blijft na Esc en heropenen; Leegmaken wist het', async ({ page, op
   await expect(dialog.getByLabel('Description')).toHaveValue(DESCRIPTION);
   await expect(dialog.getByRole('button', { name: 'Idea' })).toHaveAttribute('aria-pressed', 'true');
 
-  // Het kruisje (Bewaren en sluiten) bewaart het concept ook.
   await dialog.locator('.feedback-dialog-header').getByRole('button', { name: 'Save and close' }).click();
   await expect(dialog).toBeHidden();
   dialog = await openDialog(page);
   await expect(dialog.getByLabel('Title')).toHaveValue(TITLE);
 
-  // De voetknop Bewaren en sluiten ook (er is geen Annuleren meer in het venster).
   await expect(dialog.locator('.feedback-dialog-footer').getByRole('button', { name: 'Cancel' })).toHaveCount(0);
   await dialog.locator('.feedback-dialog-footer').getByRole('button', { name: 'Save and close' }).click();
   await expect(dialog).toBeHidden();
@@ -112,7 +104,6 @@ test('concept blijft na Esc en heropenen; Leegmaken wist het', async ({ page, op
   await expect(dialog.getByRole('button', { name: "Something's not working" })).toHaveAttribute('aria-pressed', 'true');
   await expect(dialog.getByRole('button', { name: 'Clear', exact: true })).toHaveCount(0);
 
-  // Ook na sluiten en heropenen blijft het leeg.
   await page.keyboard.press('Escape');
   dialog = await openDialog(page);
   await expect(dialog.getByLabel('Title')).toHaveValue('');
@@ -127,7 +118,6 @@ test('soort Vraag of opmerking stuurt category general; na versturen is het conc
   await typeInto(page, dialog.getByLabel('Title'), TITLE);
   await typeInto(page, dialog.getByLabel('Description'), DESCRIPTION);
 
-  // De regel Meegestuurd toont wat de metaregel meestuurt.
   const metaLine = dialog.locator('[data-feedback-meta]');
   await expect(metaLine).toHaveText(/^Sent along: v\S+ · .+ · English$/);
   const shownOs = (await metaLine.textContent())!.split(' · ')[1];
@@ -182,11 +172,8 @@ test('afdekken: het gebied is egaal in de verstuurde afbeelding', async ({ page,
 
   await dialog.getByRole('button', { name: 'Annotate' }).click();
   await page.locator('.annotator-editor').getByRole('button', { name: 'Cover' }).click();
-  // Een vlak over het midden-links van de app (raster en kop: daar staat tekst).
   await dragOnCanvas(page, 0.02, 0.05, 0.45, 0.6);
   const editor = page.locator('.annotator-editor');
-  // Alleen het losse uitvoercanvas faalt; het tekenvlak en de rest van de app blijven werken.
-  // Elke fout wordt één keer geïnjecteerd, zodat dezelfde bewerking daarna opnieuw kan slagen.
   for (const failure of ['context', 'image', 'export', 'empty'] as const) {
     await page.evaluate((failure) => {
       const proto = HTMLCanvasElement.prototype;
@@ -225,8 +212,6 @@ test('afdekken: het gebied is egaal in de verstuurde afbeelding', async ({ page,
     expect(seen).toHaveLength(0);
     await expect(editor.getByTitle('Undo')).toBeEnabled();
   }
-  // Houd de echte afbeeldingscallback vast: dubbel Klaar, Annuleren en Esc mogen tijdens
-  // het verwerken geen tweede save starten of de editor voortijdig sluiten.
   await page.evaluate((rawSrc) => {
     const descriptor = Object.getOwnPropertyDescriptor(HTMLImageElement.prototype, 'src')!;
     const pending: (() => void)[] = [];
@@ -260,7 +245,6 @@ test('afdekken: het gebied is egaal in de verstuurde afbeelding', async ({ page,
   await expect.poll(() => page.evaluate(() => ({
     started: window.__annotationSaveGate?.started, waiting: window.__annotationSaveGate?.waiting,
   }))).toEqual({ started: 1, waiting: 1 });
-  // Echte muisklik op de inmiddels inert gemaakte Annuleren-knop, zonder Playwright-wacht op enabled.
   await page.mouse.click(cancelBox.x + cancelBox.width / 2, cancelBox.y + cancelBox.height / 2);
   await expect(editor).toBeVisible();
   await page.keyboard.press('Escape');
@@ -268,7 +252,6 @@ test('afdekken: het gebied is egaal in de verstuurde afbeelding', async ({ page,
   await expect(thumb).toHaveAttribute('src', rawSrc);
   await expect(dialog.getByRole('button', { name: 'Send', exact: true })).toBeDisabled();
   expect(seen).toHaveLength(0);
-  // Pas nu mag flatten voltooien. De pixelcontrole hieronder bewijst dat de afdekking is behouden.
   await page.evaluate(() => window.__annotationSaveGate!.release());
   await expect(editor).toHaveCount(0);
   expect(await page.evaluate(() => ({
@@ -283,7 +266,6 @@ test('afdekken: het gebied is egaal in de verstuurde afbeelding', async ({ page,
   const b64 = Buffer.from(await files[0].arrayBuffer()).toString('base64');
   const type = files[0].type;
 
-  // Lees de verstuurde afbeelding en meet een raster van punten binnen het afgedekte gebied.
   const sample = (src: string) => page.evaluate(async (src) => {
     const bmp = await createImageBitmap(await (await fetch(src)).blob());
     const c = document.createElement('canvas');
@@ -299,7 +281,6 @@ test('afdekken: het gebied is egaal in de verstuurde afbeelding', async ({ page,
     }
     return out;
   }, src);
-  // Tegencontrole: in het ruwe screenshot is dat gebied niet egaal zwart.
   const raw = await sample(rawSrc);
   expect(raw.some(([r, g, b]) => Math.max(r, g, b) > 40), 'het ruwe gebied hoort inhoud te hebben').toBe(true);
   const samples = await sample(`data:${type};base64,${b64}`);
@@ -320,7 +301,6 @@ test('annuleren in de editor gooit een getekende vorm weg; Esc sluit alleen de e
   const editor = page.locator('.annotator-editor');
   const undo = editor.getByTitle('Undo');
 
-  // Ronde 1: tekenen en Annuleren.
   await dialog.getByRole('button', { name: 'Annotate' }).click();
   await editor.getByRole('button', { name: 'Rectangle' }).click();
   await dragOnCanvas(page, 0.2, 0.2, 0.5, 0.5);
@@ -331,7 +311,6 @@ test('annuleren in de editor gooit een getekende vorm weg; Esc sluit alleen de e
   await dialog.getByRole('button', { name: 'Annotate' }).click();
   await expect(undo).toBeDisabled();
 
-  // Ronde 2: tekenen en Esc — de editor sluit, het venster blijft open.
   await editor.getByRole('button', { name: 'Rectangle' }).click();
   await dragOnCanvas(page, 0.2, 0.2, 0.5, 0.5);
   await expect(undo).toBeEnabled();
@@ -340,7 +319,6 @@ test('annuleren in de editor gooit een getekende vorm weg; Esc sluit alleen de e
   await expect(dialog).toBeVisible();
   expect(await thumb.getAttribute('src')).toBe(before);
 
-  // Ronde 3: tekenen en Klaar — de vorm blijft, ook na sluiten en heropenen van het venster.
   await dialog.getByRole('button', { name: 'Annotate' }).click();
   await expect(undo).toBeDisabled();
   await editor.getByRole('button', { name: 'Rectangle' }).click();
@@ -356,14 +334,12 @@ test('annuleren in de editor gooit een getekende vorm weg; Esc sluit alleen de e
   await expect(undo).toBeEnabled();
   await editor.getByRole('button', { name: 'Cancel' }).click();
 
-  // Opnieuw maken wist de annotaties.
   await again.getByRole('button', { name: 'Retake' }).click();
   await expect(again.locator('.screenshot-annotator-thumb-img')).toBeVisible({ timeout: 20_000 });
   await again.getByRole('button', { name: 'Annotate' }).click();
   await expect(undo).toBeDisabled();
   await editor.getByRole('button', { name: 'Cancel' }).click();
 
-  // Weghalen zet het vinkje uit.
   await again.getByRole('button', { name: 'Remove' }).click();
   await expect(again.getByLabel('Attach screenshot')).not.toBeChecked();
   await expect(again.locator('.screenshot-annotator-thumb-img')).toHaveCount(0);
@@ -385,8 +361,6 @@ test('editor open: Tab bereikt Versturen niet en Enter verstuurt niets; na Klaar
   await editor.getByRole('button', { name: 'Cover' }).click();
   await dragOnCanvas(page, 0.02, 0.05, 0.45, 0.6);
 
-  // Probeer met het toetsenbord bij Versturen te komen, vooruit en achteruit. Komt de focus daar
-  // toch, dan drukt de test op Enter (zo vond de review de fout).
   for (const key of ['Tab', 'Shift+Tab']) {
     for (let i = 0; i < 30; i++) {
       await page.keyboard.press(key);
@@ -436,7 +410,7 @@ test('onzeker hoort bij het concept: na heropenen geen GitHub, een 409 geeft al 
   const hanging: Route[] = [];
   await page.route(ENDPOINT, async route => {
     calls += 1;
-    if (calls === 1) { hanging.push(route); return; } // eerste poging: geen antwoord op tijd
+    if (calls === 1) { hanging.push(route); return; }
     await route.fulfill({
       status: 409, contentType: 'application/json',
       headers: { 'access-control-allow-origin': '*' }, body: JSON.stringify({ error: 'Duplicate feedback' }),
@@ -460,12 +434,11 @@ test('onzeker hoort bij het concept: na heropenen geen GitHub, een 409 geeft al 
   await expect(dialog.getByLabel('Description')).toHaveValue(DESCRIPTION);
   expect(calls).toBe(2);
 
-  // Sluiten vanuit "al binnen": de melding is binnen, dus het concept is weg.
   await dialog.locator('.feedback-dialog-footer').getByRole('button', { name: 'Close', exact: true }).click();
   await expect(dialog).toBeHidden();
   dialog = await openDialog(page);
   await expect(dialog.getByLabel('Title')).toHaveValue('');
-  for (const r of hanging) await r.abort().catch(() => { /* al afgebroken door de client */ });
+  for (const r of hanging) await r.abort().catch(() => { });
 });
 
 test('na Klaar, Annuleren en Esc staat de focus op Annoteren en blijft Tab in het venster', async ({ page, ops }) => {
@@ -501,7 +474,6 @@ test('na Klaar, Annuleren en Esc staat de focus op Annoteren en blijft Tab in he
     }
     await annotate.focus();
   }
-  // Niets achter het venster is geopend.
   await expect(page.getByRole('dialog')).toHaveCount(1);
 });
 
@@ -579,10 +551,6 @@ test('sluitknop: een soort kiezen is geen inhoud', async ({ page, ops }) => {
   }
 });
 
-// Echte toetsaanslagen (CDP `Input.dispatchKeyEvent`, wat ook `page.keyboard` gebruikt), maar elke
-// toets direct na de vorige, zonder op de pagina te wachten. Zo typt een snelle typist, en zo liep
-// de CI vast: een extra render per toets bleef open tot de volgende toets. React telde elke toets
-// dan als geneste update en gooide na 50 toetsen "Maximum update depth exceeded"; een teken viel weg.
 async function typeFast(page: Page, text: string) {
   const cdp = await page.context().newCDPSession(page);
   const sent: Array<Promise<unknown>> = [];
@@ -597,7 +565,6 @@ async function typeFast(page: Page, text: string) {
 test('snel typen: geen teken valt weg en React blijft onder de grens voor geneste updates', async ({ page, ops }) => {
   void ops;
   const dialog = await openDialog(page);
-  // Ruim boven de grens van 50: twee keer de omschrijving, 107 tekens.
   const LONG = `${DESCRIPTION} ${DESCRIPTION}`;
   await dialog.getByLabel('Description').click();
   await typeFast(page, LONG);

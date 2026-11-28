@@ -1,5 +1,3 @@
-// Tutorial 2 — Relaties en het kritieke pad (`tut-2-relaties-kritiek-pad`): relaties en lag, Bereken (F5),
-// kritiek pad en speling lezen.
 import { l, same, type Action, type L, type Snap, type Lang, type TutorialScript } from './dsl';
 import { T, taskIs } from './project';
 
@@ -7,12 +5,10 @@ const statusBar = { anchor: 'status-bar' } as const;
 const PRED = l('Voorgangers', 'Predecessors');
 const DURATION = l('Duur', 'Duration');
 
-/** Een relatie zoals de snapshot hem schrijft (Eind-Start, lag in werkdagen). */
 const fs = (pred: L, succ: L, lag = 0) => (lang: Lang) => `${pred[lang]} → ${succ[lang]} FINISH_START ${lag}`;
 const linksPresent = (links: ((lang: Lang) => string)[]) => (s: Snap, lang: Lang) =>
   links.map(f => f(lang)).filter(want => !s.links.includes(want)).map(want => `relatie ontbreekt: ${want}`);
 
-/** Typ in de kolom Voorgangers vanaf de cel van `first` naar beneden (Enter gaat naar de cel eronder). */
 const typeDown = (first: L, values: string[]): Action[] => [
   { click: { cell: { task: first, column: PRED } } },
   ...values.flatMap((v): Action[] => [{ type: v }, { press: 'Enter' }]),
@@ -56,7 +52,6 @@ export const TUTORIAL_2: TutorialScript = {
       ],
       expect: [
         { state: linksPresent([fs(T.start, T.site)]) },
-        // Een geslaagde relatie meldt zich niet meer (eigenaarsbesluit 2026-10-12): de pijl toont hem al.
         { notSee: { css: 'body' }, text: l('Relatie aangemaakt', 'Relation created') },
         { see: statusBar, text: l('Verouderd — herbereken (F5)', 'Out of date — recalculate (F5)') },
       ],
@@ -72,7 +67,6 @@ export const TUTORIAL_2: TutorialScript = {
         ) } },
         { dragBar: { from: T.site, to: T.garden } },
         { waitFor: { text: l('Type relatie', 'Relation type') } },
-        // Staat er nog een melding, dan zou het kruisje aanklikken ook dit venstertje sluiten.
         { shot: { name: 'tut-2-type-relatie', of: { text: l('Type relatie', 'Relation type') }, pad: 120, keepToasts: true } },
         { press: 'Enter' },
         { dragBar: { from: T.garden, to: T.setout } },

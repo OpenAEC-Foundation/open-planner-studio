@@ -20,14 +20,6 @@ declare global {
   }
 }
 
-/**
- * De dialoog bevraagt de GitHub Releases-API voor de releasevergelijking (grootteverschil, tijd
- * tussen releases). Onbevoegd is die API op een gedeelde CI-runner rate-limited (403) en achter
- * een sandboxproxy niet vertrouwd (ERR_CERT_AUTHORITY_INVALID); beide geven een console.error die
- * de harness als fout telt, terwijl deze tests niets uit die vergelijking asserteren. Antwoord
- * daarom deterministisch met een lege lijst — de pure functies erachter zijn headless getest in
- * tests/planning/check-just-updated.ts.
- */
 async function stubReleasesApi(page: Page): Promise<void> {
   await page.route('https://api.github.com/repos/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
 }
@@ -36,8 +28,6 @@ async function selectLocale(page: Page, option: string, expectedLocale: string):
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settings = page.locator('.settings-dialog');
   await expect(settings).toBeVisible();
-  // Taal zit sinds U1 op de Weergave-tab (tab 0, standaard al actief) samen met andere Selects,
-  // dus scopen op de aria-label i.p.v. de eerste listbox-knop op de tab.
   await settings.locator('.settings-tab').nth(0).click();
   await settings.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
   await page.getByRole('option', { name: option, exact: true }).click();
@@ -97,8 +87,6 @@ test('update-highlights werken smal, licht/donker en RTL', async ({ page, ops: _
   await expect(dialog.evaluate(element => element.scrollWidth <= element.clientWidth)).resolves.toBe(true);
 });
 
-// Besluit eigenaar 2026-10-19: vanaf 2026.10.0 hebben de hoogtepunten alle 28 UI-talen; oudere
-// blokken houden hun veertien en vallen voor een nieuwere taal terug op Engels.
 test('update-highlights: nieuwe taal toont 2026.10.0, een ouder blok valt terug op Engels', async ({ page, ops: _ops }) => {
   await stubReleasesApi(page);
   await selectLocale(page, 'SV — Svenska', 'sv');
@@ -114,11 +102,6 @@ test('update-highlights: nieuwe taal toont 2026.10.0, een ouder blok valt terug 
   await expect(dialog.getByText('Edit faster in one shared task grid')).toBeVisible();
 });
 
-// Eerste start met een bestaande `ops-lastVersion` maar zonder `ops-welcomeSeen` (bv. opslag
-// gedeeltelijk gewist): "Net bijgewerkt" wacht op de hele eerste-startervaring (`isOnboardingActive`)
-// — eerst welkom, rondleiding en tutorialvraag, pas daarna de updatehoogtepunten. De detectie zelf
-// (`useUpdateCheck`) is Tauri-only en headless getest in check-just-updated.ts; hier zet de dev-brug
-// haar uitkomst, direct na het laden, nog vóór de welkomst open is.
 test('"Net bijgewerkt" pas na welkomst, rondleiding en tutorialvraag', async ({ page, ops: _ops }) => {
   await stubReleasesApi(page);
   await page.route('https://raw.githubusercontent.com/**', route => route.fulfill({ status: 404, contentType: 'text/plain', body: 'not found' }));
@@ -141,14 +124,11 @@ test('"Net bijgewerkt" pas na welkomst, rondleiding en tutorialvraag', async ({ 
   await expect(justUpdated).toBeVisible();
 });
 
-// Andere route dan de highlights hierboven: een beschikbare update installeren. De desktop-API's
-// krijgen testdoubles; de echte UpdateDialog en updaterService blijven draaien in de browser.
 test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bij pakketbeheer', async ({ page, ops: _ops }) => {
   const dialog = page.getByRole('dialog').filter({ hasText: /Software[- ]update/ });
   const install = dialog.getByRole('button', { name: /^(Download & install|Downloaden & installeren)$/ });
   const closeButtons = dialog.getByRole('button', { name: /^(Close|Sluiten)$/ });
   const progress = dialog.getByRole('progressbar');
-  // Zonder desktop-API blijft de bestaande webroute een no-op.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showUpdateDialog: true }));
   await expect(dialog.getByText("You're running the latest version", { exact: true })).toBeVisible();
   await expect(install).toHaveCount(0);
@@ -192,7 +172,6 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
   await page.route('**/src/services/updater/updaterService.ts*', async route => {
     const response = await route.fetch();
     let body = await response.text();
-    // Alleen de externe afhankelijkheden van deze service vervangen; de app blijft een webbuild.
     for (const [pattern, name] of [
       [/(["'])\/src\/utils\/platform\.ts(?:\?[^"']*)?\1/g, 'platform'],
       [/(["'])\/src\/services\/recovery\/recoveryFlush\.ts(?:\?[^"']*)?\1/g, 'recovery'],
@@ -206,7 +185,6 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
   });
   await page.reload();
   await waitForOps(page);
-  // Eerst het welkomstvenster laten komen, dan pas verbergen (zie `waitForWelcomeDialog`).
   await waitForWelcomeDialog(page);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({
     showWelcomeDialog: false, showTourOverlay: false, showUpdateDialog: true,
@@ -214,11 +192,9 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
   await expect(dialog.getByText('A new version is available', { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.updaterProbe.detections.length)).toBeGreaterThan(0);
   const detections = await page.evaluate(() => window.updaterProbe.detections.length);
-  // De updatecheck is al klaar, de Arch-detectie nog niet: er is geen installeerknop.
   await expect(install).toHaveCount(0);
   await expect.poll(() => page.evaluate(() => window.updaterProbe.calls)).toEqual([]);
 
-  // Onafhankelijke servicecontrole: ook een rechtstreekse aanroep moet op detectie wachten.
   await page.evaluate(async () => {
     const moduleUrl = '/src/services/updater/updaterService.ts';
     const service = await import(moduleUrl) as typeof import('@/services/updater/updaterService');
@@ -263,7 +239,6 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
     await expectLocked();
   };
 
-  // Snap houdt dezelfde blokkade; een bekende native installatie hoeft geen tijdslimiet af te wachten.
   for (const kind of ['snap', 'native'] as const) {
     await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
     await page.evaluate(kind => {
@@ -291,7 +266,6 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
       await sendDownloadEvent({ event: 'Progress', data: { chunkLength: 750 } });
       await expect(progress).toHaveAttribute('aria-valuenow', '100');
       await expect(dialog.getByText('100%', { exact: true })).toBeVisible();
-      // Finished is alleen het einde van de bytes; de handtekeningcontrole kan nog mislukken.
       await sendDownloadEvent({ event: 'Finished' });
       await expectPhase('Preparing installation…');
       await expect.poll(() => page.evaluate(() => window.updaterProbe.calls)).toEqual(['download']);
@@ -312,7 +286,6 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
     }
   }
 
-  // Een mislukte herstart laat opnieuw controleren toe. Zonder contentLength geen verzonnen 0%.
   await dialog.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(install).toBeVisible();
   await page.evaluate(() => { window.updaterProbe.calls = []; window.updaterProbe.steps = {}; });
@@ -328,8 +301,6 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
   await expect(dialog.getByText('Test signature failure', { exact: true })).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.updaterProbe.calls)).toEqual(['download']);
   await expect(dialog.getByRole('status')).toHaveCount(0);
-  // Knownbug 203: een afgewezen herstelronde mag nooit installeren of herstarten.
-  // Dit loopt door de echte service en dialoog, niet een gekopieerde beslisregel.
   await dialog.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(install).toBeEnabled();
   await page.evaluate(() => { window.updaterProbe.calls = []; window.updaterProbe.steps = {}; });
@@ -345,7 +316,6 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
   await expect(closeButtons.first()).toBeEnabled();
   await expect(closeButtons.last()).toBeEnabled();
 
-  // Na de fout opnieuw via dezelfde knop: een geslaagde flush staat installatie weer toe.
   await dialog.getByRole('button', { name: 'Try again', exact: true }).click();
   await expect(install).toBeEnabled();
   await page.evaluate(() => { window.updaterProbe.calls = []; window.updaterProbe.steps = {}; });
@@ -361,7 +331,6 @@ test('bijwerken toont voortgang, installatie en herstart; AUR en Snap blijven bi
   await closeButtons.last().click();
   await expect(dialog).toHaveCount(0);
 
-  // Dezelfde installatie in het Nederlands; .deb houdt zijn handmatige terugval na een fout.
   await selectLocale(page, 'NL — Nederlands', 'nl');
   await page.evaluate(() => {
     window.updaterProbe.kind = 'deb';

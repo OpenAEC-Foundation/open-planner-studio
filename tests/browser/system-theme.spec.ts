@@ -1,13 +1,3 @@
-// Thema "Systeem": de app volgt `prefers-color-scheme` van het OS/de browser.
-//
-// Twee dingen die alleen een echte browser kan aantonen en die de headless batterij
-// (`tests/planning/check-system-theme.ts`) dus niet dekt:
-//  1. een LIVE systeemwissel bereikt zowel de DOM-chrome (`data-theme`) als de Canvas-2D-laag;
-//  2. bij het opstarten staat het juiste thema er al vóór de eerste paint — de pre-paint-spiegel
-//     in index.html, die anders precies bij de systeemvolger de flits van issue #61 terugbrengt.
-//
-// De systeemwissel is een echte omgevingswijziging (`page.emulateMedia`), geen store-fixture; de
-// themakeuze zelf is een echte klik op de themakaart.
 import type { Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 
@@ -28,13 +18,11 @@ function canvasDataUrl(page: Page): Promise<string> {
 }
 
 async function chooseSystemTheme(page: Page): Promise<void> {
-  // Het openen mag fixturematig; de geteste gebruikershandeling is de echte klik op de schakelaar.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const settings = page.getByRole('dialog');
   await expect(settings).toBeVisible();
   await settings.locator('[data-ops-follow-system-theme]').check();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.uiTheme)).toBe('system');
-  // De drie themakaarten zijn geen keuze meer zolang de schakelaar aanstaat.
   for (const id of ['dark', 'light', 'high-contrast']) {
     await expect(settings.locator(`[data-ops-theme-card="${id}"]`)).toBeDisabled();
   }
@@ -56,7 +44,6 @@ test('een systeemwissel stuurt zowel de DOM-chrome als het Gantt-canvas', async 
   await page.emulateMedia({ colorScheme: 'dark' });
   await expect.poll(() => documentTheme(page)).toBe('dark');
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.systemPrefersDark)).toBe(true);
-  // De voorkeur zelf blijft 'system'; alleen de resolutie beweegt mee.
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.uiTheme)).toBe('system');
   await expect.poll(() => paintCount(page)).toBeGreaterThan(beforePaint);
   await expect.poll(() => canvasDataUrl(page)).not.toBe(beforeCanvas);
@@ -76,14 +63,11 @@ test('de schakelaar uitzetten houdt het thema dat op het scherm staat', async ({
   const settings = page.getByRole('dialog');
   await settings.locator('[data-ops-follow-system-theme]').uncheck();
 
-  // Geen sprong: de voorkeur wordt het thema dat het systeem zojuist opleverde, en de kaarten
-  // zijn weer kiesbaar met precies díé kaart gemarkeerd.
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.uiTheme)).toBe('dark');
   expect(await documentTheme(page)).toBe('dark');
   await expect(settings.locator('[data-ops-theme-card="dark"]')).toBeEnabled();
   await expect(settings.locator('[data-ops-theme-card="dark"]')).toHaveAttribute('aria-pressed', 'true');
 
-  // En daarna volgt hij het systeem niet meer.
   await page.emulateMedia({ colorScheme: 'light' });
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.systemPrefersDark)).toBe(false);
   expect(await documentTheme(page)).toBe('dark');
@@ -108,19 +92,11 @@ test('bij het opstarten staat het systeemthema er vóór de eerste paint', async
     localStorage.setItem('ops-theme', 'system');
     localStorage.setItem('ops-welcomeSeen', 'true');
   });
-  // Licht, want de terugval zonder pre-paint is donker: alleen zo bewijst het spoor iets.
   await page.emulateMedia({ colorScheme: 'light' });
 
-  // Registreer élke waarde die `data-theme` ooit heeft gehad, vanaf documentcreatie. Zou de
-  // pre-paint-spiegel de systeemvoorkeur niet kennen, dan staat er eerst 'dark' zonder reden of
-  // — bij een licht systeem — 'light' vóór React: precies de flits die dit voorkomt.
   await page.addInitScript(() => {
     const trail: (string | null)[] = [];
     (window as unknown as { __themeTrail: (string | null)[] }).__themeTrail = trail;
-    // Op dit moment bestaat `<html>` nog niet (het initscript draait bij documentcreatie), dus
-    // observeren we het document zelf met `subtree` en lezen we het attribuut pas als er iets is.
-    // `data-theme` en `data-oa-theme` als paar: de brugblokken hangen aan het tweede attribuut,
-    // dus ook dat moet er vóór de eerste paint staan.
     const push = () => {
       const root: HTMLElement | null = document.documentElement;
       if (root) trail.push(`${root.getAttribute('data-theme')}|${root.getAttribute('data-oa-theme')}`);
@@ -140,10 +116,6 @@ test('bij het opstarten staat het systeemthema er vóór de eerste paint', async
   const trail = await page.evaluate(
     () => (window as unknown as { __themeTrail: (string | null)[] }).__themeTrail,
   );
-  // `null|null` = de attributen bestonden nog niet (de observer start vóór het pre-paint-script).
-  // De observer meldt pas ná het hele script, dus beide attributen horen er samen te staan; een
-  // `light|null` betekent dat pas React `data-oa-theme` zette. De eerste eis maakt de tweede pas
-  // zinvol: een leeg spoor zou de filtercheck vacuüm groen maken.
   expect(trail).toContain('light|light');
   expect(trail.filter(value => value !== 'null|null' && value !== 'light|light')).toEqual([]);
 });

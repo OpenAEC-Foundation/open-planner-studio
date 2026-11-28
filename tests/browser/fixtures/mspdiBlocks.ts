@@ -1,9 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect } from './ops';
 
-// Gedeelde fixture voor het kalendervenster met werkblokken: een MSPDI-bestand (MS Project XML) met
-// blokken per weekdag, geopend via de knop Openen en de echte bestandskiezer. Gebruikt door
-// calendar-dialog.spec.ts en time-notation.spec.ts.
 export function mspdiWithBlocks(blocks: [string, string][], fridayBlocks: [string, string][] = blocks): string {
   const times = (list: [string, string][]) => '<WorkingTimes>' + list.map(([from, to]) =>
     `<WorkingTime><FromTime>${from}:00</FromTime><ToTime>${to}:00</ToTime></WorkingTime>`).join('') + '</WorkingTimes>';

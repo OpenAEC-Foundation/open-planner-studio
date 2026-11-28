@@ -66,7 +66,6 @@ export interface OpsStateSnapshot {
 }
 
 export interface OpsHarness {
-  /** Sta één bekende fout expliciet toe; alle overige page-/consolefouten falen in teardown. */
   acceptError: (matcher: string | RegExp) => void;
 }
 
@@ -82,17 +81,10 @@ export async function waitForOps(page: Page): Promise<void> {
   ).toBe(true);
 }
 
-/** De welkomstdialoog komt na elke (her)laad asynchroon: pas nadat de recovery-controle (IndexedDB)
- *  klaar is en `loadWelcomeSeen()` is beantwoord, zet useSettingsBootstrap `showWelcomeDialog: true`.
- *  Wie hem verbergt vóór die tik verliest de race op een trage runner en klikt daarna tegen een
- *  `bg-black/60`-overlay aan. Wacht dus eerst hierop, en verberg hem pas dan. */
 export async function waitForWelcomeDialog(page: Page): Promise<void> {
   await page.locator('[data-ops-welcome-dialog]').waitFor({ state: 'attached', timeout: 15_000 });
 }
 
-/** De welkomstcontrole is klaar (na de herstelcontrole) en meldt haar uitkomst in de app-log, bijv.
- *  `welkomstcontrole: overgeslagen (ingebed)`. Ingebed onder een host (#716) komt er geen
- *  welkomstvenster; wacht dan hierop in plaats van op `waitForWelcomeDialog`. Geeft de uitkomst. */
 export async function waitForWelcomeCheck(target: Page | Frame): Promise<string> {
   let outcome = '';
   await expect.poll(async () => {
@@ -156,7 +148,6 @@ export async function state(page: Page): Promise<OpsStateSnapshot> {
   });
 }
 
-/** Seed de actieve planning via de publieke acties; runCPM blijft een expliciete laatste stap. */
 export async function seedProject(
   page: Page,
   tasks: SeedTaskInput[],
@@ -165,8 +156,6 @@ export async function seedProject(
   const ids = await page.evaluate(({ inputs, name }) => {
     const s = window.__OPS__!.store.getState();
     s.setProject({ name, startDate: inputs[0]?.start ?? s.project.startDate });
-    // De testdata moet onafhankelijk van de kalenderdatum waarop CI draait werkelijk in beeld
-    // staan; dit is dezelfde publieke viewactie die de interface gebruikt, geen gekopieerde x-as.
     if (inputs[0]) s.setViewStartDate(inputs[0].start);
     const created = inputs.map(input => {
       const id = s.addTask({ name: input.name, manuallyScheduled: true });
@@ -225,10 +214,6 @@ export const test = base.extend<{ ops: OpsHarness }>({
     page.on('pageerror', onPageError);
     page.on('console', onConsole);
 
-    // De uitleg na het openen van een ander formaat dan IFC (`FormatNoticeDialog`) staat in de
-    // suite standaard UIT: hij is modaal en zou elke spec die een .xer/.mpp/.xml/.csv opent
-    // blokkeren. Alleen als de sleutel nog ontbreekt, zodat een spec die hem zelf zet
-    // (`format-notice.spec.ts`) dat ook na een reload houdt.
     await page.addInitScript((kinds) => {
       if (localStorage.getItem('ops-formatNoticeHidden') === null) {
         localStorage.setItem('ops-formatNoticeHidden', JSON.stringify(kinds));
@@ -236,10 +221,6 @@ export const test = base.extend<{ ops: OpsHarness }>({
     }, [...FORMAT_NOTICE_KINDS]);
     await page.goto('/');
     await waitForOps(page);
-    // Een verse context heeft `welcomeSeen` nooit gezien, dus de dialoog KOMT — de vraag is alleen
-    // wanneer (zie `waitForWelcomeDialog`). `welcomeSeen` blijft bewust ongezet, zodat tests die na
-    // een reload de dialoog verwachten (extensions-storage) hem gewoon nog krijgen.
-    // Met een host (site-specs) draait de tool ingebed en komt er geen welkomst (#716).
     if (await page.evaluate(() => 'openaecHost' in window)) await waitForWelcomeCheck(page);
     else await waitForWelcomeDialog(page);
     await page.evaluate(() => {

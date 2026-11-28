@@ -1,5 +1,3 @@
-// Kleine browseropstelling voor de echte gedeelde componenten. Geen server, store of vervangende
-// implementatie: dezelfde JSX bundelt zowel in de gewone browsersuite als in de gerichte proef.
 import { useState, type KeyboardEvent } from 'react';
 import { createRoot } from 'react-dom/client';
 import { Popover } from '@/components/common/Popover';
@@ -19,8 +17,6 @@ function Menu() {
             <button>Andere helft</button>
             <button aria-expanded={open} onClick={event => {
               if (document.body.dataset.fixture === 'menu-scroll-click') {
-                // Een host kan bij het bedienen ook de knop in beeld schuiven. De verplaatsing
-                // gebeurt vóór openen; het native scrollevent volgt in een volgend frame.
                 event.currentTarget.closest<HTMLElement>('[data-ribbon-scroll]')!.scrollLeft = 20;
               }
               setOpen(value => !value);
@@ -59,7 +55,6 @@ function Editor() {
           const native = event.nativeEvent;
           setLastKey(JSON.stringify({ key: native.key, composing: native.isComposing, code: native.keyCode, trusted: native.isTrusted }));
         }} />
-        {/* De bestaande keuzelijst-editor roept de host zo aan na een klik of herselectie. */}
         <button onClick={() => props.onKeyDown({
           key: 'Enter', shiftKey: false, preventDefault() {}, stopPropagation() {},
         } as KeyboardEvent<HTMLElement>)}>Keuze vastleggen</button>

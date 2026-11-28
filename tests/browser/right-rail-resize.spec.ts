@@ -44,8 +44,6 @@ test('rechterrail behoudt de zichtbare sleeprand en breedterichting in RTL', asy
 
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.rightPanelWidth))
     .toBeGreaterThan(before.width);
-  // In RTL vergroot slepen naar rechts vanaf de rechter scheiding de rail. De oude LTR-formule zou
-  // hier de tegengestelde berekening gebruiken en direct tegen de 60%-bovengrens klemmen.
   const after = await page.evaluate(() => window.__OPS__!.store.getState().ui.rightPanelWidth);
   const max = await page.evaluate(() => Math.round(window.innerWidth * 0.6));
   expect(after).toBeLessThan(max);

@@ -1,21 +1,10 @@
 import { expect, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 import type { Page, Route } from '@playwright/test';
 
-// Help-viewer met manifest v2 (ontwerp gebruikersdocumentatie §6/§8, bijgesteld 2026-09-28):
-// tutorials uit het register (straks een extensie), draft/alias/anker in het manifest, de ?-knop in
-// een dialoog en "Lees de gids" in Net bijgewerkt.
-//
-// Fixtures: het manifest en een paar artikelen worden via `page.route` aangevuld (een draft en een
-// fixture-alias; sinds fase 4 heeft het echte manifest geen drafts meer), en tutorials worden via de
-// dev-brug geregistreerd zoals de tutorialextensie dat doet. Alle geteste handelingen zijn echte klikken en toetsen.
-// "Draft verborgen in productie" is hier niet te zien — de testserver draait Vite-dev; dat gedrag
-// bewijst tests/planning/check-help-manifest.ts op dezelfde filterfunctie.
-
 const LONG_FILLER = Array.from({ length: 60 }, (_, i) => `Alinea ${i + 1} vult de pagina zodat er echt gescrold moet worden.`).join('\n\n');
 
 const FIXTURE_ARTICLES: Record<string, string> = {
   'howto-fixture': `# Fixture how-to\n\nIntro.\n\n[Naar de verre kop](docs://uitleg-fixture#verre-kop)\n\n[Via het oude id](docs://gids-oud-fixture)\n\n${LONG_FILLER}\n`,
-  // Ook ná de kop genoeg tekst, anders kan de container niet ver genoeg scrollen om de kop bovenaan te zetten.
   'uitleg-fixture': `# Fixture uitleg\n\n${LONG_FILLER}\n\n## Verre kop\n\nHier landt het anker.\n\n${LONG_FILLER}\n`,
 };
 
@@ -52,8 +41,6 @@ function tutorial(id: string, order: number, title: string) {
 }
 
 test('tutorials uit het register: genummerde leerroute met Vorige/Volgende en bestaande gidsaliassen', async ({ page, ops: _ops }) => {
-  // Verwijzingen uit de uitgeleverde tutorials 1.2.0, zonder fixture-manifest:
-  // ook na een broncorrectie moeten oudere installaties de bedoelde gids blijven openen.
   const calendar = tutorial('tut-fixture-c', 3, 'Calendar');
   calendar.body = {
     nl: `${calendar.body.nl}\n\n[Instellingen](docs://ref-instellingen-lijst)\n\n[Nivelleringsopties](docs://ref-nivellering)`,
@@ -84,7 +71,6 @@ test('tutorials uit het register: genummerde leerroute met Vorige/Volgende en be
   await expect(current(page)).toHaveAttribute('data-help-current', 'tut-fixture-c');
   await expect(nav.locator('[data-help-tutorial-nav="next"]')).toHaveCount(0);
 
-  // Echte docs://-klikken vanuit het extensieregister naar de echte NL/EN-artikelen.
   for (const lang of ['en', 'nl'] as const) {
     await page.locator('#help-docslang').selectOption(lang);
     for (const link of [
@@ -128,13 +114,11 @@ test('dev toont drafts, aliassen openen het nieuwe artikel en zoeken vindt artik
   await withFixtureManifest(page);
   await openHelp(page);
 
-  // Dev-build: de draft staat erin, met label.
   const draftItem = page.locator('[data-help-article="uitleg-fixture"]');
   await expect(draftItem).toBeVisible();
   await expect(draftItem.locator('.help-toc-draft')).toHaveText('draft');
   await expect(page.locator('[data-help-section="kind-howto"] [data-help-article="howto-fixture"]')).toBeVisible();
 
-  // docs:// naar een oud id (alias) opent het nieuwe artikel.
   await page.locator('[data-help-article="howto-fixture"]').click();
   await expect(current(page)).toHaveAttribute('data-help-current', 'howto-fixture');
   await page.locator('[data-help-article="howto-relaties-leggen"]').click();
@@ -143,7 +127,6 @@ test('dev toont drafts, aliassen openen het nieuwe artikel en zoeken vindt artik
   await current(page).getByRole('button', { name: 'Via het oude id' }).click();
   await expect(current(page)).toHaveAttribute('data-help-current', 'howto-fixture');
 
-  // "Lees meer" in een melding met het oude id (fixture: de melding; de klik is echt).
   await page.locator('[data-help-article="howto-relaties-leggen"]').click();
   await page.evaluate(() => window.__OPS__!.store.getState().notify({
     severity: 'info', messageKey: 'notifications.statusDateSetToday', params: { date: '1-1-2026' }, helpArticleId: 'gids-oud-fixture',
@@ -152,7 +135,6 @@ test('dev toont drafts, aliassen openen het nieuwe artikel en zoeken vindt artik
   await expect(current(page)).toHaveAttribute('data-help-current', 'howto-fixture');
   await expect(page.locator('.help-toc-item.active')).toHaveAttribute('data-help-article', 'howto-fixture');
 
-  // Zoeken vindt tekst die alleen in de body staat (niet in titel of kop).
   await page.locator('.help-search').fill('hier landt het anker');
   await expect(page.locator('.help-toc-item')).toHaveCount(1);
   await expect(page.locator('.help-toc-item')).toHaveAttribute('data-help-article', 'uitleg-fixture');
@@ -177,13 +159,10 @@ test('docs://id#anker scrolt naar de kop; een gewone artikelwissel begint bovena
   ]);
   expect(Math.abs(headingTop - scrollerTop)).toBeLessThan(40);
 
-  // Zonder fragment: terug naar boven.
   await page.locator('[data-help-article="howto-fixture"]').click();
   await expect(current(page)).toHaveAttribute('data-help-current', 'howto-fixture');
   await expect.poll(() => scroller.evaluate(el => el.scrollTop)).toBe(0);
 
-  // settings://<id> verlaat de Help: Backstage gaat naar App-instellingen, op precies die instelling.
-  // Het artikel openen is de fixture; de klik op de link is de geteste handeling.
   await page.evaluate(() => window.__OPS__!.store.getState().openHelpArticle('ref-instellingen'));
   await expect(current(page)).toHaveAttribute('data-help-current', 'ref-instellingen');
   await current(page).locator('[data-help-setting="compressNonWorkdays"]').click();
@@ -199,7 +178,6 @@ test('Prompt kopiëren zet het promptblok van het artikel letterlijk op het klem
   await page.locator('[data-help-article="howto-ai-assistent-koppelen"]').click();
   await expect(current(page)).toHaveAttribute('data-help-current', 'howto-ai-assistent-koppelen');
 
-  // De bron: het ```prompt-blok uit het artikel in de taal die de viewer toont.
   const lang = await current(page).getAttribute('lang');
   const md = await page.evaluate(async (l) => (await fetch(`/docs/${l}/howto-ai-assistent-koppelen.md`)).text(), lang);
   const source = /^```prompt\n([\s\S]*?)\n```$/m.exec(md)?.[1];
@@ -213,14 +191,13 @@ test('Prompt kopiëren zet het promptblok van het artikel letterlijk op het klem
   await expect(status).toHaveText(/^(Gekopieerd|Copied)\./);
   expect(await page.evaluate(() => navigator.clipboard.readText())).toBe(source);
 
-  // Zonder klembord-API (dev-server via http, geen secure context): de knop kopieert via de textarea.
   await page.evaluate(async () => {
     const w = window as Window & { __opsClipboard?: Clipboard };
     w.__opsClipboard = navigator.clipboard;
     await navigator.clipboard.writeText('');
     Object.defineProperty(navigator, 'clipboard', { configurable: true, value: undefined });
   });
-  await expect(status).toHaveText('', { timeout: 6000 }); // de vorige melding is weg
+  await expect(status).toHaveText('', { timeout: 6000 });
   await button.click();
   await expect(status).toHaveText(/^(Gekopieerd|Copied)\./);
   await expect(button).toBeFocused();
@@ -228,7 +205,6 @@ test('Prompt kopiëren zet het promptblok van het artikel letterlijk op het klem
 });
 
 test('?-knop in de sneltoetsendialoog sluit de dialoog en opent het juiste artikel', async ({ page, ops: _ops }) => {
-  // Echte route: de sneltoets Ctrl+/ (registry `view.showShortcuts`).
   await page.keyboard.press('Control+/');
   const dialog = page.locator('[data-ops-shortcuts-dialog]');
   await expect(dialog).toBeVisible();
@@ -241,7 +217,6 @@ test('?-knop in de sneltoetsendialoog sluit de dialoog en opent het juiste artik
 });
 
 test('"Lees de gids" in Net bijgewerkt sluit eerst de dialoog', async ({ page, ops: _ops }) => {
-  // Zelfde stub als just-updated-dialog.spec.ts: de releasevergelijking wordt hier niet getoetst.
   await page.route('https://api.github.com/repos/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: '[]' }));
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ justUpdated: { from: '2026.8.0', to: '2026.8.1' } }));
   const dialog = page.locator('[data-ops-just-updated-dialog]');
@@ -249,13 +224,9 @@ test('"Lees de gids" in Net bijgewerkt sluit eerst de dialoog', async ({ page, o
   await dialog.getByRole('button', { name: 'Read the guide' }).click();
   await expect(dialog).toHaveCount(0);
   await expect(page.locator('.help-panel')).toBeVisible();
-  // De release-hoogtepunten van 2026.8.1 noemen het oude id `gids-msproject-import`; de alias opent
-  // het artikel dat het verving.
   await expect(current(page)).toHaveAttribute('data-help-current', 'howto-mpp-openen');
 });
 
-// Fase 4 (omschakelen): de oude id's van vóór de herschrijving staan als alias in het echte manifest.
-// Uitgeleverde versies sturen hun "Lees meer" nog naar zo'n oud id. Geen fixture-manifest hier.
 test('een oud id uit een melding opent het nieuwe artikel (echte manifestalias)', async ({ page, ops: _ops }) => {
   await openHelp(page);
   await page.locator('[data-help-article="howto-relaties-leggen"]').click();
@@ -265,15 +236,10 @@ test('een oud id uit een melding opent het nieuwe artikel (echte manifestalias)'
   await page.locator('.ops-toast').getByRole('button', { name: 'Read more' }).click();
   await expect(current(page)).toHaveAttribute('data-help-current', 'howto-xer-openen');
   await expect(current(page).locator('h1')).toHaveText('Opening a Primavera P6 file (.xer)');
-  // Geen oude secties meer: alleen Tutorials · How-to · Uitleg · Referentie.
   await expect(page.locator('[data-help-section]')).toHaveCount(4);
   await expect(page.locator('[data-help-article="quick-start"]')).toHaveCount(0);
 });
 
-// Vertaalstraat §10: elke UI-taal is een docstaal, per artikel via `public/docs/<taal>/index.json`.
-// Fixture: een nep-de-index met één artikel (geen echte vertaling nodig). Een artikel dat daar niet in
-// staat, leest Engels met een melding; zelf nl kiezen geeft Nederlands zonder melding; een bewaarde
-// waarde die geen docstaal is, valt terug op Auto.
 test('UI in het Duits: een artikel buiten de de-index toont Engels met een melding, de taalkiezer kent alle talen', async ({ page, ops: _ops }) => {
   await page.route('**/docs/de/index.json', route => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ 'howto-relaties-leggen': { title: 'Beziehungen anlegen' } }),
@@ -293,28 +259,24 @@ test('UI in het Duits: een artikel buiten de de-index toont Engels met een meldi
   await page.locator('.ribbon-tab--file').click();
   await page.getByRole('button', { name: 'Hilfe', exact: true }).click();
   await expect(page.locator('.help-panel')).toBeVisible();
-  // Het artikel uit de index: Duits, zonder melding.
   await page.locator('[data-help-article="howto-relaties-leggen"]').click();
   await expect(current(page).locator('h1')).toHaveText('Beziehungen anlegen');
   await expect(current(page)).toHaveAttribute('lang', 'de');
   await expect(page.locator('[data-help-lang-fallback]')).toHaveCount(0);
-  // Een artikel buiten de index: Engels met de melding.
   await page.locator('[data-help-article="uitleg-rekenprofielen"]').click();
   await expect(current(page).locator('h1')).toHaveText('Calculation profiles and conventions');
   await expect(current(page)).toHaveAttribute('lang', 'en');
   await expect(page.locator('[data-help-lang-fallback]')).toContainText(
     'Dieser Artikel ist noch nicht in Ihrer Sprache verfügbar. Sie lesen die englische Version.');
   const select = page.locator('#help-docslang');
-  await expect(select.locator('option')).toHaveCount(29); // Auto + 28 talen
+  await expect(select.locator('option')).toHaveCount(29);
   await expect(select).toHaveValue('__auto__');
   expect(await page.evaluate(() => localStorage.getItem('ops-docs-locale'))).toBeNull();
 
-  // Zelf Nederlands kiezen: Nederlandse tekst, geen melding meer.
   await select.selectOption('nl');
   await expect(current(page).locator('h1')).toHaveText('Rekenprofielen en conventies');
   await expect(page.locator('[data-help-lang-fallback]')).toHaveCount(0);
 
-  // Zoeken werkt op de tekst in de gekozen docstaal.
   await page.locator('.help-search').fill('andere datums opleveren');
   await expect(page.locator('[data-help-article="uitleg-rekenprofielen"]')).toBeVisible();
 });

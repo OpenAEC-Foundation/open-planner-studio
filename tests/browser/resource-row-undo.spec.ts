@@ -1,10 +1,3 @@
-// Resource hernoemen en tarief typen in de Projectweergave van het resourcepaneel (audit
-// resources-kalenders R9). Vroeger schreef elk teken `updateResource`: "Torenkraan" typen gaf tien
-// undo-stappen, Ctrl+Z haalde één letter weg, en alles-selecteren + Backspace zette een lege naam in
-// de store en de undo-geschiedenis. Nu committeert het veld bij verlaten (zelfde draft als de
-// Bibliotheekweergave): één undo-stap, en een lege naam nooit.
-// Typen, Tab, klikken en Ctrl+Z zijn echte browser-events; `window.__OPS__` zet alleen de resource
-// klaar, opent het paneel en leest state.
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
@@ -29,8 +22,6 @@ const resource = (page: Page, id: string) => page.evaluate((rid) => {
   };
 }, id);
 
-/** Veld verlaten door op een kolomkop te klikken: de focus gaat naar de pagina, niet naar een ander
- *  invoerveld — zodat Ctrl+Z daarna de sneltoets van de app is en niet die van een typveld. */
 async function leaveField(page: Page): Promise<void> {
   await page.locator('thead th').nth(1).click();
 }
@@ -43,7 +34,6 @@ test('projectweergave: hernoemen is één undo-stap en Ctrl+Z zet de oude naam v
   await name.click();
   await name.press('ControlOrMeta+a');
   await page.keyboard.type('Torenkraan', { delay: 20 });
-  // Tijdens het typen verandert er nog niets in de store.
   expect(await resource(page, id)).toEqual(before);
   await leaveField(page);
 
@@ -55,12 +45,9 @@ test('projectweergave: hernoemen is één undo-stap en Ctrl+Z zet de oude naam v
   await expect.poll(() => resource(page, id).then(r => r.name)).toBe('Kraan');
   await expect(name).toHaveValue('Kraan');
 
-  // Zonder toewijzingen verwijdert de prullenbak direct, met één herstelbare stap.
   const row = page.locator(`[data-ops-grid-row="${id}"]`);
   const remove = row.getByTitle(/^(Verwijderen|Delete)$/);
   const clickRemove = async () => {
-    // TooltipHost haalt title tijdens hover weg. Eerst vertrekken herstelt het attribuut,
-    // ook wanneer de knop na verwijderen/undo onder de stilstaande muis terugkwam.
     await page.mouse.move(0, 0);
     await remove.click();
   };
@@ -99,7 +86,6 @@ test('projectweergave: hernoemen is één undo-stap en Ctrl+Z zet de oude naam v
   await expect(question).toHaveText(countText(1));
   expect(await data()).toEqual(beforeQuestion);
 
-  // Een open vraag volgt ook externe toewijzingswijzigingen; de telling is geen cache.
   await page.evaluate(({ task, rid }) => window.__OPS__!.store.getState().assignResource(task, rid, 1), { task: tasks[1], rid: id });
   await expect(question).toHaveText(countText(2));
   await page.evaluate(rid => {

@@ -1,6 +1,3 @@
-// Karakterisering vóór het opruimen van synchronisatie-effecten. De fixtures bouwen alleen de
-// relevante beginsituatie; alle cursor-, invoer-, keuze-, pauze- en tekenhandelingen lopen via de
-// echte browser-events waarmee een gebruiker deze oppervlakken bedient.
 import type { Locator, Page } from '@playwright/test';
 import { Buffer } from 'node:buffer';
 import { expect, seedProject, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
@@ -106,8 +103,6 @@ test('hook synchronization: een resourcetoewijzing wist geen niet-opgeslagen taa
   await description.fill('Nog niet opgeslagen omschrijving');
   await duration.fill('13d');
 
-  // De resourcekeuze is de eigen keuzelijst van het blok Toewijzingen (nooit native): openklikken,
-  // optie aanklikken.
   const resourcePicker = dialog.locator('[data-ops-assignment-add] button');
   await expect(resourcePicker).toHaveAttribute('data-value', '');
   await resourcePicker.click();
@@ -116,8 +111,6 @@ test('hook synchronization: een resourcetoewijzing wist geen niet-opgeslagen taa
 
   await expect(name).toHaveValue('Nog niet opgeslagen naam');
   await expect(description).toHaveValue('Nog niet opgeslagen omschrijving');
-  // De echte klik op de keuzelijst haalt de focus uit het duurveld; dat schrijft "13d" bij blur als
-  // "13" met de eenheid dagen. De waarde zelf blijft staan (en is na Opslaan 13, zie hieronder).
   await expect(duration).toHaveValue('13');
   await dialog.locator('[data-ops-task-save]').click();
 

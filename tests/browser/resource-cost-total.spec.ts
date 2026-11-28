@@ -1,12 +1,3 @@
-// Kolom "Totaal" in het resourcepaneel tegenover het urentotaal van de contourdialoog (audit
-// resources-kalenders R6). Een taak op een 10-uurskalender (projectkalender 8 u), tarief €50/u: de
-// contourdialoog telt 50 u, dus hoort het paneel 2.500 te tonen — vroeger 2.000 (40 u, de uren per
-// dag van de projectkalender). Fixture en navigatie via de brug; de contourdialoog opent met een
-// echte klik, beide getallen worden uit de gerenderde DOM gelezen. Headless: check-resource-cost-hours.ts.
-// Kostenresource (#815): in dezelfde route wordt een kostenresource met een echte klik toegewezen en krijgt
-// hij via het bedragveld een bedrag (Enter); de kolom Totaal toont dan de som. Headless: check-cost-resource.ts.
-// De somregel onderaan staat onder de kolom Totaal, niet een kolom ernaast. De tooltip van Totaal zegt bij
-// een kostenresource dat het de som van de bedragen is, bij een gewone resource uren × tarief.
 import { expect, test } from './fixtures/ops';
 
 test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een taakkalender met andere uren/dag', async ({ page, ops: _ops }) => {
@@ -30,8 +21,6 @@ test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een 
     return { resourceId, costId, taskId };
   });
 
-  // Contourdialoog: echte klik op de toewijzing in het eigenschappenpaneel.
-  // (Eerst uitklappen: Urenverdeling… staat onder de resourcenaam.)
   const row = page.locator('[data-ops-assignment-row]').first();
   await row.locator('[data-ops-assignment-expand]').click();
   await row.locator('[data-ops-assignment-contour]').click();
@@ -41,7 +30,6 @@ test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een 
   await page.keyboard.press('Escape');
   await expect(dialog).toBeHidden();
 
-  // Kostenresource: toewijzen via de keuzelijst, bedrag typen en Enter. Geen werkveld, geen curve.
   const add = page.locator('[data-ops-assignment-add] button').first();
   await add.click();
   await page.getByRole('listbox').locator(`[data-value="${costId}"]`).click();
@@ -58,28 +46,21 @@ test('resourcepaneel: Totaal = uren van de contourdialoog × tarief, ook op een 
   await costRow.locator('[data-ops-assignment-expand]').click();
   await expect(costRow.locator('[data-ops-assignment-curve]')).toHaveCount(0);
   await expect(costRow.locator('[data-ops-assignment-contour]')).toHaveCount(0);
-  // Ctrl+Z zet het lege bedrag terug; Ctrl+Y weer 1250,5.
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await costOf())?.costAmount ?? null).toBeNull();
   await page.keyboard.press('Control+y');
   await expect.poll(async () => (await costOf())?.costAmount).toBe(1250.5);
 
-  // Resourcepaneel, Projectweergave.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({
     activeRibbonTab: 'resources', showResourcePanel: true, resourcePanelDocked: false, resourcesView: 'project',
   }));
   const total = page.locator(`[data-ops-resource-total="${resourceId}"]`);
   await expect(total).toBeVisible();
-  // Alleen de cijfers: 2.500,00 / 2,500.00 ⇒ "250000", los van de taal van de runner.
   await expect.poll(async () => (await total.textContent())?.replace(/\D/g, '')).toBe('250000');
-  // Kostenresource: Totaal = de som van de bedragen (1250,50).
   const costTotal = page.locator(`[data-ops-resource-total="${costId}"]`);
   await expect.poll(async () => (await costTotal.textContent())?.replace(/\D/g, '')).toBe('125050');
-  // De tooltip van Totaal: een kostenresource telt bedragen op, een gewone resource uren × tarief.
   await expect(costTotal).toHaveAttribute('title', /^(Som van de bedragen op alle toewijzingen|Sum of the amounts on all assignments)$/);
   await expect(total).toHaveAttribute('title', /^(Belaste eenheden × uren\/dag × tarief|Loaded units × hours\/day × rate) \((herbereken met F5|recalculate with F5)\)$/);
-  // De somregel staat onder de kolom Totaal (vroeger één kolom te ver links, onder Tarief/uur):
-  // dezelfde linker- en rechterrand als de kop en als het totaal per resource. Som: 2.500 + 1.250,50.
   const grand = page.locator('[data-ops-resource-grand-total]');
   await expect.poll(async () => (await grand.textContent())?.replace(/\D/g, '')).toBe('375050');
   const head = await page.locator('[data-ops-resource-total-head]').boundingBox();

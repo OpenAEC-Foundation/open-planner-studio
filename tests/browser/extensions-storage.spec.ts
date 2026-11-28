@@ -371,7 +371,6 @@ test('extension storage: scant vier echte IndexedDB-records zonder code uit te v
   }))).toEqual({ failedEffects: 1, laterEffects: 1 });
 });
 
-// Een andere route dan reparatie: lokale bestandinstallatie weigeren en daarna opnieuw proberen.
 test('mislukte lokale extensie-installatie meldt de fout; annuleren meldt niets', async ({ page, ops }) => {
   ops.acceptError('[Extensies] ZIP-installatie mislukt:');
   ops.acceptError('[Extensies] Installeren vanuit JS mislukt:');
@@ -397,7 +396,6 @@ test('mislukte lokale extensie-installatie meldt de fout; annuleren meldt niets'
     await expect(page.locator('input[type="file"][accept]')).toHaveCount(0);
     expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications)).toHaveLength(0);
   }
-  // Ook expliciet weigeren in de vertrouwensvraag is geen installatiefout.
   const declined = page.waitForEvent('filechooser');
   await page.getByRole('button', { name: 'JS', exact: true }).click();
   await (await declined).setFiles({ name: 'declined.js', mimeType: 'text/javascript', buffer: Buffer.from('module.exports = {};') });
@@ -406,8 +404,6 @@ test('mislukte lokale extensie-installatie meldt de fout; annuleren meldt niets'
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.notifications)).toHaveLength(0);
   expect(await page.evaluate(() => Object.keys(window.__OPS__!.store.getState().installedExtensions))).toEqual([]);
 
-  // Een geldig bestand kan wel installeren maar niet activeren. Beide guards tonen hun concrete
-  // reden op de kaart, via echte JS-installaties en opnieuw inschakelen na een taalkeuze.
   const appVersion = (JSON.parse(readFileSync('package.json', 'utf8')) as { version: string }).version;
   const failures = [
     {
@@ -443,7 +439,7 @@ test('mislukte lokale extensie-installatie meldt de fout; annuleren meldt niets'
   }
 
   await page.locator('[data-ops-backstage-back]').click();
-  await chooseLocale(page, LOCALE_CASES[2]); // Nederlands, via de echte taalkiezer.
+  await chooseLocale(page, LOCALE_CASES[2]);
   await page.getByRole('button', { name: 'Bestand', exact: true }).click();
   await page.getByRole('button', { name: 'Extensies', exact: true }).click();
   for (const failure of failures) {

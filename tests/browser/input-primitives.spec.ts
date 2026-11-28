@@ -59,8 +59,6 @@ test('gedeeld menu: alleen scrollen van de triggeromgeving sluit het paneel', as
   await expect.poll(() => ribbon.evaluate(element => element.scrollLeft)).toBeGreaterThan(0);
   await expect(menu).toHaveCount(0);
 
-  // Het in beeld schuiven VOOR de openende klik mag het nieuwe menu niet weer sluiten wanneer
-  // de browser het native scrollevent pas na de klik bezorgt (WBS-menu na een taalwissel in CI).
   await mount(page, 'menu-scroll');
   const scrolledTrigger = page.getByRole('button', { name: 'Menu openen' });
   await scrolledTrigger.click();
@@ -104,7 +102,6 @@ test('celeditor: kandidaatkeuze met Enter of Escape bewerkt geen cel tijdens com
     await expect(page.locator('[data-focus-requests]')).toHaveText('0');
   }
   await session.send('Input.imeSetComposition', { text: '', selectionStart: 0, selectionEnd: 0 });
-  // Oudere invoermethoden markeren de toets alleen met 229, zonder isComposing.
   for (const key of ['Enter', 'Escape']) {
     await session.send('Input.dispatchKeyEvent', { type: 'keyDown', key, code: key, windowsVirtualKeyCode: 229 });
     await expect(page.locator('[data-last-key]')).toHaveText(JSON.stringify({ key, composing: false, code: 229, trusted: true }));
@@ -124,8 +121,6 @@ test('celeditor: kandidaatkeuze met Enter of Escape bewerkt geen cel tijdens com
   expect(errors).toEqual([]);
 });
 
-// Een aparte appopstelling bewaakt de document-/focuseffecten; de componentproef hierboven bewaakt
-// ook de precieze native toetsvlaggen. De bestaande TableEditor-meetroute blijft ongewijzigd.
 appTest('tabelinvoer: compositie behoudt de editor en maakt geen documentbewerking', async ({ page, ops: _ops }) => {
   const [id] = await seedProject(page, [
     { name: 'Oorspronkelijke naam', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },

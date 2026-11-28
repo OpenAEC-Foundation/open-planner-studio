@@ -1,22 +1,11 @@
 import { expect, test, seedProject, state } from './fixtures/ops';
 import type { Locator, Page } from '@playwright/test';
 
-// Extensie-API 1.4.0 (`api.help.*`) end-to-end: een test-extensie registreert een tutorial, opent
-// een meegeleverd project en start het begeleidingspaneel. De extensie wordt geïnstalleerd via de
-// dev-brug (`__OPS__.extensions.installFromCode`, net als extensions-storage.spec.ts) — dat is de
-// fixture. Alles wat de gebruiker doet (Help openen, de projectlink, de lintknop die de begeleiding
-// start, de knop Taak, Opnieuw/Toon mij/Volgende/Terug/Sluiten, uitschakelen in Extensies) gaat via
-// echte klikken.
-
 const EXT_ID = 'test-tutorials';
 
-// 1×1 PNG, voor de afbeelding in een stap (komt als blob-URL uit de assets van de extensie).
 const PNG_1X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
-// 2×1 PNG: de nl-variant, zodat de breedte laat zien welke taalvariant de viewer laadde.
 const PNG_2X1 = 'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAYAAAD0In+KAAAADklEQVR4nGP4z8AAQv8BD/kD/YURmXYAAAAASUVORK5CYII=';
 
-// Een tutorialartikel met een afbeelding uit de eigen assets (`{lang}` = de docstaal) en één met een
-// extern adres: dat is geen asset, dus de viewer toont de alt-tekst en laadt niets van buiten.
 const ARTICLE_IMAGES_JS = `
 module.exports = {
   onLoad(api) {
@@ -125,8 +114,6 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await page.setViewportSize({ width: 1600, height: 950 });
   await installTestExtension(page);
 
-  // Eigen werk in het actieve document: dat mag de projectlink niet overschrijven. (Een leeg,
-  // ongewijzigd tabblad zou hergebruikt worden — zelfde regel als een voorbeeld openen.)
   await page.locator('[data-tour-anchor="ribbon:start:addTask"]').click();
   await expect.poll(async () => (await state(page)).tasks.length).toBe(1);
   const ownWork = await state(page);
@@ -136,7 +123,6 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   expect(ownWork.selectedTaskIds).toHaveLength(1);
   await page.locator('.ops-toast').filter({ hasText: 'Selection:' }).locator('[data-ops-toast-close]').click();
 
-  // ── Artikel onder Tutorials, en de projectlink opent een NIEUW document ──
   await openHelp(page);
   const tutorials = page.locator('[data-help-section="kind-tutorial"]');
   await expect(tutorials.locator('.help-toc-item')).toHaveText(['1.Test tutorial']);
@@ -148,17 +134,14 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   expect(opened.activeDocumentId).not.toBe(before.activeDocumentId);
   expect(opened.tasks.length).toBeGreaterThan(0);
   expect(opened.documentIds).toContain(ownWork.activeDocumentId);
-  // Zoals een voorbeeld: vanuit Help terug naar het project (Start-tab).
   await expect(page.locator('.help-panel')).toHaveCount(0);
   await expect(page.locator('[data-tour-anchor="ribbon-tab:start"]')).toHaveClass(/active/);
 
-  // Dezelfde extensie leest na projectwissel geen achtergebleven selectie uit het vorige document.
   await page.getByRole('button', { name: 'Read selection', exact: true }).click();
   await expect(selectionToast).toContainText('Selection: ' + JSON.stringify(opened.selectedTaskIds));
   expect(opened.selectedTaskIds).toEqual([]);
   await page.locator('.ops-toast').filter({ hasText: 'Selection:' }).locator('[data-ops-toast-close]').click();
 
-  // ── Begeleiding starten via de lintknop van de extensie ──
   await page.getByRole('button', { name: 'Start guide', exact: true }).click();
   await expect(panel(page)).toBeVisible();
   await expect(panel(page)).toHaveAttribute('data-ops-guide-step', 'taak');
@@ -169,13 +152,10 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await expect(action(page, 'next')).toBeDisabled();
   await expect(action(page, 'back')).toBeDisabled();
 
-  // Geen markering en geen gedimde app: de stapstekst wijst de weg (besluit 2026-10-23).
   const addTask = page.locator('[data-tour-anchor="ribbon:start:addTask"]');
   await expect(addTask).toBeVisible();
   await expect(page.locator('[data-ops-tour-spotlight]')).toHaveCount(0);
 
-  // Knownbug 62: de blijvende meldingen mogen de begeleidingsknoppen niet bedekken,
-  // ook niet wanneer de melding naast een open Baselines-venster terechtkomt.
   await page.evaluate(() => {
     for (let i = 0; i < 3; i++) window.__OPS__!.store.getState().notify({
       severity: 'error', messageKey: 'notifications.openFailed', dedupeKey: `guide-overlap-${i}`,
@@ -204,8 +184,6 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await expect(page.getByRole('dialog')).toHaveCount(0);
   await page.locator('[data-tour-anchor="ribbon-tab:start"]').click();
 
-  // Slepen aan de kop: het paneel blijft waar de gebruiker het neerzet; de sluitknop in de kop
-  // blijft een gewone knop (die test volgt hieronder bij Sluiten).
   const head = panel(page).locator('[data-ops-guide-drag]');
   const panelBefore = await panel(page).boundingBox();
   const grip = await head.boundingBox();
@@ -221,7 +199,6 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   expect(Math.abs(moved.y - (panelBefore.y - 200))).toBeLessThan(2);
   await expectGuideUncovered();
 
-  // De echte handeling: Taak in het lint ⇒ de controle slaagt.
   const tasksBefore = (await state(page)).tasks.length;
   await addTask.click();
   await expect.poll(async () => (await state(page)).tasks.length).toBe(tasksBefore + 1);
@@ -232,19 +209,16 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await expect(action(page, 'next')).toHaveText('Next');
   await expect(page.locator('[data-ops-tour-spotlight]')).toHaveCount(0);
 
-  // Opnieuw: de beginstand als nieuw document; de stap is weer open.
   const docsBeforeReset = (await state(page)).documentIds.length;
   await action(page, 'reset').click();
   await expect.poll(async () => (await state(page)).documentIds.length).toBe(docsBeforeReset + 1);
   await expect(panel(page)).toHaveAttribute('data-ops-guide-done', 'false');
   await expect(action(page, 'next')).toBeDisabled();
 
-  // Toon mij: de extensie zet de stap klaar ⇒ gedaan.
   await action(page, 'showMe').click();
   await expect(panel(page)).toHaveAttribute('data-ops-guide-done', 'true');
   expect((await state(page)).tasks.some(t => t.name === 'Shown by the guide')).toBe(true);
 
-  // Volgende: stap zonder controle, met een afbeelding uit de assets.
   await action(page, 'next').click();
   await expect(panel(page)).toHaveAttribute('data-ops-guide-step', 'kijken');
   await expect(panel(page).locator('[data-ops-guide-progress]')).toHaveText('Step 2 of 2');
@@ -254,7 +228,6 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
   await expect(img).toHaveAttribute('src', /^blob:/);
   await expect.poll(() => img.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(1);
 
-  // Terug en Sluiten.
   await action(page, 'back').click();
   await expect(panel(page)).toHaveAttribute('data-ops-guide-step', 'taak');
   await action(page, 'close').click();
@@ -263,7 +236,6 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
 
   await expect(page.locator('.ops-toast-stack')).toHaveAttribute('data-ops-toast-placement', 'default');
 
-  // ── Uitschakelen ruimt alles op: paneel, artikel, lintknop ──
   await page.getByRole('button', { name: 'Start guide', exact: true }).click();
   await expect(panel(page)).toBeVisible();
   await page.locator('.ribbon-tab--file').click();
@@ -282,7 +254,6 @@ test('help-API: tutorial in Help, meegeleverd project openen, begeleiding met co
 
 test('help-API: een tutorialartikel toont afbeeldingen alleen uit de eigen assets, in de docstaal', async ({ page, ops: _ops }) => {
   const external: string[] = [];
-  // Elk verzoek naar de host uit het artikel (exacte hostnaam, niet als deel van een andere URL).
   page.on('request', request => {
     const url = new URL(request.url());
     if (url.hostname === 'example.com') external.push(url.href);
@@ -293,17 +264,13 @@ test('help-API: een tutorialartikel toont afbeeldingen alleen uit de eigen asset
   await page.locator('[data-help-section="kind-tutorial"]').getByRole('button', { name: /Pictures/ }).click();
   const body = page.locator('.help-article-body');
 
-  // Docstaal Engels (Auto bij een Engelse interface): de en-asset als blob-URL.
   const own = body.locator('img.help-image[alt="Step picture"]');
   await expect(own).toHaveAttribute('src', /^blob:/);
   await expect.poll(() => own.evaluate(el => (el as HTMLImageElement).naturalWidth)).toBe(1);
-  // Een extern adres is geen asset: alleen de alt-tekst, geen <img> en geen netwerkverzoek.
   await expect(body.locator('.help-image-placeholder', { hasText: 'External picture' })).toBeVisible();
-  // Geen <img> met dat adres: elke afbeelding in het artikel is een blob-URL uit de eigen assets.
   await expect(body.locator('img')).toHaveCount(1);
   expect(await body.locator('img').evaluateAll(els => els.map(el => new URL((el as HTMLImageElement).src).protocol))).toEqual(['blob:']);
 
-  // Docstaal Nederlands: dezelfde regel, nu de nl-asset (2 px breed).
   await page.locator('#help-docslang').selectOption('nl');
   const ownNl = body.locator('img.help-image[alt="Stapbeeld"]');
   await expect(ownNl).toHaveAttribute('src', /^blob:/);
@@ -325,9 +292,7 @@ test('generieke lintankers: tab, groep, knop en component-item', async ({ page, 
   await expect(page.locator('[data-tour-anchor="ribbon-tab:start"]')).toHaveCount(1);
   await expect(page.locator('[data-tour-anchor="ribbon-group:start:tasks"]')).toBeVisible();
   await expect(page.locator('button[data-tour-anchor="ribbon:start:addTask"]')).toBeVisible();
-  // Component-item (dropdown met eigen DOM): het anker staat op de elementen van het component.
   await expect(page.locator('[data-tour-anchor="ribbon:start:milestone"]').first()).toBeVisible();
-  // Een gewone knop ná een component-item houdt zijn eigen anker (erft niet dat van het component).
   await expect(page.locator('button[data-tour-anchor="ribbon:start:splitTask"]')).toHaveCount(1);
   await expect(page.locator('[data-tour-anchor="ribbon:start:relation"]')).not.toHaveCount(0);
   await expect(page.locator('[data-tour-anchor="ribbon:start:relation"] [data-ops-ribbon-item="splitTask"], [data-tour-anchor="ribbon:start:relation"][data-ops-ribbon-item="splitTask"]')).toHaveCount(0);
@@ -341,10 +306,6 @@ test('generieke lintankers: tab, groep, knop en component-item', async ({ page, 
   await expect(page.locator('[data-tour-anchor="status-bar"]')).toBeVisible();
 });
 
-// knownbugs 52: de tab Bestand (Backstage) haalt de scrollcontainer van het lint weg; daarna kwam er een nieuwe,
-// maar de waarnemer die de ankers van component-items zet bleef op de oude hangen. Een component dat zichzelf
-// daarna opnieuw rendert (Toewijzen ▾ wordt bij een taakselectie een andere knop) verloor zo zijn anker, en
-// het begeleidingspaneel van een tutorial vond de knop niet meer.
 test('lintanker van een component-item blijft staan na een bezoek aan Bestand', async ({ page, ops: _ops }) => {
   await seedProject(page, [{ name: 'Metselwerk', start: '2026-03-02', finish: '2026-03-13' }]);
   const assign = page.locator('[data-tour-anchor="ribbon:resources:resourceAssign"]');
@@ -359,7 +320,6 @@ test('lintanker van een component-item blijft staan na een bezoek aan Bestand', 
   await expect(assign.locator('button:not([disabled])').or(assign.and(page.locator('button:not([disabled])'))).first()).toBeVisible();
 });
 
-/** Overlappen twee elementen op het scherm? */
 async function overlapping(a: Locator, b: Locator): Promise<boolean> {
   const p = await a.boundingBox();
   const q = await b.boundingBox();
@@ -367,9 +327,6 @@ async function overlapping(a: Locator, b: Locator): Promise<boolean> {
   return p.x < q.x + q.width && q.x < p.x + p.width && p.y < q.y + q.height && q.y < p.y + p.height;
 }
 
-// knownbugs 91: het begeleidingspaneel lag over de knoppen van een venster (Toepassen in Kalenders). Nu wijkt
-// het uit, en past het naast het venster nergens, dan klapt het vanzelf in tot een knopje in de rand. De
-// gebruiker kan het ook zelf in- en uitklappen.
 test('begeleidingspaneel: klapt in voor een venster dat het anders bedekt, en zelf in en uit', async ({ page, ops: _ops }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await installTestExtension(page);
@@ -385,26 +342,22 @@ test('begeleidingspaneel: klapt in voor een venster dat het anders bedekt, en ze
   await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'false');
   await expect(panel(page).locator('[data-ops-guide-task]')).toContainText('Click Task on the ribbon.');
 
-  // Kalenders is 860 breed en bijna schermhoog: het paneel past er aan geen kant naast.
   await page.locator('[data-tour-anchor="ribbon-tab:planning"]').click();
   await page.locator('[data-tour-anchor="ribbon:planning:calendar"]').first().click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
   await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'true');
   expect(await overlapping(panel(page), dialog), 'het knopje ligt naast het venster').toBe(false);
-  // Uitklappen mag (de opdracht lezen), ook al ligt het paneel dan over het venster; weer inklappen.
   await action(page, 'expand').click();
   await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'false');
   await action(page, 'collapse').click();
   await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'true');
-  // De knoppen onderaan het venster zijn gewoon te bedienen.
   await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(panel(page)).toHaveAttribute('data-ops-guide-compact', 'false');
   await expect(panel(page)).toHaveAttribute('data-ops-guide-side', 'end');
 });
 
-// knownbugs 59: het paneel week uit voor een anker eronder, maar sprong daarna niet terug.
 test('begeleidingspaneel: wijkt uit voor het anker en keert daarna terug', async ({ page, ops: _ops }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
   await installTestExtension(page, MAIN_JS.replace("anchor: 'ribbon:start:addTask'", "anchor: 'properties-panel'"));
@@ -414,7 +367,6 @@ test('begeleidingspaneel: wijkt uit voor het anker en keert daarna terug', async
   await expect(panel(page)).toHaveAttribute('data-ops-guide-side', 'start');
   expect(await overlapping(panel(page), rail), 'het paneel ligt niet over het anker').toBe(false);
   await expect(page.locator('[data-ops-tour-spotlight]')).toHaveCount(0);
-  // Gedaan: het anker telt niet meer, het paneel gaat terug naar rechtsonder.
   await action(page, 'showMe').click();
   await expect(panel(page)).toHaveAttribute('data-ops-guide-done', 'true');
   await expect(panel(page)).toHaveAttribute('data-ops-guide-side', 'end');

@@ -1,5 +1,3 @@
-// De dagenmaat (§3.14): de waarden zijn die van de urenreferentie (minute-model-tutorial-f3.json).
-// Tutorial 4 — Plannen in uren (`tut-4-uren`): de stort en twee kraaninzetten in uren.
 import { l, type Action, type Check, type L, type Snap, type TutorialScript } from './dsl';
 import { T, taskIs } from './project';
 
@@ -8,7 +6,6 @@ const notStale: Check = { state: (s: Snap) => (s.stale ? ['planning nog verouder
 const status = (nl: string, en: string): Check => ({ see: statusBar, text: l(nl, en) });
 const END_AND_PATH: Check[] = [status('Einde: 01-09-2027', 'End: 01-09-2027'), status('Kritiek pad: 8 taken, 48 werkdagen', 'Critical path: 8 tasks, 48 work days')];
 
-/** Taak aanklikken en de duur in Eigenschappen vervangen (dubbelklik selecteert de oude waarde). */
 const setDuration = (task: L, value: string): Action[] => [
   { click: { taskName: task } },
   { click: { role: 'textbox', name: l('Duur', 'Duration') }, double: true },

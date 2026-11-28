@@ -1,4 +1,3 @@
-// De stapscripts van alle tutorials, in de volgorde van de leerroute.
 import type { TutorialScript } from './dsl';
 import { TUTORIAL_1 } from './tut-1';
 import { TUTORIAL_2 } from './tut-2';

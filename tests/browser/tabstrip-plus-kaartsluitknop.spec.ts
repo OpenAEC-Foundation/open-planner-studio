@@ -1,5 +1,3 @@
-// "+" direct na het laatste tabblad (sticky aan de rand bij overloop) en een vierkante sluitknop op
-// de projectoverzichtskaart die de ACTIVE-badge niet raakt bij een lange titel.
 import { expect, seedProject, test } from './fixtures/ops';
 
 const add = '.ops-tabstrip-add';
