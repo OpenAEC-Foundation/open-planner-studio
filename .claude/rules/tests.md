@@ -58,4 +58,6 @@ De checks over werkregels, voortgang en het voortgangsblad, vastgelegde datums, 
 
 De IFC-tests in `tests/planning/` (eigen STEP-lezer als meetlat, uitvoer van een oudere writer, grenzen die niet van de machine afhangen): `docs/adr/1250-ifc-tests-eigen-step-lezer-oude-uitvoer-en-machinevrije-grenzen.md`.
 
+De tests van datums, werkdagen en CPM (eigen orakels, bronguards, gekozen grenzen, de tijdzonematrix voor `check-date-format.ts`): `docs/adr/1310-tests-van-datums-en-werkdagen-eigen-orakels-bronguards-en-gekozen-grenzen.md`.
+
 De browsertests van de app-schil, dialogen, rapporten, resources en tutorials (wachten in de `ops`-fixture, `completeTour`, nagebootste events waar een echte handeling het onderwerp niet levert, de stilgezette nepklok, ruime grenzen): `docs/adr/1380-browsertests-van-de-app-schil-hulpcontracten-nagebootste-events-en-ruime-grenzen.md`.

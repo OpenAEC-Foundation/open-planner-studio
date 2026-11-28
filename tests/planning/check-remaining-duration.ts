@@ -1,19 +1,3 @@
-// Restduur in de eigen eenheid van de taak (G4, zijvondst weergaven W8).
-//
-// `applyProgressInvariants` rondde `remainingTime` voor ELKE taak af op hele werkdagen. Een urentaak
-// van 5 u op 40 % kreeg zo restduur 0 (3 u werk ⇒ 0,375 dag ⇒ 0) en geen `remainingMinutes`; MSPDI en
-// P6 exporteerden dan `RemainingDuration` 0, en na teruglezen plande de solver de taak af op de
-// statusdatum. De regel is nu: de restduur staat in dezelfde vorm als de duur van de taak —
-//   - dagtaak: `remainingTime` in werkdagen, zoals `scheduleDuration`, exact (B3, spec "alleen uren"
-//     §3.5: een breuk mag; vroeger `Math.round` op hele werkdagen);
-//   - urentaak: `remainingMinutes` in hele minuten, zoals `durationMinutes`, en `remainingTime` als
-//     onafgeronde werkdagfractie, zoals `scheduleDuration` (minuten ÷ (uren per dag × 60)).
-// Eén functie (`applyRemainingDuration`) voor alle store-routes (paneel, raster, MCP) én de lezers
-// (`normalizeImportedProgress`); de lezers laten een in het bestand vastgelegde rest staan
-// (`remainingMinutes`, T9: MSP's eigen exacte restduur; en de dagenrest van een lopende taak, aanval a07
-// na #600, zie check-import-explicit-rest.ts). De adapter-round-trip staat in check-adapters-hours.ts.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { runGridMutation } from '@/state/gridTransaction';
@@ -39,7 +23,6 @@ const STATUS_DATE = '2026-06-01T10:00';
 const band = [{ start: 8 * 60, end: 16 * 60 }];
 const byWeekday = { 1: band, 2: band, 3: band, 4: band, 5: band, 6: [], 7: [] };
 
-/** Vers uurproject (8 u/dag), statusdatum ma 10:00, urentaak U (5 u) en dagtaak D (5 d). */
 function setup(hoursPerDay = 8): { u: string; d: string } {
   S().newProject();
   const end = 8 * 60 + hoursPerDay * 60;
@@ -60,31 +43,24 @@ const rem = (t: Task) => ({ remainingMinutes: t.time.remainingMinutes, remaining
 const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent =>
   ({ kind: 'cell-edit', taskId, columnId: columnId as CellEditIntent['columnId'], route: 'task-progress', value });
 
-// De verwachte waarden: 5 u op 40 % ⇒ 180 min rest = 180/480 dag; 5 d op 30 % ⇒ exact 3,5 d.
-// B1 (spec "alleen uren" §3.5, besluit B3): de rest van een dagtaak was round(3,5) = 4 d.
 const HOUR_40 = { remainingMinutes: 180, remainingTime: 0.375 };
 const DAY_30 = { remainingMinutes: undefined, remainingTime: 3.5 };
 
-// ── 1. Paneel/taakdialoog (`setTaskProgress`) ────────────────────────────────────────────────
 {
   const { u, d } = setup();
   S().setTaskProgress(u, 0.4);
   S().setTaskProgress(d, 0.3);
   eq('paneel: urentaak 5 u op 40 % houdt 3 u rest (minuten + werkdagfractie)', rem(task(u)), HOUR_40);
   eq('paneel: dagtaak 5 d op 30 % heeft exact 3,5 d rest (B3)', rem(task(d)), DAY_30);
-  // De solver plande altijd al met `durationMinutes × (1 − c)`: de opgeslagen restduur verzet niets.
   S().runCPM();
   eq('paneel: einde urentaak ongewijzigd (statusdatum 10:00 + 3 u)', task(u).time.earlyFinish, '2026-06-01T13:00');
 
-  // Werkelijk einde ⇒ voltooid ⇒ restduur 0 in beide vormen.
   S().setActualFinish(u, '2026-06-01T10:00');
   eq('paneel: werkelijk einde ⇒ restduur 0', rem(task(u)), { remainingMinutes: 0, remainingTime: 0 });
-  // Werkelijk einde wissen ⇒ weer lopend op 0 % ⇒ de volle duur resteert.
   S().setActualFinish(u, undefined);
   eq('paneel: werkelijk einde gewist ⇒ volle 5 u rest', rem(task(u)), { remainingMinutes: 300, remainingTime: 0.625 });
 }
 
-// ── 2. Raster (`runGridMutation`): voortgangscel en statuscel ─────────────────────────────────
 {
   const { u, d } = setup();
   const r = runGridMutation([{ kind: 'paste', writes: [cell(u, 'task.time.completion', 0.4), cell(d, 'task.time.completion', 0.3)] }]);
@@ -94,13 +70,11 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 3.5 };
   const s = runGridMutation([{ kind: 'cell-edit', taskId: u, columnId: 'task.status' as CellEditIntent['columnId'], route: 'task-progress', value: 'NOT_STARTED' }]);
   eq('raster: status Niet gestart geaccepteerd', s.ok, true);
   eq('raster: niet gestart ⇒ volle 5 u rest', rem(task(u)), { remainingMinutes: 300, remainingTime: 0.625 });
-  // Een ingevoerde restduur blijft exact wat de gebruiker typte (de invariant rekent eerst, de invoer wint).
   const e = runGridMutation([{ kind: 'cell-edit', taskId: u, columnId: 'task.time.remainingTime' as CellEditIntent['columnId'], route: 'task-progress', value: 100 }]);
   eq('raster: ingevoerde restduur 1 u 40 min geaccepteerd', e.ok, true);
   eq('raster: ingevoerde restduur blijft exact', rem(task(u)), { remainingMinutes: 100, remainingTime: 100 / 480 });
 }
 
-// ── 3. MCP (`planner_set_progress`-kern) ────────────────────────────────────────────────────
 {
   setup();
   const draft = { ...S(), tasks: structuredClone(S().tasks), assignments: structuredClone(S().assignments) } as unknown as Parameters<typeof progress.applyProgressUpdate>[0];
@@ -113,7 +87,6 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 3.5 };
   eq('MCP: dagtaak 5 d op 30 %', rem(dT), DAY_30);
 }
 
-// ── 4. Andere uren per dag: de werkdagfractie is minuten ÷ (uren/dag × 60), zonder afronding ──
 {
   const { u } = setup(7.5);
   S().setTaskProgress(u, 0.4);
@@ -122,7 +95,6 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 3.5 };
   near('7,5 u/dag: werkdagfractie = 180 / 450', t.time.remainingTime, 180 / 450);
 }
 
-// ── 5. Lezers (`normalizeImportedProgress`): dezelfde regel, maar de restduur uit het bestand wint ─
 {
   const base = (over: Partial<Task['time']>, unit: 'hours' | 'days'): Task => ({
     id: `t-${unit}-${Math.random()}`, name: 'X', description: '', wbsCode: '1', taskType: 'CONSTRUCTION',
@@ -135,16 +107,11 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 3.5 };
       ...over,
     },
   });
-  // T9: MSP's eigen restduur (25 u = 1500 min) bij een afgeronde 48 % blijft staan; de
-  // werkdagfractie volgt die minuten (1500/480 = 3,125), niet de afgeronde voortgang.
   const recorded = base({ completion: 0.48, actualStart: '2026-06-01', remainingMinutes: 1500 }, 'hours');
-  // Oud bestand zonder restduur-minuten (onze eigen export van vóór deze fix: 'P0Y0M0D').
   const legacy = base({ completion: 0.4, actualStart: '2026-06-01', remainingTime: 0 }, 'hours');
-  // Aanval a07 na #600: ook een vastgelegde dagenrest blijft staan; afleiden alleen zonder bronrest.
   const dayRecorded = base({ completion: 0.3, actualStart: '2026-06-01', remainingTime: 2 }, 'days');
   const dayWithoutRest = base({ completion: 0.3, actualStart: '2026-06-01' }, 'days');
   const dayCompleted = base({ completion: 0.3, actualStart: '2026-06-01', actualFinish: '2026-06-02', remainingTime: 2 }, 'days');
-  // Review r1 van #663 (VERVOLG): ook een voltooide urentaak houdt geen bronminuten rest.
   const hourCompleted = base({ completion: 1, actualStart: '2026-06-01', actualFinish: '2026-06-02', remainingMinutes: 1920 }, 'hours');
   const untouched = base({}, 'hours');
   normalizeImportedProgress([recorded, legacy, dayRecorded, dayWithoutRest, dayCompleted, hourCompleted, untouched], '2026-06-03');
@@ -157,10 +124,6 @@ const DAY_30 = { remainingMinutes: undefined, remainingTime: 3.5 };
   eq('lezer: taak zonder voortgang blijft ongemoeid', rem(untouched), { remainingMinutes: undefined, remainingTime: undefined });
 }
 
-// ── 2b. Raster: urentaak op een kalender ZONDER eigen werkblokken (geen uurmodus) ──────────────
-// Vast werk maakt een taak urenmaat op elke kalender (B1a), ook op de standaardkalender. De rest van
-// een urentaak heeft `remainingMinutes` als bron (spec §3.5); de rastercel schreef die alleen in
-// uurmodus, en wiste hem hier.
 {
   S().newProject();
   S().setProject({ startDate: '2026-06-01', name: 'G4b' });

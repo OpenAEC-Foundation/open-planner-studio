@@ -1,13 +1,4 @@
 import { normalizeTaskDates } from '@/state/migrations/minuteModel';
-// Geavanceerde-CPM checks (fase 2.9, golf 0 + 1 + 2 + 3). Golf 0/1: datamodel + plumbing default-inert,
-// validateConstraintPair, harde-pin-idempotentie. Golf 2 (§4.6): de analyse-laag — interfering float
-// (ALTIJD tf−ff), near-critical-drempel (0<tf≤thr; tf=0 niet, tf=thr wél), kritiek-definitie-opties
-// (totalFloat-drempel, longestPath tf-onafhankelijk incl. discriminator), open-ended-kritiek, en de
-// TF-berekeningswijze (in de huidige symmetrische backward-pass observationeel identiek). Golf 3 (§4.6):
-// multiple float paths — FREE_FLOAT-peel + TOTAL_FLOAT-rangschikking, maxPaths harde begrenzing,
-// gedeelde-voorganger-eerste-peel, criticalPaths[0]===criticalPath byte-compat, enabled=false inert.
-//
-// Draait via run.sh (esbuild-bundel, zoals check-datetime.ts). Exit 0 = alles groen.
 import { CPMSolver, type CPMResult, type CPMOptions } from '@/engine/scheduler/CPMSolver';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -36,8 +27,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (got !== want) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-// ── Testbouwstenen ───────────────────────────────────────────────────────────
-// Schone dag-kalender ma-vr, geen feestdagen, geen workTime (dag-modus) — byte-identiek referentie.
 const CAL: WorkCalendar = {
   id: 'c', name: 'c', description: 'c',
   workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
@@ -59,10 +48,6 @@ function solve(tasks: Task[], seqs: Sequence[], opts: CPMOptions = legacyCpmOpti
   return new CPMSolver(tasks, seqs, CAL, [], opts).solve();
 }
 
-/** Stabiele vergelijkbare fingerprint van álle gedragswijzigende uitvoer (Map → gesorteerde
- *  entries), zodat "byte-identiek" hard te vergelijken is. De 2.9-analyse-velden (interfering/near/
- *  floatPath) zitten er BEWUST NIET in — interfering wordt sinds golf 2 altijd geschreven maar raakt
- *  de planning niet, dus de byte-identiteit-vergelijkingen blijven zuiver op es/ef/ls/lf/tf/ff/crit. */
 function digest(r: CPMResult): string {
   const tasks = [...r.tasks.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([id, t]) => [
     id, t.earlyStart, t.earlyFinish, t.lateStart, t.lateFinish, t.totalFloat, t.freeFloat, t.isCritical,
@@ -73,13 +58,10 @@ function digest(r: CPMResult): string {
   });
 }
 
-// ── Net A — float-net (A1 kritiek, A2/A3 met speling) ────────────────────────
-// A1(5),A2(4),A3(2) elk →FS END(1); roots starten ma 2026-06-01.
 const netA: Task[] = [mkTask('A1', 5), mkTask('A2', 4), mkTask('A3', 2), mkTask('END', 1)];
 const seqA: Sequence[] = [fs('s1', 'A1', 'END'), fs('s2', 'A2', 'END'), fs('s3', 'A3', 'END')];
 const rA = solve(netA, seqA);
 
-// ── 1) Velden-catalogus: de vier nieuwe keys aanwezig + juiste soort (§3.5) ───
 eq('01 FILTER_SORT bevat freeFloat', FILTER_SORT_BUILTIN_KEYS.includes('freeFloat'), true);
 eq('02 FILTER_SORT bevat interferingFloat', FILTER_SORT_BUILTIN_KEYS.includes('interferingFloat'), true);
 eq('03 FILTER_SORT bevat isNearCritical', FILTER_SORT_BUILTIN_KEYS.includes('isNearCritical'), true);
@@ -91,15 +73,6 @@ eq('06 fieldKind interferingFloat = number', fieldKind(bk('interferingFloat'), d
 eq('07 fieldKind isNearCritical = boolean', fieldKind(bk('isNearCritical'), dummyCtx), 'boolean');
 eq('08 fieldKind floatPath = number', fieldKind(bk('floatPath'), dummyCtx), 'number');
 
-// ── 1b) Issue #80: geen rekenartefacten in de CPM-resultaten van het paneel ───────────────────
-// Het paneel heeft geen React-rendertestharnas. Deze lichte bronguard fixeert daarom de concrete
-// gebruikersweergave: speling mag geen rekenartefacten met lange decimalen tonen (zoals
-// 2.2916666666666665). Eerst werden vrije en interfererende speling daarvoor op hele dagen
-// afgerond en de totale speling niet — in urenmodus stond dan "1.6666666666666667 dagen" boven
-// "2 dagen" voor dezelfde waarde, en een afronding op hele dagen verzweeg uren speling (audit
-// weergaven, bevinding 8). Nu gaan alle drie door de gedeelde `formatWorkDaysText` (twee decimalen,
-// decimaalteken van de taal — dezelfde opmaak als raster en tooltip; gedrag getoetst in
-// check-float-remaining-text.ts).
 const cpmResultSection = readFileSync(join(ROOT, 'src/components/task-sections/TaskCpmResultSection.tsx'), 'utf8');
 eq('08a CPM-paneel toont totale, vrije en interfererende speling via de gedeelde opmaak',
   ['totalFloat', 'freeFloat', 'interferingFloat'].every(f => cpmResultSection.includes(`{days(task.time.${f})}`))
@@ -107,41 +80,34 @@ eq('08a CPM-paneel toont totale, vrije en interfererende speling via de gedeelde
 eq('08b CPM-paneel toont geen ruwe of eigen afgeronde speling meer',
   /\{(Math\.round\()?task\.time\.(totalFloat|freeFloat|interferingFloat)\)?\}/.test(cpmResultSection), false);
 
-// ── 2) CPMResult-vormcontract: criticalPaths ALTIJD [criticalPath] (§3.5/§4.6) ─
 eq('09 criticalPaths lengte precies 1 (floatPaths uit)', rA.criticalPaths.length, 1);
 eq('10 criticalPaths[0] == criticalPath', JSON.stringify(rA.criticalPaths[0]), JSON.stringify(rA.criticalPath));
 eq('11 nearCriticalTaskIds leeg (drempel ongezet)', rA.nearCriticalTaskIds.length, 0);
 eq('12 floatPathByTask leeg (floatPaths uit)', Object.keys(rA.floatPathByTask).length, 0);
-// Sanity: het net is niet-triviaal (A1 kritiek, END kritiek) — anders zeggen de checks weinig.
 eq('13 net A niet-triviaal (criticalPath bevat A1)', rA.criticalPath.includes('A1'), true);
 
-// ── 3) Per-taak-analyse-velden (§3.5/§4.6): interfering ALTIJD, near/floatPath default-ongeschreven ─
 const all = [...rA.tasks.values()];
 eq('14 elke taak interferingFloat === tf−ff (golf 2: altijd berekend)',
   all.every(t => t.interferingFloat === t.totalFloat - t.freeFloat), true);
 eq('15 elke taak isNearCritical === undefined (geen drempel)', all.every(t => t.isNearCritical === undefined), true);
 eq('16 elke taak floatPath === undefined (floatPaths uit)', all.every(t => t.floatPath === undefined), true);
 
-// ── 4) Plumbing byte-identiek: met vs zonder (leeg) schedulingOptions (§2) ─────
-const rNone = solve(netA, seqA);                              // opties-object leeg
-const rEmptyOpts = solve(netA, seqA, { schedulingOptions: legacyEffective({}) });    // leeg 2.9-blok doorgegeven
+const rNone = solve(netA, seqA);
+const rEmptyOpts = solve(netA, seqA, { schedulingOptions: legacyEffective({}) });
 const rFullDefaults = solve(netA, seqA, {
   schedulingOptions: legacyEffective({ lagCalendar: 'predecessor', criticalDefinition: { mode: 'totalFloat', threshold: 0 }, totalFloatMode: 'smallest' }),
 });
 eq('17 leeg schedulingOptions ⇒ byte-identieke solve', digest(rEmptyOpts), digest(rNone));
 eq('18 default-waarden-blok ⇒ byte-identieke solve', digest(rFullDefaults), digest(rNone));
 
-// ── 5) Optionele TAAK-velden (hard/constraint2/isHammock/externalLinks) inert ──
-// Net B: P(2)→FS Q(3), Q met soft SNET. Decoratie voegt alle 2.9-taakvelden toe die golf 0 MOET
-// negeren; de solve moet identiek blijven (bewijs: geen enkele gedragswijzigende tak geraakt).
 const snet: TaskConstraint = { type: 'SNET', date: '2026-06-10' };
 const netB: Task[] = [mkTask('P', 2), mkTask('Q', 3, { constraint: snet })];
 const seqB: Sequence[] = [fs('b1', 'P', 'Q')];
 const netBdecor: Task[] = [
   mkTask('P', 2, { isHammock: false, externalLinks: [] }),
   mkTask('Q', 3, {
-    constraint: { type: 'SNET', date: '2026-06-10', hard: true },   // `hard` moet inert zijn
-    constraint2: { type: 'FNLT', date: '2026-06-30' },              // secundair moet inert zijn
+    constraint: { type: 'SNET', date: '2026-06-10', hard: true },
+    constraint2: { type: 'FNLT', date: '2026-06-30' },
     isHammock: false,
     externalLinks: [{
       id: 'x1', direction: 'predecessor', relType: 'FS', anchorDate: '2026-05-20',
@@ -151,7 +117,6 @@ const netBdecor: Task[] = [
 ];
 eq('19 2.9-taakvelden aanwezig ⇒ byte-identieke solve (inert)', digest(solve(netBdecor, seqB)), digest(solve(netB, seqB)));
 
-// ── 6) CPMResult-velden ook aanwezig op de FOUT-tak (cyclus) ──────────────────
 const cyc: Task[] = [mkTask('U', 1), mkTask('V', 1)];
 const seqCyc: Sequence[] = [fs('c1', 'U', 'V'), fs('c2', 'V', 'U')];
 const rErr = solve(cyc, seqCyc);
@@ -160,8 +125,6 @@ eq('21 error-result: criticalPaths aanwezig, lengte 1', rErr.criticalPaths.lengt
 eq('22 error-result: nearCriticalTaskIds/floatPathByTask leeg',
   rErr.nearCriticalTaskIds.length === 0 && Object.keys(rErr.floatPathByTask).length === 0, true);
 
-// ── 7) Golf 1 — validateConstraintPair (§4.3), pure authoring-guard ───────────
-// De SOLVER rekent altijd gewoon door; deze helper weigert enkel nonsensicale paren voor de UI.
 const c = (type: string, extra: Partial<TaskConstraint> = {}): TaskConstraint =>
   ({ type: type as TaskConstraint['type'], date: '2026-06-03', ...extra });
 eq('23 geen secundair ⇒ ok', validateConstraintPair(c('SNET'), undefined).ok, true);
@@ -180,9 +143,6 @@ eq('30 secundair type MSO ⇒ ongeldig',
 eq('31 ASAP-primair + secundair ⇒ verboden',
   validateConstraintPair(c('ASAP'), c('FNLT')).issues.includes('no-secondary-with-asap-alap'), true);
 
-// ── 8) Golf 1 — harde-pin-idempotentie (§8.4c): twee solves = zelfde datums ────
-// A(5)→FS B(2), B HARD MSO 06-03 (scenario S8). De pin breekt de logica; herhaald solven moet
-// bit-identiek zijn (geen accumulerende instance-state).
 const pinTasks: Task[] = [
   mkTask('A', 5),
   mkTask('B', 2, { constraint: { type: 'MSO', date: '2026-06-03', hard: true } }),
@@ -196,7 +156,6 @@ eq('34 harde pin: B tf=0 (pin kritiek-neutraal)', rp1.tasks.get('B')!.totalFloat
 eq('35 harde pin: A negatieve float upstream', rp1.tasks.get('A')!.totalFloat, -3);
 eq('36 harde pin: B in violatedConstraintTaskIds (rawMax > pin)', rp1.violatedConstraintTaskIds.includes('B'), true);
 
-// ── 9) Golf 2 — near-critical-drempel (§4.6) op net A (A1 tf0, A2 tf1, A3 tf3, END tf0) ─
 const rNear1 = solve(netA, seqA, { schedulingOptions: legacyEffective({ nearCriticalThreshold: 1 }) });
 eq('37 near thr1: nearCriticalTaskIds == [A2]', JSON.stringify([...rNear1.nearCriticalTaskIds].sort()), JSON.stringify(['A2']));
 eq('38 near thr1: A1 tf=0 NIET near (randgeval)', rNear1.tasks.get('A1')!.isNearCritical, false);
@@ -207,17 +166,14 @@ const rNear3 = solve(netA, seqA, { schedulingOptions: legacyEffective({ nearCrit
 eq('42 near thr3: {A2,A3}', JSON.stringify([...rNear3.nearCriticalTaskIds].sort()), JSON.stringify(['A2', 'A3']));
 eq('43 near thr3: A3 tf=thr WÉL near', rNear3.tasks.get('A3')!.isNearCritical, true);
 
-// ── 10) Golf 2 — kritiek-definitie: totalFloat-drempel (§4.6) ──────────────────
 const rThr1 = solve(netA, seqA, { schedulingOptions: legacyEffective({ criticalDefinition: { mode: 'totalFloat', threshold: 1 } }) });
 eq('44 crit thr1: criticalPath = {A1,A2,END}', JSON.stringify([...rThr1.criticalPath].sort()), JSON.stringify(['A1', 'A2', 'END']));
 eq('45 crit thr1: A2 kritiek (tf1≤1)', rThr1.tasks.get('A2')!.isCritical, true);
 eq('46 crit thr1: A3 niet kritiek (tf3)', rThr1.tasks.get('A3')!.isCritical, false);
 
-// ── 11) Golf 2 — kritiek-definitie: longestPath (§4.6, tf-onafhankelijk) ───────
 const rLP = solve(netA, seqA, { schedulingOptions: legacyEffective({ criticalDefinition: { mode: 'longestPath' } }) });
 eq('47 longestPath: criticalPath = {A1,END}', JSON.stringify([...rLP.criticalPath].sort()), JSON.stringify(['A1', 'END']));
 eq('48 longestPath: A2 niet kritiek', rLP.tasks.get('A2')!.isCritical, false);
-// Discriminator: A2 krijgt tf=0 via een deadline, tóch NIET kritiek in longestPath (ongeacht tf).
 const netAdl: Task[] = [mkTask('A1', 5), mkTask('A2', 4, { deadline: '2026-06-04' }), mkTask('A3', 2), mkTask('END', 1)];
 const rDlDefault = solve(netAdl, seqA);
 const rDlLP = solve(netAdl, seqA, { schedulingOptions: legacyEffective({ criticalDefinition: { mode: 'longestPath' } }) });
@@ -226,7 +182,6 @@ eq('50 deadline+totalFloat: A2 kritiek (tf≤0)', rDlDefault.tasks.get('A2')!.is
 eq('51 deadline+longestPath: A2 NIET kritiek (ongeacht tf=0)', rDlLP.tasks.get('A2')!.isCritical, false);
 eq('52 deadline+longestPath: criticalPath = {A1,END}', JSON.stringify([...rDlLP.criticalPath].sort()), JSON.stringify(['A1', 'END']));
 
-// ── 12) Golf 2 — makeOpenEndedCritical (§3.4): OA(1)→FS OB(2); OA→FS OC(5) ─────
 const netO: Task[] = [mkTask('OA', 1), mkTask('OB', 2), mkTask('OC', 5)];
 const seqO: Sequence[] = [fs('o1', 'OA', 'OB'), fs('o2', 'OA', 'OC')];
 const rODefault = solve(netO, seqO);
@@ -238,27 +193,21 @@ eq('56 makeOpenEndedCritical: OB tf geforceerd 0', rOForce.tasks.get('OB')!.tota
 eq('57 makeOpenEndedCritical: OC blijft kritiek', rOForce.tasks.get('OC')!.isCritical, true);
 eq('58 makeOpenEndedCritical: OB intf=tf−ff invariant', rOForce.tasks.get('OB')!.interferingFloat, 0);
 
-// ── 13) Golf 2 — TF-berekeningswijze (§3.4): observationeel identiek in de symmetrische ─
-//        backward-pass (LS=LF−dur ⇒ start-float == finish-float). Byte-inert bewezen via digest.
 eq('59 totalFloatMode finish ⇒ digest identiek', digest(solve(netA, seqA, { schedulingOptions: legacyEffective({ totalFloatMode: 'finish' }) })), digest(rA));
 eq('60 totalFloatMode start ⇒ digest identiek', digest(solve(netA, seqA, { schedulingOptions: legacyEffective({ totalFloatMode: 'start' }) })), digest(rA));
 
-// ── 14) Golf 3 — multiple float paths: FREE_FLOAT-peel op net A (§4.6) ─────────
 const rFP = solve(netA, seqA, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } }) });
 eq('61 free-float: A1=1', rFP.floatPathByTask['A1'], 1);
 eq('62 free-float: END=1 (zelfde driving-keten als A1)', rFP.floatPathByTask['END'], 1);
 eq('63 free-float: A2=2', rFP.floatPathByTask['A2'], 2);
 eq('64 free-float: A3=3', rFP.floatPathByTask['A3'], 3);
-// Byte-compat-invariant (§4.6, expliciet gevraagd): criticalPaths[0] === criticalPath.
 eq('65 free-float: criticalPaths[0] == criticalPath', JSON.stringify(rFP.criticalPaths[0]), JSON.stringify(rFP.criticalPath));
 eq('66 free-float: precies 1 kritieke keten', rFP.criticalPaths.length, 1);
 eq('67 free-float: criticalPaths[0] = [A1,END]', JSON.stringify(rFP.criticalPaths[0]), JSON.stringify(['A1', 'END']));
-// Elke toegewezen taak precies één floatPath: map ↔ per-taak-veld consistent; alle 4 toegewezen.
 eq('68 free-float: alle 4 taken een floatPath', Object.keys(rFP.floatPathByTask).length, 4);
 eq('69 free-float: per-taak floatPath == floatPathByTask',
   [...rFP.tasks.entries()].every(([id, t]) => t.floatPath === rFP.floatPathByTask[id]), true);
 
-// ── 15) Golf 3 — TOTAL_FLOAT-rangschikking (distinct tf {0,1,3}) ───────────────
 const rTFp = solve(netA, seqA, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 10 } }) });
 eq('70 total-float: A1=1 (tf0)', rTFp.floatPathByTask['A1'], 1);
 eq('71 total-float: END=1 (tf0, zelfde rang)', rTFp.floatPathByTask['END'], 1);
@@ -266,29 +215,24 @@ eq('72 total-float: A2=2 (tf1)', rTFp.floatPathByTask['A2'], 2);
 eq('73 total-float: A3=3 (tf3)', rTFp.floatPathByTask['A3'], 3);
 eq('74 total-float: criticalPaths[0] == criticalPath', JSON.stringify(rTFp.criticalPaths[0]), JSON.stringify(rTFp.criticalPath));
 
-// ── 16) Golf 3 — maxPaths harde begrenzing: A3 krijgt GEEN floatPath ───────────
 const rMax2 = solve(netA, seqA, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 2 } }) });
 eq('75 maxPaths2: A1=1', rMax2.floatPathByTask['A1'], 1);
 eq('76 maxPaths2: A2=2', rMax2.floatPathByTask['A2'], 2);
 eq('77 maxPaths2: A3 GEEN floatPath (map)', rMax2.floatPathByTask['A3'], undefined);
 eq('78 maxPaths2: A3 GEEN floatPath (per-taak)', rMax2.tasks.get('A3')!.floatPath, undefined);
 eq('79 maxPaths2: precies 3 toegewezen', Object.keys(rMax2.floatPathByTask).length, 3);
-// Harde grens óók bij een groter net: 6 parallelle paden, maxPaths=2 ⇒ hoogste padnummer 2.
 const netBig: Task[] = [mkTask('END', 1)];
 const seqBig: Sequence[] = [];
 for (let i = 1; i <= 6; i++) { netBig.unshift(mkTask('T' + i, i)); seqBig.push(fs('bs' + i, 'T' + i, 'END')); }
 const rBig = solve(netBig, seqBig, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 2 } }) });
 eq('80 groot net maxPaths2: hoogste padnummer 2', Math.max(...Object.values(rBig.floatPathByTask)), 2);
 
-// ── 17) Golf 3 — enabled=false ⇒ VOLLEDIG inert (byte-identiek golf 0) ─────────
 const rDis = solve(netA, seqA, { schedulingOptions: legacyEffective({ floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 10 } }) });
 eq('81 disabled: floatPathByTask leeg', Object.keys(rDis.floatPathByTask).length, 0);
 eq('82 disabled: criticalPaths == [criticalPath]', JSON.stringify(rDis.criticalPaths), JSON.stringify([rDis.criticalPath]));
 eq('83 disabled: geen per-taak floatPath', [...rDis.tasks.values()].every(t => t.floatPath === undefined), true);
 eq('84 disabled: digest byte-identiek aan geen-opties', digest(rDis), digest(rA));
 
-// ── 18) Golf 3 — gedeelde voorganger over twee ketens: nummer van de EERSTE peel ─
-// S(3) root; S→FS B(5) (langste keten), S→FS C(2). S is driving-voorganger van B én C.
 const netSh: Task[] = [mkTask('S', 3), mkTask('B', 5), mkTask('C', 2)];
 const seqSh: Sequence[] = [fs('sh1', 'S', 'B'), fs('sh2', 'S', 'C')];
 const rSh = solve(netSh, seqSh, { schedulingOptions: legacyEffective({ floatPaths: { enabled: true, method: 'FREE_FLOAT', maxPaths: 10 } }) });
@@ -298,13 +242,9 @@ eq('87 gedeeld: C=2 (tweede peel; S houdt zijn 1)', rSh.floatPathByTask['C'], 2)
 eq('88 gedeeld: criticalPaths[0] == criticalPath', JSON.stringify(rSh.criticalPaths[0]), JSON.stringify(rSh.criticalPath));
 eq('89 gedeeld: criticalPaths[0] = [S,B]', JSON.stringify(rSh.criticalPaths[0]), JSON.stringify(['S', 'B']));
 
-// ── 19) Golf 4 — hammocks (§4.4) ──────────────────────────────────────────────
-// Relatie-helpers voor de driver-topologie: SS/FS = start-driver, FF/SF = finish-driver (B6).
 function lk(id: string, pred: string, succ: string, type: Sequence['type']): Sequence {
   return { id, predecessorId: pred, successorId: succ, type, lagDays: 0 };
 }
-// Hammock H met start-driver SS(A→H) en finish-driver FF(B→H); A(3)→FS B(dur). Ongewijzigde
-// driver-topologie van S10; alleen B's duur varieert (⇒ her-spanning van de hammock).
 function s10(bDur: number): { r: CPMResult; tasks: Task[] } {
   const tasks = [mkTask('A', 3), mkTask('B', bDur), mkTask('H', 1, { isHammock: true })];
   const seqs = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH')];
@@ -312,7 +252,6 @@ function s10(bDur: number): { r: CPMResult; tasks: Task[] } {
 }
 const engDay = new CalendarEngine(CAL);
 
-// S10-v1 (B dur2): H 06-01..06-05, span 5 werkdagen; nooit kritiek.
 const s10a = s10(2);
 const hA = s10a.r.tasks.get('H')!;
 eq('90 S10-v1: H.es', hA.earlyStart, '2026-06-01T08:00');
@@ -323,13 +262,11 @@ eq('94 S10-v1: H interfering=0', hA.interferingFloat, 0);
 eq('95 S10-v1: H NOOIT kritiek', hA.isCritical, false);
 eq('96 S10-v1: H niet in criticalPath', s10a.r.criticalPath.includes('H'), false);
 eq('97 S10-v1: criticalPath = {A,B}', JSON.stringify([...s10a.r.criticalPath].sort()), JSON.stringify(['A', 'B']));
-// 8.4-d: hammock-span == workDaysBetween(ES,EF); zelfstandig herberekend via CalendarEngine.
 eq('98 S10-v1: afgeleide scheduleDuration = span 5', s10a.tasks.find(t => t.id === 'H')!.time.scheduleDuration, 5);
 eq('99 S10-v1: span == workDaysBetween(ES,EF)',
   s10a.tasks.find(t => t.id === 'H')!.time.scheduleDuration,
   engDay.workDaysBetween(parseDate(hA.earlyStart), parseDate(hA.earlyFinish)));
 
-// S10-v2 (B dur4): driver verschuift ⇒ H her-spant naar EF 06-09, span 7.
 const s10b = s10(4);
 const hB = s10b.r.tasks.get('H')!;
 eq('100 S10-v2: H.ef her-spant naar 06-09', hB.earlyFinish, '2026-06-09T16:00');
@@ -339,14 +276,13 @@ eq('102 S10-v2: span == workDaysBetween(ES,EF)',
   engDay.workDaysBetween(parseDate(hB.earlyStart), parseDate(hB.earlyFinish)));
 eq('103 S10-v2: H nooit kritiek', hB.isCritical, false);
 
-// Uur-modus hammock (H8, band [480,960]): fractionele span (600 werkmin = 1,25 dag). 8.4-d in uur-modus.
 const H8: WorkCalendar = {
   id: 'h8', name: 'h8', description: 'h8',
   workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
   workTime: { byWeekday: { 1: [{ start: 480, end: 960 }], 2: [{ start: 480, end: 960 }], 3: [{ start: 480, end: 960 }], 4: [{ start: 480, end: 960 }], 5: [{ start: 480, end: 960 }], 6: [], 7: [] } },
 } as unknown as WorkCalendar;
 function mkH(id: string, mins: number, extra: Partial<Task> = {}): Task {
-  const t = mkTask(id, mins / 480, extra);           // scheduleStart 2026-06-01 (ongebruikt) → anker in H8
+  const t = mkTask(id, mins / 480, extra);
   t.time = createDefaultTaskTime('2026-07-06', mins / 480, 'hours');
   t.time.durationMinutes = mins;
   return t;
@@ -360,13 +296,11 @@ eq('104 uur: H.es', hH.earlyStart, '2026-07-06T08:00');
 eq('105 uur: H.ef', hH.earlyFinish, '2026-07-07T10:00');
 eq('106 uur: H fractionele durationMinutes = 600', hourTasks.find(t => t.id === 'H')!.time.durationMinutes, 600);
 eq('107 uur: scheduleDuration = 1.25 dag', hourTasks.find(t => t.id === 'H')!.time.scheduleDuration, 1.25);
-// 8.4-d uur: span == workMinutesBetween(ES,EF), zelfstandig herberekend.
 eq('108 uur: span == workMinutesBetween(ES,EF)',
   hourTasks.find(t => t.id === 'H')!.time.durationMinutes,
   engH8.workMinutesBetween(parseInstant(hH.earlyStart), parseInstant(hH.earlyFinish)));
 eq('109 uur: H tf=0 ff=0 nooit kritiek', hH.totalFloat === 0 && hH.freeFloat === 0 && hH.isCritical === false, true);
 
-// Hammock zónder finish-driver ⇒ EF=ES (nul-lengte) + waarschuwing in het resultaat.
 const nfdTasks = [mkTask('A', 3), mkTask('H', 1, { isHammock: true })];
 const rNfd = solve(nfdTasks, [lk('l2', 'A', 'H', 'START_START')]);
 const hNfd = rNfd.tasks.get('H')!;
@@ -375,9 +309,6 @@ eq('111 geen finish-driver: waarschuwing gerapporteerd', JSON.stringify(rNfd.ham
 eq('112 geen finish-driver: H nog steeds nooit kritiek', hNfd.isCritical, false);
 eq('113 met finish-driver: waarschuwingslijst leeg', JSON.stringify(s10a.r.hammockNoFinishDriverTaskIds), JSON.stringify([]));
 
-// Hammock met opvolger (§4.4): FS vanaf H rekent forward door; H geeft GEEN backward-druk aan de
-// drivers. Een STRAKKE opvolger (Z FNLT ⇒ Z negatief) mag NIET via de hammock heen negatieve float
-// op de start-/finish-driver leggen — A/B houden hun eigen (positieve) float.
 const succTasks = [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: true }),
   mkTask('Z', 2, { constraint: { type: 'FNLT', date: '2026-06-08' } })];
 const succSeq = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'),
@@ -390,7 +321,6 @@ eq('117 opvolger: finish-driver B GEEN negatieve float via hammock (tf=2)', rSuc
 eq('118 opvolger: H blijft LS=ES/LF=EF ⇒ tf=0, nooit kritiek', rSucc.tasks.get('H')!.totalFloat === 0 && rSucc.tasks.get('H')!.isCritical === false, true);
 eq('119 opvolger: criticalPath = {Z} (alleen de echte eindketen)', JSON.stringify([...rSucc.criticalPath].sort()), JSON.stringify(['Z']));
 
-// Float-paths negeren de hammock (§4.4/§4.6): H nooit in floatPathByTask.
 const rFpHam = solve(
   [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: true }), mkTask('Z', 2)],
   [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH'), lk('l4', 'H', 'Z', 'FINISH_START')],
@@ -401,30 +331,18 @@ eq('121 float-paths: H per-taak floatPath ongeschreven', rFpHam.tasks.get('H')!.
 eq('122 float-paths: Z=1 (echte eindketen)', rFpHam.floatPathByTask['Z'], 1);
 eq('123 float-paths: criticalPaths bevat H niet', rFpHam.criticalPaths.every(p => !p.includes('H')), true);
 
-// isHammock afwezig ≡ isHammock:false ≡ gewone taak (byte-identiek). H als gewone taak ⇒ ES via de
-// volledige max (incl. FF-start-equivalent) ⇒ ANDER resultaat dan een hammock (bewijst dat de vlag telt).
 const plainTasks = [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1)];
 const plainFalse = [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: false })];
 const plainSeq = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH')];
 eq('124 isHammock afwezig ≡ false (byte-identieke solve)', digest(solve(plainFalse, plainSeq)), digest(solve(plainTasks, plainSeq)));
 eq('125 gewone taak ≠ hammock (vlag heeft effect: H kritiek als gewone taak)', solve(plainTasks, plainSeq).tasks.get('H')!.isCritical, true);
 eq('126 hammock-tweeling: H als hammock is NIET kritiek', s10a.r.tasks.get('H')!.isCritical, false);
-// Twee keer solve op dezelfde task-objecten (afgeleide-duur-mutatie) ⇒ idempotent.
 const idemT = [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: true })];
 const idemS = [lk('l1', 'A', 'B', 'FINISH_START'), lk('l2', 'A', 'H', 'START_START'), lk('l3', 'B', 'H', 'FINISH_FINISH')];
 const idem1 = digest(new CPMSolver(idemT, idemS, CAL, [], legacyCpmOptions()).solve());
 const idem2 = digest(new CPMSolver(idemT, idemS, CAL, [], legacyCpmOptions()).solve());
 eq('127 hammock: solve idempotent na duur-mutatie (zelfde digest)', idem1, idem2);
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  Golf 5 (§4.5/§5.5) — externe (cross-project) dependencies: ververs-mapping, sourceMissing-gedrag,
-//  IFC-round-trip. De SOLVER-kant (bevroren datum-grenzen: FS/SS start-grens, FF/SF finish-grens,
-//  successor-bovengrens, uur-anker, lag-varianten) is handberekend in cases-advanced-cpm.json.
-// ══════════════════════════════════════════════════════════════════════════════
-
-// (a) externalSourceSide-mapping: welke brontaak-zijde (start/finish) elk relType leest (§4.5). De
-//     conventie is voorganger→opvolger; bij `predecessor` telt het EERSTE teken (bron = mijn voorganger),
-//     bij `successor` het TWEEDE (bron = mijn opvolger).
 eq('128 side pred FS ⇒ finish', externalSourceSide('predecessor', 'FS'), 'finish');
 eq('129 side pred FF ⇒ finish', externalSourceSide('predecessor', 'FF'), 'finish');
 eq('130 side pred SS ⇒ start', externalSourceSide('predecessor', 'SS'), 'start');
@@ -434,8 +352,6 @@ eq('133 side succ SS ⇒ start', externalSourceSide('successor', 'SS'), 'start')
 eq('134 side succ FF ⇒ finish', externalSourceSide('successor', 'FF'), 'finish');
 eq('135 side succ SF ⇒ finish', externalSourceSide('successor', 'SF'), 'finish');
 
-/** Brontaak met expliciete vroege en late datums. Een externe voorganger leest de vroege datum, een
- *  externe opvolger de late (besluit van Ethan, 2026-11-02; `sourceAnchorDate`). */
 function srcTask(id: string, es: string, ef: string, ls = es, lf = ef): Task {
   const t = mkTask(id, 1);
   t.time.earlyStart = es; t.time.scheduleStart = es;
@@ -450,7 +366,6 @@ function extLink(
   return { id, direction, relType, anchorDate: anchor, sourceRef: ref, sourceMissing: missing };
 }
 
-// (b) refreshExternalAnchors: elk relType leest de juiste brontaak-datum + zet sourceMissing=false.
 const SRC_ES = '2026-06-05', SRC_EF = '2026-06-08', SRC_LS = '2026-06-12', SRC_LF = '2026-06-15';
 const source: ExternalSourceDoc = {
   projectId: 'SRC', filePath: '/tmp/src.ifc', projectName: 'Bronproject',
@@ -484,7 +399,6 @@ eq('145 ververs: refreshed-teller = 8', refreshed.refreshed, 8);
 eq('146 ververs: brontaak-naam gecanonicaliseerd', byId.get('p-fs')!.sourceRef.taskName, 'X');
 eq('147 ververs: changed=true', refreshed.changed, true);
 
-// (c) sourceMissing-gedrag: brontaak weg ⇒ sourceMissing=true + oud anker behouden; andere bron ⇒ ongemoeid.
 const mixed: Task = mkTask('L2', 3, {
   externalLinks: [
     extLink('found', 'predecessor', 'FS', { projectId: 'SRC', taskId: 'X' }, '2000-01-01', false),
@@ -502,7 +416,6 @@ eq('152 sourceMissing: andere bron ⇒ ongemoeid (anker)', mixById.get('other')!
 eq('153 sourceMissing: andere bron ⇒ ongemoeid (sourceMissing)', mixById.get('other')!.sourceMissing, false);
 eq('154 sourceMissing: missing-teller = 1', rMix.missing, 1);
 
-// Fallback-match op filePath wanneer de projectId (nog) niet klopt (§3.3/§5.5).
 const byPath: Task = mkTask('L3', 3, {
   externalLinks: [extLink('fp', 'predecessor', 'SS', { projectId: 'WRONG', taskId: 'X', filePath: '/tmp/src.ifc' }, '2000-01-01', true)],
 });
@@ -510,9 +423,6 @@ const rPath = refreshExternalAnchors([byPath], source);
 eq('155 filePath-fallback: gematcht ⇒ anker uit bron', rPath.tasks[0].externalLinks![0].anchorDate, SRC_ES);
 eq('156 filePath-fallback: projectId gecanonicaliseerd naar bron', rPath.tasks[0].externalLinks![0].sourceRef.projectId, 'SRC');
 
-// Exact dezelfde gedeelde lexicale identiteit als de clipboard-key: Windows-separators en alle
-// ASCII-caseverschillen matchen, ook als de legacy projectId fout is. Een relatief legacypad mag
-// daarentegen nooit toevallig matchen, zelfs niet wanneer beide rauwe strings gelijk zijn.
 const windowsSource: ExternalSourceDoc = {
   ...source, projectId: 'SRC-WIN', filePath: 'C:/PROJECTEN/BRON.ifc',
 };
@@ -535,9 +445,6 @@ const relativeLegacy: Task = mkTask('L5', 3, {
 const rRelative = refreshExternalAnchors([relativeLegacy], relativeSource);
 eq('156c ongeldig relatief legacypad matcht niet', rRelative.changed, false);
 
-// Twee bestanden kunnen door openen/opslaan-als dezelfde persistente project-id dragen. De gewone
-// enkelbronverversing blijft project-id-primair (een verplaatst bestand moet blijven werken), maar
-// de bulkroute moet twee gelijktijdig gelezen bronnen met diezelfde id op pad kunnen scheiden.
 const duplicateProjectTask: Task = mkTask('L6', 3, {
   externalLinks: [
     extLink('same-id-a', 'predecessor', 'FS', {
@@ -566,18 +473,15 @@ eq('156e gelijke project-id: pad B krijgt alleen anker B',
 eq('156f gelijke project-id: bron A ververst exact één link', duplicateAfterA.refreshed, 1);
 eq('156g gelijke project-id: bron B ververst exact één link', duplicateAfterB.refreshed, 1);
 
-// Byte-stabiliteit: een reeds-actueel document geeft dezelfde referentie terug (changed=false).
 const already = refreshExternalAnchors(rPath.tasks, source);
 eq('157 idempotent: tweede ververs ⇒ changed=false', already.changed, false);
 eq('158 idempotent: task-referentie behouden', already.tasks[0] === rPath.tasks[0], true);
 
-// Taak zonder links: onaangeroerd (referentie behouden).
 const noLinks = [mkTask('N', 2)];
 const rNo = refreshExternalAnchors(noLinks, source);
 eq('159 geen-links: referentie behouden', rNo.tasks[0] === noLinks[0], true);
 eq('160 geen-links: changed=false', rNo.changed, false);
 
-// (d) IFC-round-trip van externe links: schrijf+lees terug (spiegel writeExternalLinks/OPS_ExternalLink).
 const rtProject: Project = {
   id: 'proj-rt', name: 'RT', description: '', startDate: '2026-06-01', endDate: '2026-06-30',
   calendarId: CAL.id, createdAt: '2026-06-01', modifiedAt: '2026-06-01', author: 'test', company: 'test',
@@ -594,30 +498,14 @@ eq('161 IFC-write: OPS_ExternalLink-pset aanwezig', ifc.includes("'OPS_ExternalL
 const backTask = readIFC(ifc).tasks.find(t => t.name === 'Local');
 eq('162 IFC-round-trip: taak teruggevonden', !!backTask, true);
 eq('163 IFC-round-trip: externalLinks byte-gelijk', JSON.stringify(backTask?.externalLinks ?? null), JSON.stringify(rtLinks));
-// Geen links ⇒ geen pset (byte-identiek met bestaande bestanden).
 const ifcNone = writeIFC({ project: rtProject, calendar: CAL, tasks: [mkTask('Plain', 2)], sequences: [], resources: [], assignments: [] });
 eq('164 IFC-write: geen links ⇒ geen OPS_ExternalLink-pset', ifcNone.includes('OPS_ExternalLink'), false);
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  Golf 8 (§8.4 / testplan) — UNVERIFIED-gaten dichten + invariant-sweep.
-// ══════════════════════════════════════════════════════════════════════════════
-
-// ── 20) totalFloatMode 'start' vs 'finish' DISCRIMINATOR (scope 1b, de golf-2-vraag) ─────────────
-// Golf 2 meldde 'start'/'finish'/'smallest' als "observationeel identiek in de huidige symmetrische
-// backward-pass". Golf 8 bewijst dat hard op de netten die een verschil ZOUDEN tonen als het bestond.
-// UITKOMST: PROVABLY identiek. De backward pass leidt de late start ALTIJD af als LF ⊖ duur in de
-// EIGEN kalender (CPMSolver.ts:1175 `lateStart = subDuration(lateFinish, task)`). Daardoor is
-// startFloat = signedFloat(ES,LS) per constructie exact gelijk aan finishFloat = signedFloat(EF,LF)
-// voor élke taak — ES/LS en EF/LF verschillen door dezelfde duur-verschuiving binnen één kalender,
-// dus hun werkdag-afstand is gelijk. Er is geen tak die LS onafhankelijk van LF kapt (ook een SNLT
-// gaat via een LF-grens). Bewezen op (a) een SNLT-net met negatieve float (schijnbaar start-zijdig)
-// en (b) een FRACTIONEEL uur-net (H8) met half-dag-floats.
 function tfMap(r: CPMResult): Record<string, number> {
   const m: Record<string, number> = {};
   for (const [id, t] of r.tasks) m[id] = t.totalFloat;
   return m;
 }
-// (a) S2-net: A(3)→FS B(2), B SNLT 06-03 ⇒ tf −1 (negatief).
 const s2 = [mkTask('A', 3), mkTask('B', 2, { constraint: { type: 'SNLT', date: '2026-06-03' } })];
 const s2seq = [fs('s2s', 'A', 'B')];
 const s2start = tfMap(solve(s2, s2seq, { schedulingOptions: legacyEffective({ totalFloatMode: 'start' }) }));
@@ -626,7 +514,6 @@ const s2small = tfMap(solve(s2, s2seq, { schedulingOptions: legacyEffective({ to
 eq('165 disc S2 (SNLT): start == finish per taak', JSON.stringify(s2start), JSON.stringify(s2finish));
 eq('166 disc S2: smallest == start (drie modi identiek)', JSON.stringify(s2small), JSON.stringify(s2start));
 eq('167 disc S2: waarde niet-triviaal (B tf=-1)', s2finish['B'], -1);
-// (b) H8 uur-net Q1(16u),Q2(12u),Q3(8u)→FS ENDH(8u): fractionele floats.
 const qn = [mkH('Q1', 960), mkH('Q2', 720), mkH('Q3', 480), mkH('ENDH', 480)];
 const qs = [lk('qa', 'Q1', 'ENDH', 'FINISH_START'), lk('qb', 'Q2', 'ENDH', 'FINISH_START'), lk('qc', 'Q3', 'ENDH', 'FINISH_START')];
 const qStart = tfMap(new CPMSolver(qn, qs, H8, [], { schedulingOptions: legacyEffective({ totalFloatMode: 'start' }) }).solve());
@@ -635,10 +522,6 @@ eq('168 disc uur: start == finish per taak (fractioneel)', JSON.stringify(qStart
 eq('169 disc uur: Q2 fractionele tf=0.5 (niet-triviaal)', qFinish['Q2'], 0.5);
 eq('170 disc uur: Q3 fractionele tf=1.0', qFinish['Q3'], 1);
 
-// ── 21) Invariant-sweep (scope 3) over een representatieve reeks netten+opties ────────────────────
-// Elke solve moet vier invarianten halen: (I1) interferingFloat == tf−ff voor élke taak; (I2)
-// criticalPaths[0] == criticalPath én |criticalPaths| ≥ 1; (I3) een hammock heeft nooit een floatPath,
-// is nooit near-critical en zit in geen kritieke keten; (I4, apart hieronder) 'start'/'finish'-tf gelijk.
 const HAM = (): Task[] => [mkTask('A', 3), mkTask('B', 2), mkTask('H', 1, { isHammock: true }), mkTask('Z', 2)];
 const HAMSEQ = [lk('hs1', 'A', 'B', 'FINISH_START'), lk('hs2', 'A', 'H', 'START_START'), lk('hs3', 'B', 'H', 'FINISH_FINISH'), lk('hs4', 'H', 'Z', 'FINISH_START')];
 type Scen = { label: string; run: () => CPMResult; hammocks?: string[] };
@@ -667,7 +550,6 @@ for (const s of scen) {
   }
 }
 eq('171 invariant-sweep I1..I3 groen over alle sweep-netten', sweepOk, true);
-// I4 — 'start'/'finish'-tf identiek over de sweep-netten (bevestigt scope 1b breder dan één net).
 const modeNets: { label: string; m: (mode: 'start' | 'finish') => CPMResult }[] = [
   { label: 'netA', m: mode => solve(netA, seqA, { schedulingOptions: legacyEffective({ totalFloatMode: mode }) }) },
   { label: 'S2', m: mode => solve(s2, s2seq, { schedulingOptions: legacyEffective({ totalFloatMode: mode }) }) },
@@ -679,7 +561,6 @@ let modeOk = true;
 for (const n of modeNets) if (JSON.stringify(tfMap(n.m('start'))) !== JSON.stringify(tfMap(n.m('finish')))) { modeOk = false; diffs.push(`mode ${n.label}: start≠finish`); }
 eq('172 totalFloatMode start==finish over alle sweep-netten (I4)', modeOk, true);
 
-// ── 22) Harde-pin-idempotentie ook in UUR-modus (scope 3; dag bestond als check 32) ──────────────
 const hourPin = [mkH('A', 960), mkH('B', 480, { constraint: { type: 'MSO', date: '2026-07-07T08:00', hard: true } })];
 const hourPinSeq = [lk('hp', 'A', 'B', 'FINISH_START')];
 const hp1 = new CPMSolver(hourPin, hourPinSeq, H8, [], legacyCpmOptions()).solve();
@@ -688,11 +569,6 @@ eq('173 uur harde pin: solve idempotent (zelfde digest)', digest(hp1), digest(hp
 eq('174 uur harde pin: B gepind op 07-07T08:00 (logica gebroken)', hp1.tasks.get('B')!.earlyStart, '2026-07-07T08:00');
 eq('175 uur harde pin: B in violatedConstraintTaskIds', hp1.violatedConstraintTaskIds.includes('B'), true);
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  Fase 2.10, golf D (item 1) — taak-aantekeningen: IFC round-trip (VERPLICHTE architect-eis).
-//  Project met een mix open/done aantekeningen, meerdere per taak, en een taak zonder notes —
-//  schrijven → teruglezen → diep-gelijk, exact het externalLinks-round-trip-stramien hierboven.
-// ══════════════════════════════════════════════════════════════════════════════
 type TaskNote = { id: string; text: string; done: boolean };
 const notesA: TaskNote[] = [
   { id: 'n1', text: 'Bekist controleren vóór storten', done: false },
@@ -703,7 +579,7 @@ const notesB: TaskNote[] = [
 ];
 const notesTaskA = mkTask('NotesA', 3, { notes: notesA });
 const notesTaskB = mkTask('NotesB', 2, { notes: notesB });
-const notesTaskC = mkTask('NotesC', 1); // geen notes-veld — moet byte-identiek blijven (undefined terug).
+const notesTaskC = mkTask('NotesC', 1);
 const ifcNotes = writeIFC({ project: rtProject, calendar: CAL, tasks: [notesTaskA, notesTaskB, notesTaskC], sequences: [], resources: [], assignments: [] });
 eq('176 IFC-write: OPS_TaskNotes-pset aanwezig', ifcNotes.includes("'OPS_TaskNotes'"), true);
 const notesBack = readIFC(ifcNotes).tasks;
@@ -714,34 +590,19 @@ eq('177 IFC-round-trip: taak A teruggevonden', !!backA, true);
 eq('178 IFC-round-trip: notes A byte-gelijk (mix open/done)', JSON.stringify(backA?.notes ?? null), JSON.stringify(notesA));
 eq('179 IFC-round-trip: notes B byte-gelijk (enkele open)', JSON.stringify(backB?.notes ?? null), JSON.stringify(notesB));
 eq('180 IFC-round-trip: taak zonder notes ⇒ notes blijft undefined', backC?.notes, undefined);
-// Geen notes ⇒ geen pset (byte-identiek met bestaande bestanden — golden rule).
 const ifcNoNotes = writeIFC({ project: rtProject, calendar: CAL, tasks: [mkTask('PlainNotes', 2)], sequences: [], resources: [], assignments: [] });
 eq('181 IFC-write: geen notes ⇒ geen OPS_TaskNotes-pset', ifcNoNotes.includes('OPS_TaskNotes'), false);
 
-// ══════════════════════════════════════════════════════════════════════════════
-//  Fase 2.10 (P1-fix) — hard-pin-detector-gate (CPMSolver.ts:hardPinRespectedByActual).
-//  Bug: een niet-afgemelde START-mijlpaal wordt door de data-date-vloer naar de statusdatum
-//  getild ⇒ zijn EF voedt als `rawMax` de hard-pin-logica-schending-detectie, óók als de
-//  gepinde opvolger allang is afgerond ÉN de pin exact respecteert. De fix onderdrukt de melding
-//  ALLEEN wanneer een geregistreerd feit (actualStart voor MSO) de pin exact treft; een échte
-//  schending (actual wijkt af, of er is nog geen feit en de logica is structureel te laat) blijft
-//  gewoon vuren — bewust smal, de data-date-vloer zelf blijft ongewijzigd (zie R2a-R2c/CTRL-1/
-//  CTRL-2 in de solver-triage-repro's).
-// ══════════════════════════════════════════════════════════════════════════════
 function mkStartMs(id: string): Task {
   return mkTask(id, 0, { isMilestone: true, milestoneKind: 'START' } as Partial<Task>);
 }
 
-// (a) Hard pin + actualStart-OP-de-pin + gevloerde voorganger ⇒ GEEN violation. S is een
-// niet-afgemelde START-mijlpaal (completion 0); de statusdatum (2026-07-01) ligt ver na S's eigen
-// schema-start, dus de data-date-vloer tilt S's ES/EF naar de statusdatum (§P6, ONGEWIJZIGD) — die
-// gevloerde EF voedt P's `rawMax`. P zelf is al lang voltooid, exact op zijn pin.
 const gateS: Task = mkStartMs('GateS');
 const gateP: Task = mkTask('GateP', 3, {
   constraint: { type: 'MSO', date: '2026-06-10', hard: true },
 });
 gateP.time.completion = 1;
-gateP.time.actualStart = '2026-06-10'; // exact op de pin
+gateP.time.actualStart = '2026-06-10';
 gateP.time.actualFinish = '2026-06-12';
 const gateSeq: Sequence[] = [fs('gp1', 'GateS', 'GateP')];
 const rGateA = solve([gateS, gateP], gateSeq, legacyCpmOptions({ dataDate: '2026-07-01' }));
@@ -749,43 +610,29 @@ eq('182 detector-gate: actual EXACT op de pin ⇒ GEEN violation', rGateA.violat
 eq('183 detector-gate: P blijft gepind op zijn actuals (ES)', rGateA.tasks.get('GateP')!.earlyStart, '2026-06-10T08:00');
 eq('184 detector-gate: P blijft gepind op zijn actuals (EF)', rGateA.tasks.get('GateP')!.earlyFinish, '2026-06-12T16:00');
 
-// (b) CONTROLE — zelfde net, maar het geregistreerde feit wijkt AF van de pin (te laat gestart):
-// een ECHTE schending, moet gewoon blijven vuren (de gate is smal — respecteert de pin niet ⇒
-// geen onderdrukking).
 const gateP2: Task = mkTask('GateP2', 3, {
   constraint: { type: 'MSO', date: '2026-06-10', hard: true },
 });
 gateP2.time.completion = 1;
-gateP2.time.actualStart = '2026-06-15'; // NA de pin — reële schending
+gateP2.time.actualStart = '2026-06-15';
 gateP2.time.actualFinish = '2026-06-17';
 const rGateB = solve([mkStartMs('GateS2'), gateP2], [fs('gp2', 'GateS2', 'GateP2')], legacyCpmOptions({ dataDate: '2026-07-01' }));
 eq('185 detector-gate CONTROLE: actual NA de pin ⇒ violation blijft vuren', rGateB.violatedConstraintTaskIds.includes('GateP2'), true);
 
-// (c) CONTROLE — geen actuals, structureel te laat (nog geen feit geregistreerd) ⇒ violation
-// blijft vuren (de gate vereist een geregistreerd feit; zonder feit geen onderdrukking).
-const gateQ: Task = mkTask('GateQ', 20); // lange voorganger, geen actuals
+const gateQ: Task = mkTask('GateQ', 20);
 const gateP3: Task = mkTask('GateP3', 3, {
   constraint: { type: 'MSO', date: '2026-06-10', hard: true },
 });
-const rGateC = solve([gateQ, gateP3], [fs('gp3', 'GateQ', 'GateP3')]); // geen dataDate nodig — structureel te laat
+const rGateC = solve([gateQ, gateP3], [fs('gp3', 'GateQ', 'GateP3')]);
 eq('186 detector-gate CONTROLE: geen actuals + structureel te laat ⇒ violation blijft vuren', rGateC.violatedConstraintTaskIds.includes('GateP3'), true);
 
-// ── applyCpmResult: de zes velden die de benchmark-kopie liet vallen (K-item 30) ──────────────
-// Dit terugschrijven stond twee keer: in `runCPM` en in de benchmark-runner. Die tweede kopie was
-// al gedivergeerd en miste precies de velden hieronder, waardoor de benchmark niet meer mat wat de
-// app doet. Er is nu één functie; deze checks pinnen haar contract op de verzameltaak-rollup, want
-// dáár zaten de gaten.
 {
   const kid1 = mkTask('AC-kid1', 5, { parentId: 'AC-sum' });
   const kid2 = mkTask('AC-kid2', 3, { parentId: 'AC-sum' });
   const sum = mkTask('AC-sum', 0, { childIds: ['AC-kid1', 'AC-kid2'] });
   const tasks = [sum, kid1, kid2];
-  // Twee bladeren met verschillende speling; de één kritiek, de ander niet.
   const result = {
     tasks: new Map([
-      // Bewust GEEN waarden die met de createDefaultTaskTime-defaults samenvallen (lateStart =
-      // scheduleStart = 2026-06-01, tf = ff = 0): anders slagen de rollup-checks ook wanneer de
-      // rollup helemaal niet draait, en meten ze niets.
       ['AC-kid1', { earlyStart: '2026-06-01', earlyFinish: '2026-06-05', lateStart: '2026-06-03',
         lateFinish: '2026-06-07', totalFloat: 2, freeFloat: 1, isCritical: true, interferingFloat: 1 }],
       ['AC-kid2', { earlyStart: '2026-06-02', earlyFinish: '2026-06-04', lateStart: '2026-06-08',
@@ -799,38 +646,22 @@ eq('186 detector-gate CONTROLE: geen actuals + structureel te laat ⇒ violation
   eq('187 rollup: earlyStart = vroegste kind', sum.time.earlyStart, '2026-06-01');
   eq('188 rollup: earlyFinish = laatste kind', sum.time.earlyFinish, '2026-06-05');
   eq('189 rollup: kritiek als één kind kritiek is', sum.time.isCritical, true);
-  // De vier hieronder ontbraken in de benchmark-kopie: late datums, min-over-kinderen en
-  // interferingFloat. Zonder die rollup bleven ze op de createDefaultTaskTime-defaults staan
-  // (lf = es, tf = 0) en schreef o.a. ifcWriter misleidende fase-speling weg.
   eq('190 rollup: lateStart = vroegste late kind', sum.time.lateStart, '2026-06-03');
   eq('191 rollup: lateFinish = laatste late kind', sum.time.lateFinish, '2026-06-10');
   eq('192 rollup: totalFloat = min over kinderen (krapste kind bepaalt)', sum.time.totalFloat, 2);
   eq('193 rollup: freeFloat = min over kinderen', sum.time.freeFloat, 1);
   eq('194 rollup: interferingFloat = tf − ff, ook op de verzameltaak', sum.time.interferingFloat, 1);
-  // En op het blad zelf: interferingFloat/isNearCritical/floatPath gaan mee (idem gemist door de kopie).
   eq('195 blad: interferingFloat komt door', kid2.time.interferingFloat, 1);
 }
 
-// ── T8-rooktest: relatie op een taak die niet in de meegegeven set zit (samenvattingstaak) ────
-// `runCPM` (scheduleSlice.ts) geeft de solver alleen BLADTAKEN mee (`childIds.length === 0`); een
-// relatie die een WBS-samenvattingstaak raakt (in MS Project legaal — mspdiReader/ifcReader/
-// mppReader lezen 'm gewoon in, er wordt nergens op import gefilterd) verwijst dan naar een
-// taak-id dat niet in `tasks` zit. Vóór de guard in de CPMSolver-constructor duwde
-// `topologicalSort` dat fantoom-id de volgorde in (hij telt `inDegree` onvoorwaardelijk voor élke
-// `successorId`) en crashte de forward pass op een `this.tasks.get(id)!`-aanname zodra dat
-// fantoom-id in `order` viel (T8-rooktest, 870d339f60603f71 — hash-only §8: het bestand opende,
-// maar de planning bleef stil onberekend doordat `openFile`s catch de crash opslokte). Nu wordt de relatie genegeerd
-// i.p.v. de solver te laten crashen — de samenvattingstaak zelf blijft correct via de bestaande
-// rollup (`applyCpmResult`), alleen déze relatie legt geen dwang meer op.
 {
-  const x = mkTask('T8-X', 4);              // onafhankelijke bladtaak, "voorganger" van de samenvatting
-  const y = mkTask('T8-Y', 2);              // onafhankelijke bladtaak, "opvolger" van de samenvatting
+  const x = mkTask('T8-X', 4);
+  const y = mkTask('T8-Y', 2);
   const k1 = mkTask('T8-K1', 3, { parentId: 'T8-S' });
   const k2 = mkTask('T8-K2', 5, { parentId: 'T8-S' });
-  // 'T8-S' (de samenvattingstaak zelf) wordt BEWUST NIET meegegeven — exact zoals runCPM leaf-only filtert.
-  const seqIntoSummary = fs('t8-seq-in', 'T8-X', 'T8-S');          // X -> S (S = geen bladtaak)
-  const seqOutOfSummary = fs('t8-seq-out', 'T8-S', 'T8-Y');        // S -> Y (S = geen bladtaak)
-  const seqBogus = fs('t8-seq-bogus', 'does-not-exist', 'T8-Y');   // algemene robuustheid: elk ontbrekend id
+  const seqIntoSummary = fs('t8-seq-in', 'T8-X', 'T8-S');
+  const seqOutOfSummary = fs('t8-seq-out', 'T8-S', 'T8-Y');
+  const seqBogus = fs('t8-seq-bogus', 'does-not-exist', 'T8-Y');
 
   let threw = false;
   let result: CPMResult | undefined;
@@ -846,16 +677,11 @@ eq('186 detector-gate CONTROLE: geen actuals + structureel te laat ⇒ violation
     [...(result?.droppedSequenceIds ?? [])].sort().join(','),
     ['t8-seq-bogus', 't8-seq-in', 't8-seq-out'].sort().join(','),
   );
-  // X en Y zijn na het negeren twee gewone ONGEKOPPELDE bladtaken: ASAP op het anker, geen dwang
-  // van/naar de (afwezige) samenvatting. K2 (dur 5, de langste taak) bepaalt het projecteinde.
   eq('199 T8: X (voormalig "voorganger" van S) start gewoon op het anker', result?.tasks.get('T8-X')?.earlyStart, '2026-06-01T08:00');
   eq('200 T8: Y (voormalig "opvolger" van S) start gewoon op het anker (geen wachten op S)', result?.tasks.get('T8-Y')?.earlyStart, '2026-06-01T08:00');
   eq('201 T8: K1/K2 rekenen normaal door — K2 (langste kind) is kritiek', result?.tasks.get('T8-K2')?.isCritical, true);
 }
 
-// ── T8-rooktest: een gewone relatie tussen twee bestaande bladtaken blijft ONAANGERAAKT ───────
-// Guard tegen over-filteren: de nieuwe constructor-check mag alleen relaties raken die een
-// afwezig taak-id aanraken, nooit relaties tussen taken die wél allebei meegegeven zijn.
 {
   const a = mkTask('T8-A', 3);
   const b = mkTask('T8-B', 2);
@@ -864,12 +690,6 @@ eq('186 detector-gate CONTROLE: geen actuals + structureel te laat ⇒ violation
   eq('203 T8: normale relatie blijft ongemoeid — B start ná A (FS)', result.tasks.get('T8-B')?.earlyStart, '2026-06-04T08:00');
 }
 
-// ── Z8-herwerkronde-fixronde-2 ("laag 1/2-gat"): progressCal-substitutie ────────────────────────
-// Corpusloze motor-case (coordinator-eis 3, herwerkronde): een IN-PROGRESS-taak wier ENIGE
-// toewijzing een écht afwijkende, uur-modus resourcekalender draagt moet haar restwerk door DIE
-// kalender wandelen, niet door de taak-/projectkalender. RCAL biedt slechts 2u/dag (08:00-10:00)
-// tegenover H8's 8u/dag (08:00-16:00) — bij 240 resterende minuten (calendar-agnostische eenheid)
-// geven de twee kalenders AANTOONBAAR verschillende antwoorden, dus dit is geen toevalstreffer.
 const RCAL: WorkCalendar = {
   id: 'rcal', name: 'rcal', description: 'rcal (2u/dag, corpusloos — Z8-fixronde-2)',
   workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 10, hoursPerDay: 2, holidays: [],
@@ -877,119 +697,53 @@ const RCAL: WorkCalendar = {
 } as unknown as WorkCalendar;
 function mkProg(id: string, extra: Partial<Task> = {}): Task {
   const t = mkTask(id, 1, extra);
-  t.time = createDefaultTaskTime('2026-07-06', 1, 'hours'); // 2026-07-06 = ma
+  t.time = createDefaultTaskTime('2026-07-06', 1, 'hours');
   t.time.durationMinutes = 480;
   t.time.completion = 0.5;
   t.time.actualStart = '2026-07-06T08:00';
   t.time.remainingMinutes = 240;
   return t;
 }
-// IP1: WEL geactiveerd (walks.length===1, resourcekalender = RCAL, isHourMode) ⇒ progressCal=RCAL.
 const ip1 = mkProg('IP1', { timephasedDurationWalks: [{ anchor: '2026-07-06T08:00', resourceCalendarId: 'rcal' }] });
 const rIp1 = new CPMSolver([ip1], [], H8, [RCAL], legacyCpmOptions()).solve();
 const ip1r = rIp1.tasks.get('IP1')!;
 eq('204 Z8-fix2: progressCal=RCAL (2u/dag) ⇒ 240min restwerk loopt over 2 dagen', ip1r.earlyFinish, '2026-07-07T10:00');
-// IP2: GEEN walks (mutatie-equivalent van "terug naar de taakkalender") ⇒ progressCal=H8 blijft
-// staan — ZELFDE taak, ALLEEN het wandelkandidaat-veld ontbreekt. Ander antwoord bewijst dat IP1's
-// resultaat NIET toevallig met H8 samenvalt (d.w.z. dat `timephasedDurationWalks` daadwerkelijk het
-// verschil maakt). Dit IS de coordinator-geëiste mutatieproef, automatisch gepind: handmatig de
-// `progressCal`-substitutie in `CPMSolver.ts` tijdelijk uitschakelen (terug naar `let progressCal =
-// cal` zonder de `if`-tak) laat check 204 rood gaan (H8 geeft 12:00 i.p.v. RCAL se 10:00 twee dagen
-// later) — geverifieerd tijdens deze fixronde, ONGEWIJZIGD teruggezet ná verificatie.
 const ip2 = mkProg('IP2');
 const rIp2 = new CPMSolver([ip2], [], H8, [RCAL], legacyCpmOptions()).solve();
 const ip2r = rIp2.tasks.get('IP2')!;
 eq('205 Z8-fix2: zonder walk ⇒ progressCal blijft H8 (8u/dag) ⇒ zelfde dag klaar', ip2r.earlyFinish, '2026-07-06T12:00');
 eq('206 Z8-fix2: IP1 (RCAL) en IP2 (H8) geven AANTOONBAAR verschillende antwoorden', ip1r.earlyFinish !== ip2r.earlyFinish, true);
 
-// IP3: EF<ES-inversiewacht op het NIEUWE progressCal-getriggerde resumeOverride-pad (coordinator-eis
-// 4b). Een hostiel/inconsistent `resume`-veld (vóór de eigen `actualStart`) zou zonder de bestaande
-// `if (usedResumeOverride && ef < actualES) ef = actualES`-wacht een EF opleveren die vóór de ES
-// ligt. `progressCal !== cal` (RCAL i.p.v. H8) is hier de trigger — dus dit is specifiek het NIEUWE
-// pad uit deze fixronde, niet Z12's oorspronkelijke out-of-sequence-trigger.
 const ip3 = mkProg('IP3', {
   timephasedDurationWalks: [{ anchor: '2026-07-06T08:00', resourceCalendarId: 'rcal' }],
 });
-ip3.time.resume = '2026-07-01T08:00'; // wo vóór actualStart (ma) — hostiel
+ip3.time.resume = '2026-07-01T08:00';
 ip3.time.remainingMinutes = 60;
 const rIp3 = new CPMSolver([ip3], [], H8, [RCAL], legacyCpmOptions()).solve();
 const ip3r = rIp3.tasks.get('IP3')!;
-// Zonder de wacht zou ef = RCAL.addWorkMinutes(2026-07-01T08:00, 60) = 2026-07-01T09:00 zijn —
-// vóór actualES (2026-07-06T08:00). MET de wacht wordt ef geklemd op actualES.
 eq('207 Z8-fix2: EF<ES-wacht klemt ef op actualES (hostiel resume vóór actualStart)', ip3r.earlyFinish, '2026-07-06T08:00');
 eq('208 Z8-fix2: es blijft actualES, geen inversie', ip3r.earlyStart <= ip3r.earlyFinish, true);
-// Mutatiebewijs (uitgevoerd, ongewijzigd teruggezet): de `if (usedResumeOverride && ef < actualES)
-// ef = actualES;`-regel tijdelijk verwijderen laat check 207 rood gaan (ef = 2026-07-01T09:00 i.p.v.
-// 2026-07-06T08:00), en check 208 blijft toevallig groen (want dat zou dan es>ef zijn — 208 test dus
-// bewust de VOLLE inversie, niet alleen de exacte waarde).
 
-// ── Z8-herwerkronde: laag-3-venster beweegt mee met échte SF-druk (deferred item, vorige ronde) ──
-// H2-zorg (oorspronkelijke Opus-blokkade): een gelezen venster (laag 3, `timephasedFinishFloor`) mag
-// nooit een taak "bevriezen" tegen een LATERE, legitieme SF-vereiste-finish van een voorganger — de
-// bestaande `sfFinishFloor`-vergelijking in `timephasedFinish()` (`sfFinishFloor && sfFinishFloor >
-// windowValue ? sfFinishFloor : windowValue`) is precies daarvoor gebouwd. Deze case pint 'm: SF1
-// (langere duur) drukt via een START_FINISH-relatie een venster-gelezen taak SF2 later dan haar eigen
-// (gefixeerde) venster — earlyFinish moet meebewegen met SF1's duur, niet bevroren blijven op het
-// venster.
-// START_FINISH is START-gedreven (SF1's EIGEN duur beïnvloedt haar start niet — SF1 heeft geen
-// voorganger); de "+10 werkdagen"-druk moet dus via een keten vóór SF1 komen (PRE →FS→ SF1 →SF→
-// SF2), niet via SF1's eigen duur — anders is `sfFinishFloor` triggerloos (geverifieerd: SF1's
-// eigen duur variëren liet de floor ONVERANDERD, exact omdat SF alleen naar SF1's START kijkt).
 function sfChain(preDur: number) {
   const pre = mkTask('SF-PRE', preDur);
   const sf1 = mkTask('SF1', 1);
-  const sf2 = mkTask('SF2', 1, { timephasedFinishFloor: '2026-06-01T16:00' }); // uur-modus, laag 3
+  const sf2 = mkTask('SF2', 1, { timephasedFinishFloor: '2026-06-01T16:00' });
   const seqs = [fs('sfp', 'SF-PRE', 'SF1'), lk('sf1', 'SF1', 'SF2', 'START_FINISH')];
   return new CPMSolver([pre, sf1, sf2], seqs, H8, [], legacyCpmOptions()).solve().tasks.get('SF2')!;
 }
 const sf2aR = sfChain(1);
-// PRE dur1 (H8, 8u/dag) ⇒ SF1 start 2026-06-02T08:00 ⇒ SF-vereiste-finish voor SF2 = diezelfde
-// datum, al LATER dan het venster (2026-06-01T16:00) ⇒ sfFinishFloor wint (`meebewegen`).
 eq('209 Z8-deferred: SF-druk laat het venster winnen (niet bevroren)', sf2aR.earlyFinish, '2026-06-02T08:00');
-const sf2bR = sfChain(11); // +10 werkdagen op de keten vóór SF1
+const sf2bR = sfChain(11);
 eq('210 Z8-deferred: +10 werkdagen vóór SF1 ⇒ earlyFinish beweegt mee (niet bevroren op het venster)', sf2bR.earlyFinish !== sf2aR.earlyFinish, true);
 eq('211 Z8-deferred: SF-druk wint nu van het venster, ook 10 werkdagen verder', sf2bR.earlyFinish > '2026-06-01T16:00', true);
-// BEKENDE, NIET-GEBOUWDE RESTBEPERKING (buiten bestandseigendom `src/engine/scheduler/**`, gemeld
-// i.p.v. zelf gebouwd): dit dekt "meebewegen" via een ECHTE SF-relatiedruk — het bestaande, reeds
-// vóór deze fixronde gebouwde mechanisme. Een DIRECTE duur-mutatie op DEZELFDE taak (SF2 zelf 10
-// werkdagen langer maken, geen voorganger-relatie) laat `timephasedFinishFloor` ONGEWIJZIGD (het is
-// een letterlijk gelezen datum, geen afgeleide) — noch CPMSolver.ts, noch moveProject.ts (die
-// SHIFT't 'm alleen bij een volledige taak-VERPLAATSING, `shiftTask`) wist/valideert het veld bij
-// een losstaande duur-edit. Die invalidatie hoort thuis in de task-edit-actie (`taskSlice.ts`,
-// buiten mijn bestandseigendom) — genoemd als vervolgpunt in het eindrapport, niet hier gebouwd.
 
-// ── Z8-herwerkronde-slotronde: EF<ES-inversiewacht op de AUTO-tak (reviewer-eis 4) ──────────────
-// Een taak zonder voortgang met een STALE laag-3-venster (vóór haar eigen, door een voorganger-
-// druk ná dat venster geduwde `earlyStart`) mocht zonder wacht "eindigen vóór ze begint". PRE(dur5)
-// →FS→ INV(dur1, timephasedFinishFloor ver in het verleden): INV se earlyStart komt via de gewone
-// FS-druk ná het venster te liggen.
 const invPre = mkTask('INV-PRE', 5);
-const inv = mkTask('INV', 1, { timephasedFinishFloor: '2026-06-01T10:00' }); // ver vóór INV se eigen FS-druk
+const inv = mkTask('INV', 1, { timephasedFinishFloor: '2026-06-01T10:00' });
 const rInv = new CPMSolver([invPre, inv], [fs('invfs', 'INV-PRE', 'INV')], H8, [], legacyCpmOptions()).solve();
 const invR = rInv.tasks.get('INV')!;
 eq('212 Z8-slotronde: AUTO-tak EF<ES-wacht — ef geklemd op es (stale venster vóór voorganger-druk)', invR.earlyFinish, invR.earlyStart);
 eq('213 Z8-slotronde: es blijft de voorganger-gedreven 2026-06-08T08:00, niet het stale venster', invR.earlyStart, '2026-06-08T08:00');
-// Mutatiebewijs (uitgevoerd, ongewijzigd teruggezet): `if (tf && earlyFinish < earlyStart) earlyFinish
-// = earlyStart;` in CPMSolver.ts tijdelijk verwijderen laat check 212 rood gaan (ef zou het stale
-// venster 2026-06-01T10:00 blijven, vóór es 2026-06-08T08:00 — een echte inversie).
 
-// ── Z9b, acceptatiepunt (2): `applyAlap` mag `seqConstraint` niet vullen voor een MANUAL
-// opvolger — dat lekt anders een betekenisloze `sequenceFreeFloat`-invoer voor die relatie ──────
-// `CPMSolver.forwardPass` zet `seqConstraint` sowieso nooit voor een relatie die een manual taak
-// als opvolger heeft (haar eigen voorganger-lus wordt door de manual-`continue` nooit bereikt) —
-// dat laat de relatie in `scheduleAnalysis.computeScheduleResults` terecht ONGEZIEN (dezelfde
-// precedentie als een hammock-relatie). `applyAlap` draait ÁLTIJD op zijn ALAP-taak z'n VOLLEDIGE
-// successor-lijst (ongeacht wat voor taak elke opvolger is) zodra er OOK maar één andere opvolger
-// een geldige, eindige vrije speling geeft — zonder de Z9b-uitsluiting zou die laatste lus dan
-// óók voor de manual opvolger een `seqConstraint` schrijven, gebaseerd op de (eventueel ALAP-
-// verschoven) `early` van de VOORGANGER, terwijl de manual opvolger daar nooit op reageert.
-//
-// Opzet (spiegelt `cst-alap-with-succ` in cases-constraints.json, met een TWEEDE, manual opvolger
-// erbij): X (dur 6, drijft het project) en P (dur 2, ALAP) voeden allebei Q (dur 2) — dat geeft P
-// volop vrije speling op de P→Q-relatie, dus `applyAlap` schuift P daadwerkelijk op (P heeft dus
-// een eindige, positieve `ff` en bereikt de seqConstraint-herschrijflus). P heeft DAARNAAST een
-// tweede FS-opvolger M (manual, eigen rauw anker, geen relatie tot P of Q) — exact de situatie
-// waarin de lek kan optreden.
 {
   const X = mkTask('Z9B2-X', 6);
   const P = mkTask('Z9B2-P', 2, { constraint: { type: 'ALAP' } });
@@ -999,44 +753,17 @@ eq('213 Z8-slotronde: es blijft de voorganger-gedreven 2026-06-08T08:00, niet he
   const seqXQ = fs('z9b2-xq', 'Z9B2-X', 'Z9B2-Q');
   const seqPM = fs('z9b2-pm', 'Z9B2-P', 'Z9B2-M');
   const r = solve([X, P, Q, M], [seqPQ, seqXQ, seqPM]);
-  // Precondition: P kreeg ECHT een ALAP-push (anders bereikt de seqConstraint-herschrijflus nooit
-  // haar manual-tegenhanger en test dit niets — een `ff<=0`/oneindige speling zou de hele lus
-  // overslaan, zie applyAlap se `if (!Number.isFinite(ff) || ff <= 0) continue;`).
   eq('214 Z9b/applyAlap-precondition: P werd daadwerkelijk ALAP-opgeschoven (niet op haar vroegste anker)', r.tasks.get('Z9B2-P')!.earlyStart !== '2026-06-01', true);
-  // M's EIGEN datums zijn hoe dan ook ongemoeid (haar forwardPass-tak leest nooit een relatie) —
-  // dit bewijst NIET de fix, alleen dat de opzet verder klopt.
   eq('215 Z9b/applyAlap: M houdt haar rauwe anker ongeacht P se ALAP-push', r.tasks.get('Z9B2-M')!.earlyStart, '2026-06-01T08:00');
-  // De kern van de fix: P->M draagt GEEN sequenceFreeFloat-invoer (de relatie blijft, net als een
-  // hammock-relatie, buiten de driving-/float-analyse — een AANWEZIGE maar betekenisloze invoer,
-  // ongeacht het teken, is het lek).
   eq('216 Z9b/applyAlap: P->M krijgt GEEN sequenceFreeFloat-invoer (blijft ongezien, als een hammock-relatie)', Object.prototype.hasOwnProperty.call(r.sequenceFreeFloat, seqPM.id), false);
   eq('217 Z9b/applyAlap: P->M staat niet in drivingSequenceIds', r.drivingSequenceIds.includes(seqPM.id), false);
-  // Contrast: P->Q (auto opvolger) draagt WEL een sequenceFreeFloat-invoer — de uitsluiting raakt
-  // dus specifiek de manual-opvolger-tak, niet de seqConstraint-herschrijving in het algemeen.
   eq('218 Z9b/applyAlap-contrast: P->Q (auto) draagt WEL een sequenceFreeFloat-invoer', Object.prototype.hasOwnProperty.call(r.sequenceFreeFloat, seqPQ.id), true);
 }
-// Mutatiebewijs (uitgevoerd, teruggedraaid): de `if (succTask.manuallyScheduled) continue;`-regel
-// in de seqConstraint-herschrijflus van `CPMSolver.applyAlap` weghalen laat check 216 ROOD gaan
-// (P->M krijgt dan wél een `sequenceFreeFloat`-invoer, zie de toelichting bij `applyAlap`s
-// moduleheader in CPMSolver.ts).
 
-// ── Z9b, acceptatiepunt (3): `applyCpmResult.updateSummary` rolt een MANUAL samenvattingstaak
-// NIET op — ze houdt haar eigen `scheduleStart`/`scheduleFinish` ─────────────────────────────
-// Spiegelt de bestaande "187-195 rollup"-checks hierboven (K-item 30), maar nu met de
-// samenvattingstaak zelf `manuallyScheduled`. CORPUSBEWIJS (plan-§Z9b): het gemengde
-// corpusbestand droeg elf manual-verzameltaken wier berekende earlyStart/earlyFinish via de
-// onvoorwaardelijke min/max-rollup kwamen i.p.v. hun eigen datums.
 {
   const mkid1 = mkTask('Z9B3-kid1', 5, { parentId: 'Z9B3-sum' });
   const mkid2 = mkTask('Z9B3-kid2', 3, { parentId: 'Z9B3-sum' });
-  // Derde kind met datums NÁ de eigen finish van de manual samenvatting (2026-08-xx > 2026-07-03)
-  // — de andere richting dan kid1/kid2 (die vóór de samenvatting liggen). Een onvolledige fix zou
-  // bv. alleen het VROEGSTE-kind-geval (earlyStart) afdekken en een later kind alsnog via `max()`
-  // laten doorschieten in earlyFinish; dat is hier apart geasserteerd, niet impliciet door de
-  // eerdere checks (die kid1/kid2 gebruiken, allebei vóór de samenvatting).
   const mkid3 = mkTask('Z9B3-kid3', 5, { parentId: 'Z9B3-sum' });
-  // Eigen, van de kinderen VOLLEDIG losstaande datums — geen enkel kind-veld valt hier toevallig
-  // mee samen, zodat een sluipende terugval naar de rollup meteen zichtbaar zou zijn.
   const msum = mkTask('Z9B3-sum', 0, {
     childIds: ['Z9B3-kid1', 'Z9B3-kid2', 'Z9B3-kid3'],
     manuallyScheduled: true,
@@ -1064,20 +791,11 @@ eq('213 Z8-slotronde: es blijft de voorganger-gedreven 2026-06-08T08:00, niet he
   eq('223 Z9b/manual-rollup: totalFloat = 0 (definitorisch, niet het min-over-kinderen)', msum.time.totalFloat, 0);
   eq('224 Z9b/manual-rollup: freeFloat = 0', msum.time.freeFloat, 0);
   eq('225 Z9b/manual-rollup: interferingFloat = 0', msum.time.interferingFloat, 0);
-  // isCritical blijft WEL van de kinderen afgeleid (kid1 is critical).
   eq('226 Z9b/manual-rollup: isCritical blijft van de kinderen afgeleid', msum.time.isCritical, true);
-  // Contrast: het blad zelf blijft ongemoeid door deze tak.
   eq('227 Z9b/manual-rollup-contrast: kid1 zelf blijft ongewijzigd', mkid1.time.earlyStart, '2026-06-01');
-  // De andere richting: kid3 ligt NÁ de eigen finish van de samenvatting (2026-08-05 > 2026-07-03)
-  // — earlyFinish blijft toch de EIGEN datum, schiet niet door naar het latere kind.
   eq('228 Z9b/manual-rollup-richting: een LATER kind (2026-08-05) duwt earlyFinish niet voorbij de eigen 2026-07-03', msum.time.earlyFinish, '2026-07-03');
 }
-// Mutatiebewijs (uitgevoerd, teruggedraaid): het `if (task.manuallyScheduled && children.length > 0)
-// {...; return;}`-blok in `applyCpmResult.updateSummary` weghalen laat checks 219/220 ROOD gaan
-// (earlyStart/earlyFinish rollen dan weer op uit de kinderen: '2026-06-01'/'2026-06-05' i.p.v. de
-// eigen '2026-07-01'/'2026-07-03').
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  advanced-cpm-check: alle checks groen (${checks})`);
   process.exit(0);
