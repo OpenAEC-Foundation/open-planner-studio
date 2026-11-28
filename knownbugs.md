@@ -2713,16 +2713,17 @@ en noem het in je rapport of PR-tekst.
 150. **OPS v2026.9.0 maakt van een kalender in een nieuw IFC-bestand een urenkalender zonder werktijd zodra
     een taak op die kalender een tijd ≠ 07:00 of een `PT`-duur heeft.** Oorzaak: v2026.9.0 leest
     `WorkingTimes` van `IfcWorkCalendar` op plek 5; sinds #336 staat daar Identification (aanvaard verlies,
-    `docs/ifc-round-trip.md:351-356` en `:436-460`). De geregistreerde werkblokken zijn dan leeg, en de
-    promotie met een tijdsignaal kiest die lege werkblokken (`promoteHourCalendar` met
+    `docs/ifc-round-trip.md`, "Oudere OPS-versies en een nieuw bestand"). De geregistreerde werkblokken zijn
+    dan leeg, en de promotie met een tijdsignaal kiest die lege werkblokken (`promoteHourCalendar` met
     `preferCanonicalWhenEmpty`, `src/services/subdayIo.ts` op tag v2026.9.0). Nagemeten met de lezer en de
-    solver van v2026.9.0 in Node: een bestand van main met een urentaak van 480 min op de standaardkalender
-    geeft `workTime` met lege werkblokken op alle zeven dagen; na doorrekenen heeft de urentaak duur 0
-    (begin en einde do 07:00). Een dagenmaat-taak met een breuk (0,5d) heeft ook een `PT`-duur en
-    valt eronder: in review r1 van #600 nagemeten, 240 min op lege werkblokken, begin en einde 07:00.
-    `docs/ifc-round-trip.md` noemt alleen "werkuren terug naar 07–16"; dit gevolg
-    staat er niet bij. Voorstel: de releasetekst noemt het, naast het aanvaarde verlies van de kalenders.
-    Gevonden bij fixronde 2 van de spec `2026-10-20-alleen-uren-design.md` (§5.4). — B
+    solver van v2026.9.0 in Node: een urentaak van 480 min heeft na doorrekenen duur 0 (begin en einde
+    do 07:00); een dagenmaat-taak met een breuk (0,5d) ook (review r1 van #600). Wat overblijft, geldt
+    alleen voor de uitgebrachte v2026.9.0: de lezer van nu leest `WorkingTimes` op de goede plek, en een
+    kalender die in het bestand echt geen `WorkingTimes` heeft, krijgt bij die promotie zijn eigen werktijd,
+    tenzij hij werkende uitzonderingen met eigen werkblokken heeft (issue #1251, ADR 0321).
+    `docs/ifc-round-trip.md` noemt alleen "werkuren terug naar 07–16"; dit
+    gevolg staat er niet bij. Voorstel: de releasetekst noemt het, naast het aanvaarde verlies van de
+    kalenders. Gevonden bij fixronde 2 van de spec `2026-10-20-alleen-uren-design.md` (§5.4). — B
 
 127. **IFC-tab *Toepassen* wist de bibliotheekkoppeling en zet *Niet opgeslagen* uit.** *Toepassen*
     (`IFCPanel.tsx:57-62`) roept `loadState` aan zonder `linkedOpen`; `applyLoadedProject` wist dan `companyId`
