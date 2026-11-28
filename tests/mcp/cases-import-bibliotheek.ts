@@ -1,20 +1,3 @@
-// AI-IMPORT × RESOURCEBIBLIOTHEEK — `planner_import_schedule` opent een projectbestand met dezelfde
-// open-semantiek als Bestand → Openen en Recente bestanden (import/export-audit, bevinding 2).
-//
-// DE BUG DIE DIT VASTZET. `openFile`/`openRecentFile` gaven `linkedOpen: true` mee aan
-// `applyLoadedProject`; de MCP-tool schreef zijn eigen opts-object en vergat die vlag. Een IFC met
-// een bibliotheekkoppeling opende via de AI daardoor LOS (companyId/companyName en alle
-// `libraryOrigin`-stempels gestript), terwijl `filePath` wél het bronpad werd. Twee gevolgen:
-//   1. de eerstvolgende Ctrl+S schreef het gestripte document over het bronbestand — de koppeling
-//      was stil en blijvend weg uit het bestand;
-//   2. het bibliotheekslot gold niet meer: `planner_manage_resources` accepteerde een
-//      tariefwijziging op een resource die uit de bibliotheek kwam, iets wat de gebruiker in het
-//      resourcepaneel zelf niet eens kan.
-// Sinds de fix lopen alle drie de echte open-paden door één store-actie (`openAsDocument`), die
-// opslagdoel + `linkedOpen` samen zet; de tool bouwt geen eigen opts-object meer.
-//
-// Alles loopt via de ECHTE dispatcher (`handleMcpMessage`, dus óók de schemapoort), tegen de echte
-// store; alleen de fs-rand is gefaked via `fileToolDeps.getFs` (in-memory, zoals cases-doc-file.ts).
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join as joinPath, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -27,7 +10,6 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 
 const S = () => useAppStore.getState();
 
-// --- Fake fs (in-memory) -------------------------------------------------------------------------
 const HOME = '/home/tester';
 const files = new Map<string, string>();
 const fs: McpFileFs = {
@@ -48,9 +30,7 @@ const fs: McpFileFs = {
 };
 fileToolDeps.getFs = async () => fs;
 
-// --- Dispatch via rauwe JSON-RPC ------------------------------------------------------------------
 let rpcId = 0;
-/** `tools/call` door de echte dispatcher; geeft het (structured) toolresultaat terug. */
 async function callTool(name: string, args: unknown, ctx: McpContext): Promise<McpToolResult> {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method: 'tools/call', params: { name, arguments: args } }),
@@ -66,7 +46,6 @@ async function callOk(name: string, args: unknown, ctx: McpContext): Promise<Mcp
   return res as McpToolOk;
 }
 
-/** Reset naar één vers, leeg (pristine) document. */
 function resetToSingleEmptyDocument(): void {
   for (const d of [...S().documents]) {
     if (d.id !== S().activeDocumentId) S().closeDocument(d.id);
@@ -76,11 +55,6 @@ function resetToSingleEmptyDocument(): void {
 
 const SOURCE = `${HOME}/gekoppeld-project.ifc`;
 
-/**
- * Een aan de resourcebibliotheek gekoppeld project met één gestempelde resource (tarief 65) en één
- * taak, als IFC in de fake fs op `SOURCE`. De bibliotheek zelf is app-globaal en blijft in de store
- * staan, precies zoals in de app wanneer de gebruiker een eigen project heropent.
- */
 function writeLinkedSource(): { companyId: string; poolResId: string } {
   resetToSingleEmptyDocument();
   const companyId = S().addCompany('Testbedrijf');
@@ -92,7 +66,6 @@ function writeLinkedSource(): { companyId: string; poolResId: string } {
   S().addTask({ name: 'Taak A' });
   S().runCPM();
   const content = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
-  // Nulmeting: het BRONBESTAND draagt de koppeling — anders bewijst de rest niets.
   assert(content.includes("'CompanyId'"), 'nulmeting: het bronbestand draagt de bibliotheekkoppeling (CompanyId)');
   assert(content.includes("'LibraryOrigin'"), 'nulmeting: het bronbestand draagt herkomststempels (LibraryOrigin)');
   files.set(SOURCE, content);
@@ -100,7 +73,6 @@ function writeLinkedSource(): { companyId: string; poolResId: string } {
   return { companyId, poolResId };
 }
 
-/** De koppeling op het ACTIEVE document, zoals `applyLoadedProject(linkedOpen: true)` hem laat staan. */
 function assertLinked(companyId: string, poolResId: string, label: string): void {
   const s = S();
   assertEq(s.project.companyId, companyId, `${label}: companyId blijft staan`);
@@ -128,7 +100,6 @@ test('het bibliotheekslot geldt na een AI-import: tariefwijziging op een bibliot
   const ctx = makeMcpContext(appStoreContext);
   await callOk('planner_import_schedule', { path: SOURCE }, ctx);
   const resourceId = S().resources[0].id;
-  // `ctx` draagt na de import het drift-anker van het importdocument (bindExpectedDoc).
   const res = await callOk('planner_manage_resources', {
     actions: [{ action: 'update', id: resourceId, costPerHour: 999 }],
   }, ctx);
@@ -143,13 +114,11 @@ test('opnieuw opslaan na een AI-import behoudt de koppeling in het bronbestand',
   const ctx = makeMcpContext(appStoreContext);
   await callOk('planner_import_schedule', { path: SOURCE }, ctx);
 
-  // (a) Ctrl+S: `saveFile` schrijft `writeIFC(buildWriteIFCInput(state))` naar `filePath` (= SOURCE).
   assertEq(S().filePath, SOURCE, 'Ctrl+S-doel is het bronbestand');
   const ctrlS = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   assert(ctrlS.includes("'CompanyId'"), 'wat Ctrl+S terugschrijft draagt de bibliotheekkoppeling nog (CompanyId)');
   assert(ctrlS.includes("'LibraryOrigin'"), 'wat Ctrl+S terugschrijft draagt de herkomststempels nog (LibraryOrigin)');
 
-  // (b) De AI-route: terugschrijven over het bronbestand en opnieuw openen — de koppeling overleeft.
   const exp = await callOk('planner_export_ifc', { path: SOURCE, overwrite: true }, ctx);
   assertEq((exp.data as { overwritten: boolean }).overwritten, true, 'het bronbestand is overschreven');
   const written = files.get(SOURCE)!;
@@ -160,11 +129,6 @@ test('opnieuw opslaan na een AI-import behoudt de koppeling in het bronbestand',
   assertLinked(companyId, poolResId, 'na opslaan + heropenen');
 });
 
-// Broncode-check (naar het voorbeeld van tests/planning/check-recorded-dates.ts, 11c): de bug ontstond
-// doordat een aanroeper buiten de store zijn EIGEN opts-object voor `applyLoadedProject` bouwde. Buiten
-// de twee slices die de semantiek vastleggen (`openAsDocument`/voorbeelden in fileSlice, `loadState`
-// in projectSlice) roept niemand `applyLoadedProject` rechtstreeks aan — een nieuw laadpad kiest
-// bewust tussen `openAsDocument` (echt openen, gekoppeld) en `loadState` (los laden).
 test('buiten fileSlice/projectSlice roept geen broncode `applyLoadedProject` rechtstreeks aan', () => {
   const kandidaten = [
     fileURLToPath(new URL('../../src/', import.meta.url).href),

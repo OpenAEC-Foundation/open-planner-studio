@@ -1,9 +1,3 @@
-// Plan 2, Task 5 — mechanisch en gedragsmatig bewijs dat de volledige MCP-tooltree zijn
-// requestcontext gebruikt. Nulmeting vóór deze migratie (2026-08-25): alle tien modules hieronder
-// importeerden `useAppStore` en/of `@/state/mcpTransaction`:
-// baselineTools, batchTool, calendarResourceTools, dependencyTools, documentTools, fileTools,
-// helpers, readTools, resourceTools en taskTools.
-
 import {
   appStoreContext,
   makeMcpContext,

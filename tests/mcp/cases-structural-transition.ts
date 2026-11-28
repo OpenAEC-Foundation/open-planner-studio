@@ -1,11 +1,3 @@
-// "Wordt fase" via de bridge (audit taakmutaties §6): `planner_move_task` en `planner_add_tasks` met
-// `parentId` lieten een toewijzing op een taak achter die daardoor een fase werd — onzichtbaar, zonder
-// belasting. Nu verhuist ze via de gedeelde regel (`src/state/structuralTransition.ts`) naar de eerste
-// nieuwe subtaak die haar mag dragen; het tool-antwoord meldt dat in `phaseTransitions` (geen
-// UI-melding). Kan het niet schoon, dan faalt de hele call met VALIDATION en verandert er niets.
-// "Wordt mijlpaal" weigerde de bridge al; die regel is nu dezelfde functie als paneel/raster/store.
-//
-// Via de ECHTE dispatcher (inclusief schemavalidatie), zoals een agent de tools aanroept.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -32,7 +24,6 @@ async function rpc(name: string, args: unknown): Promise<any> {
   return msg.result;
 }
 
-/** L (toewijzing Metselaar, 0,5/dag) en een losse opvolger N. */
 function seed() {
   S().newProject();
   S().setProject({ startDate: '2026-03-02' });

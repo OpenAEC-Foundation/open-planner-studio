@@ -1,15 +1,3 @@
-// Audit-bevinding S — RUNTIME-schemavalidatie in de dispatcher.
-//
-// Vóór deze laag riep `dispatcher.ts` de handler aan ZONDER de `inputSchema` ooit te raadplegen: elke
-// `type`, `enum`, `required`, `minimum`, `pattern` en `additionalProperties` in de schema's ging
-// wél mee in `tools/list` (waar de AI zich erop verlaat) maar werd nergens afgedwongen. Alles wat een
-// tool niet zélf hercontroleerde, gleed erdoor.
-//
-// Deze suite draait via `handleMcpMessage` — de ECHTE dispatch-weg, niet `def.handler(...)` — want de
-// poort zit daar. Getest wordt (a) de validator zelf op elk ondersteund trefwoord, (b) dat de poort in
-// de dispatcher zit en een VALIDATION-tool-fout oplevert vóór enige mutatie, en (c) dat geen enkel
-// van de schema's een trefwoord gebruikt dat de validator niet kent (anders belooft `tools/list`
-// opnieuw iets dat runtime niet waargemaakt wordt).
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { validateToolArgs, unsupportedKeywords } from '@/services/mcp/schemaValidate';
 import { getTools, registerAllTools } from '@/services/mcp/toolRegistry';
@@ -24,7 +12,6 @@ function makeCtx(): McpContext {
   });
 }
 
-/** Roep een tool aan via de ECHTE JSON-RPC-weg en geef het uitgepakte tool-resultaat terug. */
 async function rpcCall(name: string, args: unknown): Promise<any> {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
@@ -35,7 +22,6 @@ async function rpcCall(name: string, args: unknown): Promise<any> {
   return msg.result;
 }
 
-/** Verwacht dat de call door de schemapoort is TEGENGEHOUDEN; geeft de foutboodschap terug. */
 async function expectSchemaReject(name: string, args: unknown): Promise<string> {
   const res = await rpcCall(name, args);
   assert(res.isError === true, `${name}: verwachtte isError=true, kreeg ${JSON.stringify(res.structuredContent)}`);
@@ -46,11 +32,6 @@ async function expectSchemaReject(name: string, args: unknown): Promise<string> 
   return sc.error as string;
 }
 
-// =================================================================================================
-// 1) De validator zelf — per ondersteund trefwoord
-// =================================================================================================
-// Een validator die unieke enumwaarden eist (JSON Schema: "SHOULD be unique"), weigert anders het hele schema.
-// `planner_inspect_xer_provenance.collection` had `issues` twee keer (#818).
 test('elke enum in elk toolschema heeft unieke waarden', () => {
   registerAllTools();
   const dubbel: string[] = [];
@@ -88,7 +69,6 @@ test('validator: geneste paden krijgen array-index en puntnotatie (deepArrayItem
 });
 
 test('DIEPTE-REGEL: standaard blijft de BINNENKANT van array-items ongemoeid (bulk-conventie)', () => {
-  // Zonder deze regel zou één rot item een hele bulk-call omgooien — precies wat spec §batch verbiedt.
   assertEq(validateToolArgs(NESTED_SCHEMA, { updates: [{ fields: { duration: '10' } }] }), null,
     'de inhoud van een array-item is aan de tool, niet aan de poort');
 });
@@ -108,7 +88,6 @@ test('validator: type als ARRAY-vorm (["string","null"]) blijft werken', () => {
 });
 
 test('validator: object-trefwoorden slaan NIET op null (constraint: ["object","null"] + required)', () => {
-  // Zou `required` ook op null slaan, dan werd `constraint: null` (wissen) ineens een fout.
   const schema = {
     type: 'object',
     properties: { constraint: { type: ['object', 'null'], required: ['type'], properties: { type: { type: 'string' } }, additionalProperties: false } },
@@ -129,8 +108,6 @@ test('validator: enum, required, additionalProperties, minItems/maxItems, minimu
   assert(validateToolArgs({ type: 'object', properties: { t: { type: 'string', pattern: '^tmp[-_]' } } }, { t: 'A' })!.includes('pattern'), 'pattern');
   assert(validateToolArgs({ type: 'object', properties: { i: { type: 'integer' } } }, { i: 1.5 })!.includes('expected integer'), 'integer vs number');
   assertEq(validateToolArgs({ type: 'object', properties: { n: { type: 'number' } } }, { n: 2 }), null, 'een geheel getal is ook een number');
-  // `additionalProperties` als schema (#818, `workTime.byWeekday`): elke niet-genoemde sleutel volgt dat schema,
-  // een genoemde sleutel alleen zijn eigen schema.
   const perSleutel = { type: 'object', properties: { vast: { type: 'string' } }, additionalProperties: { type: 'array' } };
   assertEq(validateToolArgs(perSleutel, { vast: 'x', '1': [], '7': [] }), null, 'sleutels volgen het additionalProperties-schema');
   const fout = validateToolArgs(perSleutel, { '3': 5 });
@@ -153,12 +130,7 @@ test('validator: meerdere schendingen komen in ÉÉN boodschap terug', () => {
   assert(err !== null && err.split(';').length >= 3, `drie schendingen verwacht, kreeg: ${err}`);
 });
 
-// =================================================================================================
-// 2) De poort zit in de DISPATCHER (en vóór de handler)
-// =================================================================================================
 test('dispatcher: de poort zit VÓÓR de handler — een pattern-schending muteert niets meer', async () => {
-  // Bewust een schending die ALLEEN het schema kent: `pattern: ^tmp[-_]` op tempId. De handler
-  // controleert die niet, dus zónder de poort werd de taak gewoon aangemaakt en antwoordde de tool ok.
   registerAllTools();
   store.getState().newProject();
   const err = await expectSchemaReject('planner_add_tasks', { tasks: [{ tempId: 'A', name: 'Zonder prefix' }] });
@@ -192,8 +164,6 @@ test('dispatcher: een rot ITEM in een bulk-call gooit de bulk NIET om (spec §ba
   store.getState().newProject();
   const goed = store.getState().addTask({ name: 'goed' });
   const ook = store.getState().addTask({ name: 'ook-goed' });
-  // `progress.percent` is een schemaschending BINNEN een array-item van een bulk-tool: de poort laat
-  // hem door, de handler weigert hem per item — en het goede item landt gewoon.
   const res = await rpcCall('planner_update_tasks', {
     updates: [
       { id: goed, fields: { name: 'hernoemd' } },
@@ -211,8 +181,6 @@ test('dispatcher: een rot ITEM in een bulk-call gooit de bulk NIET om (spec §ba
 test('dispatcher: planner_add_tasks is de ATOMAIRE uitzondering — daar is een item-fout wél hard', async () => {
   registerAllTools();
   store.getState().newProject();
-  // add_tasks kent geen per-item-weigering (het contract is de VOLLEDIGE tempId→realId-map), dus een
-  // schending binnen een item hoort de hele call te laten falen zonder ook maar één taak aan te maken.
   await expectSchemaReject('planner_add_tasks', {
     tasks: [{ tempId: 'tmp-goed', name: 'Goed' }, { tempId: 'tmp-fout', name: 'Fout', duration: '10' }],
   });
@@ -233,12 +201,6 @@ test('dispatcher: een GELDIGE call passeert de poort ongehinderd', async () => {
   assertEq(store.getState().tasks.length, 1, 'de taak is echt aangemaakt');
 });
 
-// =================================================================================================
-// 3) Schema-dekking over ALLE geregistreerde tools
-// =================================================================================================
-// Bewust geen vast aantal: dat moest bij elke nieuwe tool mee omhoog. Dat de registry compleet is
-// (broncode ⇄ registratie, exact dezelfde namen) bewaakt `cases-toolregistry.ts`; hier alleen dat
-// de lus niet leeg — en daarmee vacuüm groen — is.
 test('alle inputSchema\'s gebruiken uitsluitend trefwoorden die de validator afdwingt', () => {
   registerAllTools();
   const tools = getTools();
@@ -260,27 +222,10 @@ test('elk schema is een object-schema met properties (zodat additionalProperties
   }
 });
 
-// =================================================================================================
-// 4) DEZELFDE POORT BINNEN `planner_batch` — het batchStep-gat
-//
-// `planner_batch` dispatcht zijn stappen NIET via `handleMcpMessage`, maar via `batchStep` (muterende
-// tools) of rechtstreeks via `def.handler` (leestools). De schemapoort in de dispatcher zag die
-// stappen dus nooit: een agent kon élk `type`/`enum`/`required`/`minItems`/`additionalProperties` van
-// elke tool omzeilen door zijn call in een batch te wikkelen. Sinds de fix draait `validateToolArgs`
-// óók per batch-stap, met dezelfde diepte-instelling als de dispatcher.
-//
-// WAAROM DE ASSERTS OP DE FOUTVORM MATCHEN, niet alleen op "geweigerd": verschillende tools kijken hun
-// args zélf ook nog eens na. Zouden we alleen op `ok === false` toetsen, dan zou de test óók groen
-// blijven op code ZONDER de poort. Daarom eist `expectBatchSchemaReject` de exacte vorm die alleen de
-// poort produceert: `stap N: ongeldige argumenten voor <tool> — <pad>: …`.
-// =================================================================================================
-
-/** Draai een draaiboek via de ECHTE JSON-RPC-weg. */
 async function rpcBatch(steps: unknown[]): Promise<any> {
   return rpcCall('planner_batch', { steps });
 }
 
-/** Verwacht dat DE SCHEMAPOORT stap `stepNr` heeft tegengehouden; geeft de foutboodschap terug. */
 async function expectBatchSchemaReject(
   steps: unknown[], stepNr: number, tool: string, pathToken: string,
 ): Promise<string> {
@@ -346,11 +291,6 @@ test('batch: een foute ENUM-waarde in een stap wordt geweigerd', async () => {
 });
 
 test('batch: het GEMETEN geval — een verschreven leesfilter wordt geweigerd, niet stil uitgevoerd', async () => {
-  // `planner_list_tasks {kritisch: true}` (i.p.v. `kritiek`) werd LOS netjes geweigerd, maar als
-  // batch-stap uitgevoerd met het filter stil genegeerd — waarna de VOLLEDIGE takenlijst terugkwam
-  // alsof het de kritieke verzameling was. Geen enkele state-verandering verraadt dat achteraf; de
-  // agent bouwt door op een plausibel-maar-onjuist antwoord. Leestools hebben geen `batchStep`, dus
-  // ze lopen via `def.handler` — precies de tak die de poort óók moet dekken.
   registerAllTools();
   store.getState().newProject();
   store.getState().addTask({ name: 'niet-kritiek' });
@@ -369,7 +309,6 @@ test('batch: de fout noemt het STAPNUMMER van de juiste regel uit het draaiboek'
     { tool: 'planner_add_tasks', args: { tasks: [{ tempId: 'tmp-a', name: 'Stap 2' }] } },
     { tool: 'planner_get_task', args: { taskId: 't1', diepte: 3 } },
   ], 3, 'planner_get_task', 'diepte');
-  // Het rapport per stap blijft intact: twee uitgevoerd (en teruggedraaid), de derde gefaald.
   assert(err.includes('1. planner_update_project — executed (rolled back)'), `rapport stap 1: ${err}`);
   assert(err.includes('3. planner_get_task — failed'), `rapport stap 3: ${err}`);
   assertEq(store.getState().tasks.length, 0, 'alles is teruggedraaid');
@@ -395,14 +334,11 @@ test('batch: een GELDIG draaiboek blijft ongehinderd werken (poort mag niets bre
   assertEq(data.steps.map((s: any) => s.status), ['uitgevoerd', 'uitgevoerd', 'uitgevoerd', 'uitgevoerd'], 'alle stappen uitgevoerd');
   assertEq(store.getState().tasks.length, 2, 'de taken zijn echt aangemaakt');
   assertEq(store.getState().sequences.length, 1, 'de relatie is echt aangemaakt');
-  // De tempId-vervanging blijft werken: de poort keurt de args ná `resolveTempIds`.
   const f = store.getState().tasks.find((t) => t.name === 'Fundering')!;
   assertEq(store.getState().sequences[0].predecessorId, f.id, 'de tempId is opgelost tot het echte id');
 });
 
 test('batch: DIEPTE-REGEL — een per-item-weigering in een bulk-stap blijft ZACHT', async () => {
-  // De poort mag de bulk-conventie niet omdraaien: `progress.percent` is een schemaschending BINNEN
-  // een array-item, dus de tool maakt er een per-item-weigering van en de batch loopt gewoon door.
   registerAllTools();
   store.getState().newProject();
   const goed = store.getState().addTask({ name: 'goed' });
@@ -422,8 +358,6 @@ test('batch: DIEPTE-REGEL — een per-item-weigering in een bulk-stap blijft ZAC
 });
 
 test('batch: DIEPTE-REGEL — bij de ATOMAIRE uitzondering (add_tasks) is een item-fout wél hard', async () => {
-  // Exact het gedrag van dezelfde call LOS (zie sectie 2): `ATOMIC_ITEM_TOOLS` geldt in de batch met
-  // dezelfde instelling, anders zouden er twee waarheden ontstaan.
   registerAllTools();
   store.getState().newProject();
   const err = await expectBatchSchemaReject(
@@ -435,12 +369,6 @@ test('batch: DIEPTE-REGEL — bij de ATOMAIRE uitzondering (add_tasks) is een it
 });
 
 test('leestools hebben geen object-array-items ⇒ dispatcher-pariteit dekt ze VOLLEDIG', () => {
-  // De diepte-regel slaat de BINNENKANT van array-items over, behalve bij `ATOMIC_ITEM_TOOLS`. Voor
-  // leestools maakt dat vandaag niets uit: geen enkel leesschema kent een array van objecten (alleen
-  // `resourceIds: array of string`, en dáárvan controleert de poort het elementtype al). Daardoor is
-  // "exact dezelfde instelling als de dispatcher" voor leestools óók volledige dekking — geen tweede
-  // waarheid nodig. Zodra iemand een leestool een object-array geeft, valt deze test om en moet de
-  // afweging opnieuw gemaakt worden (deep aanzetten of de tool per-item laten weigeren).
   registerAllTools();
   const offenders: string[] = [];
   const visit = (s: any, path: string, tool: string): void => {

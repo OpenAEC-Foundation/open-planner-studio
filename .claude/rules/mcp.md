@@ -87,7 +87,8 @@ nieuwe hostfunctie in een tool krijgt een naad zoals `fileToolDeps`/`guideToolDe
 een bestand uit `public/` leest, zet dat bestand in `embeddedAssets()` van `scripts/build-mcp-server.mjs`. Nieuwe tool ⇒ contract in `contracts.ts`, schema erbij, registreren in
 `toolRegistry.ts`, en een case in `tests/mcp/`; zie `docs/recepten/mcp-tool.md` voor de volledige
 route. `tests/mcp/cases-toolregistry.ts` is het mechanische vangnet dat een vergeten registratie
-(of een spookregistratie zonder broncode) mechanisch afvangt.
+(of een spookregistratie zonder broncode) mechanisch afvangt. Keuzes in de MCP-tests die verrassen (opwarmen
+met Undo, het eigen stdio-transport, de vorm van de schemafout): `docs/adr/1350-mcp-tests-opwarmen-eigen-stdio-en-de-vorm-van-de-schemafout.md`.
 
 **Externe client.** `tests/mcp/cases-externe-client.ts` toetst de bridge met de officiële SDK-client over echt HTTP.
 De HTTP-schil daar is `tests/mcp/bridgeMirror.ts`, die de HTTP-transport van de headless MCP-server gebruikt

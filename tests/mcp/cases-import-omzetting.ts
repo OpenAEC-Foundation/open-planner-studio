@@ -1,19 +1,3 @@
-// AI-IMPORT VAN EEN OUD BESTAND (B5) — `planner_import_schedule` meldt de omzetting naar het
-// minutenmodel in het antwoord.
-//
-// DE BUG DIE DIT VASTZET (aanval na #600, a10). Een IFC zonder `TimeModel` wordt bij het openen
-// omgerekend (B5, "berekenen en melden"). De app meldt dat via het meldingenkanaal
-// (`notifications.minuteModelConverted`), maar dat kanaal bereikt een MCP-client niet: het
-// importantwoord zei alleen `ok: true`, `scheduleStale: false`. Een agent die daarna direct
-// `planner_export_ifc` deed, schreef stil de nieuwe datums weg.
-//
-// Fixture `tests/planning/fixtures/b5-lopend-oude-writer.ifc`: geschreven met de bron van main
-// `fbd4a3f9d` (vóór de urenomzetting). Eén taak van 5 werkdagen, 32% gereed, werkelijke start
-// ma 1 juni 2026 07:00, statusdatum 3 juni; kalender ma–vr 07–12 en 13–16. In het bestand eindigt
-// de taak vr 5 juni 16:00; de exacte rest (3,4 werkdagen) geeft ma 8 juni 10:12, dus 0,4 werkdag later.
-//
-// Alles via de ECHTE dispatcher (`handleMcpMessage`), tegen de echte store; alleen de fs-rand is
-// gefaked via `fileToolDeps.getFs` (in-memory, zoals cases-import-bibliotheek.ts).
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -29,7 +13,6 @@ const S = () => useAppStore.getState();
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '../..');
 const LEGACY = readFileSync(join(ROOT, 'tests/planning/fixtures/b5-lopend-oude-writer.ifc'), 'utf8');
 
-// --- Fake fs (in-memory) -------------------------------------------------------------------------
 const HOME = '/home/tester';
 const files = new Map<string, string>();
 const fs: McpFileFs = {
@@ -68,7 +51,6 @@ interface ImportData {
   notice?: string;
 }
 
-/** Reset naar één vers, leeg (pristine) document. */
 function resetToSingleEmptyDocument(): void {
   for (const d of [...S().documents]) {
     if (d.id !== S().activeDocumentId) S().closeDocument(d.id);
@@ -94,14 +76,12 @@ test('import van een oud bestand meldt de omzetting: aantal taken en grootste ve
     'de inventaris noemt de omzetting');
   assert(data.notice?.includes('1 task has a different start or finish; the largest shift is 0.4 workdays'),
     `de notice zegt het aan de agent: ${data.notice}`);
-  // Hetzelfde getal als de melding die de gebruiker in de app ziet: één bron, twee kanalen.
   const notice = S().ui.notifications.find(n => n.messageKey === 'notifications.minuteModelConverted');
   assertEq([notice?.params?.count, notice?.numberParams?.days], [1, 0.4], 'de app-melding telt hetzelfde');
   assertEq(S().tasks[0].time.earlyFinish, '2026-06-08T10:12', 'het openen rekende de exacte rest');
 });
 
 test('import van een nieuw bestand (met TimeModel) meldt niets', async () => {
-  // De omgezette stand van de vorige test, zoals de app hem nu opslaat: met `TimeModel`.
   const modern = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   assertEq(readIFC(modern).timeModel, 'MINUTES-1', 'het nieuwe bestand draagt de markering');
   files.set(MODERN_PATH, modern);

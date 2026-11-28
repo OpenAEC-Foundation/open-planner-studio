@@ -1,14 +1,3 @@
-// SYNC-2 — de INTEGRATIEdraden tussen de tool-banen. Elke baan testte zijn eigen module; dit bestand
-// test uitsluitend wat pas ontstaat als ze samen in één binary zitten:
-//
-//   A. het T16-backupcontract slaat duplicate-born documenten aantoonbaar over;
-//   B. elke batchbare mutatietool draagt een synchrone `batchStep`-kern, en een draaiboek met
-//      add_tasks → add_dependencies → update_calendar → update_project loopt end-to-end (spec-usecase 1);
-//   C. de registratie draait op een PRODUCTIEpad, niet alleen in tests;
-//   D. de toolstelling: het aantal, de `planner_`-prefix, een niet-lege description en alle vier de
-//      MCP-annotaties op élke tool.
-
-// --- localStorage-shim (vóór elke @/-import; server.ts sleept settingsStore mee) ------------------
 const backing = new Map<string, string>();
 (globalThis as any).localStorage = {
   getItem: (k: string) => (backing.has(k) ? backing.get(k)! : null),
@@ -20,8 +9,6 @@ import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, r
 import { getTool, getTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import { createBackupService } from '@/services/mcp/backup';
-// Het IMPORTEREN van server.ts draait `initMcpRuntime()` — precies het productiepad dat draad A en C
-// leggen. Niets uit deze import wordt hier aangeroepen; de side-effect ÍS wat we testen.
 import { initMcpRuntime } from '@/services/mcp/server';
 import type { McpContext, McpToolDef, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
 import type { BatchStepTool } from '@/services/mcp/tools/batchTool';
@@ -34,16 +21,6 @@ function makeCtx(over: McpContextOverrides = {}): McpContext {
   });
 }
 
-// =================================================================================================
-// D. Toolstelling — het contract dat de AI te zien krijgt
-// =================================================================================================
-
-/**
- * Wat de AI via de dispatcher te zien krijgt, moet exact de registry zijn. Bewust zonder vast aantal
- * (dat moest bij elke nieuwe tool mee omhoog): dat de registry compleet is — elke `planner_*`-tool uit
- * de broncode geregistreerd, niets extra — bewaakt `cases-toolregistry.ts`, en dubbele registratie
- * vangt de test "geen dubbele toolnamen" hieronder.
- */
 test('tools/list levert via de dispatcher exact de geregistreerde toolstelling', async () => {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
@@ -53,7 +30,6 @@ test('tools/list levert via de dispatcher exact de geregistreerde toolstelling',
   assert(resp.result !== undefined, `tools/list gaf een fout terug: ${raw.slice(0, 300)}`);
   const tools = resp.result.tools as { name: string; description?: string; annotations?: unknown }[];
   assert(tools.length > 0, 'tools/list is leeg');
-  // De dispatcher put uit dezelfde registry; als die twee uiteenlopen klopt er iets fundamenteels niet.
   assertEq(
     tools.map((t) => t.name).sort(),
     getTools().map((t) => t.name).sort(),
@@ -92,11 +68,6 @@ test('geen dubbele toolnamen over de zes modules heen', async () => {
   assertEq(new Set(names).size, names.length, 'alle toolnamen zijn uniek');
 });
 
-// Reviewbevinding (2026-08-15, ná het eigenaarsbesluit over verzameltaakrelaties): de tool-
-// descriptions van add_dependencies/update_dependencies beweerden nog dat een verzameltaak-eindpunt
-// zacht geweigerd wordt — dat is sinds `expandSummaryRelations` niet meer waar (zo'n relatie rekent
-// mee), alleen de voorouder-relatie wordt nog geweigerd. Een agent die op de description afgaat mag
-// niet aannemen dat een verzameltaak-eindpunt sowieso mislukt.
 test('add_dependencies/update_dependencies-descriptions beloven de HUIDIGE weigering, niet de oude', async () => {
   for (const name of ['planner_add_dependencies', 'planner_update_dependencies']) {
     const def = getTool(name);
@@ -110,17 +81,12 @@ test('add_dependencies/update_dependencies-descriptions beloven de HUIDIGE weige
       /summary task.{0,80}ALLOWED|ALLOWED.{0,80}summary task/i.test(desc),
       `'${name}': description zegt niet expliciet dat een verzameltaak-eindpunt is toegestaan: ${desc}`,
     );
-    // De oude, nu onjuiste claim ("verzameltaak ... wordt/is ... geweigerd") mag niet meer voorkomen.
     assert(
       !/(?<!ancestor )summary task[^.]{0,80}refused/i.test(desc),
       `'${name}': description belooft nog steeds dat een verzameltaak-eindpunt geweigerd wordt: ${desc}`,
     );
   }
 });
-
-// =================================================================================================
-// C. Registratie draait op een PRODUCTIEpad
-// =================================================================================================
 
 test('initMcpRuntime is idempotent en herstelt een afgeknotte registratie', async () => {
   const before = getTools().length;
@@ -129,13 +95,7 @@ test('initMcpRuntime is idempotent en herstelt een afgeknotte registratie', asyn
   assert(getTool('planner_batch') !== undefined, 'planner_batch is opzoekbaar na de init');
 });
 
-// =================================================================================================
-// A. Het T16-backupcontract werkt gedragsmatig
-// =================================================================================================
-
 test('een duplicate-born document slaat de auto-backup over', async () => {
-  // Bewijst het EFFECT waar de naad voor bestaat, op een eigen service-instantie (de echte
-  // module-singleton schrijft naar de Tauri-fs, die hier niet bestaat).
   let writes = 0;
   const svc = createBackupService({
     getFs: async () => ({
@@ -160,13 +120,8 @@ test('een duplicate-born document slaat de auto-backup over', async () => {
   assertEq(writes, 1, 'een duplicate-born document krijgt GEEN extra auto-backup');
 });
 
-// =================================================================================================
-// B. batchStep-kernen
-// =================================================================================================
-
-/** Tools die per spec §Compositie nooit een batch-stap zijn en dus geen kern hoeven te hebben. */
 const NO_CORE_EXPECTED = new Set([
-  'planner_save_baseline',   // batchable: false — een baseline hoort een losse, bewuste nulmeting te zijn
+  'planner_save_baseline',
   'planner_undo', 'planner_redo',
   'planner_export_ifc', 'planner_import_schedule',
   'planner_new_document', 'planner_switch_document', 'planner_duplicate_document', 'planner_list_documents',
@@ -245,27 +200,21 @@ test('spec-usecase 1: bestek → planning in ÉÉN batch (tasks + relaties + kal
     'alle vier de stappen zijn uitgevoerd',
   );
 
-  // De echte bewijslast: de store draagt het resultaat van álle vier de banen.
   assertEq(S().project.name, 'Bestek A', 'update_project (baan f2) landde');
   assert(S().calendars.some((c) => c.name === 'Bouwkalender'), 'update_calendar (baan f2) landde');
   assertEq(S().tasks.length, before + 2, 'add_tasks (baan f2) landde');
   assertEq(S().sequences.length, 1, 'add_dependencies (baan f2) landde');
-  // tempId-resolutie over stapgrenzen heen (baan f4) — de relatie wijst naar de ECHTE id's.
   const fundering = S().tasks.find((t) => t.name === 'Fundering')!;
   const ruwbouw = S().tasks.find((t) => t.name === 'Ruwbouw')!;
   assertEq(S().sequences[0].predecessorId, fundering.id, 'de tempId van de voorganger is opgelost');
   assertEq(S().sequences[0].successorId, ruwbouw.id, 'de tempId van de opvolger is opgelost');
-  // Eén batch = één undo-stap (WP0-invariant).
   assert(S().historyEvents.filter(event => event.state === 'applied').length >= 1, 'de batch pushte een undo-snapshot');
 });
 
 test('de OVERIGE batchStep-kernen draaien echt als stap (niet alleen aanwezig)', async () => {
-  // De coverage-test hierboven bewijst dat de kernen BESTAAN; usecase 1 draait er vier. Deze test
-  // draait de overige acht, zodat een verkeerd uitgetilde kern niet stil blijft zitten.
   S().newProject();
   const ctx = makeCtx();
 
-  // Voorbereiding buiten de batch: twee taken, een relatie en een resource om mee te werken.
   const prep = await handleMcpMessage(
     JSON.stringify({
       jsonrpc: '2.0', id: 20, method: 'tools/call',
@@ -331,7 +280,6 @@ test('de OVERIGE batchStep-kernen draaien echt als stap (niet alleen aanwezig)',
   const gefaald = data.steps.filter((s) => s.status !== 'uitgevoerd');
   assertEq(gefaald, [], `alle stappen moeten uitgevoerd zijn; gefaald: ${JSON.stringify(gefaald)}`);
 
-  // Steekproef op het EFFECT van een paar kernen (niet alleen op de statusregel).
   assertEq(S().sequences.length, 0, 'remove_dependencies-kern verwijderde de relatie');
   assertEq(S().project.startDate, '2026-04-01', 'move_project-kern verschoof het project');
   assert(!S().tasks.some((t) => t.id === taskA.id), 'delete_tasks-kern verwijderde Taak A');
@@ -349,8 +297,6 @@ test('een batch met een onbekende tool rolt ALLES terug (de vangrail werkt over 
         name: 'planner_batch',
         arguments: {
           steps: [
-            // `tmp-`-prefix: anders zou de batch al op de GERESERVEERDE tempId-syntax (T22) stranden
-            // en zou deze case de onbekende-tool-vangrail niet meer bewijzen.
             { tool: 'planner_add_tasks', args: { tasks: [{ tempId: 'tmp-x', name: 'Wordt teruggedraaid', duration: 5 }] } },
             { tool: 'planner_bestaat_niet', args: {} },
           ],
@@ -364,16 +310,6 @@ test('een batch met een onbekende tool rolt ALLES terug (de vangrail werkt over 
   assertEq(S().tasks.length, before, 'de eerste (geslaagde) stap is teruggedraaid');
 });
 
-// =================================================================================================
-// E. De curve-guard geldt óók op het batchStep-pad (eindintegratie)
-//
-// De T20-reviewfix zette `isCurve` in `classifyAssignments`; SYNC-2 tilde de synchrone kern daarna
-// uit als `manageAssignmentsCore` en gaf `planner_batch` daarmee een TWEEDE ingang naar diezelfde
-// logica. cases-mutate-cal-res.ts test alleen de losse-tool-ingang. Deze case pint de batch-ingang:
-// zou de guard ooit naar de handler-wikkel zakken, dan zou een onbekende curve via een batch
-// alsnog in de store belanden en `recomputeResourceLoad()` (stap 5, BUITEN de try/catch van
-// runInMcpTransaction) laten klappen — uncaught, dus voorbij het rollback-pad.
-// =================================================================================================
 test('batchStep-pad: een onbekende curve wordt óók binnen planner_batch zacht geweigerd', async () => {
   S().newProject();
   const ctx = makeCtx();
@@ -399,8 +335,8 @@ test('batchStep-pad: een onbekende curve wordt óók binnen planner_batch zacht 
               tool: 'planner_manage_assignments',
               args: {
                 actions: [
-                  { action: 'add', taskId, resourceId, unitsPerDay: 1, curve: 'bell' },   // kleine letters ⇒ ONGELDIG
-                  { action: 'add', taskId: taskB, resourceId, unitsPerDay: 1, curve: 'BELL' }, // geldig
+                  { action: 'add', taskId, resourceId, unitsPerDay: 1, curve: 'bell' },
+                  { action: 'add', taskId: taskB, resourceId, unitsPerDay: 1, curve: 'BELL' },
                 ],
               },
             },
@@ -411,7 +347,6 @@ test('batchStep-pad: een onbekende curve wordt óók binnen planner_batch zacht 
     ctx,
   );
 
-  // Géén uncaught crash: er komt gewoon een JSON-RPC-antwoord terug.
   const payload = JSON.parse(JSON.parse(raw).result.content[0].text) as McpToolResult;
   assertEq(payload.ok, true, `de batch hoort te slagen (zachte weigering), kreeg: ${raw.slice(0, 500)}`);
 

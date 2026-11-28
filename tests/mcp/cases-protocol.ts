@@ -1,8 +1,3 @@
-// T9 — MCP-dispatcher + toolRegistry: rauwe JSON-RPC-strings door `handleMcpMessage` met een
-// STUB-registry. Geen SDK, geen HTTP — puur de protocol-/routeringslaag headless op Node.
-//
-// De store is hier niet nodig; we importeren `test`/`assert`/`run` uit de harness (die de DOM-shim
-// en de store-re-export meebrengt — onschadelijk) en registreren stub-tools in de registry.
 import { makeMcpContext, test, assert, assertEq, run } from './harness';
 import type { McpToolDef, McpToolResult, McpContext } from '@/services/mcp/contracts';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
@@ -13,8 +8,6 @@ import {
   DEFAULT_PROTOCOL_VERSION,
 } from '@/services/mcp/dispatcher';
 
-// --- Stub-omgeving -------------------------------------------------------------------------------
-
 const stubEnvelope = {
   activeDocumentId: 'doc-1',
   documentTitle: 'Teststub',
@@ -23,7 +16,6 @@ const stubEnvelope = {
   readOnly: false,
 };
 
-/** Leestool die zijn args echoot — bewijst arg-routering + ok-verpakking. */
 const echoTool: McpToolDef = {
   name: 'planner_echo',
   description: 'Echoot de meegegeven waarde terug (teststub).',
@@ -38,7 +30,6 @@ const echoTool: McpToolDef = {
   handler: (args): McpToolResult => ({ ok: true, envelope: stubEnvelope, data: { received: args } }),
 };
 
-/** Muteertool die altijd faalt — bewijst error-verpakking + isError-vlag. */
 const failTool: McpToolDef = {
   name: 'planner_fail',
   description: 'Faalt altijd (teststub).',
@@ -49,7 +40,6 @@ const failTool: McpToolDef = {
   handler: (): McpToolResult => ({ ok: false, envelope: stubEnvelope, error: 'stub-fout', code: 'VALIDATION' }),
 };
 
-/** Handler die SYNCHROON gooit — bewijst de crash-barrière (-32603, geen info-lek). */
 const throwTool: McpToolDef = {
   name: 'planner_throw',
   description: 'Gooit synchroon (teststub).',
@@ -62,7 +52,6 @@ const throwTool: McpToolDef = {
   },
 };
 
-/** Handler die een rejected promise teruggeeft — bewijst dat de barrière ook async rejections vangt. */
 const rejectTool: McpToolDef = {
   name: 'planner_reject',
   description: 'Rejectet asynchroon (teststub).',
@@ -73,13 +62,10 @@ const rejectTool: McpToolDef = {
   handler: (): Promise<McpToolResult> => Promise.reject(new Error('GEHEIM-ASYNC-detail dat NOOIT lekt')),
 };
 
-// Registreer de goede stubs bij module-load. Latere bad-registration-tests gooien vóór ze de
-// interne staat vervangen, dus deze blijven gedurende de hele run geregistreerd.
 registerToolModules([[echoTool], [failTool], [throwTool], [rejectTool]]);
 
 const ctx: McpContext = makeMcpContext();
 
-/** Stuur een rauw JSON-RPC-bericht en parse het antwoord (of geef de rauwe string terug). */
 async function send(body: unknown): Promise<any> {
   const raw = await handleMcpMessage(typeof body === 'string' ? body : JSON.stringify(body), ctx);
   return raw;
@@ -96,8 +82,6 @@ function assertThrows(fn: () => void, needle: string, label: string): void {
   }
   assert(threw, `${label}: verwachtte een throw, maar er werd niets gegooid`);
 }
-
-// --- Tests ---------------------------------------------------------------------------------------
 
 test('initialize echoot een bekende client-protocolversie', async () => {
   const raw = await send({ jsonrpc: '2.0', id: 1, method: 'initialize', params: { protocolVersion: '2025-06-18' } });
@@ -133,7 +117,6 @@ test('tools/list bevat de stubs met schema + annotations en alle namen dragen pl
     assert(typeof t.description === 'string', `description ontbreekt op ${t.name}`);
   }
   const echo = tools.find((t) => t.name === 'planner_echo');
-  // description komt uit het eersteklas def-veld — NIET uit inputSchema.description.
   assertEq(echo.description, 'Echoot de meegegeven waarde terug (teststub).', 'echo-description uit het def-veld');
   assertEq(echo.annotations.readOnlyHint, true, 'echo readOnlyHint');
 });
@@ -147,7 +130,6 @@ test('tools/call routeert args naar de stub en verpakt een ok-resultaat', async 
   assertEq(msg.result.isError, false, 'ok ⇒ isError false');
   assertEq(msg.result.structuredContent.data.received, { value: 'hoi' }, 'args gerouteerd naar handler');
   assert(Array.isArray(msg.result.content) && msg.result.content[0].type === 'text', 'content[0] is text');
-  // content[0].text is de geserialiseerde McpToolResult.
   const parsed = JSON.parse(msg.result.content[0].text);
   assertEq(parsed.ok, true, 'content-text bevat het ok-resultaat');
   assertEq(msg.result.structuredContent.ok, true, 'structuredContent = het rauwe resultaat');

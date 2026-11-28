@@ -1,21 +1,3 @@
-// Leestools rekenen zelf bij (besluit eigenaar, 2026-10; was knownbugs 73).
-//
-// Zonder `planner_run_cpm` kon de agent een planning die een mens in de app had gewijzigd
-// (`scheduleStale: true`, automatisch berekenen uit) niet meer verversen: de leestools gaven de oude
-// datums. Nu rekent elke leestool die berekende waarden teruggeeft eerst door (`freshenScheduleForRead`
-// in tools/runtime.ts), net als F5: geen undo-stap, geen `isDirty`, de redo-stapel blijft.
-// Uitzondering: "datums zoals opgeslagen". Daar rekent een leestool NIET door (dat zou de opgeslagen
-// datums vervangen en een undo-stap pushen); de envelop meldt de modus.
-//
-// Alles via de ECHTE dispatch-weg (`handleMcpMessage`), zoals het recept vraagt.
-//
-// MUTATIEBEWIJS (nagespeeld bij het bouwen):
-//  - zet in `runReadTool` de regel `if (opts?.freshSchedule) freshen();` uit ⇒ case 1 en 2 slaan rood
-//    (oude datums, `scheduleStale: true` in de envelop);
-//  - haal de modus-tak uit `ensureFreshScheduleForRead` (staleGuard.ts) ⇒ case 5 slaat rood;
-//  - haal de `ctx.transactions.isActive()`-tak uit `freshenScheduleForRead` ⇒ case 4 slaat rood;
-//  - haal de `isAutoCalcHeld()`-tak uit `ensureFreshScheduleForRead` ⇒ case 6 slaat rood;
-//  - haal de `failedSolveBlocks`-tak uit `ensureFreshScheduleForRead` ⇒ case 7 slaat rood.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool, registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -32,8 +14,6 @@ const store = useAppStore;
 const S = () => store.getState();
 registerAllTools();
 
-// Warm-up (zoals cases-recorded-dates.ts): projectkalender tot bibliotheek-entry promoten via één
-// undo, zodat restore-paden een steady state hebben.
 S().addTask({ name: 'warmup' });
 S().undo();
 
@@ -58,11 +38,6 @@ const task = (id: string) => S().tasks.find((t) => t.id === id)!;
 
 interface StaleProject { a: string; b: string; oldEnd: string; oldStartB: string }
 
-/**
- * A (5 d) → B (5 d), doorgerekend, met een actieve baseline; daarna wijzigt een "mens" de duur van A
- * in de app (store-actie, automatisch berekenen uit) ⇒ `scheduleStale: true`, de berekende datums
- * staan nog op de oude stand. Dan nog een redo-stap, en "opgeslagen" (isDirty=false).
- */
 function staleProject(): StaleProject {
   S().newProject();
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [] } as WorkCalendar);
@@ -76,7 +51,7 @@ function staleProject(): StaleProject {
   const oldStartB = task(b).time.earlyStart!;
   S().updateTask(a, { time: { ...task(a).time, scheduleDuration: 10 } });
   S().addTask({ name: 'weer weg' });
-  S().undo(); // ⇒ een redo-stapel die een lezing niet mag wissen
+  S().undo();
   store.setState((s) => { s.isDirty = false; });
   assertEq(S().scheduleStale, true, 'opzet: de planning is verouderd');
   assertEq(S().cpmResult!.projectEnd, oldEnd, 'opzet: het berekende einde staat nog op de oude stand');
@@ -84,7 +59,6 @@ function staleProject(): StaleProject {
   return { a, b, oldEnd, oldStartB };
 }
 
-/** De gedeelde eisen na een lezing die bijrekende. */
 function expectFreshAfterRead(label: string, res: any, before: { applied: number; undone: number }, p: StaleProject): void {
   assertEq(res.envelope.scheduleStale, false, `${label}: de envelop meldt een verse planning`);
   assertEq(res.envelope.scheduleRecalculated, true, `${label}: de envelop meldt dat er is bijgerekend`);
@@ -94,13 +68,11 @@ function expectFreshAfterRead(label: string, res: any, before: { applied: number
   assertEq(applied(), before.applied, `${label}: geen undo-stap`);
   assertEq(undone(), before.undone, `${label}: de redo-stapel blijft staan`);
   assertEq(S().isDirty, false, `${label}: het document wordt niet vuil`);
-  // Vers betekent stabiel: nog eens doorrekenen verandert niets meer.
   const end = S().cpmResult!.projectEnd;
   S().runCPM();
   assertEq(S().cpmResult!.projectEnd, end, `${label}: nog eens rekenen geeft hetzelfde einde`);
 }
 
-// --- 1) Elke leestool met berekende waarden geeft na een menselijke wijziging verse datums -----------
 const FRESH_READS: Array<{ tool: string; args: (p: StaleProject) => unknown; check: (data: any, p: StaleProject) => void }> = [
   { tool: 'planner_get_project_info', args: () => ({}), check: (d) => {
     assertEq(d.schedule.projectEnd, S().cpmResult!.projectEnd, 'get_project_info: projectEnd is het verse einde');
@@ -161,7 +133,6 @@ test('leestools zonder berekende waarden rekenen niet: list_resources en get_cal
   }
 });
 
-// --- 2) Ook bij alleen-lezen en pauze: berekende velden zijn geen projectdata -------------------------
 test('alleen-lezen + pauze: een leestool rekent tóch bij, zonder undo-stap en zonder isDirty', async () => {
   const p = staleProject();
   store.setState((s) => { s.ui.aiReadOnly = true; s.ui.aiPaused = true; });
@@ -171,7 +142,6 @@ test('alleen-lezen + pauze: een leestool rekent tóch bij, zonder undo-stap en z
     const res = ok(await rpc('planner_get_project_info', {}, ctx), 'get_project_info (alleen-lezen)');
     assertEq([res.envelope.readOnly, res.envelope.paused], [true, true], 'de envelop meldt beide vlaggen');
     expectFreshAfterRead('alleen-lezen', res, before, p);
-    // Controle: een muterende tool blijft geweigerd.
     const mut = await rpc('planner_update_tasks', { updates: [{ id: p.a, fields: { name: 'X' } }] }, ctx);
     assertEq(mut.ok, false, 'een mutatie blijft geweigerd bij pauze/alleen-lezen');
   } finally {
@@ -179,7 +149,6 @@ test('alleen-lezen + pauze: een leestool rekent tóch bij, zonder undo-stap en z
   }
 });
 
-// --- 3) Een open dialoog: geweigerd vóór er gerekend wordt ------------------------------------------
 test('open dialoog: DIALOG_OPEN en er wordt niets doorgerekend', async () => {
   staleProject();
   const cpm = S().cpmResult;
@@ -194,9 +163,6 @@ test('open dialoog: DIALOG_OPEN en er wordt niets doorgerekend', async () => {
   }
 });
 
-// --- 4) Binnen een MCP-transactie rekent een leestool niet zelf --------------------------------------
-// Daar telt elke taakwijziging als datawijziging: een herrekening zou van een lezing een undo-stap met
-// isDirty maken. `planner_batch` ververst daarom vóór zijn transactie (cases-undo-noop.ts).
 test('leestool binnen een lopende MCP-transactie: geen herrekening, geen undo-stap, niet vuil', () => {
   staleProject();
   const before = { applied: applied(), undone: undone() };
@@ -223,7 +189,6 @@ test('planner_batch met alleen een histogram-leesstap op een verouderde planning
   assert(task(p.b).time.earlyStart! > p.oldStartB, 'B staat op zijn verse start');
 });
 
-// --- 5) "Datums zoals opgeslagen": niet doorrekenen, wel melden ---------------------------------------
 function enterMode(tag: string): { bId: string } {
   S().newProject();
   S().applyLoadedProject(readIFC(externIfc(tag)), { filePath: null, recompute: true });
@@ -268,9 +233,6 @@ test('datums zoals opgeslagen: leestools rekenen niet door, melden de modus, de 
   }
 });
 
-// De invariant "modus aan ⇒ nooit stale" (state/scheduleStale.ts) zou `ensureFreshSchedule` in de modus
-// al stil houden. De leestool-tak in `ensureFreshScheduleForRead` maakt dat afgedwongen: ook als die
-// invariant ooit breekt, verlaat een lezing de modus niet.
 test('datums zoals opgeslagen + (kunstmatig) verouderd: een leestool verlaat de modus nog steeds niet', async () => {
   const { bId } = enterMode('fresh-broken-invariant');
   store.setState((s) => { s.scheduleStale = true; });
@@ -292,9 +254,6 @@ test('controle: de eerste echte mutatie in de modus rekent wél door en verlaat 
   assertEq(task(bId).time.earlyStart, '2026-03-09T07:00', 'B staat op zijn herberekende start');
 });
 
-// --- 6) Een lopende bewerking (sleepgebaar, typen) houdt het bijrekenen tegen ---------------------
-// Zelfde rem als Automatisch berekenen (`editHold.ts`, `useBarDrag`, `useTextEntryAutoCalcHold`):
-// anders verspringt de balk onder de muis van de gebruiker.
 test('lopende bewerking (holdAutoCalc): een leestool rekent niet door en meldt dat eerlijk', async () => {
   const p = staleProject();
   const cpm = S().cpmResult;
@@ -314,12 +273,8 @@ test('lopende bewerking (holdAutoCalc): een leestool rekent niet door en meldt d
   assertEq(after.envelope.scheduleNote, undefined, 'en dan zonder toelichting');
 });
 
-// --- 7) Na een mislukte berekening niet opnieuw solven zolang de invoer gelijk bleef --------------
-// Zelfde rem als Automatisch berekenen (`failedSolveGate.ts`): anders solvet elke lezing opnieuw en
-// telt de melding `cpm-error` op (ook nadat de gebruiker hem wegklikte).
 function cyclicProject(): { a: string; b: string } {
   const p = staleProject();
-  // B → A erbij, zoals een importer hem schrijft (de store-route weigert de kring zelf).
   store.setState((s) => {
     s.sequences.push({ id: 'seq-kring', predecessorId: p.b, successorId: p.a, type: 'FINISH_START', lagDays: 0 });
   });
@@ -348,12 +303,10 @@ test('kringverwijzing: de eerste lezing rekent één keer, daarna geen nieuwe so
   assert(S().cpmResult === failed, 'geen nieuwe solve: cpmResult is hetzelfde object');
   assertEq(cpmErrorCount(), 1, 'de melding telt niet op');
 
-  // Weggeklikt blijft weg.
   store.setState((s) => { s.ui.notifications = []; });
   ok(await rpc('planner_get_project_info'), 'get_project_info na wegklikken');
   assertEq(cpmErrorCount(), 0, 'een weggeklikte melding komt niet terug door een lezing');
 
-  // Echte invoerwijziging (de kring weg) ⇒ de volgende lezing rekent wél, en slaagt.
   store.setState((s) => { s.sequences = s.sequences.filter((q) => q.id !== 'seq-kring'); });
   const fixed = ok(await rpc('planner_get_project_info'), 'get_project_info na herstel');
   assertEq(fixed.envelope.scheduleRecalculated, true, 'na een invoerwijziging wordt er opnieuw gerekend');
@@ -361,7 +314,6 @@ test('kringverwijzing: de eerste lezing rekent één keer, daarna geen nieuwe so
   assertEq(fixed.envelope.scheduleStale, false, 'en vers');
 });
 
-// Knownbug 76: ook niet-cyclische solverfouten moeten via de echte dispatcher Engels zijn.
 test('ongeldige startdatum: alle leestools melden de Engelse solverfout met ongewijzigde taaknaam', async () => {
   const p = staleProject();
   store.setState((s) => {

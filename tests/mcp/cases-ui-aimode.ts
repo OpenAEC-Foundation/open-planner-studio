@@ -1,12 +1,3 @@
-// T14 — AI-modus-toggle + verbinding: de STATE-kant headless (geen DOM/React — de UI-rendering
-// verifieert de orchestrator visueel bij T24). Getest:
-//   - applyAiMode aan/uit: schrijft de ui-spiegel + persisteert; UIT roept het stopServer-pad aan
-//     (geïnjecteerde fake) en forceert de serverstatus op off;
-//   - de reducer-tab-conditie: AI-modus uitzetten terwijl het AI-tabblad actief is valt terug op 'start';
-//   - opstart-hydratatie: saveAiMode → loadAllSettings levert de aiMode-spiegel (voedt de tab-zichtbaarheid);
-//   - poortwijziging persisteert; token-regeneratie vervangt de opgeslagen waarde.
-
-// --- localStorage-shim (vóór elke @/-import; settingsStore leest/schrijft ops-*-sleutels) --------
 const backing = new Map<string, string>();
 (globalThis as any).localStorage = {
   getItem: (k: string) => (backing.has(k) ? backing.get(k)! : null),
@@ -22,7 +13,6 @@ import type { McpServerStatus } from '@/services/mcp/contracts';
 
 const HEX64 = /^[0-9a-f]{64}$/;
 
-/** Bouwt een set fake-deps die elke aanroep vastlegt, zodat de test kan asserten wát er gebeurde. */
 function makeSpy(port: number) {
   const calls = {
     setAiMode: [] as boolean[],
@@ -40,8 +30,6 @@ function makeSpy(port: number) {
   return { calls, deps };
 }
 
-// --- (1) applyAiMode AAN -------------------------------------------------------------------------
-
 test('applyAiMode(true) schrijft de spiegel + persisteert, en raakt de bridge NIET aan', async () => {
   const { calls, deps } = makeSpy(3877);
   await applyAiMode(true, deps);
@@ -51,8 +39,6 @@ test('applyAiMode(true) schrijft de spiegel + persisteert, en raakt de bridge NI
   assertEq(calls.setStatus, [], 'aanzetten forceert geen status');
 });
 
-// --- (2) applyAiMode UIT -------------------------------------------------------------------------
-
 test('applyAiMode(false) roept het stopServer-pad aan en forceert de serverstatus op off', async () => {
   const { calls, deps } = makeSpy(3901);
   await applyAiMode(false, deps);
@@ -61,8 +47,6 @@ test('applyAiMode(false) roept het stopServer-pad aan en forceert de serverstatu
   assertEq(calls.stopServer, 1, 'uitzetten stopt de bridge (stopServer-pad) precies één keer');
   assertEq(calls.setStatus, [{ state: 'off', port: 3901 }], 'de serverstatus wordt op off gezet met de meegegeven poort');
 });
-
-// --- (3) reducer-tab-conditie --------------------------------------------------------------------
 
 test('AI-modus uitzetten terwijl het AI-tabblad actief is, valt terug op de start-tab', () => {
   const store = useAppStore.getState();
@@ -82,8 +66,6 @@ test('AI-modus uitzetten laat een NIET-AI-tab ongemoeid', () => {
   assertEq(useAppStore.getState().ui.activeRibbonTab, 'planning', 'een andere actieve tab blijft staan');
 });
 
-// --- (4) opstart-hydratatie (voedt de tab-zichtbaarheid) -----------------------------------------
-
 test('saveAiMode wordt door loadAllSettings teruggehydrateerd naar de aiMode-spiegel', async () => {
   await saveAiMode(true);
   let patch = await loadAllSettings();
@@ -94,14 +76,10 @@ test('saveAiMode wordt door loadAllSettings teruggehydrateerd naar de aiMode-spi
   assertEq(patch.aiMode, false, 'aiMode:false wordt uit localStorage gehydrateerd');
 });
 
-// --- (5) poort persisteert -----------------------------------------------------------------------
-
 test('saveMcpPort persisteert en loadMcpPort leest dezelfde poort terug', () => {
   saveMcpPort(3999);
   assertEq(loadMcpPort(), 3999, 'de gewijzigde poort wordt gepersisteerd en teruggelezen');
 });
-
-// --- (6) token-regeneratie -----------------------------------------------------------------------
 
 test('regenerateMcpToken vervangt de opgeslagen tokenwaarde door een vers 64-hex-token', () => {
   const first = regenerateMcpToken();

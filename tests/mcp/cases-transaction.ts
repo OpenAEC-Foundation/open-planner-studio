@@ -1,8 +1,3 @@
-// WP0 / taak T1 — `runInMcpTransaction` + beginUndoable-suppressie + rollback.
-// Draait headless tegen de ECHTE Zustand-store (via de harness) — geen mock. Bewijst de vijf
-// invarianten uit de spec (§Werkpakket 0): één snapshot per transactie, atomische rollback bij
-// throw én bij cpmResult.error, coalesce-reset ná afloop, en runCPM dat binnen het venster géén
-// undo-snapshot pusht.
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import { runInMcpTransaction } from '@/state/mcpTransaction';
 import { createSnapshot } from '@/state/snapshot';
@@ -13,15 +8,9 @@ import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const store = useAppStore;
 
-// Warm-up: breng de kalender-bibliotheek in de restore-steady-state. Het rollback-primitief
-// `restoreSnapshot` (én undo/redo) promoot de projectkalender-cache tot bibliotheek-entry wanneer die
-// nog ontbreekt (syncProjectCalendar, §9.1). Een verse store heeft `calendars: []`; door hier één
-// edit te undo'en staat de projectkalender al in de bibliotheek, zodat de rollback-tests hieronder de
-// (benigne, undo-identieke) kalender-promotie niet als "store-verschil" waarnemen.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
-// 1) Twee mutaties binnen één transactie ⇒ undoStack groeit met exact 1.
 test('twee mutaties in één transactie ⇒ undoStack +1', () => {
   const id = store.getState().addTask({ name: 'trans-1' });
   const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
@@ -37,7 +26,6 @@ test('twee mutaties in één transactie ⇒ undoStack +1', () => {
   assertEq(t?.name, 'twee', 'beide mutaties horen toegepast te zijn (laatste wint)');
 });
 
-// 2) Exception in de callback ⇒ store-inhoud gelijk aan vóór de transactie én undoStack ongewijzigd.
 test('exception in callback ⇒ volledige rollback', () => {
   const id = store.getState().addTask({ name: 'trans-2' });
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
@@ -57,9 +45,6 @@ test('exception in callback ⇒ volledige rollback', () => {
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeLen, 'undoStack mag niet gewijzigd zijn na rollback');
 });
 
-// 3) Ná een geslaagde transactie is de coalesce-marker gereset én de suppressie-vlag uit: een
-//    volgende keyed mutatie pusht zijn EIGEN snapshot (stack +1) i.p.v. te coalescen of onderdrukt
-//    te worden.
 test('na geslaagde transactie pusht een keyed mutatie een eigen snapshot', () => {
   const id = store.getState().addTask({ name: 'trans-3' });
 
@@ -77,8 +62,6 @@ test('na geslaagde transactie pusht een keyed mutatie een eigen snapshot', () =>
   );
 });
 
-// 4) runCPM binnen het transactievenster pusht geen undo-snapshot (invariant a). De transactie
-//    neemt zelf precies één snapshot; een runCPM in de callback (plus de eind-runCPM) voegt niets toe.
 test('runCPM binnen transactie pusht geen snapshot (invariant a)', () => {
   store.getState().addTask({ name: 'trans-4' });
   const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
@@ -95,12 +78,9 @@ test('runCPM binnen transactie pusht geen snapshot (invariant a)', () => {
   );
 });
 
-// 5) Transactie waarvan de eind-runCPM een cpmResult.error oplevert (kringverwijzing) ⇒ volledige
-//    rollback: store gelijk aan vóór, undoStack ongewijzigd, en cpmResult terug op de pre-transactie-waarde.
 test('cpmResult.error na de eind-runCPM ⇒ volledige rollback incl. cpmResult', () => {
   const a = store.getState().addTask({ name: 'trans-5-A' });
   const b = store.getState().addTask({ name: 'trans-5-B' });
-  // Schone uitgangsplanning zodat cpmResult een geldige (niet-error) waarde heeft om naar terug te rollen.
   store.getState().runCPM();
   store.getState().recomputeViewRows();
   store.getState().recomputeResourceLoad();
@@ -116,9 +96,7 @@ test('cpmResult.error na de eind-runCPM ⇒ volledige rollback incl. cpmResult',
   assertEq(store.getState().isDirty, false, 'voorwaarde: document is schoon vóór de transactie');
 
   const res = runInMcpTransaction(() => {
-    // Deze taak dwingt ook de afgeleide viewRows naar een tussenstaat die rollback moet opruimen.
     store.getState().addTask({ name: 'trans-5-moet-ook-uit-viewRows' });
-    // Directe draft-mutatie: een kring A→B→A dwingt de solver tot cpmResult.error.
     store.setState((s) => {
       s.sequences.push(
         { id: 'cyc-1', predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 },
@@ -145,8 +123,6 @@ test('cpmResult.error na de eind-runCPM ⇒ volledige rollback incl. cpmResult',
     'de tijdelijke solverfoutmelding hoort samen met de mislukte transactie terug te rollen');
 });
 
-// 6) Geneste aanroep is verboden: de geneste `runInMcpTransaction` gooit, en die throw laat de
-//    buitenste transactie schoon terugrollen — store én stacks onaangeroerd.
 test('geneste runInMcpTransaction gooit en laat store/stacks onaangeroerd', () => {
   const id = store.getState().addTask({ name: 'reentr' });
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
@@ -154,7 +130,6 @@ test('geneste runInMcpTransaction gooit en laat store/stacks onaangeroerd', () =
 
   const res = runInMcpTransaction(() => {
     store.getState().updateTask(id, { name: 'buiten' });
-    // Geneste transactie: weigert (throw). Die throw propageert naar de buitenste `try`.
     runInMcpTransaction(() => {
       store.getState().updateTask(id, { name: 'genest' });
     });
@@ -173,12 +148,9 @@ test('geneste runInMcpTransaction gooit en laat store/stacks onaangeroerd', () =
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeLen, 'undoStack onaangeroerd na rollback');
 });
 
-// 7) `prevRedo`-herstel: seed een redoStack (mutatie + undo), draai dan een transactie die faalt op
-//    een cpm-error, en bewijs dat de redoStack ná rollback identiek is aan vóór.
 test('rollback herstelt de redo-stack exact (prevRedo)', () => {
   const a = store.getState().addTask({ name: 'redo-A' });
   const b = store.getState().addTask({ name: 'redo-B' });
-  // Seed: een mutatie + undo laat precies één redo-entry achter.
   store.getState().updateTask(a, { name: 'redo-A2' });
   store.getState().undo();
   assert(store.getState().historyEvents.filter(event => event.state === 'undone').length > 0, 'voorwaarde: redoStack mag niet leeg zijn');
@@ -186,7 +158,6 @@ test('rollback herstelt de redo-stack exact (prevRedo)', () => {
   const undoLenBefore = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   const res = runInMcpTransaction(() => {
-    // Kring A→B→A ⇒ de eind-runCPM levert cpmResult.error ⇒ rollback-pad.
     store.setState((s) => {
       s.sequences.push(
         { id: 'redo-cyc-1', predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 },
@@ -201,8 +172,6 @@ test('rollback herstelt de redo-stack exact (prevRedo)', () => {
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLenBefore, 'undoStack ongewijzigd na rollback');
 });
 
-// 8) `resetUndoCoalescing` op het ROLLBACK-pad: ná een gefaalde (teruggerolde) transactie pusht een
-//    keyed mutatie een eigen snapshot (bewijst tevens dat de suppressie-vlag via finally uit staat).
 test('na een rollback pusht een keyed mutatie een eigen snapshot', () => {
   const id = store.getState().addTask({ name: 'roll-coalesce' });
   const res = runInMcpTransaction(() => {
@@ -219,9 +188,6 @@ test('na een rollback pusht een keyed mutatie een eigen snapshot', () => {
   );
 });
 
-// 9) De contextfactory bezit state, runtimelease en eindherberekening per AppStoreContext. Deze
-//    cases gebruiken bewust géén singletonwrapper: twee gewone Zustandstores zouden zonder de
-//    runtimechecks hieronder ten onrechte onafhankelijk kunnen lijken.
 function warmContext(context: AppStoreContext): void {
   context.store.getState().addTask({ name: 'factory-warmup' });
   context.store.getState().undo();
