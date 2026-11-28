@@ -26,9 +26,7 @@ bruikbaar op een groot project.
 - `TaskDurationField` telt elke doorgegeven wijziging (`commitTick`) en zet het veld daarop terug naar de echte duur.
   Weigert de store de wijziging, dan verandert de duur niet en bleef zonder die teller het getypte getal staan.
 - Het i-icoon bij *Duur* toont bij hover zijn tooltip na het terugkomen van de eenheidsbediening pas na een echte muisbeweging of
-  een leave. Uit het weggehaalde commentaar, niet nagegaan: een knop die onder een stilstaande muis terugkomt, krijgt
-  van React of de browser opnieuw een mouseenter.
-- Het i-icoon bij *Werkregel* heeft een vaste hoogte (`h-9`, de hoogte van de trigger). Uit het weggehaalde commentaar,
-  niet nagegaan: zonder vaste hoogte rekent Chrome de breedte uit vóór het oprekken en blijft het vlak 14 px breed.
+  een leave.
+- Het i-icoon bij *Werkregel* heeft een vaste hoogte (`h-9`, de hoogte van de trigger).
 - `TaskRecordedDatesNotice` en de uitleg in `TaskWorkRuleField` zetten elke zin op een eigen regel in plaats van ze met
   een spatie te verbinden: een spatie tussen zinnen hangt af van de taal (zh en ja kennen hem niet).

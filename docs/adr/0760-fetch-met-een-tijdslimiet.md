@@ -8,7 +8,7 @@ erop wacht (de tutorialvraag, de installeerknop in de catalogus) eeuwig hangen. 
 ## Gevolgen
 
 - `init` neemt geen eigen `signal` aan (`FetchInit` laat het weg). Twee signalen combineren vraagt `AbortSignal.any`,
-  en volgens het weggehaalde commentaar ontbreekt die in oudere WebKit-versies (niet nagegaan).
+  en die ontbreekt in oudere WebKit-versies (Safari heeft hem pas sinds 17.4, maart 2024).
 - `run` wacht met `Promise.race` op het werk en op het afbreeksignaal. Die race lijkt dubbel naast het signaal dat
   `fetch` al krijgt, maar maakt de limiet hard, ook als `fetchImpl` of `read` het signaal negeert. Welke afwijzing de
   race wint, hangt af van de volgorde van microtaken; of de limiet verliep, beslist daarom `controller.signal.aborted`,

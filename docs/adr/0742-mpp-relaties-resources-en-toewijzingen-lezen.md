@@ -7,8 +7,7 @@ document; een planning met taken en kalenders maar zonder relaties of resources 
 
 ## Gevolgen
 
-- Twee afwijkingen van MPXJ (`ResourceAssignmentFactory`), volgens het weggehaalde commentaar zonder voorkomen in 52
-  bestanden met 650 toewijzingen: een te kort toewijzingsrecord wordt niet met nullen aangevuld, en een herhaald paar van taak en resource geeft twee toewijzingen in plaats van één.
+- Twee afwijkingen van MPXJ (`ResourceAssignmentFactory`): een te kort toewijzingsrecord wordt niet met nullen aangevuld, en een herhaald paar van taak en resource geeft twee toewijzingen in plaats van één.
 - De resource met unique-id 0 (de plaatshouder "niet toegewezen") blijft, met een vaste naam, type `LABOR` en
   `maxUnits` 1: MS Project schrijft haar ook in zijn MSPDI-export, en zo telt de lezer evenveel resources als
   `readMSPDI`. MPXJ slaat haar over. Bij taken is unique-id 0 de projectsamenvattingstaak en valt ze weg.

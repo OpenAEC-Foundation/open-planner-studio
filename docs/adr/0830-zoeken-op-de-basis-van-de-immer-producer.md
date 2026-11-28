@@ -5,8 +5,6 @@ weer doorlopen wordt. Een `findIndex` of `filter` over `s.tasks` of `s.assignmen
 taak of toewijzing, en in een bulkbewerking selectie maal taken. Daarom zoeken `taskIndexById` en
 `taskAssignmentDrafts` (`src/state/immerDraft.ts`) op de basis van de producer (`original`) en pakken ze alleen de
 gevonden plekken uit de draft; klopt die plek niet meer, dan valt de functie terug op de gewone zoektocht op de draft.
-Volgens het weggehaalde commentaar gemeten: 500 taken in een project van 8000 kostten met de zoektocht op de draft
-ongeveer 0,5 s extra.
 
 ## Gevolgen
 

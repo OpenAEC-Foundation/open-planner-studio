@@ -10,5 +10,5 @@ wordt met `w-8` afgekapt.
 ## Gevolgen
 
 - `CustomReportFontDialog` haalt de lijst van de lettertypen op de computer in de desktopapp meteen op, maar in de
-  browser pas na een klik op de knop. Volgens het weggehaalde commentaar (niet nagegaan) hoort de toestemmingsvraag van
-  de browser bij een handeling van de gebruiker.
+  browser pas na een klik op de knop. De toestemmingsvraag van de browser hoort bij een
+  handeling van de gebruiker (Local Font Access-specificatie van de WICG, het voorbeeld "User activation is needed").
