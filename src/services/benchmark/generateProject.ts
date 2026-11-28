@@ -1,11 +1,3 @@
-// Deterministische testproject-generator voor de ingebouwde benchmark-tool.
-//
-// PUUR: geen store-/React-imports. Levert een `ImportResult` (= `WriteIFCInput`) zodat de
-// gegenereerde data 1-op-1 door `writeIFC` én rechtstreeks door `CPMSolver`/`GanttRenderer` kan —
-// exact de vorm die de rest van de app als "een geladen project" gebruikt, maar ZONDER de store
-// aan te raken (isolatie-eis). Alles is seeded (mulberry32) zodat twee runs met dezelfde grootte
-// bit-identieke data opleveren en dus vergelijkbaar zijn.
-
 import type { ImportResult } from '@/services/importTypes';
 import type { Task, TaskType } from '@/types/task';
 import type { Sequence, SequenceType } from '@/types/sequence';
@@ -16,11 +8,9 @@ import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
 import { isLeafTask } from '@/utils/taskHierarchy';
 
-/** De aangeboden benchmark-groottes (aantal taken totaal, incl. mijlpalen + verzameltaken). */
 export const BENCHMARK_SIZES = [100, 500, 1000, 2500, 5000] as const;
 export type BenchmarkSize = (typeof BENCHMARK_SIZES)[number];
 
-/** Kleine, snelle PRNG (mulberry32) — deterministisch per seed, geen externe dependency. */
 function mulberry32(seed: number): () => number {
   let a = seed >>> 0;
   return () => {
@@ -48,17 +38,11 @@ const RESOURCE_POOL: { name: string; type: ResourceType; maxUnits: number; costP
   { name: 'Steiger',         type: 'EQUIPMENT',     maxUnits: 1, costPerHour: 30 },
 ];
 
-/** Aantal resources dat de UI aanbiedt. `RESOURCE_POOL.length` (8) blijft de standaard: dat is de
- *  stand waarmee alle eerdere benchmarkcijfers gemeten zijn. */
 export const BENCHMARK_RESOURCE_COUNTS = [0, 4, 8, 25, 80, 250] as const;
 export const DEFAULT_RESOURCE_COUNT = RESOURCE_POOL.length;
 
 export interface BenchmarkOptions {
-  /** Deterministische seed; gelijke seed + gelijke opties ⇒ bit-identieke data. */
   seed?: number;
-  /** Aantal resources (0 = geen resources en dus geen toewijzingen). Geklemd op 0…2000. Boven de
-   *  acht poolrollen worden de rollen hergebruikt met een genummerd achtervoegsel
-   *  ("Timmerlieden 2"), zodat de typeverdeling en de kostenspreiding realistisch blijven. */
   resourceCount?: number;
 }
 
@@ -77,12 +61,8 @@ function pickSeqType(r: number): SequenceType {
   return 'FINISH_START';
 }
 
-/** Niet-triviale kalender: ma-vr 07:00-16:00 (8u), met een handvol feestdagen verspreid over het
- *  planningsvenster. Bewust NIET via `createDefaultCalendar()` (die leest de bouwmodus-vlag uit
- *  localStorage en is dus niet deterministisch) — de benchmark bouwt zijn eigen vaste kalender. */
 function buildCalendar(startYear: number): WorkCalendar {
   const holidays: Holiday[] = [];
-  // Vaste, bekende feestdagen over drie jaar zodat een lange planning er meerdere raakt.
   for (let y = startYear; y <= startYear + 2; y++) {
     holidays.push({ name: 'Nieuwjaar',     startDate: `${y}-01-01`, endDate: `${y}-01-01` });
     holidays.push({ name: 'Koningsdag',    startDate: `${y}-04-27`, endDate: `${y}-04-27` });
@@ -103,27 +83,14 @@ function buildCalendar(startYear: number): WorkCalendar {
 }
 
 export interface GeneratedProject extends ImportResult {
-  /** Aantal leaf-taken (waarop de CPM-solver rekent) — apart gerapporteerd in de resultaten. */
   leafCount: number;
 }
 
-/**
- * Genereer een deterministisch testproject van (ongeveer) `size` taken.
- *
- * Structuur (realistisch WBS): twee niveaus verzameltaken (fasen → subfasen) met daaronder
- * leaf-taken en mijlpalen. Verhouding ~10% verzameltaken + ~6% mijlpalen ⇒ de rest leaf-werktaken.
- * Relaties lopen ALTIJD van een eerder-gecreëerde naar een later-gecreëerde leaf-taak ⇒
- * gegarandeerd acyclisch. FS/SS/FF met af en toe een lag. ELKE leaf-taak zit in het netwerk (zie de
- * ruggengraat hieronder); daarbovenop verdichting tot ~1,3 relatie per leaf-taak.
- *
- * `opts.resourceCount` bepaalt het aantal resources (standaard acht — de stand waarmee de eerdere
- * benchmarkcijfers gemeten zijn). Bij nul zijn er geen resources en geen toewijzingen.
- */
 export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = {}): GeneratedProject {
   const seed = opts.seed ?? 0x5eed;
   const resourceCount = Math.max(0, Math.min(2000, Math.round(opts.resourceCount ?? DEFAULT_RESOURCE_COUNT)));
   const rnd = mulberry32(seed ^ (size * 2654435761));
-  const projectStart = '2026-01-05'; // een maandag
+  const projectStart = '2026-01-05';
   const startYear = 2026;
 
   const calendar = buildCalendar(startYear);
@@ -142,7 +109,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     wbsAutoNumber: true,
   };
 
-  // --- Aantallen bepalen ------------------------------------------------------
   const nSummaries = Math.max(2, Math.round(size * 0.10));
   const nMilestones = Math.round(size * 0.06);
   const nLeafWork = Math.max(1, size - nSummaries - nMilestones);
@@ -150,9 +116,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
   const nSubSummaries = nSummaries - nTopSummaries;
 
   const tasks: Task[] = [];
-  // O(1)-lookup i.p.v. `tasks.find(...)`: elke taak wordt bij aanmaak geïndexeerd.
-  // De volgorde van aanmaken/rnd()-aanroepen blijft exact gelijk ⇒ de gegenereerde output is
-  // bit-identiek, alleen de opzoekingen zijn nu constant i.p.v. lineair.
   const taskById = new Map<string, Task>();
   const topSummaryIds: string[] = [];
   const subSummaryIds: string[] = [];
@@ -166,14 +129,12 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     };
   };
 
-  /** Voeg een taak toe aan zowel de output-array als de id-index (behoudt volgorde). */
   const addTask = (task: Task): Task => {
     tasks.push(task);
     taskById.set(task.id, task);
     return task;
   };
 
-  // Top-fasen (verzameltaken op wortelniveau).
   for (let i = 0; i < nTopSummaries; i++) {
     wbsTop++;
     const id = `bm-top-${i}`;
@@ -185,11 +146,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     }));
   }
 
-  // Subfasen (verzameltaken onder een willekeurige top-fase).
-  // Eerst één subfase per top-fase (round-robin), daarna pas loten. Puur loten liet top-fasen
-  // zónder kinderen achter, en zo'n lege verzameltaak telt voor de solver als LEAF — dus als een
-  // taak die nergens in het relatienetwerk zit. Dit niveau is echt nodig: bij 5.000 taken bleven er
-  // met alleen loten 28 zulke taken over.
   const subWbsCounter = new Map<string, number>();
   for (let i = 0; i < nSubSummaries; i++) {
     const parentId = i < topSummaryIds.length
@@ -208,15 +164,11 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     }));
   }
 
-  // Bladeren waaronder de leaf-taken/mijlpalen hangen: bij voorkeur subfasen, anders top-fasen.
   const leafParents = subSummaryIds.length > 0 ? subSummaryIds : topSummaryIds;
   const leafWbsCounter = new Map<string, number>();
   const leafTaskIds: string[] = [];
 
   const addLeaf = (isMilestone: boolean, idx: number) => {
-    // Zelfde round-robin-eerst als bij de subfasen hierboven. Op dit niveau is het een garantie en
-    // geen reparatie: ~90% van de taken verdeelt zich over ~6,5% ouders, dus loten dekt in de
-    // praktijk toch elke subfase. Hij staat er zodat het een belofte is en geen kansspel.
     const parentId = idx < leafParents.length
       ? leafParents[idx]
       : leafParents[Math.floor(rnd() * leafParents.length)];
@@ -225,7 +177,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     leafWbsCounter.set(parentId, n);
     const id = `bm-leaf-${idx}`;
     parent.childIds.push(id);
-    // Duurspreiding: kort werk overheerst, af en toe een lange taak (log-achtig).
     let dur = 0;
     if (!isMilestone) {
       const u = rnd();
@@ -247,7 +198,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     leafTaskIds.push(id);
   };
 
-  // Leaf-werktaken en mijlpalen interleaven (mijlpalen verspreid, niet aan het eind geklonterd).
   const totalLeaves = nLeafWork + nMilestones;
   let msLeft = nMilestones;
   for (let i = 0; i < totalLeaves; i++) {
@@ -257,31 +207,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     if (makeMs) msLeft--;
   }
 
-  // NB — waarom `leafTaskIds` hier gelijk is aan "alles wat de solver als leaf ziet". Het criterium
-  // van de solver volgt `isLeafTask`, inclusief expliciete lege samenvattingen. Een verzameltaak die
-  // door de loting geen enkel kind kreeg zou dus een leaf zijn die buiten het netwerk valt. Dat kan
-  // niet meer: de twee round-robins hierboven geven élke top-fase een subfase en élke subfase een
-  // blad, vóórdat er geloot wordt. Hier stond een reparatielus voor dat geval; die bleek
-  // onbereikbaar (de aantallen laten nSub < nTop of totalLeaves < leafParents niet toe) en is
-  // daarom weg in plaats van als schijnvangnet te blijven staan.
-  // `check-benchmark-generator.ts` toetst de invariant zelf, dus verschuiven die aantallen ooit,
-  // dan valt het daar om en niet stilzwijgend hier.
-
-  // --- Relaties: ELKE leaf-taak zit in het netwerk, acyclisch (predecessor komt altijd eerder) ---
-  //
-  // Hiervóór werden alleen ~1,3 × leaf willekeurige kanten getrokken. Dat liet, juist bij grotere
-  // planningen, een staart leaf-taken ZONDER enige relatie achter — losse taken die de solver
-  // meteen op de projectstart legt en die dus niets zeggen over hoe de app zich met een echt
-  // netwerk gedraagt. Nu gebeurt het in twee stappen:
-  //
-  //  1. RUGGENGRAAT — elke leaf behalve de allereerste krijgt gegarandeerd een voorganger, gekozen
-  //     binnen hetzelfde venster van 25 als hieronder. Daarmee heeft élke leaf-taak minstens één
-  //     relatie (de eerste via zijn opvolger) en blijft de graaf samenhangend.
-  //  2. VERDICHTING — daarbovenop willekeurige extra kanten tot de doeldichtheid, precies zoals
-  //     het al deed, zodat het geen kale ketting wordt maar een netwerk met samenloop.
-  //
-  // Verzameltaken doen bewust NIET mee: hun datums zijn een rollup over hun kinderen, dus een
-  // relatie op een verzameltaak zou de meting vertroebelen in plaats van realistischer maken.
   const sequences: Sequence[] = [];
   const seen = new Set<string>();
   let seqCounter = 0;
@@ -294,18 +219,16 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     if (seen.has(key)) return false;
     seen.add(key);
     const type = pickSeqType(rnd());
-    const lagDays = rnd() < 0.15 ? Math.floor(rnd() * 5) - 1 : 0; // af en toe een (kleine) lag/lead
+    const lagDays = rnd() < 0.15 ? Math.floor(rnd() * 5) - 1 : 0;
     sequences.push({ id: `bm-seq-${seqCounter++}`, predecessorId, successorId, type, lagDays });
     return true;
   };
 
-  // 1. Ruggengraat.
   for (let si = 1; si < leafTaskIds.length; si++) {
     const window = Math.min(si, 25);
     addEdge(si - 1 - Math.floor(rnd() * window), si);
   }
 
-  // 2. Verdichting tot de doeldichtheid (ondergrens: wat de ruggengraat al opleverde).
   const targetEdges = Math.max(sequences.length, Math.round(leafTaskIds.length * 1.3));
   let attempts = 0;
   while (sequences.length < targetEdges && attempts < targetEdges * 6) {
@@ -315,12 +238,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     addEdge(si - 1 - Math.floor(rnd() * window), si);
   }
 
-  // --- Resources + toewijzingen -----------------------------------------------
-  // Het aantal is instelbaar (`opts.resourceCount`). Boven de acht poolrollen worden de rollen
-  // hergebruikt met een rondenummer erachter, zodat de typeverdeling (arbeid/ploeg/materieel/
-  // onderaannemer), de capaciteiten en de uurtarieven blijven kloppen in plaats van dat er
-  // naamloze klonen bij komen. Nul resources is een geldige keuze: dan zijn er ook geen
-  // toewijzingen, wat precies de vergelijking "met en zonder resourcebelasting" mogelijk maakt.
   const resources: Resource[] = Array.from({ length: resourceCount }, (_, i) => {
     const rol = RESOURCE_POOL[i % RESOURCE_POOL.length];
     const ronde = Math.floor(i / RESOURCE_POOL.length);
@@ -340,7 +257,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     if (resources.length === 0) break;
     const task = taskById.get(leafId)!;
     if (task.isMilestone) continue;
-    // ~60% van de werktaken krijgt 1 resource, ~15% een tweede.
     if (rnd() < 0.60) {
       const r1 = resources[Math.floor(rnd() * resources.length)];
       task.resourceIds.push(r1.id);
@@ -355,7 +271,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     }
   }
 
-  // Projecteindscatting louter cosmetisch (CPM herberekent alles); zet een ruime horizon.
   project.endDate = formatDate(addCalendarDays(parseDate(projectStart), Math.max(30, size)));
 
   return {
@@ -365,10 +280,6 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
     sequences,
     resources,
     assignments,
-    // Leaf-taken = taken zonder kinderen — EXACT hetzelfde criterium als waarop de solver in
-    // `runner.ts` rekent. Dit telt ook een eventuele verzameltaak die (door de willekeurige
-    // verdeling) geen kinderen kreeg, zodat het gerapporteerde aantal en het aantal dat de CPM-fase
-    // daadwerkelijk verwerkt niet uiteenlopen.
     leafCount: tasks.filter(isLeafTask).length,
   };
 }
