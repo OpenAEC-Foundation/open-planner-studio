@@ -4,11 +4,6 @@ import {
   curveLegendItems, layoutCurveChart,
 } from '@/services/pdf/pdfCurveChart';
 
-/**
- * DOM-weergave van de curvegrafiek: dezelfde ligging (`layoutCurveChart`) als de PDF, als SVG.
- * Raster, assen en tekst volgen het thema (CSS-variabelen); de lijnkleuren komen uit de spec en zijn
- * dezelfde als in de PDF. De band krijgt doorzichtigheid, zodat hij in licht én donker leest.
- */
 const path = (pts: readonly Pt[], close = false) =>
   pts.map(([x, y], i) => `${i === 0 ? 'M' : 'L'}${x.toFixed(1)} ${y.toFixed(1)}`).join(' ') + (close ? ' Z' : '');
 

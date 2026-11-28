@@ -40,16 +40,12 @@ export function ExtensionManagerPanel() {
   const notify = useAppStore(s => s.notify);
   const installLocal = async (install: () => Promise<InstallOutcome>) => {
     try {
-      // Annuleren/weigeren is geen fout; alleen een mislukte installatie krijgt een melding.
       if (await install() !== 'failed') return;
     } catch {
-      // Ook een onverwachte afwijzing mag niet stil verdwijnen vanuit een void-clickhandler.
     }
     notify({ severity: 'error', messageKey: 'notifications.extensionInstallFailed', dedupeKey: 'extension-local-install-failed' });
   };
 
-  // Eenmalig verzoek van buitenaf (Help → Tutorials installeren): open op Bladeren en haal de
-  // catalogus op, net als een klik op dat tabblad.
   const pendingTab = useAppStore(s => s.ui.pendingExtensionsTab);
   const setUI = useAppStore(s => s.setUI);
   useEffect(() => {
@@ -172,8 +168,6 @@ function InstalledExtensionCard({ ext }: { ext: ReadyExtension }) {
   return (
     <div data-testid="extension-ready-card" className={`ext-card ${isError ? 'ext-card-error' : ''}`}>
       <div className="ext-card-icon">
-        {/* Manifest-iconen komen ongefilterd uit de ZIP en worden al vóór elke poort
-            geregistreerd (ook met status `disabled`) — dus altijd via de sanitizer. */}
         <ExtensionIcon raw={ext.manifest.icon} fallback={<Icon id="extension.item" size={24} />} />
       </div>
 
@@ -341,14 +335,11 @@ function CatalogCard({ entry, isInstalled }: { entry: CatalogEntry; isInstalled:
     setFailed(false);
     const uitkomst = await installFromCatalog(entry);
     setInstalling(false);
-    // Alleen 'failed' is een fout. Een 'declined' is de gebruiker die de vertrouwensvraag met nee
-    // beantwoordde — daar hoort geen "installatie mislukt" bij.
     if (uitkomst === 'failed') setFailed(true);
   }, [entry]);
 
   return (
     <div className="ext-card">
-      {/* Catalogus-iconen bewust niet als HTML renderen vóór installatie (injectie via externe JSON). */}
       <div className="ext-card-icon">
         <Icon id="extension.item" size={24} />
       </div>

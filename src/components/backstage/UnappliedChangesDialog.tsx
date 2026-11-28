@@ -2,21 +2,12 @@ import { useTranslation } from 'react-i18next';
 import { Dialog } from '@/components/common/Dialog';
 
 interface UnappliedChangesDialogProps {
-  /** Toepassen uit zolang de draft ongeldig is (eigen rekenprofiel zonder naam). */
   canApply: boolean;
   onCancel: () => void;
   onDiscard: () => void;
   onApply: () => void;
 }
 
-/**
- * Keuzedialoog bij wegnavigeren uit Backstage → Projectinfo met een niet-toegepaste draft.
- * Zelfde driekeuzepatroon en knopvolgorde als de
- * sluitbevestiging van een document (`CloseDocumentDialogControl`): Annuleren (blijft staan, krijgt
- * de beginfocus), Verwerpen (gooit de draft weg en gaat door), Toepassen (committeert en gaat door).
- * Op de gedeelde `Dialog` (focus-trap, Escape = Annuleren); bewust geen backdrop-klik en geen
- * Enter-als-Toepassen: wegklikken of een losse Enter mag geen projectwijziging committeren.
- */
 export function UnappliedChangesDialog({ canApply, onCancel, onDiscard, onApply }: UnappliedChangesDialogProps) {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
