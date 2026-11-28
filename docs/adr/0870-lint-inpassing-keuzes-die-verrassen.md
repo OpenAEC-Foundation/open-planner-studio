@@ -24,3 +24,7 @@ render kosten en zichtbaar knipperen.
   klik daarin als een klik buiten de popover.
 - `useRibbonTabWheel` haalt vóór de tabwissel de focus uit het actieve veld, zoals een klik op een tab: dan bewaart
   het veld zijn getypte waarde (`onBlur`). Opent dat bewaren een vraag, dan wisselt het wiel niet.
+- Na elke inpassing stuurt het lint `POPOVER_REPOSITION_EVENT`. `Popover` luistert ook naar `resize`, maar die
+  komt vóór de inpassing: het lint meet opnieuw vanuit een `ResizeObserver` en verplaatst de knop pas daarna. Zonder
+  het tweede signaal blijft een open paneel staan waar de knop vóór het inpassen stond
+  (`ribbon-status-date-time.spec.ts`).
