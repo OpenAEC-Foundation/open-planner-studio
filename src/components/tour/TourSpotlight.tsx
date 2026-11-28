@@ -1,16 +1,5 @@
-/**
- * De markering rond een anker, gedeeld door de rondleiding (`TourOverlay`) en het
- * begeleidingspaneel van extensies (`GuidePanel`).
- *
- * Eén klein element ter grootte van het anker met een `box-shadow`-truc (`0 0 0 9999px …`) die de
- * rest van het scherm dimt, plus een accentrand. Puur visueel en `pointer-events: none`: box-shadow
- * buiten de elementgrenzen telt niet mee voor hit-testing, dus klikken gaan gewoon naar de UI eronder.
- * Of de laag modaal is, bepaalt de aanroeper (de rondleiding legt er een eigen klik-onderscheppende
- * laag onder; de begeleiding bewust niet — de gebruiker moet het aangewezen element kunnen gebruiken).
- */
 export function TourSpotlight({ rect, dimOpacity, zIndex }: {
   rect: DOMRect;
-  /** Dekking van de dimlaag buiten het anker (0 = geen dim). */
   dimOpacity: number;
   zIndex: number;
 }) {
