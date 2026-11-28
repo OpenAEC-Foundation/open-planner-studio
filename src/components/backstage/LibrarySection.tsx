@@ -6,12 +6,6 @@ import { ConfirmDialog } from '@/components/dialogs/ConfirmDialog';
 import type { WorkCalendar } from '@/types/calendar';
 import './LibrarySection.css';
 
-/**
- * Backstage → Bibliotheek: BEDRIJVENBEHEER (aanmaken/hernoemen/verwijderen,
- * standaardbedrijf) + pool-export/-import. Rechtstreeks resource-poolbeheer en de resource-
- * promoveerknop leven in de Resources-tab Bibliotheekweergave. De kalender-
- * promoveerknop staat (nog) hier. Export is tevens het backupmechanisme.
- */
 export function LibrarySection() {
   const { t } = useTranslation();
   const companies = useAppStore(s => s.companies);
@@ -26,16 +20,12 @@ export function LibrarySection() {
   const updatePoolCalendar = useAppStore(s => s.updatePoolCalendar);
   const promoteCalendarToPool = useAppStore(s => s.promoteCalendarToPool);
   const setUI = useAppStore(s => s.setUI);
-  // Actieve document: bron voor "+ Uit project" (kalender-promoveren).
   const projectCalendars = useAppStore(s => s.calendars);
 
   const [selectedId, setSelectedId] = useState(defaultCompanyId);
   const selected = companies.find(c => c.id === selectedId) ?? companies[0];
   const pool = pools[selected.id];
 
-  // Bedrijfsnaam als lokale draft: commit pas op blur/Enter i.p.v. een
-  // store-write (en dus een undo-stap + persist) per toetsaanslag. Wisselt de gebruiker van
-  // bedrijf, dan volgt de draft de nieuw geselecteerde naam.
   const [nameDraft, setNameDraft] = useState(selected.name);
   useEffect(() => setNameDraft(selected.name), [selected.id, selected.name]);
   const commitName = () => {
@@ -43,9 +33,6 @@ export function LibrarySection() {
     else setNameDraft(selected.name);
   };
 
-  // Promote-keuzelijstje (alleen kalenders): staat het
-  // promoveerpaneel open, plus een korte succes-melding. Sluiten/wisselen van bedrijf reset beide —
-  // geen stale UI-state.
   const [promotePanel, setPromotePanel] = useState<'calendar' | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [pendingRemoveCalendar, setPendingRemoveCalendar] = useState<{ companyId: string; calendarId: string; name: string } | null>(null);
@@ -56,8 +43,6 @@ export function LibrarySection() {
     if (id) setNotice(t('companyLibrary.added'));
   };
 
-  // Pool-item bewerken: inline draft, gecommit pas op "Opslaan" (zelfde
-  // niet-per-toetsaanslag-patroon als `nameDraft` hierboven).
   const [editingCalendarId, setEditingCalendarId] = useState<string | null>(null);
   const [calDraft, setCalDraft] = useState('');
   const startEditCalendar = (cal: WorkCalendar) => { setEditingCalendarId(cal.id); setCalDraft(cal.name); };
@@ -68,25 +53,16 @@ export function LibrarySection() {
     setEditingCalendarId(null);
   };
 
-  // De doelcontrole (geen open document als doel, ook het actieve niet) en de downloadmelding: `exportLibrary`.
   const onExport = () => useAppStore.getState().exportLibrary(selected.id);
 
-  // Lokale bevestigings-state i.p.v. `window.confirm()` — zelfde patroon als
-  // `LayoutsDialog.tsx`/`BaselineDialog.tsx`. Geen globale singleton; `onConfirm` draagt de
-  // vervolg-logica.
   const [pendingRemoveCompany, setPendingRemoveCompany] = useState(false);
 
-  // Bedrijf verwijderen: meld hoeveel GEOPENDE documenten (actief + slapend) aan dit
-  // bedrijf gekoppeld zijn — `removeCompany` ontkoppelt die expliciet (stempels strippen).
   const onRemoveCompany = () => setPendingRemoveCompany(true);
 
   return (
     <div className="backstage-panel library-section">
       <h2>{t('companyLibrary.title')}</h2>
       <p className="library-intro">{t('companyLibrary.intro')}</p>
-      {/* Resource-CRUD leeft in de Resources-tab Bibliotheekweergave (dat IS de bron, met de
-          volledige inline-editor) — deze pagina beheert uitsluitend bedrijven + kalenders +
-          import/export. */}
       <p className="library-intro" data-ops-library-resource-hint>{t('companyLibrary.resourceManagementHint')}</p>
 
       <div className="library-layout">
@@ -123,9 +99,6 @@ export function LibrarySection() {
                 <Icon id="company.default" size={13} /> {t('companyLibrary.setDefault')}
               </button>
               <button onClick={() => { void onExport(); }}><Icon id="file.export" size={13} /> {t('companyLibrary.export')}</button>
-              {/* Importdoel = het GEOPENDE bedrijf (`selected.id`), niet stilzwijgend het
-                  standaardbedrijf — anders overschrijft "Bibliotheek → Importeren" vanuit een ander
-                  bedrijf dan het standaardbedrijf per ongeluk de verkeerde pool. */}
               <button onClick={() => setUI({ showPoolImportDialog: true, poolImportCompanyId: selected.id })}><Icon id="file.import" size={13} /> {t('companyLibrary.import')}</button>
               <button
                 className="danger"
@@ -227,7 +200,6 @@ export function LibrarySection() {
       )}
 
       {pendingRemoveCompany && (
-        // In-app bevestiging i.p.v. `window.confirm()`, zie `onRemoveCompany` hierboven.
         <ConfirmDialog
           message={
             countDocumentsLinkedTo(selected.id) > 0
