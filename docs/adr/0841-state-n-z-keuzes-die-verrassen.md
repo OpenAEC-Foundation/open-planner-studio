@@ -19,14 +19,13 @@ lezer zonder uitleg zou terugdraaien. Ze staan hier bij elkaar, per functie; mel
 - **Kringtoets** (`relationAddVerdict` in `relationRules.ts`): de kringtoets zit niet in `relationVerdict`, want die
   draait ook per relatie bij plakken en sjablonen (`insertRemappedRelations`, een kopie van een acyclische tak maakt
   geen kring) en in de MCP-draft, die een eigen kringtoets en een terugdraai na de eindberekening heeft.
-- **Taak bewerken** (`createTaskDialogSave` in `taskDialogSave.ts`): de tijdvelden komen bij Opslaan uit de store, niet
-  uit het concept, zodat een herberekening terwijl de dialoog open stond niet wordt teruggedraaid; de duur komt alleen
-  uit het concept als de planner hem in de dialoog wijzigde. De voortgangsregels draaien hier en niet in `updateTask`:
+- **Taak bewerken** (`createTaskDialogSave` in `taskDialogSave.ts`): Opslaan vertrekt van de tijdvelden in de store, niet
+  van het concept, zodat een herberekening terwijl de dialoog open stond niet wordt teruggedraaid. De voortgangsregels draaien hier en niet in `updateTask`:
   die schrijft voortgangsvelden bewust rauw, voor de extensie-API (`fromExtTaskTimePatch`) en voor imports met een
   eigen restduur.
-- **Invoegen buiten de boomweergave** (`taskInsertActions.ts`): *+ Taak* zet de taak dan achteraan met een rode melding
+- **Invoegen buiten de boomweergave** (`taskInsertActions.ts`): *+ Taak* met een geselecteerde taak zet de nieuwe taak dan achteraan met een rode melding
   (eigenaarsbesluit 2026-10-19 5a), want het is een toevoegactie met een voorkeursplek en weigeren zou in een
-  gegroepeerde weergave geen nieuwe taak meer toelaten. *Invoegen boven/onder* weigert, want achteraan uitkomen zou
+  gegroepeerde weergave geen nieuwe taak meer toelaten. *Invoegen boven/onder* met een anker weigert, want achteraan uitkomen zou
   misleiden. Het anker volgt de volgorde op het scherm, niet de klikvolgorde of de volgorde van `tasks`.
 - **Selectie na verwijderen** (`selectNeighbourAfterRemoval` in `selectionAfterRowChange.ts`) draait na het opnieuw
   berekenen van `viewRows`: een fase die alleen zichtbaar was als ouder van een gefilterd kind valt met dat kind weg,
