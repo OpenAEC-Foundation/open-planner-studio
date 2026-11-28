@@ -1,30 +1,3 @@
-/**
- * De generieke XLSX-lezer.
- *
- * Weet **niets** van voortgang: hij levert het eerste werkblad op als rijen met cellen, plus de
- * datum/percentage-opmaakvlaggen en het datumstelsel. De voortgangsbetekenis geeft
- * `progressImport/parseProgressXlsx.ts` eraan.
- *
- * Drie architectuurbesluiten die je moet kennen vóór je hier iets verandert:
- *
- *  1. **Eigen XML-scanner, geen `DOMParser`.** De Node-shim waarmee de planningssuite draait kent
- *     geen attributen — en juist attributen (`r`, `t`, `s`, `numFmtId`, `date1904`) dragen hier alle
- *     betekenis. Los daarvan is een tag-scanner voor vier elementsoorten simpelweg het juiste
- *     gereedschap. De scanner kent zelfsluitende tags, enkele én dubbele quotes, commentaar en
- *     CDATA, en **weigert** entiteitsdeclaraties (`<!DOCTYPE`/`<!ENTITY`): een billion-laughs-DTD is
- *     een weigering, geen parseeropdracht.
- *  2. **Twee passes over dezelfde buffer.** Pass 1 pakt alleen de metadata-parts uit, daaruit volgt
- *     het partpad van het eerste blad, en pass 2 pakt alleen dát part uit. Central directory scannen
- *     is goedkoop, inflaten niet. Nooit "pak alles uit en zoek daarna".
- *  3. **Het rijnummer komt uit het `r`-attribuut, niet uit een teller.** Rijen mogen in een xlsx
- *     ontbreken. Omdat `rowNumber` de sleutel van de handmatige koppelingen is, zou een teller de
- *     overrides stil op de verkeerde rij laten landen.
- *
- * Zonder `sharedStrings` is deze lezer waardeloos: Excel schrijft élke tekstcel bij opslaan als
- * gedeelde string, dus een blad dat de gebruiker in Excel heeft geopend en bewaard zou anders
- * volledig leeg terugkomen.
- */
-
 import {
   ZipCompressionUnsupportedError,
   parseZipEntries,
@@ -34,26 +7,15 @@ import {
 import { unescapeXml } from './xmlText';
 
 export interface XlsxCell {
-  /** Kolomindex, 0-gebaseerd, afgeleid uit het `r`-attribuut (A → 0). */
   col: number;
-  /** Rauwe tekstwaarde, al ontdaan van sharedStrings-indirectie en XML-escapes. */
   text: string;
-  /** Numerieke waarde als de cel een getal droeg. */
   num?: number;
-  /** De cel draagt een datum-`numFmt` (ingebouwd 14–22 / 27–36 / 45–47 / 50–58, of custom met y/m/d). */
   isDate?: boolean;
-  /**
-   * De opmaak toont voor DEZE celwaarde een datum met kloktijd: ingebouwd 22, of een custom formaat
-   * waarvan de geldende sectie een jaar of dag én een uur of seconde toont. Alleen gezet naast `isDate`. Nodig omdat een geheel serieel getal in zo'n cel middernacht als
-   * MOMENT betekent, niet een kale datum.
-   */
   hasTime?: boolean;
-  /** De cel draagt een percentage-`numFmt` (ingebouwd 9/10, of custom met een vrije `%`). */
   isPercent?: boolean;
 }
 
 export interface XlsxRow {
-  /** Rijnummer uit het `r`-attribuut, 1-gebaseerd. */
   rowNumber: number;
   cells: XlsxCell[];
 }
@@ -65,9 +27,6 @@ export interface XlsxSheet {
 
 export type XlsxReadIssue =
   | 'notAZip' | 'encrypted' | 'noSheet' | 'tooLarge' | 'tooManyRows' | 'malformed'
-  /** Niet het bestand maar de OMGEVING mankeert iets: geen `DecompressionStream`, dus een
-   *  gedeflate blad kan hier niet uitgepakt worden. Bewust géén `notAZip`: dat zou de gebruiker
-   *  naar het verkeerde bestand laten zoeken. */
   | 'unsupported';
 
 export class XlsxReadError extends Error {
@@ -80,7 +39,6 @@ export class XlsxReadError extends Error {
 }
 
 export interface XlsxLimits {
-  /** Gecomprimeerde bestandsgrootte — getoetst vóórdat er iets gealloceerd wordt. */
   readonly maxBytes: number;
   readonly maxUnpackedBytes: number;
   readonly maxEntryBytes: number;
@@ -102,18 +60,12 @@ export const XLSX_LIMITS: XlsxLimits = {
   maxSharedStrings: 200_000,
 };
 
-/**
- * De naad naar de ZIP-laag. Productie geeft `parseZipEntries` door; een test kan hem vervangen om
- * te zien wélke parts er daadwerkelijk uitgepakt zijn (geen module-level singletons, alles
- * injecteerbaar).
- */
 export type XlsxZipReader = (
   buffer: ArrayBuffer,
   limits: ZipReadLimits,
   select: (name: string) => boolean,
 ) => Promise<readonly ZipEntry[]>;
 
-/** De metadata-parts van pass 1 — de enige entries die zonder kennis van het blad nodig zijn. */
 export const XLSX_METADATA_PARTS: ReadonlySet<string> = new Set([
   '[Content_Types].xml',
   '_rels/.rels',
@@ -123,12 +75,7 @@ export const XLSX_METADATA_PARTS: ReadonlySet<string> = new Set([
   'xl/sharedStrings.xml',
 ]);
 
-/** CFB/OLE2-magic: een met een wachtwoord beveiligde `.xlsx` is géén ZIP maar een CFB-container. */
 const CFB_MAGIC = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1];
-
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// XML-scanner
-// ════════════════════════════════════════════════════════════════════════════════════════════
 
 export type XmlEvent =
   | { kind: 'open'; name: string; attrs: Record<string, string>; selfClosing: boolean }
@@ -137,11 +84,6 @@ export type XmlEvent =
 
 const NAME_END = /[\s/>]/;
 
-/**
- * Pull-scanner over één XML-part. Bewust géén generieke parser: hij herkent elementen, attributen,
- * tekst, CDATA en commentaar, en verder niets. Alles wat met `<!` begint en geen commentaar of
- * CDATA is (dus `<!DOCTYPE`, `<!ENTITY`, …) is een **weigering**.
- */
 export function* scanXml(xml: string): Generator<XmlEvent> {
   let i = 0;
   while (i < xml.length) {
@@ -167,8 +109,6 @@ export function* scanXml(xml: string): Generator<XmlEvent> {
       continue;
     }
     if (xml.startsWith('<!', lt)) {
-      // `<!DOCTYPE`/`<!ENTITY`: entiteitsdeclaraties worden nooit geïnterpreteerd (XXE /
-      // billion-laughs). Weigeren is hier het hele verweer.
       throw new XlsxReadError('malformed', 'entiteitsdeclaratie in het XML-part');
     }
     if (xml.startsWith('<?', lt)) {
@@ -185,7 +125,6 @@ export function* scanXml(xml: string): Generator<XmlEvent> {
       continue;
     }
 
-    // Opentag: naam, dan attributen tot een `>` buiten aanhalingstekens.
     let p = lt + 1;
     while (p < xml.length && !NAME_END.test(xml[p]!)) p++;
     const name = xml.slice(lt + 1, p);
@@ -206,7 +145,6 @@ export function* scanXml(xml: string): Generator<XmlEvent> {
       const attrName = xml.slice(attrStart, p);
       while (p < xml.length && /\s/.test(xml[p]!)) p++;
       if (xml[p] !== '=') {
-        // Attribuut zonder waarde bestaat niet in XML; alles wat er zo uitziet is kapot.
         throw new XlsxReadError('malformed', `attribuut zonder waarde: ${attrName}`);
       }
       p++;
@@ -225,42 +163,24 @@ export function* scanXml(xml: string): Generator<XmlEvent> {
   }
 }
 
-/** Het deel van de tagnaam ná een eventuele namespace-prefix (`x:row` ⇒ `row`). */
 function localName(name: string): string {
   const colon = name.indexOf(':');
   return colon < 0 ? name : name.slice(colon + 1);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// numFmt-classificatie
-// ════════════════════════════════════════════════════════════════════════════════════════════
-
-/** Ingebouwde datum-/tijd-`numFmtId`'s (ECMA-376, §18.8.30). */
 function isBuiltinDateFormat(id: number): boolean {
   return (id >= 14 && id <= 22) || (id >= 27 && id <= 36) || (id >= 45 && id <= 47)
     || (id >= 50 && id <= 58);
 }
 
-/**
- * Ingebouwde formaten die een datum MET kloktijd tonen. Dat is alleen 22 (`m/d/yy h:mm`). De andere
- * tijdformaten (18–21, 45–47, en de CJK-codes 32–35) tonen geen datum, of hangen af van de
- * landinstelling: 34 en 35 zijn in ja-jp jaar/maand en maand/dag, in ko-kr `yyyy-mm-dd`, in zh-tw een
- * tijd. Een cel die geen datum met tijd toont, leest de lezer als datum, zoals vóór de
- * middernachtreparatie (review r1 van #659). Zie `sectionShowsMoment`.
- */
 function isBuiltinTimeFormat(id: number): boolean {
   return id === 22;
 }
 
-/** Ingebouwde percentageformaten: `0%` en `0.00%`. */
 function isBuiltinPercentFormat(id: number): boolean {
   return id === 9 || id === 10;
 }
 
-/**
- * Haalt de letterlijke stukken uit een formatcode weg, zodat `"mei"` of `\%` niet als datum- resp.
- * percentageaanwijzing tellen. `[Red]`/`[$-409]` gaan om dezelfde reden weg.
- */
 function stripFormatLiterals(code: string): string {
   return code
     .replace(/"[^"]*"/g, '')
@@ -272,10 +192,6 @@ function customFormatIsDate(code: string): boolean {
   return /[ymd]/i.test(stripFormatLiterals(code));
 }
 
-/**
- * Splitst een formatcode in zijn secties (`positief;negatief;nul;tekst`). Een `;` binnen `"…"`, `[…]`,
- * na `\`, `_` of `*` is geen scheiding.
- */
 function formatSections(code: string): string[] {
   const sections: string[] = [];
   let current = '';
@@ -305,11 +221,6 @@ function formatSections(code: string): string[] {
   return sections;
 }
 
-/**
- * De `[…]`-codes van een sectie, buiten letterlijke tekst (`"…"`), escapes (`\x`), opvulling (`_x`) en
- * herhaling (`*x`). Zo telt `yyyy-mm-dd "[<0]"` niet als voorwaarde: daar is `[<0]` gewone tekst in de cel
- * (review r2 van #659).
- */
 function bracketCodes(section: string): string[] {
   const codes: string[] = [];
   for (let i = 0; i < section.length; i++) {
@@ -328,7 +239,6 @@ function bracketCodes(section: string): string[] {
   return codes;
 }
 
-/** De voorwaarde `[<50000]`, `[>=1]` … van een sectie, of `undefined` zonder voorwaarde. */
 function sectionCondition(section: string): ((value: number) => boolean) | undefined {
   let m: RegExpExecArray | null = null;
   for (const code of bracketCodes(section)) {
@@ -347,11 +257,6 @@ function sectionCondition(section: string): ((value: number) => boolean) | undef
   }
 }
 
-/**
- * De sectie die Excel voor deze waarde gebruikt. Met voorwaarden: de eerste sectie waarvan de
- * voorwaarde klopt, anders de eerste sectie zonder voorwaarde. Zonder voorwaarden: positief → 1,
- * negatief → 2, nul → 3 (elk met terugval op 1). Zonder getal: sectie 1.
- */
 function activeSection(code: string, value: number | undefined): string {
   const sections = formatSections(code);
   if (value === undefined) return sections[0]!;
@@ -368,14 +273,6 @@ function activeSection(code: string, value: number | undefined): string {
   return sections[0]!;
 }
 
-/**
- * Toont deze sectie een datum MET kloktijd? Alleen dan is een geheel serieel getal middernacht als
- * moment. Een kloktijd is een uur (`h`) of seconde (`s`), een datum een jaar (`y`) of dag (`d`); `m`
- * alleen is maand óf minuut, dus geen bewijs. Een sectie met alleen een tijd verbergt de datum: daar is
- * niet vast te stellen wat middernacht betekent, dus geldt de datumlezing. Niet mee tellen: letterlijke
- * tekst (`"…"`, `\x`), opvulling (`_x`), herhaling (`*x`) en kleur-, taal- en voorwaardecodes
- * (`[…]`); verstreken tijd (`[h]`) is wel een kloktijd.
- */
 function sectionShowsMoment(section: string): boolean {
   let clock = false;
   let date = false;
@@ -400,7 +297,6 @@ function sectionShowsMoment(section: string): boolean {
   return clock && date;
 }
 
-/** Toont een custom formaat voor deze celwaarde een datum met kloktijd? Alleen de geldende sectie telt. */
 function customFormatHasTime(code: string, value: number | undefined): boolean {
   return sectionShowsMoment(activeSection(code, value));
 }
@@ -410,13 +306,7 @@ function customFormatIsPercent(code: string): boolean {
 }
 
 interface StyleTable {
-  /** Per `cellXfs`-index: draagt de stijl een datumopmaak? */
   readonly isDate: readonly boolean[];
-  /**
-   * Per `cellXfs`-index: toont de datumopmaak ook een kloktijd? Een vast antwoord voor een ingebouwd
-   * formaat, de formatcode voor een custom formaat: daar hangt het af van de sectie die bij de
-   * celwaarde hoort (`customFormatHasTime`).
-   */
   readonly hasTime: readonly (boolean | string)[];
   readonly isPercent: readonly boolean[];
 }
@@ -454,15 +344,6 @@ function parseStyles(xml: string): StyleTable {
   return { isDate, hasTime, isPercent };
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// sharedStrings
-// ════════════════════════════════════════════════════════════════════════════════════════════
-
-/**
- * Excel schrijft élke tekstcel bij opslaan als index in `sharedStrings.xml`. Rijke tekst valt uiteen
- * in meerdere `<r><t>`-runs binnen één `<si>`; die worden aaneengeplakt, precies zoals Excel ze
- * toont.
- */
 function parseSharedStrings(xml: string, max: number): string[] {
   const out: string[] = [];
   let current: string | null = null;
@@ -490,11 +371,6 @@ function parseSharedStrings(xml: string, max: number): string[] {
   return out;
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// De werkbladscanner
-// ════════════════════════════════════════════════════════════════════════════════════════════
-
-/** `C7` ⇒ kolomindex 2. Geeft `undefined` als het `r`-attribuut geen kolomletters draagt. */
 export function columnFromCellRef(ref: string | undefined): number | undefined {
   if (ref === undefined) return undefined;
   let col = 0;
@@ -505,7 +381,7 @@ export function columnFromCellRef(ref: string | undefined): number | undefined {
     else if (code >= 97 && code <= 122) col = col * 26 + (code - 96);
     else break;
     seen++;
-    if (seen > 3) return undefined; // XFD is de laatste kolom; meer letters is onzin.
+    if (seen > 3) return undefined;
   }
   return seen === 0 ? undefined : col - 1;
 }
@@ -514,10 +390,8 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
   const rows: XlsxRow[] = [];
   let row: XlsxRow | null = null;
   let nextRowNumber = 1;
-  /** Het hoogste rijnummer dat al gezien is. Zie de uniciteitstoets hieronder. */
   let lastRowNumber = 0;
 
-  // Cel-in-aanbouw.
   let cellRef: string | undefined;
   let cellType = '';
   let styleIndex = -1;
@@ -533,9 +407,6 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
     if (!cellOpen || row === null) return;
     cellOpen = false;
     const col = columnFromCellRef(cellRef) ?? nextCol;
-    // Zelfde redenering als bij de rijnummers, één niveau lager: twee cellen met hetzelfde `r`
-    // binnen één rij zouden allebei in `row.cells` landen en de LAATSTE zou winnen bij het lezen —
-    // stil de verkeerde kolomwaarde. Cellen staan in een geldige xlsx strikt oplopend.
     if (col < nextCol) {
       throw new XlsxReadError(
         'malformed',
@@ -566,8 +437,6 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
         num = raw.trim() === '1' ? 1 : 0;
         break;
       case 'e':
-        // De rauwe fouttekst (`#DIV/0!`) gaat door, zodat de rij een ZICHTBARE weigering wordt in
-        // plaats van stil leeg.
         text = raw;
         break;
       case 'd':
@@ -585,7 +454,7 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
     const clock = isDate ? styles.hasTime[styleIndex] : undefined;
     const hasTime = typeof clock === 'string' ? customFormatHasTime(clock, num) : clock === true;
     const isPercent = styleIndex >= 0 && styles.isPercent[styleIndex] === true;
-    if (text.length === 0 && num === undefined && !isDate && !isPercent) return; // lege cel
+    if (text.length === 0 && num === undefined && !isDate && !isPercent) return;
     row.cells.push({
       col,
       text,
@@ -608,10 +477,6 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
         const attr = ev.attrs.r;
         const parsed = attr !== undefined ? Number(attr) : NaN;
         const rowNumber = Number.isInteger(parsed) && parsed > 0 ? parsed : nextRowNumber;
-        // `r` is de SLEUTEL van de handmatige koppelingen en van `buildPlan`'s rijmap. Een tweede
-        // `<row r="2">` zou de eerste daar stil overschrijven — de invuller ziet dan een toepassing op
-        // een taak die hij niet bewerkte, zonder één weigering. Rijnummers zijn in een geldige xlsx
-        // strikt oplopend; alles anders is een weigering, geen interpretatie.
         if (rowNumber <= lastRowNumber) {
           throw new XlsxReadError(
             'malformed',
@@ -660,10 +525,6 @@ function parseWorksheet(xml: string, shared: readonly string[], styles: StyleTab
   return rows;
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// De pakketlaag
-// ════════════════════════════════════════════════════════════════════════════════════════════
-
 const decoder = new TextDecoder();
 
 function textOf(entries: readonly ZipEntry[], name: string): string | undefined {
@@ -671,7 +532,6 @@ function textOf(entries: readonly ZipEntry[], name: string): string | undefined 
   return entry === undefined ? undefined : decoder.decode(entry.data);
 }
 
-/** `worksheets/sheet1.xml` relatief aan `xl/` ⇒ `xl/worksheets/sheet1.xml`. */
 function resolveTarget(base: string, target: string): string {
   if (target.startsWith('/')) return target.slice(1);
   return `${base}${target}`;
@@ -694,7 +554,6 @@ function parseWorkbook(xml: string): WorkbookInfo {
       continue;
     }
     if (tag === 'sheet' && sheetRelId === undefined) {
-      // Het `r:id`-attribuut draagt de namespace-prefix letterlijk; we matchen op de lokale naam.
       for (const [key, value] of Object.entries(ev.attrs)) {
         if (localName(key) === 'id') { sheetRelId = value; break; }
       }
@@ -711,7 +570,6 @@ function relationshipTarget(xml: string, relId: string): string | undefined {
   return undefined;
 }
 
-/** Het eerste `Relationship` waarvan het type op `suffix` eindigt. */
 function relationshipTargetByType(xml: string, suffix: string): string | undefined {
   for (const ev of scanXml(xml)) {
     if (ev.kind !== 'open' || localName(ev.name) !== 'Relationship') continue;
@@ -726,16 +584,9 @@ function startsWithCfbMagic(bytes: Uint8Array): boolean {
 }
 
 function toArrayBuffer(bytes: Uint8Array): ArrayBuffer {
-  // Een `Uint8Array` kan een venster op een grotere buffer zijn; kopiëren houdt de zip-lezer
-  // eerlijk over "wat is dit bestand".
   return bytes.slice().buffer as ArrayBuffer;
 }
 
-/**
- * Elke fout uit de ZIP-laag krijgt hier zijn `XlsxReadIssue`. De omgevingsweigering houdt zijn
- * EIGEN reden (`unsupported`) in plaats van als `notAZip` te vervlakken — het bestand mankeert
- * niets.
- */
 function asXlsxReadError(err: unknown): XlsxReadError {
   if (err instanceof XlsxReadError) return err;
   if (err instanceof ZipCompressionUnsupportedError) {
@@ -753,27 +604,19 @@ function zipLimitsFrom(limits: XlsxLimits): ZipReadLimits {
   };
 }
 
-/**
- * Leest het **eerste** werkblad van een `.xlsx`. Elke overschrijding en elke structurele twijfel is
- * een `XlsxReadError`, nooit een half resultaat.
- */
 export function readXlsxSheet(bytes: Uint8Array, limits: XlsxLimits = XLSX_LIMITS): Promise<XlsxSheet> {
   return readXlsxSheetWith(parseZipEntries, bytes, limits);
 }
 
-/** Zelfde lezer, met de ZIP-laag als injecteerbare naad (zie `XlsxZipReader`). */
 export async function readXlsxSheetWith(
   readEntries: XlsxZipReader,
   bytes: Uint8Array,
   limits: XlsxLimits = XLSX_LIMITS,
 ): Promise<XlsxSheet> {
-  // Grens vóór allocatie: geen kopie, geen view, niets — eerst de weegschaal.
   if (bytes.byteLength > limits.maxBytes) {
     throw new XlsxReadError('tooLarge', 'bestand boven de bytegrens');
   }
   if (startsWithCfbMagic(bytes)) {
-    // Een met een wachtwoord beveiligde werkmap is een CFB/OLE2-container met een
-    // `EncryptedPackage`-stream, geen ZIP. "Onleesbaar" zou hier de nutteloze melding zijn.
     throw new XlsxReadError('encrypted', 'wachtwoordbeveiligde werkmap');
   }
   if (bytes.byteLength < 4 || bytes[0] !== 0x50 || bytes[1] !== 0x4b) {
@@ -791,7 +634,6 @@ export async function readXlsxSheetWith(
   }
 
   if (textOf(meta, '[Content_Types].xml') === undefined) {
-    // Geen OOXML-pakket: wel een ZIP, maar niet er een die een werkmap kan bevatten.
     throw new XlsxReadError('notAZip', 'geen [Content_Types].xml');
   }
 
@@ -799,8 +641,6 @@ export async function readXlsxSheetWith(
   if (rootRels !== undefined) {
     const workbookTarget = relationshipTargetByType(rootRels, '/officeDocument');
     if (workbookTarget !== undefined && resolveTarget('', workbookTarget) !== 'xl/workbook.xml') {
-      // Deze lezer pakt in pass 1 uitsluitend de standaardpaden uit; een werkmap die ergens anders
-      // woont zou een derde pass vragen. Weigeren is eerlijker dan een leeg blad opleveren.
       throw new XlsxReadError('noSheet', `werkmap op een onverwacht pad: ${workbookTarget}`);
     }
   }
@@ -826,7 +666,6 @@ export async function readXlsxSheetWith(
   const sharedXml = textOf(meta, 'xl/sharedStrings.xml');
   const shared = sharedXml !== undefined ? parseSharedStrings(sharedXml, limits.maxSharedStrings) : [];
 
-  // Pass 2: uitsluitend het bladpart zelf.
   let sheetEntries: readonly ZipEntry[];
   try {
     sheetEntries = await readEntries(buffer, zipLimits, name => name === sheetPath);
