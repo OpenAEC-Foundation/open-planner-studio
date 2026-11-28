@@ -1,5 +1,3 @@
-// De uitleg na F5 (#742): welke taken verschoven, waarom, en Ongedaan maken in één stap.
-// De reden is alleen zeker als hij uit de solver of uit de vorige invoer komt; anders `unknown`.
 import { deepStrictEqual, strictEqual } from 'node:assert';
 import { createAppStoreContext } from '@/state/appStoreFactory';
 import { canUndoScheduleShift, previousSolveBasis, SCHEDULE_SHIFT_NOTICE_KEY } from '@/state/scheduleShift';
@@ -37,7 +35,6 @@ function reasons(store: Store): Record<string, ShiftReason> {
 const toasts = (store: Store) =>
   store.getState().ui.notifications.filter(n => n.dedupeKey === SCHEDULE_SHIFT_NOTICE_KEY);
 
-/** A → B → C, doorgerekend. */
 function chain() {
   const ctx = setup();
   const { S } = ctx;
@@ -50,7 +47,6 @@ function chain() {
   return { ...ctx, a, b, c };
 }
 
-// 1. Het spoor neemt niet deel aan de berekening, in elk profiel en in beide maten.
 for (const profile of ['ops', 'p6', 'msproject'] as const) {
   for (const hours of [false, true]) {
     const data = generateBenchmarkProject(300, { seed: 0x742 });
@@ -86,7 +82,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// 2. Een langere voorganger: elke opvolger noemt zijn eigen voorganger, plus de oplevering.
 {
   const { store, S, a, b, c } = chain();
   const oldEnd = S().cpmResult!.projectEnd;
@@ -105,7 +100,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(report.projectEndWorkdays! > 0, true, 'oplevering later');
   strictEqual(S().cpmResult!.projectEnd > oldEnd, true);
 
-  // De melding: twee knoppen, en de teller staat in `params`.
   const [notice] = toasts(store);
   strictEqual(notice.messageKey, 'scheduleShift.notice');
   strictEqual(notice.params?.count, report.tasks.length);
@@ -113,19 +107,16 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(notice.action?.kind, 'showScheduleShift');
   strictEqual(notice.secondaryAction?.kind, 'undoScheduleShift');
 
-  // F5 blijft geen eigen undo-stap en maakt het document niet vuil.
   strictEqual(S().historyEvents.length, stale.historyEvents.length, 'geen eigen undo-stap');
   strictEqual(S().isDirty, stale.isDirty);
   strictEqual(canUndoScheduleShift(S()), true);
 
-  // Nogmaals F5 zonder verschil: uitleg, melding en Ongedaan maken blijven.
   const shift = S().scheduleShift;
   S().recalculate();
   strictEqual(S().scheduleShift, shift);
   strictEqual(toasts(store).length, 1);
   strictEqual(canUndoScheduleShift(S()), true);
 
-  // Ongedaan maken: alleen de berekening terug. De bewerking blijft, de planning is weer verouderd.
   S().undoScheduleShift();
   strictEqual(task(store, b).time.earlyFinish, previousFinish);
   strictEqual(task(store, a).time.scheduleDuration, 10);
@@ -135,7 +126,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(S().scheduleShift, null);
   strictEqual(toasts(store).length, 0);
 
-  // Daarna klopt de geschiedenis nog: Ctrl+Z neemt de bewerking terug, redo zet hem terug.
   S().undo();
   strictEqual(task(store, a).time.scheduleDuration !== 10, true);
   S().redo();
@@ -144,7 +134,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(task(store, b).time.earlyFinish, previousFinish);
 }
 
-// 3. Ctrl+Z na F5 werkt zoals altijd: de bewerking en de berekening samen.
 {
   const { store, S, a, b } = chain();
   const before = task(store, b).time.earlyFinish;
@@ -157,7 +146,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(canUndoScheduleShift(S()), false, 'de knop verdwijnt na Ctrl+Z');
 }
 
-// 4. Na een volgende bewerking kan Ongedaan maken niet meer; de lijst blijft staan.
 {
   const { store, S, a, b } = chain();
   withDuration(store, a, 10);
@@ -171,7 +159,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(S().scheduleShift?.report, report);
 }
 
-// 5. Een gewijzigde duur met gelijke start: de eigen duur, als hij echt uit de vorige invoer blijkt.
 {
   const { store, S, b } = chain();
   withDuration(store, b, 8);
@@ -179,7 +166,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   deepStrictEqual(reasons(store)[b], { kind: 'duration' });
 }
 
-// 6. Een constraint schuift de taak: vaste datum.
 {
   const { store, S, b, c } = chain();
   S().updateTask(b, { constraint: { type: 'SNET', date: '2026-07-06T07:00' } });
@@ -189,7 +175,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   deepStrictEqual(r[c], { kind: 'predecessor', taskIds: [b] });
 }
 
-// 7. De statusdatum duwt niet-gestart werk vooruit.
 {
   const { store, S, a } = chain();
   S().setStatusDate('2026-08-03');
@@ -197,7 +182,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   deepStrictEqual(reasons(store)[a], { kind: 'statusDate', date: '2026-08-03' });
 }
 
-// 8. Een nivelleringsvertraging: de resource, met naam alleen als het er één is.
 {
   const { store, S, a, b } = chain();
   const resource = S().addResource({ name: 'Metselaar', description: '', type: 'LABOR', maxUnits: 1 });
@@ -209,8 +193,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   deepStrictEqual(reasons(store)[b], { kind: 'resource', resourceIds: [resource] });
 }
 
-// 9. Een feestdag in de looptijd: gelijke start, later einde, en de kalender veranderde.
-// Valt de feestdag op de start, dan schuift ook de start, en is de kalender nog steeds de reden.
 {
   const { store, S, a, b } = chain();
   const name = S().calendar.name;
@@ -230,7 +212,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   deepStrictEqual(reasons(store)[a], { kind: 'calendar', calendarName: name });
 }
 
-// 10. Geen vorige invoer, of twee oorzaken tegelijk: de reden is niet vast te stellen.
 {
   const { store, S, a } = chain();
   store.setState(s => {
@@ -250,7 +231,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   deepStrictEqual(reasons(store)[a], { kind: 'unknown' });
 }
 
-// 11. De basis is de OUDSTE bewerking sinds de berekening; teruggedraaide stappen tellen niet mee.
 {
   const { store, S, a, b } = chain();
   const original = task(store, a).time.scheduleDuration;
@@ -262,9 +242,7 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(previousSolveBasis(S()), null);
 }
 
-// 12. Voortgang, handmatig en hammock krijgen hun eigen reden.
 {
-  // Voltooid: het getoonde einde is al het werkelijke einde, dus alleen de opvolger verschuift.
   const { store, S, a, b } = chain();
   S().updateTask(a, {
     time: { ...task(store, a).time, completion: 1, actualStart: '2026-06-01T07:00', actualFinish: '2026-06-19T16:00' },
@@ -274,8 +252,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   deepStrictEqual(reasons(store)[b], { kind: 'predecessor', taskIds: [a] });
 }
 {
-  // Lopend: de restduur na de statusdatum bepaalt het einde. Verandert alleen de voortgang, dan is
-  // dat de reden en niet de statusdatum die al vaststond.
   const { store, S, a } = chain();
   S().setStatusDate('2026-06-03');
   S().updateTask(a, { time: { ...task(store, a).time, completion: 0.2, actualStart: '2026-06-01T07:00' } });
@@ -295,7 +271,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   deepStrictEqual(reasons(store)[a], { kind: 'manual' });
 }
 
-// 13. Twee voorgangers bepalen samen de start: beide staan erin.
 {
   const { store, S } = setup();
   const p = S().addTask({ name: 'P' });
@@ -312,7 +287,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   if (reason.kind === 'predecessor') deepStrictEqual([...reason.taskIds].sort(), [p, q].sort());
 }
 
-// 14. Een verzameltaak telt niet mee; korter maken geeft een eerdere oplevering.
 {
   const { store, S } = setup();
   const phase = S().addTask({ name: 'Fase' });
@@ -330,7 +304,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(toasts(store)[0].detailLines?.[0].messageKey, 'scheduleShift.deliveryEarlier');
 }
 
-// 15. Geen verschoven taak: geen melding, en een oude melding verdwijnt. De lijst zegt het.
 {
   const { store, S, a, b } = chain();
   withDuration(store, a, 10);
@@ -344,7 +317,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(canUndoScheduleShift(S()), false);
 }
 
-// 16. Een mislukte berekening wist de uitleg.
 {
   const { store, S, a, c } = chain();
   withDuration(store, a, 10);
@@ -359,7 +331,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(toasts(store).length, 0);
 }
 
-// 17. Automatisch berekenen rekent gewoon door, zonder melding.
 {
   const { store, S, a } = chain();
   S().setUI({ autoCalcCPM: true });
@@ -370,7 +341,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(toasts(store).length, 0);
 }
 
-// 18. Een documentwissel neemt de uitleg en de melding mee weg.
 {
   const { store, S, a } = chain();
   withDuration(store, a, 10);
@@ -380,7 +350,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(toasts(store).length, 0);
 }
 
-// 19. Waarom? opent het paneel en klapt de rail uit; Ongedaan maken sluit het weer.
 {
   const { store, S, a } = chain();
   withDuration(store, a, 10);
@@ -392,7 +361,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(S().ui.showScheduleShiftPanel, false);
 }
 
-// 20. "Datums zoals opgeslagen": F5 is daar wél een undo-stap, en Ongedaan maken loopt daarlangs.
 {
   const { store, S, a, b } = chain();
   const recordedFinish = '2026-09-04T16:00';
@@ -407,7 +375,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(S().historyEvents.length, undoDepth + 1, 'F5 in de modus is een undo-stap');
   strictEqual(S().datesAsRecorded, false);
   strictEqual(typeof S().scheduleShift?.historyEventId, 'string');
-  // Zelfde start, ander einde, en geen bewerking om mee te vergelijken: niet vast te stellen.
   deepStrictEqual(reasons(store)[b], { kind: 'unknown' });
   S().undoScheduleShift();
   strictEqual(S().datesAsRecorded, true);
@@ -415,13 +382,11 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   strictEqual(task(store, a).name, 'A');
 }
 
-// De vier regressies uit de review. Elk geval rapporteert apart, zodat één fout de rest niet verbergt.
 const failed: string[] = [];
 function regression(name: string, body: () => void) {
   try { body(); } catch (error) { failed.push(`${name}: ${(error as Error).message}`); }
 }
 
-/** A → B → C met A op urenduur; `prepare` zet de stand vóór de eerste berekening. */
 function hourTask(prepare: (ctx: ReturnType<typeof chain>) => void) {
   const ctx = chain();
   const { store, S, a } = ctx;
@@ -433,7 +398,6 @@ function hourTask(prepare: (ctx: ReturnType<typeof chain>) => void) {
   return ctx;
 }
 
-/** Zet de modus "datums zoals opgeslagen" aan, met een afwijkend einde op B. */
 function recordedMode(ctx: ReturnType<typeof chain>, finish: string) {
   ctx.store.setState(s => {
     s.tasks.find(t => t.id === ctx.b)!.time.earlyFinish = finish;
@@ -443,7 +407,6 @@ function recordedMode(ctx: ReturnType<typeof chain>, finish: string) {
   });
 }
 
-// 21. Ongedaan maken herstelt het event van de berekening, ook met een nieuwer event erboven.
 regression('21 kolom na F5 in de modus', () => {
   const ctx = chain();
   const { store, S, b } = ctx;
@@ -464,7 +427,6 @@ regression('21 kolom na F5 in de modus', () => {
   deepStrictEqual(S().taskGridSurfaces['gantt-task-grid'].columns, changed, 'de kolom blijft staan');
   strictEqual(S().historyEvents.find(e => e.id === eventId)?.state, 'undone');
   strictEqual(S().scheduleShift, null);
-  // Ctrl+Z neemt daarna de kolom terug, en Ctrl+Y zet de berekening terug.
   S().undo();
   strictEqual(S().taskGridSurfaces['gantt-task-grid'].columns[0].width, columns[0].width);
   strictEqual(task(store, b).time.earlyFinish, recordedFinish);
@@ -482,7 +444,6 @@ regression('21b event al teruggedraaid', () => {
   strictEqual(S().datesAsRecorded, true);
 });
 
-// 22. Een startgrens die al vaststond is niet de reden als alleen de duur veranderde.
 regression('22 SNET bleef gelijk', () => {
   const { store, S, a, b } = hourTask(({ store, S, a }) => {
     S().updateTask(a, { constraint: { type: 'SNET', date: '2026-07-06T07:00' } });
@@ -498,7 +459,6 @@ regression('22b statusdatum bleef gelijk', () => {
   deepStrictEqual(reasons(store)[a], { kind: 'duration' });
 });
 
-// 23. Een lopende taak: de werkelijke start staat vast, het spoor gaat over het resterende werk.
 function runningSuccessor() {
   const ctx = chain();
   const { store, S, b } = ctx;
@@ -523,7 +483,6 @@ regression('23b twee oorzaken op een lopende taak', () => {
   deepStrictEqual(reasons(store)[b], { kind: 'unknown' });
 });
 regression('23c eigen duur van een lopende taak', () => {
-  // Zonder voorganger: de voortgang bepaalt de datum, maar de duur veranderde en het werk niet.
   const { store, S } = setup();
   const x = S().addTask({ name: 'X' });
   withDuration(store, x, 10);
@@ -543,7 +502,6 @@ regression('23d statusdatum van een lopende taak', () => {
   deepStrictEqual(reasons(store)[a], { kind: 'statusDate', date: '2026-06-24' });
 });
 
-// 24. Resource alleen als alleen de toewijzing precies deze duur oplevert.
 function resources(S: () => ReturnType<Store['getState']>) {
   const add = (name: string) => S().addResource({ name, description: '', type: 'LABOR', maxUnits: 1 });
   return [add('Metselaar'), add('Opperman')];
@@ -581,7 +539,6 @@ regression('24c vast werk, handmatig langer en een resource erbij', () => {
   deepStrictEqual(reasons(store)[a], { kind: 'unknown' });
 });
 regression('24e vast werk, handmatig langer zonder andere resource', () => {
-  // De inzet volgt de duur. In de data is dat hetzelfde als een andere inzet: niet vast te stellen.
   const { store, S, a } = chain();
   const [first] = resources(S);
   S().setTaskWorkRule(a, 'FIXED_WORK');
@@ -606,7 +563,6 @@ regression('24d vast werk, alleen een resource eraf', () => {
   deepStrictEqual(reasons(store)[a], { kind: 'resource', resourceIds: [first] });
 });
 
-// Knownbug 589: nieuw materiaal ontbreekt in de vorige basis en mag geen arbeidsresource worden.
 regression('589 nieuw materiaal verklaart geen handmatige verkorting', () => {
   const { store, S, a } = chain();
   const [labor] = resources(S);

@@ -1,16 +1,3 @@
-/**
- * Commitgedrag van het gedeelde datumveld (`DateTextInput`) — pure functies, dus headless.
- *
- * Achtergrond: het veld is gesegmenteerd (dd | mm | jjjj) en `parseFlexibleDate` accepteert een jaar
- * al bij 2 cijfers. Committeerde het veld LIVE per toetsaanslag, dan leverde het intypen van
- * "01062030" drie geldige commits op (2020-06-01 → 0203-06-01 → 2030-06-01) — en dus drie
- * undo-stappen met onzin-tussenwaarden bij elke store-schrijvende aanroeper (deadline, constraint,
- * werkelijke datums, aangepaste velden). Sinds de `commitMode`-prop is `'blur'` de standaard: één
- * ingetypte datum = één commit bij het afronden.
- *
- * De test speelt de toetsaanslagen na met exact de reducers die de component zelf gebruikt
- * (`nextSegmentState` + `resolveDateCommit`), zodat hij niet naast de component kan gaan lopen.
- */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join as joinPath, resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -44,11 +31,6 @@ const eq = (name: string, actual: unknown, expected: unknown) =>
 
 const EMPTY: SegState = { day: '', month: '', year: '' };
 
-/**
- * Speelt `raw` toetsaanslag voor toetsaanslag in de segmenten (inclusief het doorspringen naar het
- * volgende segment) en rondt daarna af zoals blur/Enter dat doen. Retourneert alles wat het veld
- * naar buiten zou hebben geschreven, plus de eindtoestand.
- */
 function typeAndFinish(raw: string, mode: DateCommitMode, start = '') {
   let seg: SegState = { ...EMPTY };
   let i = 0;
@@ -58,8 +40,6 @@ function typeAndFinish(raw: string, mode: DateCommitMode, start = '') {
 
   for (const ch of raw) {
     if (ch === '-' || ch === '/' || ch === '.') {
-      // Separatortoets: springt door naar het volgende segment (zie `handleKeyDown`), verandert de
-      // waarde niet — zo kan de test ook "6-7-26" naspelen zonder de DOM.
       if (seg[DMY_ORDER[i].kind] !== '' && i < DMY_ORDER.length - 1) i++;
       continue;
     }
@@ -77,7 +57,6 @@ function typeAndFinish(raw: string, mode: DateCommitMode, start = '') {
 
 console.log('── DateTextInput: commitmodus ──');
 
-// ── (a) de bug uit docs/TODO.md ────────────────────────────────────────────────────────────────
 const live = typeAndFinish('01062030', 'live');
 eq('a live-modus: één ingetypte datum = drie commits (het oude gedrag)',
   live.commits, ['2020-06-01', '0203-06-01', '2030-06-01']);
@@ -86,7 +65,6 @@ const blur = typeAndFinish('01062030', 'blur');
 eq('a blur-modus: één ingetypte datum = precies ÉÉN commit', blur.commits, ['2030-06-01']);
 eq('a blur-modus: die ene commit is de bedoelde datum', blur.value, '2030-06-01');
 
-// ── (b) afronden per toestand ─────────────────────────────────────────────────────────────────
 eq('b blur: leeggemaakt veld commit "geen datum"',
   typeAndFinish('', 'blur', '2030-06-01').commits, ['']);
 eq('b blur: incomplete invoer commit niets en valt stil terug',
@@ -100,13 +78,11 @@ eq('b blur: compleet-maar-onbestaande datum meldt "error"',
 eq('b live: een onbestaande datum committeert ook live nooit',
   typeAndFinish('31022026', 'live').commits, []);
 
-// ── (c) 2-cijferig jaar en normalisatie blijven werken ────────────────────────────────────────
 eq('c blur: "6-7-26" (1-cijferige dag/maand, 2-cijferig jaar) commit één keer als 2026-07-06',
   typeAndFinish('6-7-26', 'blur').commits, ['2026-07-06']);
 eq('c blur: ongewijzigde datum opnieuw intypen commit niet opnieuw',
   typeAndFinish('01062030', 'blur', '2030-06-01').commits, []);
 
-// ── (d) de pure bouwstenen zelf ───────────────────────────────────────────────────────────────
 eq('d typing+blur schrijft nooit', resolveDateCommit('typing', 'blur', { day: '01', month: '06', year: '2030' }).kind, 'idle');
 eq('d typing+live schrijft een geldige datum', resolveDateCommit('typing', 'live', { day: '01', month: '06', year: '2030' }), { kind: 'write', iso: '2030-06-01' });
 eq('d finish op leeg = "geen datum"', resolveDateCommit('finish', 'blur', EMPTY), { kind: 'write', iso: '' });
@@ -118,11 +94,6 @@ eq('d nextSegmentState springt niet door vanaf het laatste segment',
 eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
   nextSegmentState(EMPTY, DMY_ORDER, 0, 'a1b2c3').seg.day, '12');
 
-// ── (e) broncontrole: wie mag er live committen? ──────────────────────────────────────────────
-// De hele fix hangt aan de DEFAULT. Zet iemand `commitMode="live"` op een plek die naar de store
-// schrijft, dan zijn de drie undo-stappen per ingetypte datum meteen terug — zonder dat een pure
-// test dat merkt. Deze controle pint daarom vast: de default is 'blur', en alleen bestanden met
-// puur lokale draftstate mogen expliciet live committen.
 {
   const kandidaten = [
     fileURLToPath(new URL('../../src/', import.meta.url).href),
@@ -146,16 +117,11 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
     const component = readFileSync(joinPath(srcRoot, 'components', 'common', 'DateTextInput.tsx'), 'utf8');
     check("e de default-commitmodus van DateTextInput is 'blur'", /commitMode = 'blur'/.test(component));
 
-    // Puur lokale draftstate (projectwizard) — geen store-schrijver, mét live afgeleide feedback.
-    // Idem de vraag naar de werkelijke start (Z1b): lokale antwoordstaat met live foutmelding; pas
-    // "Voortgang toepassen" schrijft, via de voortgangssetter met het antwoord (één undo-stap).
-    // Idem Project verplaatsen (#904): de nieuwe start is lokaal; pas "Verplaatsen" schrijft.
     const liveToegestaan = [
       joinPath(srcRoot, 'components', 'settings', 'ProjectInfoPanelContent.tsx'),
       joinPath(srcRoot, 'components', 'dialogs', 'ActualStartDialog.tsx'),
       joinPath(srcRoot, 'components', 'dialogs', 'MoveProjectDialog.tsx'),
     ];
-    // Bewust ruim: vangt zowel `commitMode="live"` als `commitMode={'live'}`/`{"live"}`.
     const liveGebruikers = bestanden.filter(f =>
       f !== joinPath(srcRoot, 'components', 'common', 'DateTextInput.tsx')
       && /commitMode\s*=\s*\{?\s*['"]live['"]/.test(readFileSync(f, 'utf8')));
@@ -166,9 +132,6 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
   }
 }
 
-// ── (f) broncontrole: de afrondsemantiek van het echte veld ───────────────────────────────────
-// De pure kern hierboven kent geen DOM. Deze drie eigenschappen leven in de React-laag en zijn
-// precies de dingen die stilletjes sneuvelen bij een refactor, dus pinnen we ze aan de bron vast.
 {
   const kandidaten = [
     fileURLToPath(new URL('../../src/', import.meta.url).href),
@@ -177,29 +140,18 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
   const srcRoot = kandidaten.find(p => existsSync(p)) ?? null;
   if (srcRoot) {
     const component = readFileSync(joinPath(srcRoot, 'components', 'common', 'DateTextInput.tsx'), 'utf8');
-    // Blur van segment → segment binnen dezelfde groep mag NIET committen; alleen het verlaten van de
-    // héle groep rondt af. Zonder deze guard commit elke Tab tussen dd|mm|jjjj een halve datum. Het
-    // kalenderpaneel (#904) hangt via een portal elders in de DOM en telt ook als binnen.
     check('f groepsblur committeert niet bij focuswissel BINNEN de groep (of naar het kalenderpaneel)',
       /const next = e\.relatedTarget as Node \| null;\s*if \(e\.currentTarget\.contains\(next\) \|\| pickerPanelRef\.current\?\.contains\(next\)\) return;/
         .test(component));
     check('f groepsblur rondt wél af als de focus de groep verlaat',
       /handleGroupBlur[\s\S]{0,600}?finish\(seg\)/.test(component));
-    // Enter rondt eerst het veld af (commit) en laat de dialoog-Enter pas door als er niets meer
-    // openstaat — anders bevestigt de dialoog in dezelfde event-tick met zijn oude draft.
     check('f Enter rondt het veld af via finish()',
       /e\.key === 'Enter'[\s\S]{0,300}?finish\(seg\)/.test(component));
-    // ÉÉN Enter moet committen én de dialoog bevestigen. Het veld mag de toets daarom UITSLUITEND
-    // opeten bij ongeldige/incomplete invoer (`blocked`) — niet omdat het zojuist zelf commit heeft.
     check('f Enter blokkeert de dialoog alleen bij ongeldige/incomplete invoer',
       /if \(blocked\) \{ e\.preventDefault\(\); e\.stopPropagation\(\); \}/.test(component));
     check('f Enter eet de toets NIET op enkel omdat er zojuist gecommit is',
       !/blocked \|\| pending/.test(component) && !/pending: /.test(component));
 
-    // Dat één-Enter-gedrag hangt volledig aan `useDialogKeys`: die listener hangt aan `document` en
-    // wordt vanuit een passive effect geregistreerd, dus zonder latest-callback-ref draagt hij nog
-    // de draft van de vórige render en bevestigt de dialoog met de oude waarde. Zie de toelichting
-    // daar; deze controle voorkomt dat iemand 'm terugdraait naar een closure met deps.
     const dialogKeys = readFileSync(joinPath(srcRoot, 'hooks', 'useDialogKeys.ts'), 'utf8');
     check('f useDialogKeys leest onConfirm/onCancel via een latest-callback-ref',
       /confirmRef\.current = onConfirm/.test(dialogKeys)
@@ -207,20 +159,13 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
       && /const onConfirm = confirmRef\.current/.test(dialogKeys));
     check('f de keydown-listener van useDialogKeys voert niet opnieuw op per callback-identiteit',
       /document\.addEventListener\('keydown', onKey\);[\s\S]{0,160}?\}, \[\]\);/.test(dialogKeys));
-    // Escape herstelt de laatst gecommitte waarde; zonder bewerking loopt hij door naar de dialoog.
     check('f Escape herstelt de laatst gecommitte waarde',
       /e\.key === 'Escape'[\s\S]{0,400}?setSeg\(restored\)/.test(component));
   }
 }
 
-// ── (g) datum-met-tijd (taken op een kalender met werktijden) ─────────────────────────────────
-// Een taak op een kalender met werktijden draagt `2027-05-13T07:00`. Het veld toonde dat als LEEG,
-// en wie er alleen doorheen tabde committe `''` — daarna rekende het hele project niet meer. Deze
-// sectie speelt het afronden na met exact de pure kern van de component (`resolveDateCommit` +
-// `dateCommitValue`) en rendert de echte component om de getoonde segmenten te lezen.
 {
   const DT = '2027-05-13T07:00';
-  /** Rondt af zoals `finish()` in de component: welke waarde gaat er naar buiten (of `null`). */
   const finishCommit = (seg: SegState, value: string, required = false): string | null | 'revert' | 'error' => {
     const res = resolveDateCommit('finish', 'blur', seg, required);
     if (res.kind === 'write') return dateCommitValue(res.iso, value);
@@ -244,15 +189,11 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
   eq('g een onaangeroerd leeg veld commit nooit ""', finishCommit(EMPTY, ''), null);
   eq('g een onleesbare waarde onaangeroerd verlaten commit nooit ""', finishCommit(EMPTY, 'gisteren'), null);
 
-  // De echte component: toont hij de segmenten van een datum-met-tijd?
   const markup = renderToStaticMarkup(createElement(DateTextInput, { value: DT, onCommit: () => {} }));
   const shown = [...markup.matchAll(/<input[^>]*\svalue="([^"]*)"/g)].map(m => m[1]);
   eq('g de gerenderde component toont 13-05-2027 voor een datum-met-tijd', shown, ['13', '05', '2027']);
 }
 
-// ── (h) verplicht veld (startdatum, beperkingsdatum) ────────────────────────────────────────────
-// Startdatum en beperkingsdatum mogen niet leeg: het raster weigert dat met `required`; het
-// datumveld valt met `required` bij leeg afronden stil terug, net als bij incomplete invoer.
 {
   eq('h required: leeg afronden valt terug i.p.v. "" te schrijven',
     resolveDateCommit('finish', 'blur', EMPTY, true), { kind: 'revert' });
@@ -262,7 +203,6 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
     resolveDateCommit('finish', 'blur', { day: '01', month: '06', year: '2030' }, true), { kind: 'write', iso: '2030-06-01' });
   eq('h niet-required: leeg afronden blijft "geen datum"',
     resolveDateCommit('finish', 'blur', EMPTY), { kind: 'write', iso: '' });
-  // Broncontrole: de verplichte velden dragen de vlag daadwerkelijk.
   const kandidaten = [
     fileURLToPath(new URL('../../src/', import.meta.url).href),
     resolvePath(process.cwd(), 'src'),
@@ -270,7 +210,6 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
   const srcRoot = kandidaten.find(p => existsSync(p)) ?? null;
   if (srcRoot) {
     const lees = (...deel: string[]) => readFileSync(joinPath(srcRoot, ...deel), 'utf8');
-    // F4b (§3.6): de taakdatums staan in `TaskDateTimeInput` (datum + tijd), dat `required` doorgeeft.
     const telRequired = (bron: string) => (bron.match(/<(?:DateTextInput|TaskDateTimeInput)[^>]*?\srequired[\s/>]/g) ?? []).length;
     eq('h het datum-met-tijdveld geeft required door aan het datumveld',
       /<DateTextInput[^>]*?\srequired=\{required\}/.test(lees('components', 'common', 'TaskDateTimeInput.tsx')) ? 1 : 0, 1);
@@ -280,8 +219,6 @@ eq('d nextSegmentState sanitiseert niet-cijfers en kapt af op de segmentlengte',
   }
 }
 
-// Expliciet afsluiten: de component trekt de store (en daarmee timers) mee, die het proces anders
-// open houden — zelfde patroon als de andere SSR-checks (check-task-cell-editor, check-task-grid-aria).
 if (failures > 0) {
   console.error(`\nTOTAAL: ${failures} afwijking(en)`);
   process.exit(1);
