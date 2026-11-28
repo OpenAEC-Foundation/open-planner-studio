@@ -6,8 +6,6 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
-// Knownbug 595: voer de echte workflowstap uit met de standaardshell van een Linux-run-stap
-// (bash -e, zonder impliciete pipefail). Alleen het uitpakken van de AppImage is een lichte fixture.
 const workflow = readFileSync(new URL('../../.github/workflows/appimage-im-check.yml', import.meta.url), 'utf8');
 const step = workflow.split('      - name: Verify AppImage input-method modules\n')[1];
 assert.ok(step, 'de modulecontrole bestaat');

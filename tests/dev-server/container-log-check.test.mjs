@@ -5,7 +5,6 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-// Voer de ECHTE shellstap uit de workflow uit; alleen Docker is een gecontroleerde double.
 const workflow = readFileSync(new URL('../../.github/workflows/headless-api.yml', import.meta.url), 'utf8');
 const containerJob = workflow.split('\n  container:\n')[1];
 assert.ok(containerJob, 'containerjob bestaat');

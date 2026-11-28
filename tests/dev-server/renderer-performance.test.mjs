@@ -6,8 +6,6 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 const yaml = readFileSync(new URL('../../.github/workflows/renderer-performance.yml', import.meta.url), 'utf8');
-// Voer de echte bundelstap uit tegen kleine Git-fixtures. Alleen esbuild is vervangen door
-// een teller: dit toetst de bronselectie, zonder een build of prestatiemeting te starten.
 const step = yaml.slice(yaml.indexOf('      - name: Bundel dezelfde invoer'));
 const block = step.match(/        run: \|\n((?:          [^\n]*\n|\n)*)/)?.[1];
 assert.ok(block, 'de bundelstap bestaat');

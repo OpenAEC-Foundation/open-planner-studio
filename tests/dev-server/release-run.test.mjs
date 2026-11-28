@@ -1,5 +1,3 @@
-// Tests voor het releasescript (scripts/release/): de stappen en de stopcodes, tegen een nagebootst GitHub.
-// Elke aanroep die een test niet voorziet, faalt hard; zo ziet een test ook een onverwachte schrijfstap.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
@@ -18,7 +16,6 @@ const SHA_TAG = 'a'.repeat(40);
 const SHA_MAIN = 'b'.repeat(40);
 const MAANDAG_0900 = Date.parse('2026-11-23T08:00:00Z');
 
-/** Een nep-omgeving. `gh`/`git`/`run` zijn lijsten [patroon, antwoord]; het eerste passende patroon wint. */
 function nep({ gh = [], git = [], run = [], http = {}, bestanden = {}, droog = false, claude } = {}) {
   const klok = { t: MAANDAG_0900 };
   const spoor = { acts: [], gh: [], claude: 0, meldingen: [] };
@@ -115,8 +112,6 @@ const GH_BASIS = [
 
 const RUN_BASIS = [[/release-ci-check\.mjs --browser/, { status: 0, stdout: 'OK\nBROWSERRUN=9\n', stderr: '' }]];
 
-// ---------------------------------------------------------------------------------------------------
-
 test('uitkomst: vaste slotregels en exitcodes', () => {
   assert.deepEqual(slotregel('v1 uitgebracht'), { regel: 'RELEASE-KLAAR v1 uitgebracht', exit: 0 });
   assert.deepEqual(slotregel(new ReleaseStop('snap-mislukt', 'rood\nna rerun')), { regel: 'RELEASE-STOP snap-mislukt: rood na rerun', exit: 2 });
@@ -127,12 +122,12 @@ test('uitkomst: vaste slotregels en exitcodes', () => {
 });
 
 test('weekendstop: zaterdag 23:00 tot maandag 01:00 Nederlandse tijd', () => {
-  assert.equal(inWeekendstop(Date.parse('2026-11-21T21:59:00Z')), false); // za 22:59
-  assert.equal(inWeekendstop(Date.parse('2026-11-21T22:00:00Z')), true); // za 23:00
-  assert.equal(inWeekendstop(Date.parse('2026-11-22T12:00:00Z')), true); // zondag
-  assert.equal(inWeekendstop(Date.parse('2026-11-22T23:59:00Z')), true); // ma 00:59
-  assert.equal(inWeekendstop(Date.parse('2026-11-23T00:00:00Z')), false); // ma 01:00
-  assert.equal(inWeekendstop(Date.parse('2026-07-04T21:00:00Z')), true); // za 23:00 zomertijd
+  assert.equal(inWeekendstop(Date.parse('2026-11-21T21:59:00Z')), false);
+  assert.equal(inWeekendstop(Date.parse('2026-11-21T22:00:00Z')), true);
+  assert.equal(inWeekendstop(Date.parse('2026-11-22T12:00:00Z')), true);
+  assert.equal(inWeekendstop(Date.parse('2026-11-22T23:59:00Z')), true);
+  assert.equal(inWeekendstop(Date.parse('2026-11-23T00:00:00Z')), false);
+  assert.equal(inWeekendstop(Date.parse('2026-07-04T21:00:00Z')), true);
 });
 
 test('versies: numeriek vergelijken en stabiele origin-tags, gepeld en nieuwste eerst', () => {
@@ -392,7 +387,6 @@ test('verslag: het script schrijft alleen zijn eigen blok en vult zijn regels aa
   const eerste = verslagTekst({ tag: 'v1', kop: 'PR groen', regels: ['PR-head groen.', 'Basis x.'], bestaand: '<!-- ops-release:v1 -->\nhandwerk van een agent' });
   assert.ok(eerste.startsWith(`<!-- ops-release:v1 -->\n${BEGIN}\n**v1: PR groen**`));
   assert.ok(eerste.endsWith(`${EIND}\n\nhandwerk van een agent`));
-  // De thread zet er een fix-PR en een review onder; het volgende verslag met een kortere lijst wist niets.
   const metNotitie = `${eerste}\n\nFix-PR #1234, review-taak ABC, VERVOLG: 1801.`;
   const tweede = verslagTekst({ tag: 'v1', kop: 'klaar voor de tag', regels: ['Te taggen SHA y.', 'Basis x.'], bestaand: metNotitie });
   assert.match(tweede, /\*\*v1: klaar voor de tag\*\*\n\n- PR-head groen\.\n- Basis x\.\n- Te taggen SHA y\.\n/);
@@ -425,7 +419,6 @@ test('gewijzigdePaden: echte git-status via de echte adapter, ook het eerste pad
 });
 
 test('vervolgRun: workflow_run op de SHA van main; een overgeslagen run van een mislukte poging telt niet', () => {
-  // v2026.45.0: release op fb617899, Snap op 2a66df33 (de SHA van main op dat moment).
   const release = run({ id: 42683918392, head_sha: 'fb617899c39dcd08089856f43b9a38df434741ad', created_at: '2026-11-09T19:30:02Z' });
   const snap = run({ id: 42688429475, event: 'workflow_run', head_branch: 'main', head_sha: '2a66df33c8854e296b638a3f0d39379280d1afb6', created_at: '2026-11-09T19:58:20Z' });
   const pr = run({ id: 2, event: 'pull_request', head_branch: 'x', created_at: '2026-11-09T19:59:00Z' });
@@ -433,12 +426,10 @@ test('vervolgRun: workflow_run op de SHA van main; een overgeslagen run van een 
   const { ctx, spoor } = nep({ gh: [[/snap\.yml\/runs/, { workflow_runs: [volgendeRelease, pr, snap] }]] });
   assert.equal(vervolgRun(ctx, 'snap.yml', { tag: 'v2026.45.0', releaseRun: release })?.id, 42688429475);
   assert.match(spoor.gh[0], /created=%3E%3D2026-11-09T19%3A30%3A02/);
-  // Poging 1 van de release faalde (vervolgrun 201 overgeslagen), de rerun slaagde (vervolgrun 30 hoort erbij).
   const overgeslagen = run({ id: 201, event: 'workflow_run', head_branch: 'main', created_at: '2026-11-17T04:27:00Z', conclusion: 'skipped' });
   const goed = run({ id: 30, event: 'workflow_run', head_branch: 'main', created_at: '2026-11-17T04:29:37Z' });
   const rerun = nep({ gh: [[/snap\.yml\/runs/, { workflow_runs: [goed, overgeslagen] }]] });
   assert.equal(vervolgRun(rerun.ctx, 'snap.yml', { tag: 'v2026.47.0', releaseRun: run({ run_attempt: 2 }) })?.id, 30);
-  // Vlak na de rerun bestaat run 30 nog niet: dan is er nog geen kandidaat (het script wacht), niet run 201.
   const nogNiet = nep({ gh: [[/snap\.yml\/runs/, { workflow_runs: [overgeslagen] }]] });
   assert.equal(vervolgRun(nogNiet.ctx, 'snap.yml', { tag: 'v2026.47.0', releaseRun: run({ run_attempt: 2 }) }), null);
   const later = run({ id: 3, event: 'workflow_dispatch', head_branch: 'v2026.45.0', created_at: '2026-11-10T08:00:00Z' });
