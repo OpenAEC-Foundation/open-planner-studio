@@ -1,11 +1,11 @@
 # Datums zoals opgeslagen bij crashherstel
 
-Crashherstel hervat een onderbroken sessie; het heropent geen bestand. Daarom beslist bij herstel alleen de bewaarde
+Crashherstel hervat een onderbroken sessie; het heropent geen bestand. Daarom beslist bij herstel de bewaarde
 vlag (`RecoveryManifestDoc.datesAsRecorded`, het argument `restoredMode` van `applyRecordedDatesOnLoad` in
-`src/state/documentActivation.ts`) of het document in "datums zoals opgeslagen" terugkomt, en niet de regel van het
-laadpad. Een terugleesregel ("geen verschoven taken, dus de modus stond aan") geeft valse treffers: een bewerking
-verlaat de modus, maar de herberekening staat dan nog op `setTimeout(0)`, dus een automatische opslag in dat gat
-schrijft de brondatums weg zonder modus.
+`src/state/documentActivation.ts`) en niet de regel van het laadpad, of een beschikbare vastlegging "datums zoals
+opgeslagen" weer actief wordt. Een terugleesregel ("geen verschoven taken, dus de modus stond aan") geeft valse treffers: een bewerking
+verlaat de modus, en zolang de herberekening nog niet gedraaid is, kan een automatische opslag
+de brondatums wegschrijven zonder modus.
 
 ## Gevolgen
 
