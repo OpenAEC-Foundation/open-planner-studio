@@ -1,5 +1,3 @@
-// Knownbug 165: echte productiebuilds, niet de Vite-devserver van de gewone browsersuite.
-// Twee varianten in één route: zonder brug blijft productie afgeschermd; expliciete benchmark-opt-in telt paints.
 import { expect, test } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
@@ -52,7 +50,6 @@ test('productie-benchmark: alleen expliciete brug telt echte primary/secondary/h
           const [taskId] = await seedProject(page, [{
             name: 'Productie-benchmark', start: '2026-09-07', finish: '2026-09-18', durationDays: 10,
           }]);
-          // Alleen fixture-inrichting via de brug; het te meten paintsignaal komt van de echte resize.
           await page.evaluate(() => {
             const store = window.__OPS__!.store.getState();
             store.setSplitView({ ratio: 0.55, secondaryZoom: 36, secondaryScrollX: 0 });

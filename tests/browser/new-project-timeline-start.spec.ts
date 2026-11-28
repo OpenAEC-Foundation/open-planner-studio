@@ -1,8 +1,3 @@
-// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
-// Checkstap 14 (2026-10-15): na Home › Nieuw › Maken toonde de tijdlijn de vroegste feestdag van
-// de kalender in plaats van de projectstart. Hetzelfde gold voor de app-start, een nieuw document en
-// het sluiten van het laatste tabblad. De test leest de positie bij de renderer zelf
-// (`__OPS__.gantt.dateX`, alleen lezen); de geteste handelingen zijn echte klikken en toetsen.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
@@ -12,7 +7,6 @@ import { ORIGIN_PADDING_DAYS } from '@/utils/ganttViewport';
 const EXAMPLE = join(process.cwd(), 'public/examples/03-kantoorgebouw-zuidas.ifc');
 const canvas = (page: Page) => page.getByTestId('gantt-primary-canvas');
 
-/** Canvas-x waar de renderer `isoDate` tekent; 0 = linkerrand van de tijdlijn. */
 const dateX = (page: Page, isoDate: string) => page.evaluate(
   date => window.__OPS__!.gantt.dateX(date),
   isoDate,
@@ -22,9 +16,6 @@ const projectView = (page: Page) => page.evaluate(() => {
   return { startDate: s.project.startDate, zoom: s.view.zoom };
 });
 
-/** De projectstart staat in beeld, met dezelfde marge als een project met taken (14 dagen). Zonder
- *  fix lag de oorsprong op de vroegste feestdag (startjaar − 1) en stond de start honderden dagen
- *  rechts van de linkerrand. */
 async function expectProjectStartAtOrigin(page: Page): Promise<void> {
   const { startDate, zoom } = await projectView(page);
   await expect.poll(() => dateX(page, startDate), {
@@ -44,7 +35,6 @@ async function openExample(page: Page): Promise<void> {
   await expect.poll(() => state(page).then(s => s.view.pendingFit)).toBe(false);
 }
 
-/** Home › Nieuw › (startdatum typen) › Maken. `startDate` als dd-mm-jjjj, zoals de gebruiker typt. */
 async function createEmptyProject(page: Page, startDate?: string): Promise<void> {
   await page.locator('[data-ops-ribbon-item="new"]').click();
   const dialog = page.locator('[data-ops-project-dialog="new"]');
@@ -59,7 +49,6 @@ async function createEmptyProject(page: Page, startDate?: string): Promise<void>
   await expect.poll(() => state(page).then(s => s.tasks.length)).toBe(0);
 }
 
-/** Pan met het echte muiswiel weg van de oorsprong, zodat een herstel-actie iets te doen heeft. */
 async function panAway(page: Page): Promise<void> {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ scrollMode: 'position', positionDivision: 'left-right' }));
   const box = (await canvas(page).boundingBox())!;
@@ -84,7 +73,6 @@ test('nieuw project na een geopend bestand, met eigen startdatum: tijdlijn op de
 });
 
 test('nieuw project zonder ander document: tijdlijn op de projectstart', async ({ page, ops: _ops }) => {
-  // De wizard neemt de app-taal en bouwmodus over, zonder de kalenderregels te veranderen.
   for (const locale of ['en', 'nl']) {
     for (const construction of [true, false]) {
       await page.evaluate(({ locale, construction }) => {
@@ -112,13 +100,11 @@ test('nieuw project zonder ander document: tijdlijn op de projectstart', async (
 
 test('laatste tabblad sluiten en newDocument: het verse document begint bij de projectstart', async ({ page, ops: _ops }) => {
   await openExample(page);
-  // Het voorbeeld hergebruikt het lege tabblad; sluit dat ene tabblad met de echte sluitknop.
   expect((await state(page)).documentIds.length).toBe(1);
   await page.locator('[data-ops-tabstrip] .ops-tab-close').first().click();
   await expect.poll(() => state(page).then(s => s.tasks.length)).toBe(0);
   await expectProjectStartAtOrigin(page);
 
-  // `planner_new_document` (MCP) heeft geen eigen knop; de dev-brug roept dezelfde storeactie aan.
   await openExample(page);
   await page.evaluate(() => window.__OPS__!.store.getState().newDocument());
   await expectProjectStartAtOrigin(page);
@@ -137,7 +123,6 @@ test('lege tijdlijn: Ctrl+0, kale 0 en Ctrl+Home brengen de projectstart terug i
   await page.keyboard.press('0');
   await expectProjectStartAtOrigin(page);
 
-  // Het sneltoetsenoverzicht benoemt de statusdatumvoorrang, niet uitsluitend vandaag (19).
   await page.keyboard.press('Control+/');
   const shortcuts = page.locator('[data-ops-shortcuts-dialog]');
   await expect(shortcuts).toBeVisible();
@@ -145,8 +130,6 @@ test('lege tijdlijn: Ctrl+0, kale 0 en Ctrl+Home brengen de projectstart terug i
   await page.keyboard.press('Escape');
   await expect(shortcuts).toBeHidden();
 
-  // Ctrl+Home springt naar de statusdatum (anders vandaag) met drie dagen marge, in dezelfde
-  // oorsprong als de renderer.
   await page.evaluate(() => window.__OPS__!.store.getState().setProject({ statusDate: '2027-03-10' }));
   await panAway(page);
   await canvas(page).click({ position: { x: 200, y: 200 } });
@@ -173,9 +156,6 @@ test('sjabloon met fasen en latere start: zoom blijft gelijk, fasen in raster en
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: /^(Fasering-template|Phasing template|Template)/i }).first().click();
   await page.getByRole('option', { name: /^(Woningbouw|Residential)/i }).click();
-  // Een latere start dan vandaag: de fasen beginnen op de projectstart en moeten in beeld staan.
-  // De verse view start op vandaag en de klok staat niet vast; daarom ligt de start altijd één jaar
-  // na vandaag. Een vaste datum zou vanaf die dag niets meer bewijzen.
   const later = new Date();
   later.setFullYear(later.getFullYear() + 1, later.getMonth(), 1);
   const pad = (n: number) => String(n).padStart(2, '0');
@@ -188,11 +168,9 @@ test('sjabloon met fasen en latere start: zoom blijft gelijk, fasen in raster en
 
   const after = await state(page);
   expect(after.tasks.length).toBeGreaterThan(0);
-  // #912: de fasenamen volgen de interfacetaal bij aanmaak, niet vast het Nederlands.
   const lang = await page.evaluate(() => document.documentElement.lang);
   expect(after.tasks[0]!.name).toBe(lang === 'nl' ? 'Bouwplaats & grondwerk' : 'Site setup & groundwork');
   expect(after.view.zoom).toBe(30);
-  // Zonder herberekende rijen bleef het raster leeg en tekende de Gantt geen balken.
   expect(after.viewRows.map(row => row.kind === 'task' ? row.taskId : null)).toEqual(after.tasks.map(task => task.id));
   await expect(page.locator(
     `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-data-row="true"][data-grid-row-key="${after.tasks[0]!.id}"]`,

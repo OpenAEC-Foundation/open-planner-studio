@@ -1,5 +1,3 @@
-// Karakterisering vóór viewportextractie. Storeacties zetten uitsluitend de fixturetoestand;
-// wheel-, shortcut-, minimap-, focus- en splitterhandelingen zijn echte browserinteracties.
 import type { Page } from '@playwright/test';
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
 
@@ -55,8 +53,6 @@ test('Gantt viewport: primary wheel volgt drag, modifier en position mode', asyn
   expect(modifierAfter.view.zoom).toBe(modifierBefore.view.zoom);
   expect(modifierAfter.view.scrollX).toBe(modifierBefore.view.scrollX);
 
-  // Na echt wielscrollen blijft de zichtbare balk selecteerbaar. Dit raakt de koppeling tussen
-  // de begrensde tekenlus en de hit-test; een offscreen rij mag de selectie niet overnemen.
   const visibleId = ids[12];
   const visibleBar = await barPoint(page, visibleId);
   expect(visibleBar.y).toBeGreaterThan(bounds.y + 50);
@@ -146,9 +142,6 @@ test('Gantt viewport: Ctrl+0 past de hele projectspan en reset Y', async ({ page
 });
 
 test('Gantt viewport: inzoomen tegen de rechtergrens houdt het punt onder de cursor vast', async ({ page, ops: _ops }) => {
-  // Staat de tijdlijn tegen haar rechtergrens, dan ligt de cursorverankerde scroll van de nieuwe
-  // zoom altijd voorbij de grens van de OUDE zoom. Klemde `setScroll` daar nog tegen (de grens
-  // van de laatste render), dan schoof het beeld bij inzoomen weg van de cursor.
   const inputs = manyTasks('Zoomanker', 30);
   inputs[1] = { name: 'Laat anker', start: '2027-08-02', finish: '2027-08-13', durationDays: 10 };
   const ids = await seedProject(page, inputs);
@@ -160,7 +153,6 @@ test('Gantt viewport: inzoomen tegen de rechtergrens houdt het punt onder de cur
     s.setZoom(6);
   });
   await expect.poll(() => page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'))).toBeGreaterThan(paints);
-  // Naar de rechtergrens (setScroll klemt op de geregistreerde grens van deze zoom).
   await page.evaluate(() => window.__OPS__!.store.getState().setScroll(1e9, 0));
   const bounds = await primaryCanvasBounds(page);
   const anchorX = bounds.width * 0.8;
@@ -171,17 +163,12 @@ test('Gantt viewport: inzoomen tegen de rechtergrens houdt het punt onder de cur
   await page.mouse.wheel(0, -100);
   await expect.poll(() => state(page).then(s => s.view.zoom)).toBeGreaterThan(before.view.zoom);
   const after = await state(page);
-  // Cursorverankerd: de as-dag onder de cursor blijft dezelfde.
   const dayBefore = (before.view.scrollX + anchorX) / before.view.zoom;
   const dayAfter = (after.view.scrollX + anchorX) / after.view.zoom;
   expect(Math.abs(dayAfter - dayBefore)).toBeLessThan(0.5);
 });
 
 test('Gantt viewport: een tijdlijn breder dan de browser toestaat blijft via de scrollbalk tot het einde bereikbaar', async ({ page, ops: _ops }) => {
-  // 20 jaar op kwartierzoom (4000 px/dag): de inhoud is ~35M px, boven de elementgrens van elke
-  // browser. De browser kapte de scrollbalk-spacer daar af (Chromium: 33.554.428 px) en de
-  // scroll-handler schreef de afgekapte scrollLeft terug naar de store: zonder schaling bleef zelfs
-  // een scroll naar het einde ruim een jaar ervóór steken (gemeten: 33.553.816 i.p.v. ~35M px).
   await seedProject(page, [
     { name: 'Begin', start: '2026-01-05', finish: '2026-01-09', durationDays: 5 },
     { name: 'Einde', start: '2045-12-04', finish: '2045-12-08', durationDays: 5 },
@@ -194,20 +181,16 @@ test('Gantt viewport: een tijdlijn breder dan de browser toestaat blijft via de 
   });
   await expect.poll(() => page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'))).toBeGreaterThan(paints);
   await expect.poll(() => state(page).then(s => s.view.zoom)).toBe(4000);
-  // De echte inhoudsgrens: setScroll klemt daarop. Synchroon gelezen, vóór een scroll-event van de
-  // scrollbalk hem kan terugzetten (dat terugspringen was precies de fout, review 2026-09-28).
   const atEnd = await page.evaluate(() => {
     const store = window.__OPS__!.store;
     store.getState().setScroll(1e12, 0);
     return store.getState().view.scrollX;
   });
   expect(atEnd).toBeGreaterThan(34_000_000);
-  // Het einde blijft staan: de scrollbalk mag de positie niet terugduwen.
   await page.waitForTimeout(300);
   expect(Math.abs((await state(page)).view.scrollX - atEnd)).toBeLessThanOrEqual(1);
   await page.evaluate(() => window.__OPS__!.store.getState().setScroll(0, 0));
   await expect.poll(() => state(page).then(s => s.view.scrollX)).toBe(0);
-  // De scrollbalk helemaal naar rechts (wat slepen van de duim tot het einde doet).
   await page.getByTestId('gantt-hscroll').evaluate(el => { el.scrollLeft = el.scrollWidth; });
   await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeGreaterThan(0);
   await expect.poll(() => state(page).then(s => Math.abs(s.view.scrollX - atEnd))).toBeLessThanOrEqual(1);
@@ -300,12 +283,9 @@ test('Gantt viewport: na onthulling vanuit de tabel blijft de tijdlijn vrij scro
   await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeGreaterThan(0);
   const revealedX = (await state(page)).view.scrollX;
 
-  // Escape deselecteert de taak in het raster; het onthulverzoek mag daarna niet blijven hangen.
   await farCell.press('Escape');
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([]);
 
-  // Een echt wielevent scrolt terug naar het begin. Vóór de fix trok het onthuleffect de balk bij
-  // iedere scroll meteen weer in beeld, zodat scrollX nooit onder de onthulwaarde bleef.
   await page.mouse.move(bounds.x + bounds.width * 0.6, bounds.y + bounds.height * 0.6);
   await page.mouse.wheel(0, -400);
   await expect.poll(() => state(page).then(s => s.view.scrollX)).toBeLessThan(revealedX);
@@ -332,8 +312,6 @@ test('Gantt viewport: pijlnavigatie onthult op de werkdag-as de volgende verborg
   const farPoint = await barPoint(page, farId);
   expect(farPoint.x).toBeGreaterThan(bounds.x + bounds.width);
 
-  // De gedeelde DOM-grid bezit selectie en pijlnavigatie; de Gantt-surface onthult de balk bij
-  // iedere gewone verplaatsing van de actieve cel.
   const nearCell = ganttTaskCell(page, nearId);
   await nearCell.click();
   await expect.poll(() => state(page).then(s => s.selectedTaskIds)).toEqual([nearId]);

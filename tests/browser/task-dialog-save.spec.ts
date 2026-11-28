@@ -1,17 +1,3 @@
-// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
-// "Taak bewerken" → Opslaan, met echte events (dubbelklik op de balk, schuif via het toetsenbord,
-// klik op Opslaan, Ctrl+Z). Twee eigenschappen die de dialoog met het eigenschappenpaneel moet delen:
-//
-//   (1) VOORTGANGSREGELS — Opslaan past dezelfde regels toe als de paneelschuif (`setTaskProgress`:
-//       status, werkelijk einde bij 100%, resterende duur). Vóór de fix schreef de dialoog de
-//       voortgangsvelden kaal weg: de status bleef NOT_STARTED/STARTED en een eerder (via het paneel)
-//       gezette resterende duur bleef staan, zodat de taak in de planning te laat eindigde.
-//   (2) ÉÉN UNDO-STAP — één keer Opslaan is één handeling. Vóór de fix gaf een gewijzigde ouder of
-//       een voor het eerst gebruikt persoonlijk taaktype 2–3 undo-stappen, en draaide één Ctrl+Z maar
-//       een deel terug.
-//
-// De brug zet alleen fixtures (taken, statusdatum, eerdere voortgang = de paneelactie) en leest state;
-// herberekenen gaat via `runCPM` omdat dat niet de geteste handeling is.
 import type { Page } from '@playwright/test';
 import { barPoint, expect, state, test } from './fixtures/ops';
 
@@ -27,7 +13,6 @@ interface TaskView {
   earlyFinish: string | null;
 }
 
-/** Niet-handmatige taken van 10 werkdagen vanaf maandag 2 maart 2026, statusdatum vrijdag 6 maart. */
 async function seedTenDayTasks(page: Page, names: string[]): Promise<string[]> {
   const ids = await page.evaluate((taskNames) => {
     const s = window.__OPS__!.store.getState();
@@ -43,7 +28,6 @@ async function seedTenDayTasks(page: Page, names: string[]): Promise<string[]> {
     });
     const after = window.__OPS__!.store.getState();
     after.runCPM();
-    // Balken van 2 t/m 20 maart ruim in beeld, ook met het eigenschappenpaneel open.
     after.setViewStartDate('2026-03-02');
     after.setZoom(18);
     after.setScroll(0, 0);
@@ -70,7 +54,6 @@ function readTask(page: Page, taskId: string): Promise<TaskView> {
   }, taskId);
 }
 
-/** Alleen de voortgangs- en datumvelden (naam/ouder/type verschillen tussen de vergeleken taken). */
 async function progressOf(page: Page, taskId: string) {
   const { completion, status, remainingTime, actualStart, actualFinish, earlyFinish } = await readTask(page, taskId);
   return { completion, status, remainingTime, actualStart, actualFinish, earlyFinish };
@@ -80,19 +63,15 @@ async function recalculate(page: Page): Promise<void> {
   await page.evaluate(() => window.__OPS__!.store.getState().runCPM());
 }
 
-/** Dubbelklik op de Gantt-balk opent "Taak bewerken". */
 async function openDialogByDoubleClick(page: Page, taskId: string) {
   const point = await barPoint(page, taskId);
   await page.mouse.dblclick(point.x, point.y);
   const dialog = page.locator('[data-ops-task-dialog]');
   await expect(dialog).toBeVisible();
-  // Controleer de beginfocus voordat de gebruiker hem naar de schuif verplaatst.
-  // De focus-trap kiest het naamveld met de volledige, geïnitialiseerde naam geselecteerd.
   await expect(dialog.locator('[data-ops-task-name]')).toBeFocused();
   return dialog;
 }
 
-/** Schuif met het toetsenbord: `steps` keer → (1% per stap) of `End` voor 100%. */
 async function pressSlider(page: Page, slider: ReturnType<Page['locator']>, keys: { right?: number; end?: boolean }) {
   await slider.focus();
   if (keys.end) await page.keyboard.press('End');
@@ -101,7 +80,6 @@ async function pressSlider(page: Page, slider: ReturnType<Page['locator']>, keys
 
 test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschappenpaneel', async ({ page, ops: _ops }) => {
   const [panelId, dialogId] = await seedTenDayTasks(page, ['Metselwerk paneel', 'Metselwerk dialoog']);
-  // Week 1: beide taken kregen 20% via het paneel (fixture = de paneelactie zelf), daarna week 2.
   await page.evaluate((ids) => {
     const s = window.__OPS__!.store.getState();
     for (const id of ids) s.setTaskProgress(id, 0.2);
@@ -111,7 +89,6 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
   }, [panelId, dialogId]);
   expect((await readTask(page, dialogId)).remainingTime).toBe(8);
 
-  // Referentie: paneelschuif naar 60% (klik op de balk selecteert de taak in het paneel).
   const panelPoint = await barPoint(page, panelId);
   await page.mouse.click(panelPoint.x, panelPoint.y);
   const panelSlider = page.locator('[data-ops-progress-slider]').first();
@@ -119,7 +96,6 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
   await pressSlider(page, panelSlider, { right: 40 });
   await expect.poll(() => readTask(page, panelId).then(task => task.completion)).toBe(0.6);
 
-  // Dialoog: dubbelklik, schuif naar 60%, Opslaan.
   let dialog = await openDialogByDoubleClick(page, dialogId);
   await pressSlider(page, dialog.locator('[data-ops-progress-slider]'), { right: 40 });
   await dialog.locator('[data-ops-task-save]').click();
@@ -130,7 +106,6 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
   expect(panelAt60).toMatchObject({ completion: 0.6, status: 'STARTED', remainingTime: 4 });
   expect(await progressOf(page, dialogId)).toEqual(panelAt60);
 
-  // 100%: paneel en dialoog weer naast elkaar.
   await page.mouse.click(panelPoint.x, panelPoint.y);
   await pressSlider(page, page.locator('[data-ops-progress-slider]').first(), { end: true });
   await expect.poll(() => readTask(page, panelId).then(task => task.completion)).toBe(1);
@@ -144,7 +119,6 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
   expect(panelAt100).toMatchObject({ completion: 1, status: 'COMPLETED', actualFinish: "2026-03-13T16:00", remainingTime: 0 });
   expect(await progressOf(page, dialogId)).toEqual(panelAt100);
 
-  // F1: een datumloos werkelijk einde op de statusdag krijgt het blokeinde of het statusmoment.
   for (const [statusDate, finish] of [
     ['2026-03-13', '2026-03-13T16:00'],
     ['2026-03-13T12:00', '2026-03-13T12:00'],
@@ -174,7 +148,6 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
     await recalculate(page);
     expect((await readTask(page, dialogId)).earlyFinish).toBe(finish);
   }
-  // Bij 100% geldt het geplande einde, met de vastgelegde start als ondergrens.
   for (const actualStart of ['2026-06-03T10:00', '2026-06-03T18:00']) {
     await page.evaluate(({ ids, actualStart }) => {
       const s = window.__OPS__!.store.getState();
@@ -196,7 +169,6 @@ test('Taak bewerken: voortgang opslaan volgt dezelfde regels als het eigenschapp
     if (!plannedFinish) throw new Error('De taak heeft geen gepland einde');
     expect((await readTask(page, dialogId)).earlyFinish).toBe(plannedFinish);
     const actualFinish = plannedFinish > actualStart ? plannedFinish : actualStart;
-    // Na de fixturewissel kan de vorige balkgeometrie nog staan; de rasterrij heeft een vaste plek.
     await page.locator(`[data-grid-row-key="${panelId}"] [data-grid-column-id="task.name"]`).first().click();
     await pressSlider(page, page.locator('[data-ops-progress-slider]').first(), { end: true });
     await expect.poll(() => readTask(page, panelId).then(t => t.completion)).toBe(1);
@@ -225,7 +197,6 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
   await dialog.locator('[data-ops-task-save]').click();
   await expect(dialog).toBeHidden();
   expect(await readTask(page, taskId)).toMatchObject({
-    // #998: de taak was naar 6 maart geschoven. Het percentage legt haar geplande begin op 2 maart vast.
     completion: 0.4, status: 'STARTED', actualStart: "2026-03-02T07:00", actualFinish: null, remainingTime: 6,
   });
 
@@ -237,7 +208,6 @@ test('Taak bewerken: voortgang alleen via de dialoog zet de status (gestart, vol
     completion: 1, status: 'COMPLETED', actualStart: "2026-03-02T07:00", actualFinish: "2026-03-06T16:00", remainingTime: 0,
   });
 
-  // Het al in de dialoog afgeleide einde moet de daarna getypte duur volgen.
   await page.evaluate(id => {
     const store = window.__OPS__!.store.getState();
     const task = store.tasks.find(candidate => candidate.id === id)!;
@@ -376,7 +346,6 @@ test('#998 Taak bewerken: voortgang toetst de actuele toegewezen duur', async ({
   await question.locator('[data-ops-actual-start-confirm]').click();
   await expect(slider).toHaveValue('1');
 
-  // Een tweede wijziging via de toewijzing blijft ook na de voortgang van kracht bij Opslaan.
   await work.fill('16');
   await work.press('Tab');
   await expect.poll(() => planning().then(value => value.duration)).toBe(2);
@@ -387,21 +356,15 @@ test('#998 Taak bewerken: voortgang toetst de actuele toegewezen duur', async ({
 });
 
 test('Taak bewerken: één keer Opslaan (naam, ouder, nieuw taaktype, voortgang) is één Ctrl+Z', async ({ page, ops: _ops }) => {
-  // Kiest de dialoogdraft een persoonlijk type dat nog niet in het project staat, dan mag de
-  // taaktypekiezer dat type maar één keer tonen (de fixture faalt op elke consolefout, dus ook op
-  // React's waarschuwing over dubbele keys).
   const [phaseId, taskId] = await seedTenDayTasks(page, ['Fase', 'Taak']);
   const before = await readTask(page, taskId);
 
   const dialog = await openDialogByDoubleClick(page, taskId);
-  // Het naamveld heeft bij openen focus met alles geselecteerd.
   await page.keyboard.type('Taak (hernoemd)');
 
-  // Bovenliggende taak.
   await dialog.getByRole('button', { name: /^(Parent task|Bovenliggende taak)$/ }).click();
   await page.getByRole('option', { name: /Fase/ }).click();
 
-  // Een persoonlijk taaktype dat nog niet in het project staat (materialiseert pas bij Opslaan).
   const typeSelector = dialog.locator('[data-ops-task-type]');
   await typeSelector.getByRole('button').click();
   const typeOptions = page.getByRole('listbox').getByRole('option');

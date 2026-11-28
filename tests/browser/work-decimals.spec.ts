@@ -2,17 +2,9 @@ import type { Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 import { chooseLocale, LOCALE_CASES } from './fixtures/locale';
 
-// Alleen de tabel; het taakpaneel › Toewijzingen hoort bij PR #369.
-// Releasecheck (Roads_Project_TEC.xer, taal nl): de werkkolommen toonden "Draughtman: 617.14" en de
-// inzet "1.71428571428571" naast een duur "146,9d". Nu: de getalnotatie van de taal, hoogstens twee
-// decimalen. En bevestigen zonder wijziging schrijft niets: de exacte opgeslagen minuten en inzet
-// blijven, geen ongedaan-stap en geen `scheduleStale`.
-// De brug zet alleen de fixture (taak, resource, toewijzing met exacte P6-achtige waarden, kolommen)
-// en leest de store. Taalkeuze, cellen openen, typen, Enter en Tab zijn echte events.
-
 const UNITS = 1.71428571428571;
-const WORK = 37028.57; // 617,1428 u
-const ACTUAL = 1600; // 26,666 u
+const WORK = 37028.57;
+const ACTUAL = 1600;
 
 async function seed(page: Page): Promise<string> {
   const [taskId] = await seedProject(page, [
@@ -69,14 +61,12 @@ for (const locale of LOCALE_CASES.filter(l => l.code === 'nl' || l.code === 'en'
     const initial = await storeState(page, taskId);
     expect(initial).toMatchObject({ units: UNITS, planned: WORK, actual: ACTUAL, remaining: WORK });
 
-    // ── Tabel ──
     await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
     await expect(cell(page, taskId, 'assignment.unitsPerDay')).toHaveText(`Draughtman: ${dec('1.71')}`);
     await expect(cell(page, taskId, 'assignment.plannedWork')).toHaveText(`Draughtman: ${dec('617.14')}`);
     await expect(cell(page, taskId, 'assignment.actualWork')).toHaveText(`Draughtman: ${dec('26.67')}`);
     await expect(cell(page, taskId, 'assignment.remainingWork')).toHaveText(`Draughtman: ${dec('617.14')}`);
 
-    // Cel openen (Enter) en bevestigen (Enter) zonder wijziging: inzet en resterend werk.
     for (const [column, kind, shown] of [
       ['assignment.unitsPerDay', 'units', dec('1.71')],
       ['assignment.remainingWork', 'work', dec('617.14')],
@@ -90,7 +80,6 @@ for (const locale of LOCALE_CASES.filter(l => l.code === 'nl' || l.code === 'en'
       expect(await storeState(page, taskId)).toEqual(initial);
     }
 
-    // Een echte wijziging in de notatie van de taal schrijft wél: één ongedaan-stap.
     await cell(page, taskId, 'assignment.unitsPerDay').click();
     await page.keyboard.press('Enter');
     const unitsCellInput = page.locator('[data-task-editor-kind="assignment-tokens"] input[data-assignment-number="units"]');

@@ -38,7 +38,6 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   }, taskId);
   expect(created.personal).toHaveLength(1);
   expect(created.personal[0].name).toBe('Engineering');
-  // Eén keer een kleur (#856); die blijft bij hernoemen, ook in de projectkopie.
   expect(created.personal[0].color).toMatch(/^#[0-9A-F]{6}$/i);
   expect(created.catalog).toEqual(created.personal);
   expect(created.task?.taskType).toBe('USERDEFINED');
@@ -68,7 +67,6 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   await manager.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
   await expect(manager).toContainText('Werkvoorbereiding');
 
-  // Het type staat ook in dit project (#804 keuze 7): de app vraagt of de naam daar mee moet.
   const question = page.locator('[data-ops-rename-project-task-type]');
   await expect(question).toBeVisible();
   await expect(question).toContainText('Engineering');
@@ -77,7 +75,6 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   await expect(question).toBeHidden();
   await expect(manager).toBeVisible();
 
-  // Alleen in mijn lijst: de projectkopie en de bestaande toekenning houden hun naam.
   const names = () => page.evaluate(() => ({
     personal: JSON.parse(localStorage.getItem('ops-personalTaskTypes') ?? '[]'),
     project: window.__OPS__!.store.getState().customTaskTypes,
@@ -87,7 +84,6 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
     project: [{ id: created.personal[0].id, name: 'Engineering', color: created.personal[0].color }],
   });
 
-  // Nogmaals opslaan met dezelfde naam vraagt het opnieuw, want het project heet nog anders.
   await editButton.click();
   await manager.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
   await expect(question).toBeVisible();
@@ -102,7 +98,6 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   await expect(manager).toBeHidden();
   await expect(select.getByRole('button')).toContainText('Werkvoorbereiding');
 
-  // Ctrl+Z zet de naam in het project terug; de persoonlijke naam blijft.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('Control+z');
   await expect.poll(async () => (await names()).project).toEqual([{ id: created.personal[0].id, name: 'Engineering', color: created.personal[0].color }]);
@@ -129,16 +124,13 @@ test('persoonlijk taaktype: Properties maakt, groepeert, hernoemt, verwijdert en
   expect(await page.evaluate(() => JSON.parse(localStorage.getItem('ops-personalTaskTypes') ?? '[]')))
     .toEqual(created.catalog);
 
-  // Een werksoort die geen taak gebruikt (eigenaarsbesluit 18 november 2026): hernoemen geeft geen vraag en
-  // de projectkopie krijgt de nieuwe naam stil, zonder dat het document gewijzigd raakt. Daarna tonen het
-  // eigenschappenpaneel en de keuzes van de kolom Eigen werksoort de nieuwe naam (knownbug 1829).
   await manager.getByRole('button', { name: /^(Close|Sluiten)$/ }).click();
   await expect(manager).toBeHidden();
   await select.getByRole('button').click();
   await page.getByRole('option', { name: /^(Construction|Bouw)$/ }).click();
   expect(await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(task => task.id === id)?.customTaskTypeId, taskId))
     .toBeUndefined();
-  await page.evaluate(() => window.__OPS__!.store.setState({ isDirty: false })); // zoals na opslaan
+  await page.evaluate(() => window.__OPS__!.store.setState({ isDirty: false }));
   const historyLength = await page.evaluate(() => window.__OPS__!.store.getState().historyEvents.length);
   await select.getByRole('button').click();
   await page.getByRole('option', { name: /^(Manage work categories|Werksoorten beheren)/ }).click();
@@ -197,8 +189,6 @@ test('Taaktypekiezer: een geïmporteerd projecttype blijft kiesbaar zonder perso
   expect(await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(task => task.id === id)?.customTaskTypeId, taskId))
     .toBe('imported-permit');
 
-  // Een eigen type hernoemen naar de naam van dat geïmporteerde type: in de eigen lijst mag het, in
-  // het project niet (#804 keuze 7). De projectnaam blijft en een melding zegt waarom.
   await createFromCurrentSelector(page, 'Permit check');
   await selector.getByRole('button').click();
   await page.getByRole('option', { name: /^(Manage work categories|Werksoorten beheren)/ }).click();
@@ -213,8 +203,6 @@ test('Taaktypekiezer: een geïmporteerd projecttype blijft kiesbaar zonder perso
   expect(await page.evaluate(() => window.__OPS__!.store.getState().customTaskTypes.map(type => type.name)))
     .toEqual(['Imported permit', 'Permit check']);
 
-  // De vraag hoort bij het document waarin ze gesteld is (fixronde 1 van #999): wisselt het actieve document
-  // terwijl ze openstaat, ook naar een document met een geselecteerde taak (het paneel blijft staan), dan vervalt ze.
   await manager.getByRole('button', { name: /^(Edit|Bewerken)$/ }).click();
   await manager.getByRole('textbox').fill('Permit check 2');
   await manager.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
@@ -283,9 +271,6 @@ test('Taak bewerken: aanmaken blijft app-breed na Annuleren maar materialiseert 
     catalog: beforeCancel.personal,
   });
 
-  // Hernoemen vanuit Taak bewerken (fixronde 1 van #999): de hernoeming in het project is een eigen stap ná
-  // de taakbewerking. Annuleren draait alleen de taakbewerking terug; na Opslaan zet één Ctrl+Z alleen de
-  // naam van de werksoort terug en een tweede de taakbewerking.
   const permitId = beforeCancel.personal[0].id;
   const stateNow = () => page.evaluate(({ id, task }) => {
     const state = window.__OPS__!.store.getState();

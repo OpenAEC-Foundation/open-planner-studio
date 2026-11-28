@@ -1,15 +1,3 @@
-// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
-// W2-vervolg (besluit eigenaar "zoals MS Project"): een getypte startdatum op een taak MET
-// voorganger wordt een beperking "Start niet eerder dan" (SNET), met een melding. Vóór de fix schreef
-// elke route alleen het anker `scheduleStart`; de solver leest dat alleen voor een taak zónder
-// voorganger, dus na F5 sprong de taak stil terug achter haar voorganger.
-//
-// Vier routes, elk met echte events: de Tabel-kolom Start (klik, Enter, typen, Enter), het
-// eigenschappenpaneel (datumsegmenten typen, Enter), Taak bewerken (typen, Opslaan) en de Gantt-balk
-// (muis: body verschuiven of linkerrand slepen). Herberekenen is F5, ongedaan maken Ctrl+Z. Heeft de
-// taak een andere constraint (MSO, FNLT, …), dan heeft een nieuwe start geen effect: niets
-// toepassen, constraint laten staan, melden (besluit eigenaar). De `__OPS__`-brug zet alleen de
-// fixture (A → B, eventueel een constraint) en leest state.
 import type { Locator, Page } from '@playwright/test';
 import { barPoint, expect, state, test } from './fixtures/ops';
 
@@ -21,7 +9,6 @@ function taskCell(page: Page, taskId: string, columnId: string): Locator {
   );
 }
 
-/** A (5 werkdagen) → B (3 werkdagen), FS, projectstart ma 01-06-2026: B begint na F5 op 08-06. */
 async function seedChain(page: Page): Promise<{ a: string; b: string }> {
   return page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
@@ -50,10 +37,8 @@ async function taskState(page: Page, id: string) {
 }
 
 const toast = (page: Page) => page.locator('.ops-toast[role="status"]');
-/** Een geweigerde start is een weigering: rood en blijvend (eigenaarsbesluit 2026-10-17). */
 const refusal = (page: Page) => page.locator('.ops-toast.toast-error[role="alert"]');
 
-/** Typ een datum in een gesegmenteerd datumveld zoals een gebruiker: klik in het dag-vakje, cijfers. */
 async function typeDate(group: Locator, digits: string): Promise<void> {
   await group.locator('input').first().click();
   await group.page().keyboard.type(digits);
@@ -86,8 +71,6 @@ test('Tabel: Start typen op een taak met voorganger wordt SNET, F5 toont de datu
   await expect.poll(async () => (await taskState(page, b)).start).toBe("2026-06-15T07:00");
   await expect(cell).toHaveText('15-06-2026');
 
-  // Ongedaan maken: eerst de herberekening telt niet mee (runCPM is geen undo-stap), dan in één stap
-  // de start én de beperking.
   await cell.click();
   await page.keyboard.press('Control+z');
   await expect.poll(() => taskState(page, b)).toMatchObject({ constraint: null, anchor: "2026-06-01T07:00" });
@@ -95,7 +78,6 @@ test('Tabel: Start typen op een taak met voorganger wordt SNET, F5 toont de datu
 
 test('eigenschappenpaneel: Start typen op een taak met voorganger wordt SNET in één undo-stap', async ({ page, ops: _ops }) => {
   const { b } = await seedChain(page);
-  // Fixture: de taak selecteren zodat het paneel haar toont.
   await page.evaluate(id => window.__OPS__!.store.getState().selectTask(id), b);
   const startField = page.locator('[data-ops-rail]').getByRole('group', { name: /^Start$/ });
   await expect(startField.locator('input').first()).toHaveValue('08');
@@ -110,11 +92,9 @@ test('eigenschappenpaneel: Start typen op een taak met voorganger wordt SNET in 
   });
   await expect(toast(page)).toContainText('SNET');
   expect((await state(page)).undoDepth).toBe(undoBefore + 1);
-  // Het paneel toont de beperking meteen in de sectie Constraint.
   await expect(page.locator('[data-ops-rail]').getByRole('group', { name: /^(Constraint date|Constraint-datum)$/ })
     .locator('input').first()).toHaveValue('15');
 
-  // Het veld verlaten committeert niets nieuws: geen tweede, lege undo-stap.
   await page.keyboard.press('Tab');
   expect((await state(page)).undoDepth).toBe(undoBefore + 1);
 
@@ -124,7 +104,6 @@ test('eigenschappenpaneel: Start typen op een taak met voorganger wordt SNET in 
 
 test('Taak bewerken: Startdatum typen op een taak met voorganger wordt SNET bij Opslaan', async ({ page, ops: _ops }) => {
   const { b } = await seedChain(page);
-  // Fixture: de dialoog openen zoals het contextmenu/F2 dat doet.
   await page.evaluate(id => window.__OPS__!.store.getState().setUI({ showTaskDialog: true, editingTaskId: id }), b);
   const dialog = page.locator('[data-ops-task-dialog]');
   const startField = dialog.getByRole('group', { name: /^(Start date|Startdatum)$/ });
@@ -154,7 +133,6 @@ test('Taak bewerken: een in dezelfde dialoog gekozen constraint wint van de gety
   const startField = dialog.getByRole('group', { name: /^(Start date|Startdatum)$/ });
   await typeDate(startField, '15062026');
   await page.keyboard.press('Tab');
-  // De primaire constraintkeuze: de eigen keuzelijst openklikken en MSO aanklikken.
   await dialog.getByRole('button', { name: /^(Constraint|Beperking)$/ }).click();
   await page.locator('.ops-select__menu [role="option"][data-value="MSO"]').click();
   await dialog.locator('[data-ops-task-save]').click();
@@ -166,8 +144,6 @@ test('Taak bewerken: een in dezelfde dialoog gekozen constraint wint van de gety
   await expect(toast(page)).toHaveCount(0);
 });
 
-/** Fixture voor de Gantt-sleep: de rechterrail dicht zodat de balken vrij liggen, optioneel een
- *  constraint op B. */
 async function seedChainForDrag(
   page: Page,
   constraint?: { type: 'MSO'; date: string },
@@ -182,7 +158,6 @@ async function seedChainForDrag(
   return ids;
 }
 
-/** Een echte muissleep op de balk: `days` getoonde dagen naar rechts (negatief: links). */
 async function dragBar(page: Page, taskId: string, edge: 'body' | 'left' | 'right', days: number): Promise<void> {
   const zoom = await page.evaluate(() => window.__OPS__!.store.getState().view.zoom);
   const point = await barPoint(page, taskId, edge);
@@ -222,7 +197,6 @@ test('Gantt: linkerrand slepen wordt SNET op de nieuwe start; vóór de voorgang
   await page.keyboard.press('F5');
   await expect.poll(async () => (await taskState(page, b)).start).toBe("2026-06-09T07:00");
 
-  // Vijf dagen vóór wat de voorganger toelaat: de SNET komt er, maar na F5 wint de voorganger.
   await dragBar(page, b, 'body', -6);
   await expect.poll(async () => (await taskState(page, b)).constraint).toEqual({ type: 'SNET', date: "2026-06-03T07:00" });
   await page.keyboard.press('F5');

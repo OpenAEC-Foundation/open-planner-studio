@@ -1,5 +1,3 @@
-// Observer-only rendererkarakterisering vóór hostextractie. `paintCount`/`lastSize` starten geen
-// paint; elke trigger hieronder komt van een echte mount, resize of instellingenhandeling.
 import type { Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -14,9 +12,6 @@ test('Gantt lifecycle: rendererconstructors hebben uitsluitend de rendererhost a
     'utf8',
   );
 
-  // Vóór de extractie stonden hier aantoonbaar twee Gantt- en één histogramconstructor. Deze
-  // negatieve poort blijft daarna bewaken dat de React-shell niet opnieuw rendererlevenscyclus
-  // aantrekt en dat de host voor beide Gantt-panes één gedeelde constructieroute gebruikt.
   expect(shell.match(/new GanttRenderer\(/g) ?? []).toHaveLength(0);
   expect(shell.match(/new HistogramRenderer\(/g) ?? []).toHaveLength(0);
   expect(host.match(/new GanttRenderer\(/g) ?? []).toHaveLength(1);

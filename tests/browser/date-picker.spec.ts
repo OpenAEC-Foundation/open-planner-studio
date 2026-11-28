@@ -3,21 +3,14 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, state, test } from './fixtures/ops';
 import { chooseLocale, LOCALE_CASES } from './fixtures/locale';
 
-// De eigen datumkiezer bij het gedeelde datumveld (#904, besluit 2026-11-14: zelf gemaakt, geen native
-// kiezer). Het raster, de toetsen en de teksten zelf liggen headless vast in
-// tests/planning/check-date-picker-month.ts; hier alleen wat een echte browser laat zien: klikken, focus,
-// toetsen die niet naar de dialoog of de app lekken, en de koppeling tussen kiezer, veld en store.
-
 const picker = (page: Page) => page.locator('[data-ops-date-picker]');
 const day = (page: Page, iso: string) => picker(page).locator(`button[data-iso="${iso}"]`);
 const title = (page: Page) => picker(page).locator('[data-ops-date-picker-title]');
 const focusedIso = (page: Page) => page.evaluate(() => document.activeElement?.getAttribute('data-iso') ?? null);
 const segments = (field: Locator) => field.getByRole('textbox');
-/** Staat de focus in een vakje van dit veld? */
 const focusInField = (field: Locator) => field.evaluate(el => el.contains(document.activeElement)
   && document.activeElement?.tagName === 'INPUT');
 
-/** De datum van de deadline (de store zet hem op het einde van de werkdag, bv. `T16:00`). */
 const deadlineOf = (page: Page, id: string) => page.evaluate(
   taskId => window.__OPS__!.store.getState().tasks.find(t => t.id === taskId)!.deadline?.slice(0, 10) ?? null, id,
 );
@@ -25,7 +18,6 @@ const deadlineOf = (page: Page, id: string) => page.evaluate(
 test('datumkiezer in het eigenschappenpaneel: klikken, toetsen, typen, notatie en taal', async ({ page, ops: _ops }) => {
   await chooseLocale(page, LOCALE_CASES.find(l => l.code === 'nl')!);
   const [taskId] = await seedProject(page, [{ name: 'Metselwerk', start: '2026-11-09', finish: '2026-11-13' }]);
-  // Fixture: een bestaande deadline, zodat de kiezer op een vaste maand opent (niet op vandaag).
   await page.evaluate(id => window.__OPS__!.store.getState().updateTask(id, { deadline: '2026-11-18' }), taskId);
   await page.locator(`[data-grid-row-key="${taskId}"] [data-grid-column-id="task.name"]`).first().click();
 
@@ -33,10 +25,8 @@ test('datumkiezer in het eigenschappenpaneel: klikken, toetsen, typen, notatie e
   const field = wrapper.getByRole('group', { name: 'Deadline' });
   const button = wrapper.locator('[data-ops-date-picker-button]');
   await expect(segments(field)).toHaveCount(3);
-  // Typen blijft zoals het was: de knop is geen extra tabstop en geen tekstvak.
   await expect(button).toHaveAttribute('tabindex', '-1');
 
-  // ── Klikken: de kiezer opent op de deadline, in het Nederlands, met maandag als eerste dag.
   const depth = (await state(page)).undoDepth;
   await button.click();
   await expect(picker(page)).toBeVisible();
@@ -46,7 +36,6 @@ test('datumkiezer in het eigenschappenpaneel: klikken, toetsen, typen, notatie e
   await expect.poll(() => focusedIso(page)).toBe('2026-11-18');
   await expect(day(page, '2026-11-18')).toHaveAttribute('aria-label', 'woensdag 18 november 2026');
   await expect(day(page, '2026-11-18').locator('xpath=..')).toHaveAttribute('aria-selected', 'true');
-  // Bladeren met de pijlknop houdt het paneel open en de focus op die knop.
   await picker(page).locator('[data-ops-date-picker-nav="next"]').click();
   await expect(title(page)).toHaveText('december 2026');
   await picker(page).locator('[data-ops-date-picker-nav="previous"]').click();
@@ -55,13 +44,9 @@ test('datumkiezer in het eigenschappenpaneel: klikken, toetsen, typen, notatie e
   await expect(picker(page)).toHaveCount(0);
   await expect.poll(() => deadlineOf(page, taskId)).toBe('2026-11-25');
   await expect(segments(field).nth(0)).toHaveValue('25');
-  // Een keuze is één handeling: één undo-stap, en de focus staat terug in het veld. (Volgende wijzigingen
-  // van hetzelfde veld voegt het paneel bewust samen tot die ene stap, zie `TaskPropertiesPanel`.)
   expect((await state(page)).undoDepth).toBe(depth + 1);
   await expect.poll(() => focusInField(field)).toBe(true);
 
-  // ── Toetsenbord: Alt+Pijl-omlaag opent vanuit het veld, de pijlen, PageUp/PageDown en Home verplaatsen,
-  // Enter kiest. Geen toets lekt naar de app (de taak blijft geselecteerd, er komt geen extra undo-stap).
   await page.keyboard.press('Alt+ArrowDown');
   await expect.poll(() => focusedIso(page)).toBe('2026-11-25');
   await page.keyboard.press('ArrowRight');
@@ -75,7 +60,6 @@ test('datumkiezer in het eigenschappenpaneel: klikken, toetsen, typen, notatie e
   await expect.poll(() => focusedIso(page)).toBe('2027-11-03');
   await page.keyboard.press('Home');
   await expect.poll(() => focusedIso(page)).toBe('2027-11-01');
-  // Tab blijft in het paneel.
   for (let i = 0; i < 4; i++) {
     await page.keyboard.press('Tab');
     expect(await picker(page).evaluate(el => el.contains(document.activeElement))).toBe(true);
@@ -87,7 +71,6 @@ test('datumkiezer in het eigenschappenpaneel: klikken, toetsen, typen, notatie e
   await expect.poll(() => focusInField(field)).toBe(true);
   expect((await state(page)).selectedTaskIds).toEqual([taskId]);
 
-  // ── Escape sluit zonder keuze en zet de focus terug in het veld; de taak blijft geselecteerd.
   await page.keyboard.press('Alt+ArrowDown');
   await page.keyboard.press('ArrowRight');
   await page.keyboard.press('Escape');
@@ -96,19 +79,14 @@ test('datumkiezer in het eigenschappenpaneel: klikken, toetsen, typen, notatie e
   expect(await deadlineOf(page, taskId)).toBe('2027-11-01');
   expect((await state(page)).selectedTaskIds).toEqual([taskId]);
 
-  // ── Een getypte, nog niet afgeronde datum: de kiezer opent op die datum.
   await segments(field).nth(0).fill('15');
   await page.keyboard.press('Alt+ArrowDown');
   await expect.poll(() => focusedIso(page)).toBe('2027-11-15');
-  // Een klik ernaast sluit de kiezer en rondt het veld af zoals elke andere klik ernaast.
-  // (de statusbalk onderaan: tekst zonder eigen bediening)
   const viewport = page.viewportSize()!;
   await page.mouse.click(viewport.width / 2, viewport.height - 6);
   await expect(picker(page)).toHaveCount(0);
   await expect.poll(() => deadlineOf(page, taskId)).toBe('2027-11-15');
 
-  // ── Opslaan en herberekenen vanuit de open kiezer ronden eerst de getypte datum af (review #940):
-  // het bestand bevat de datum die het veld toont, en F5 herlaadt de pagina niet.
   await segments(field).nth(0).fill('20');
   await page.keyboard.press('Alt+ArrowDown');
   await expect.poll(() => focusedIso(page)).toBe('2027-11-20');
@@ -127,7 +105,6 @@ test('datumkiezer in het eigenschappenpaneel: klikken, toetsen, typen, notatie e
   await expect.poll(() => deadlineOf(page, taskId)).toBe('2027-11-22');
   expect(await page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
 
-  // ── Notatie en eerste weekdag uit de instellingen, taal Engels.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ dateNotation: 'mdy', weekStartDay: 'sunday' }));
   await chooseLocale(page, LOCALE_CASES.find(l => l.code === 'en')!);
   await page.locator(`[data-grid-row-key="${taskId}"] [data-grid-column-id="task.name"]`).first().click();
@@ -137,12 +114,10 @@ test('datumkiezer in het eigenschappenpaneel: klikken, toetsen, typen, notatie e
   await expect(day(page, '2027-11-15')).toHaveAttribute('aria-label', 'Monday, November 15, 2027');
   await day(page, '2027-11-10').click();
   await expect.poll(() => deadlineOf(page, taskId)).toBe('2027-11-10');
-  // In m-d-j-volgorde: maand, dag, jaar.
   await expect(segments(field).nth(0)).toHaveValue('11');
   await expect(segments(field).nth(1)).toHaveValue('10');
   await expect(segments(field).nth(2)).toHaveValue('2027');
 
-  // ── Rechts naar links: het raster staat gespiegeld, dus pijl links is de volgende dag.
   await chooseLocale(page, LOCALE_CASES.find(l => l.code === 'ar')!);
   await page.locator(`[data-grid-row-key="${taskId}"] [data-grid-column-id="task.name"]`).first().click();
   await button.click();
@@ -164,7 +139,6 @@ test('datumkiezer in een dialoog: Escape, Enter en klikken blijven bij de kiezer
   const field = dialog.getByRole('group', { name: /^(New project start|Nieuwe projectstart)$/ });
   const button = dialog.locator('[data-ops-date-picker-button]');
 
-  // Escape sluit alleen de kiezer, niet de dialoog.
   await button.click();
   await expect.poll(() => focusedIso(page)).toBe('2026-09-07');
   await page.keyboard.press('Escape');
@@ -172,7 +146,6 @@ test('datumkiezer in een dialoog: Escape, Enter en klikken blijven bij de kiezer
   await expect(dialog).toBeVisible();
   await expect.poll(() => focusInField(field)).toBe(true);
 
-  // Enter op een dag kiest die dag en bevestigt de dialoog niet.
   await page.keyboard.press('Alt+ArrowDown');
   await page.keyboard.press('PageDown');
   await page.keyboard.press('Enter');
@@ -181,14 +154,11 @@ test('datumkiezer in een dialoog: Escape, Enter en klikken blijven bij de kiezer
   await expect(segments(field).nth(0)).toHaveValue('07');
   await expect(segments(field).nth(1)).toHaveValue('10');
 
-  // Een klik op een dag sluit de dialoog niet (de kiezer hangt buiten het dialoogpaneel).
   await button.click();
   await day(page, '2026-10-05').click();
   await expect(dialog).toBeVisible();
   await expect(segments(field).nth(0)).toHaveValue('05');
 
-  // Een ongeldige getypte datum blokkeert berekenen en toepassen, ook met een eerder berekend voorbeeld
-  // (review #940: Verplaatsen paste anders de vorige datum toe).
   const calc = dialog.getByRole('button', { name: /^(Calculate preview|Voorbeeld berekenen)$/ });
   const apply = dialog.getByRole('button', { name: /^(Move|Verplaatsen)$/ });
   await calc.click();
@@ -199,12 +169,10 @@ test('datumkiezer in een dialoog: Escape, Enter en klikken blijven bij de kiezer
   await expect(segments(field).nth(0)).toHaveAttribute('aria-invalid', 'true');
   await expect(apply).toBeDisabled();
   await expect(calc).toBeDisabled();
-  // Een geldige datum maakt het weer mogelijk.
   await button.click();
   await day(page, '2026-10-05').click();
   await expect(segments(field).nth(0)).toHaveValue('05');
 
-  // De gekozen datum is de invoer van de dialoog: voorbeeld berekenen en toepassen verplaatst het project.
   await dialog.getByRole('button', { name: /^(Calculate preview|Voorbeeld berekenen)$/ }).click();
   await dialog.getByRole('button', { name: /^(Move|Verplaatsen)$/ }).click();
   await expect(dialog).toHaveCount(0);
@@ -225,11 +193,9 @@ test('datumkiezer in een tabelcel: kiezen legt de cel vast, Escape laat de edito
   await page.keyboard.press('Enter');
   const input = cell.locator('input[data-task-editor-kind]');
   await expect(input).toBeFocused();
-  // De knop is die van de app, niet de kiezer van de browser.
   const button = cell.locator('button[data-task-editor-picker]');
   await expect(cell.locator('input[type="date"], input[type="datetime-local"]')).toHaveCount(0);
 
-  // Escape sluit alleen de kiezer: de editor blijft open, de focus terug in het tekstveld.
   const depth = (await state(page)).undoDepth;
   await page.keyboard.press('Alt+ArrowDown');
   await expect.poll(() => focusedIso(page)).toBe('2026-09-07');
@@ -237,7 +203,6 @@ test('datumkiezer in een tabelcel: kiezen legt de cel vast, Escape laat de edito
   await expect(picker(page)).toHaveCount(0);
   await expect(input).toBeFocused();
 
-  // Een klik in de kiezer kiest geen andere cel; een gekozen dag legt de cel in één stap vast.
   await button.click();
   await expect(title(page)).toHaveText('September 2026');
   await page.keyboard.press('ArrowDown');

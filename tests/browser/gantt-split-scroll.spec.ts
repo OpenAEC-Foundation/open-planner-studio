@@ -1,5 +1,3 @@
-// Karakterisering vóór viewportextractie: secundair horizontaal scrollen is lokaal; een echt
-// Shift+wiel-event scrolt de gedeelde rijen en houdt beide rendereroppervlakken actief.
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
 
 test('Gantt splitview isoleert horizontale scroll en deelt verticale wheel-scroll', async ({ page, ops: _ops }) => {
@@ -15,8 +13,6 @@ test('Gantt splitview isoleert horizontale scroll en deelt verticale wheel-scrol
     s.setScroll(140, 0);
   });
   await expect(page.getByTestId('gantt-secondary-canvas')).toBeVisible();
-  // Karakteriseer de primitive enablegrens: uit ontkoppelt het paneel, opnieuw aan bindt de
-  // wheelhandler weer; de handler zelf moet daarna de actuele splitstate uit de store lezen.
   await page.evaluate(() => window.__OPS__!.store.getState().setSplitView(undefined));
   await expect(page.getByTestId('gantt-secondary-canvas')).toHaveCount(0);
   await page.evaluate(() => window.__OPS__!.store.getState().setSplitView({
@@ -47,9 +43,6 @@ test('Gantt splitview isoleert horizontale scroll en deelt verticale wheel-scrol
   await page.keyboard.up('Shift');
   await expect.poll(() => state(page).then(snapshot => snapshot.view.scrollY)).toBeGreaterThan(0);
 
-  // Een statewijziging mag door React en ResizeObserver meer dan één paint opleveren. Deze
-  // characterization eist alleen het contract uit het plan: beide levende renderers tekenen ná
-  // het wheel-event opnieuw; het dicteert geen onbestaande exact-één-optimalisatie.
   await expect.poll(() => page.evaluate(({ before }) => (
     window.__OPS__!.gantt.paintCount('primary') > before.primary
       && window.__OPS__!.gantt.paintCount('secondary') > before.secondary

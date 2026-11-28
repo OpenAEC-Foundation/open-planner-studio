@@ -1,9 +1,5 @@
 import { barPoint, expect, state, test } from './fixtures/ops';
 
-// Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
-// Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte
-// (knownbug 60, #627: de standaardbreedte van de takenlijst is 400 px). Bij kwartierzoom is de
-// urentaak 1000 px breed en ligt het midden van de balk anders onder de eigenschappenrail.
 test.use({ viewport: { width: 1600, height: 900 } });
 
 async function seedHourTask(page: import('@playwright/test').Page, start = '2026-09-07T07:00', finish = '2026-09-07T16:00'): Promise<string> {
@@ -44,23 +40,14 @@ async function seedHourTask(page: import('@playwright/test').Page, start = '2026
       },
     });
     state.runCPM();
-    // runCPM kan een nieuwe view-origin afleiden; de test moet daarna expliciet op de taakdatum
-    // terugzetten voordat hij renderer-eigen pointercoördinaten opvraagt.
     state.setViewStartDate(taskStart.slice(0, 10));
-    // `computeEffectiveViewStart` houdt 14 kalenderdagen links als navigatiemarge. Maak de
-    // urentaak dus zichtbaar zonder renderergeometrie na te bouwen.
     state.setScroll(14 * 1000 + 200, 0);
     return id;
   }, { taskStart: start, taskFinish: finish });
-  // De testdriver leest bewust renderer-eigen geometrie. Wacht daarom op de paint die de
-  // storemutatie consumeert; anders kan hij nog de vorige (standaard-)balkpositie teruggeven.
   await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
   return id;
 }
 
-/** Wacht tot de primaire Gantt-laag ná een storemutatie werkelijk opnieuw is getekend.
- * `barPoint` leest renderer-eigen geometrie uit de LAATSTE paint (`getTaskBarRect`); wie direct na
- * `setUI`/`setScroll` meet, krijgt op een trage machine nog de balkpositie van de vorige as terug. */
 async function paintedAfter(page: import('@playwright/test').Page, mutate: () => Promise<void>): Promise<void> {
   const before = await page.evaluate(() => window.__OPS__!.gantt.paintCount('primary'));
   await mutate();
@@ -70,10 +57,6 @@ async function paintedAfter(page: import('@playwright/test').Page, mutate: () =>
   ).toBeGreaterThan(before);
 }
 
-/** Balkpunt dat over twee opeenvolgende peilingen (±100 ms) niet meer beweegt en waartussen geen
- * nieuwe paint viel. Een aswissel kan méér dan één paint kosten (de viewport klemt zijn scroll
- * pas in een vervolgframe); meten na de eerste paint gaf dan nog een tussenstand, waarna de
- * mousedown naast de balk landde (cursor bleef `default`). */
 async function settledBarPoint(page: import('@playwright/test').Page, id: string): Promise<{ x: number; y: number }> {
   let last: { x: number; y: number; paints: number } | null = null;
   let stableReads = 0;
@@ -154,7 +137,6 @@ test('voorinstelling Dag sleept per hele dag en Uur per uur', async ({ page, ops
   ] as const) {
     if (pixels === 1000 / 96) await page.evaluate(() => window.__OPS__!.store.getState().setUI({ enableQuarterHourZoom: true }));
     await scale.click();
-    // De trigger heeft bij herhaald kiezen dezelfde naam als de optie; alleen de trigger heeft een pijlicoon.
     await page.getByRole('button', { name: preset, exact: true }).filter({ hasNot: page.locator('[data-icon="ui.dropdown"]') }).click();
     await expect.poll(() => state(page).then(s => s.view.zoom)).toBe(zoom);
     await paintedAfter(page, () => page.evaluate(taskId => {
@@ -192,14 +174,11 @@ test('voorinstelling Dag sleept per hele dag en Uur per uur', async ({ page, ops
 test('urentaak-rechterrand telt alleen werkuren en landt op de bandgrens vóór de pauze', async ({ page, ops: _ops }) => {
   const id = await seedHourTask(page);
   const point = await barPoint(page, id, 'right');
-  // De renderertekent de sub-dagbalk met een fractionele eindpixel. Pak twee CSS-pixels binnen de
-  // rechterkant, zodat Playwrights integer muiscoördinaat niet nét buiten de hitzone afrondt.
   const edgeX = point.x - 2;
 
   await page.mouse.move(edgeX, point.y);
   await page.mouse.down();
   await expect(page.getByTestId('gantt-primary-canvas')).toHaveCSS('cursor', 'ew-resize');
-  // Vier uur op de 1000px/dag-as: 16:00 → 12:00. De pauze zelf wordt nooit duur.
   await page.mouse.move(edgeX - (1000 / 6), point.y, { steps: 5 });
   await page.mouse.up();
 
@@ -211,15 +190,9 @@ test('urentaak-rechterrand telt alleen werkuren en landt op de bandgrens vóór 
 
 test('urentaak volgt onder werkdagen-as de getekende maandag-vrijdag-naad', async ({ page, ops: _ops }) => {
   const id = await seedHourTask(page, '2026-09-11T07:00', '2026-09-11T16:00');
-  // De as wisselt hier van kalenderdagen naar werkdagen én de scroll verspringt. Onder de oude as
-  // (scroll 14200) en de nieuwe (scroll 10000) staat de balk toevallig op vrijwel dezelfde plek, dus
-  // een meting uit de nog niet ververste paint greep de balk nog wél — maar de sleep rekende dan
-  // met een `pointerStart` van de verkeerde as en landde weer op vrijdag (CI, 1 en 3 sep 2026).
-  // Wacht daarom expliciet op de paint die de compressie consumeert vóór er wordt gemeten.
   await paintedAfter(page, () => page.evaluate(() => {
     const state = window.__OPS__!.store.getState();
     state.setUI({ compressNonWorkdays: true });
-    // Vrijdag 11 september ligt vanaf vrijdag 28 augustus precies tien zichtbare werkdagen verder.
     state.setScroll(10 * 1000, 0);
   }));
   const point = await settledBarPoint(page, id);
@@ -227,7 +200,6 @@ test('urentaak volgt onder werkdagen-as de getekende maandag-vrijdag-naad', asyn
   await page.mouse.move(point.x, point.y);
   await page.mouse.down();
   await expect(page.getByTestId('gantt-primary-canvas')).toHaveCSS('cursor', 'grabbing');
-  // Eén zichtbare werkdagenkolom is bij zoom 1000 precies één dagbreedte.
   await page.mouse.move(point.x + 1000, point.y, { steps: 6 });
   await page.mouse.up();
 

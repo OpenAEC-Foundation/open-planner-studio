@@ -1,22 +1,8 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
-// H6 (eigenaarsbesluit 2026-09-26, "zelfde regel als de dialoog"): een kalenderwijziging die via de
-// resourcebibliotheek binnenkomt, volgt de werkregel van de taken erop — Vaste inzet met 32 u werk op
-// 8 → 6 u/d wordt 16/3 d (T14, exacte breuk), met de melding "1 taak aangepast". Fixture via de brug
-// (bibliotheek, gekoppelde projectkalender, taak onder Vaste inzet); de geteste handelingen zijn echte
-// klikken en toetsen in het afwijkingenscherm en in de bibliotheekkalenderdialoog. Asserties op de store
-// en de zichtbare melding.
-//
-// B1 (spec "alleen uren" §3.2, besluit B1a): de taak stond op Vast werk. Vast werk is nu altijd urenmaat
-// en houdt bij een kalenderwissel zijn minuten; de regel verandert dan geen duur en meldt niets. De
-// regel, de melding en de nazorg worden daarom met Vaste inzet getoetst, net als in
-// `tests/library/check-library-slice.ts` (H6) en `check-work-rule-library.ts`.
-
 interface Fixture { taskId: string; companyId: string; poolCalendarId: string }
 
-/** Project met een projectkalender (07:00–16:00, pauze 60 min = 8 u) die aan de bibliotheek hangt,
- *  en één taak van 4 d onder Vaste inzet (32 u werk). */
 async function seedLinkedFixedWorkTask(page: Page): Promise<Fixture> {
   return page.evaluate(() => {
     const s = () => window.__OPS__!.store.getState();
@@ -51,8 +37,6 @@ const durationNotice = (page: Page) => page.locator('.ops-toast').filter({ hasTe
 
 test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vaste inzet meebewegen (4 → 16/3 d) met melding', async ({ page, ops: _ops }) => {
   const { taskId, companyId, poolCalendarId } = await seedLinkedFixedWorkTask(page);
-  // Fixture: de bibliotheek werkt voortaan tot 14:00 (6 u); de projectkopie is lokaal op 8 u gebleven
-  // en wijkt dus af. De afwijking laten we het afwijkingenscherm tonen (navigatie via de brug).
   await page.evaluate(({ cid, poolId }) => {
     const s = () => window.__OPS__!.store.getState();
     const poolCal = s().pools[cid].calendars.find(c => c.id === poolId)!;
@@ -74,12 +58,10 @@ test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vas
   expect(st.hoursPerDay).toBe(6);
   expect(st.duration).toBeCloseTo(16 / 3, 12);
   expect(st.work).toBe(32 * 60);
-  // Niet-undoable verversing (spec §3): geen isDirty, wel herberekenen nodig.
   expect(st.dirty).toBe(false);
   expect(st.stale).toBe(true);
   await expect(durationNotice(page)).toHaveCount(1);
 
-  // Knownbug 32: dezelfde koppelroute, nu met niet-herkende projectitems.
   const resourcePicker = dialog.getByRole('button', { name: 'Choose a library item for Metselploeg', exact: true });
   await expect(resourcePicker).toBeDisabled();
   const resourceFixture = await page.evaluate(cid => {
@@ -89,12 +71,11 @@ test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vas
     return { resourceId: resource.id, poolId, maxUnits: resource.maxUnits };
   }, companyId);
   await expect(resourcePicker).toBeEnabled();
-  // Een dialoog met invoer sluit niet via de backdrop (de gedeelde dialoogregel).
   await page.mouse.click(5, 100);
   await expect(dialog).toBeVisible();
   await resourcePicker.click();
   await expect(page.getByRole('option', { name: 'Handmatige ploeg', exact: true })).toBeVisible();
-  await expect(page.getByRole('option')).toHaveCount(1); // Geen kalender als resourcekeuze.
+  await expect(page.getByRole('option')).toHaveCount(1);
   await page.keyboard.press('Escape');
   await expect(dialog).toBeVisible();
   const resourceState = () => page.evaluate(id => {
@@ -121,7 +102,7 @@ test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vas
   });
   const calendarPicker = dialog.getByRole('button', { name: 'Kies een bibliotheekitem voor Losse kalender', exact: true });
   await calendarPicker.click();
-  await expect(page.getByRole('option')).toHaveCount(1); // Alleen de bibliotheekkalender.
+  await expect(page.getByRole('option')).toHaveCount(1);
   await expect(page.getByRole('option', { name: 'Handmatige ploeg', exact: true })).toHaveCount(0);
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
@@ -135,18 +116,14 @@ test('afwijkingenscherm: "Bibliotheekwaarden gebruiken" op een kalender laat Vas
 
 test('bibliotheekkalender bewerken: werkdag tot 14:00 ververst de gekoppelde projectkalender en Vaste inzet wordt 16/3 d, met melding', async ({ page, ops: _ops }) => {
   const { taskId, companyId, poolCalendarId } = await seedLinkedFixedWorkTask(page);
-  // Een bibliotheekresource die de bibliotheekkalender gebruikt: haar potlood in de Bibliotheekweergave
-  // is de UI-ingang voor het bewerken van die kalender.
   await page.evaluate(({ cid, poolId }) => {
     const s = () => window.__OPS__!.store.getState();
-    // `addPoolResource` neemt geen kalender mee; de keuze zetten we daarna, zoals de kalenderkolom doet.
     const poolResourceId = s().addPoolResource(cid, { name: 'Bibliotheekploeg', type: 'LABOR', description: '', maxUnits: 1 })!;
     s().updatePoolResource(cid, poolResourceId, { calendarId: poolId });
     window.__OPS__!.store.setState((st) => { st.ui.notifications = []; st.isDirty = false; });
     s().setUI({ activeRibbonTab: 'resources', showResourcePanel: true, resourcePanelDocked: false });
   }, { cid: companyId, poolId: poolCalendarId });
 
-  // Het paneel opent in de Projectweergave; de Bibliotheekweergave kiezen we met de echte tabknop.
   await page.getByRole('button', { name: /^(Library|Bibliotheek)$/ }).click();
   const row = page.locator('tr[data-ops-pool-resource-row]').filter({ has: page.locator('input[value="Bibliotheekploeg"]') });
   await expect(row).toBeVisible();
@@ -170,8 +147,6 @@ test('bibliotheekkalender bewerken: werkdag tot 14:00 ververst de gekoppelde pro
   await expect(durationNotice(page)).toHaveCount(1);
 });
 
-// Knownbug 31: aparte route, omdat de bestaande scenario's al gekoppelde kalenders bewerken.
-// Deze route begint met een lege bibliotheek en volgt de hint in Bestand → Bibliotheek.
 test('bibliotheekhint verwijst alleen naar kalenders en de knop promoveert een projectkalender', async ({ page, ops: _ops }) => {
   for (const locale of ['nl', 'en']) {
     const fixture = await page.evaluate(async locale => {
@@ -204,8 +179,6 @@ test('bibliotheekhint verwijst alleen naar kalenders en de knop promoveert een p
       const pool = window.__OPS__!.store.getState().pools[id];
       return { calendars: pool.calendars.map(c => c.name), resources: pool.resources.length };
     }, fixture.companyId)).toEqual({ calendars: [fixture.calendarName], resources: 0 });
-    // Knownbug 33: verwijderen vraagt eerst; annuleren bewaart de bron. Na bevestigen kan
-    // de behouden projectkopie opnieuw promoveren, in plaats van onterecht 'al gekoppeld'.
     const sourceRow = section.locator('.library-pool > ul > li').filter({ hasText: fixture.calendarName });
     const poolState = () => page.evaluate(id => {
       const pool = window.__OPS__!.store.getState().pools[id];
@@ -229,11 +202,8 @@ test('bibliotheekhint verwijst alleen naar kalenders en de knop promoveert een p
     await confirm.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).click();
     await expect(confirm).toBeHidden();
     expect(await poolState()).toEqual(beforeRemove);
-    // Enter op de gefocuste Annuleren-knop annuleert; alleen Enter zonder knopfocus bevestigt.
     await sourceRow.locator('.danger-icon').click();
     await expect(confirm.getByRole('button', { name: /^(Cancel|Annuleren)$/ })).toBeFocused();
-    // Knownbug 333: browser-eventprobe voor IME-Enter; geen claim van een echte OS-IME-sessie.
-    // Dezelfde vraag met focus op Annuleren, Verwijderen en zonder knopfocus.
     for (const focus of ['cancel', 'confirm', 'none'] as const) {
       if (focus === 'cancel') await confirm.getByRole('button', { name: /^(Cancel|Annuleren)$/ }).focus();
       if (focus === 'confirm') await confirm.getByRole('button', { name: /^(Delete|Verwijderen)$/ }).focus();

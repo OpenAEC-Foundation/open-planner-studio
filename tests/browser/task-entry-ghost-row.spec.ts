@@ -1,8 +1,3 @@
-// Review vader (2026-10-06), punt 1: snel taken neerzetten.
-//  - Rechtsklik op lege ruimte in de tabel of de Gantt geeft "Nieuwe taak" en "Nieuwe mijlpaal".
-//  - Onderaan de tabel staat een spookregel: pas als je er iets invult wordt het een taak, in één
-//    undo-stap; ga je weg zonder iets in te vullen, dan is er niets gebeurd.
-// Alleen echte muis- en toetsenbordevents; de dev-bridge zet alleen fixtures en leest de toestand.
 import type { Page } from '@playwright/test';
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
 
@@ -58,7 +53,6 @@ test('spookregel: alleen een duur invullen maakt "New task" in één undo-stap',
   });
   expect(created).toBe(3);
   expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
-  // Onder de nieuwe taak staat weer een spookregel.
   await expect(ghostRow(page)).toBeVisible();
   await shot(page, 'spookregel-na-duur');
 
@@ -66,7 +60,6 @@ test('spookregel: alleen een duur invullen maakt "New task" in één undo-stap',
   await expect.poll(() => state(page).then(s => s.tasks.length)).toBe(1);
   expect(await dirty(page)).toBe(wasDirty);
 
-  // 250: de editor van de nog lege regel volgt de maatkeuze, het profiel en vast werk.
   for (const [profile, unit, fixedWork, seed] of [
     ['ops', 'hours', false, '5'], ['p6', 'days', false, '40'],
     ['msproject', 'days', false, '40'], ['ops', 'days', true, '40'],
@@ -80,7 +73,6 @@ test('spookregel: alleen een duur invullen maakt "New task" in één undo-stap',
     }, { profile, unit, fixedWork });
     const depth = (await state(page)).undoDepth;
     await ghostCell(page, 'task.time.scheduleDuration').click();
-    // Een klik selecteert de cel; Enter opent de editor met de standaardwaarde geselecteerd.
     await page.keyboard.press('Enter');
     await expect(ghostRow(page).locator('.task-grid-editor-input')).toHaveValue(seed);
     await page.keyboard.type('3');
@@ -103,7 +95,6 @@ test('spookregel: met pijltje omlaag erin en een naam typen', async ({ page, ops
   await page.keyboard.press('ArrowDown');
   await page.keyboard.type('Metselwerk');
   await page.keyboard.press('Enter');
-  // Enter gaat door naar de volgende nieuwe taak: meteen weer typen.
   await page.keyboard.type('Dak');
   await page.keyboard.press('Enter');
 
@@ -118,7 +109,6 @@ test('spookregel: na de naam op de duur van dezelfde regel klikken blijft in die
   expect(durationOnGhost).not.toBeNull();
   await ghostCell(page, 'task.name').click();
   await page.keyboard.type('Metselwerk');
-  // Klik op de duurcel van DEZELFDE regel (die nu de nieuwe taak is) en typ de duur.
   await page.mouse.click(durationOnGhost!.x + durationOnGhost!.width / 2, durationOnGhost!.y + durationOnGhost!.height / 2);
   await page.keyboard.type('4');
   await page.keyboard.press('Enter');
@@ -145,7 +135,6 @@ test('tabel: rechtsklik op lege ruimte → Nieuwe taak, naam meteen typen', asyn
   await page.keyboard.press('Enter');
 
   await expect.poll(() => state(page).then(s => s.tasks.map(task => task.name))).toEqual(['Fundering', 'Ruwbouw']);
-  // Klembordinhoud is fixture; de te toetsen Plakken-route loopt door het echte lege-ruimtemenu.
   await page.evaluate(id => window.__OPS__!.store.getState().copyTasks([id]), first);
   const beforePaste = await state(page);
   const pasteBox = (await grid.boundingBox())!;
@@ -185,7 +174,6 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
     s.setZoom(30);
     s.setScroll(0, 0);
   });
-  // Midden onder de balk van Fundering (wo 9 september), maar twee rijen lager: lege ruimte.
   const bar = await barPoint(page, first);
   await page.mouse.click(bar.x, bar.y + 120, { button: 'right' });
   await expect(page.getByRole('button', { name: 'New task', exact: true })).toBeVisible();
@@ -199,7 +187,6 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
     const t = window.__OPS__!.store.getState().tasks[1];
     return [t.time.durationUnit, t.time.durationMinutes];
   })).toEqual(['hours', 300]);
-  // Het midden van de balk 7–11 september is woensdag 9 september; die datum moet blijven.
   expect(created.scheduleStart.slice(0, 10)).toBe('2026-09-09');
   await page.evaluate(id => window.__OPS__!.store.getState().copyTasks([id]), first);
   const beforePaste = await state(page);
@@ -220,10 +207,6 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
     const t = window.__OPS__!.store.getState().tasks.find(t => t.isMilestone);
     return t && [t.taskType, t.milestoneKind, t.parentId, t.mandatory ?? false];
   })).toEqual(['USERDEFINED', 'FINISH', null, false]);
-  // Ook onder de urenmaat liggen begin en einde van de nieuwe ruit op hetzelfde moment, en een echte
-  // klik raakt hem vóór herberekening (review #702).
-  // De ruit staat op de rij onder de geplakte taak; midden in de dagcel van 9 september valt hij
-  // binnen de grijpzone, wat het tijdstip van de ruit binnen die dag ook is.
   const milestoneId = await page.evaluate(() => window.__OPS__!.store.getState().tasks.find(t => t.isMilestone)!.id);
   const [newBar, pastedBar] = [await barPoint(page, afterPaste.tasks[1].id), await barPoint(page, afterPaste.tasks[2].id)];
   const canvasBox = (await page.getByTestId('gantt-primary-canvas').boundingBox())!;
@@ -238,7 +221,6 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
   expect(milestone[0].slice(0, 10)).toBe('2026-09-09');
   expect(new Set(milestone).size).toBe(1);
 
-  // Op een bestaande taak blijft het een subtaak, maar eveneens een gewone eindmijlpaal.
   const parentBar = await barPoint(page, first);
   await page.mouse.click(parentBar.x, parentBar.y, { button: 'right' });
   await page.getByRole('button', { name: 'Add milestone', exact: true }).click();
@@ -247,7 +229,6 @@ test('Gantt: rechtsklik op lege ruimte → Nieuwe taak begint op de aangeklikte 
     return t && [t.taskType, t.milestoneKind, t.mandatory ?? false];
   }, first)).toEqual(['USERDEFINED', 'FINISH', false]);
 
-  // Dezelfde menuroute onder de vaste urenmaat en vast werk: vijf werkdagen worden 40 uur.
   for (const [profile, fixedWork] of [['p6', false], ['msproject', false], ['ops', true]] as const) {
     await page.evaluate(() => window.__OPS__!.store.getState().newProject());
     const [anchor] = await seedProject(page, [

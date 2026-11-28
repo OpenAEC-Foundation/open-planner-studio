@@ -1,7 +1,3 @@
-// Kalenderdialogen als echte gebruikershandeling (audit resources-kalenders, bevindingen 4, 5 en 7).
-// Klikken, Enter, datuminvoer en Annuleren zijn echte browser-events; `window.__OPS__` zet alleen de
-// fixture klaar (project, kalender, resource, het IFC-document), navigeert naar het lint/paneel en
-// leest state. De store-kant staat headless in tests/planning/check-calendar-dialog-commits.ts.
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 import { externIfc } from '../fixtures/recordedDatesIfc';
@@ -18,10 +14,6 @@ async function observe(page: Page) {
   });
 }
 
-/** Fixture: een vreemd IFC-document waarvan de opgeslagen datums niet uit de logica volgen (issue #63).
- *  Sinds #167 (heropen-beleid optie B) gaat een VERSE import van elk toegelaten formaat — ook een
- *  vreemd IFC met early-slots — bij restverschillen zelf in "datums zoals opgeslagen"; er is dan geen
- *  aanbod en dus geen knop "tonen" meer. De test wacht daarom op de actieve strook zelf. */
 async function loadRecordedDatesDocument(page: Page): Promise<void> {
   await page.evaluate(async (text) => {
     const modulePath = '/src/services/ifc/ifcReader.ts';
@@ -99,8 +91,6 @@ test('resourcekalenderdialoog: Toepassen zonder wijziging is een no-op', async (
   expect(await observe(page)).toEqual(before);
 });
 
-// ── Bevinding 5: feestdag met einde vóór begin ──────────────────────────────────────────────────
-
 async function fillDate(group: ReturnType<Page['locator']>, day: string, month: string, year: string) {
   await group.getByLabel('day', { exact: true }).fill(day);
   await group.getByLabel('month', { exact: true }).fill(month);
@@ -122,7 +112,6 @@ test('kalenderdialoog: feestdag met Tot vóór Van wordt gemarkeerd en blokkeert
   await fillDate(from, '17', '07', '2026');
   await fillDate(until, '13', '07', '2026');
 
-  // Enter in het naamveld commit de buffer tussentijds — maar niet zolang er een ongeldige regel is.
   await name.press('Enter');
   await expect(dialog).toBeVisible();
   expect(await storedHolidays(page)).toEqual([]);
@@ -133,13 +122,11 @@ test('kalenderdialoog: feestdag met Tot vóór Van wordt gemarkeerd en blokkeert
   await expect(invalidRow).toHaveAttribute('data-ops-holiday-invalid', 'endBeforeStart');
   await expect(dialog.locator('[data-ops-holiday-error]')).toHaveText('The end date is before the start date.');
 
-  // In de lijst links is de kalender gemarkeerd, ook als je een andere kiest.
   await dialog.locator('button[title="New calendar"]').click();
   await expect(dialog.locator('[data-ops-calendar-row-invalid]')).toHaveCount(1);
   await expect(apply).toBeDisabled();
   await dialog.locator('[data-ops-calendar-row-invalid]').click();
 
-  // Corrigeren ⇒ markering weg, Toepassen werkt en bewaart het goede bereik.
   await fillDate(dialog.getByRole('group', { name: 'Until' }).last(), '24', '07', '2026');
   await expect(invalidRow).toHaveCount(0);
   await expect(dialog.locator('[data-ops-calendar-row-invalid]')).toHaveCount(0);
@@ -150,7 +137,6 @@ test('kalenderdialoog: feestdag met Tot vóór Van wordt gemarkeerd en blokkeert
 });
 
 test('resourcekalenderdialoog: een al opgeslagen omgekeerde feestdag wordt gemarkeerd en blokkeert Toepassen', async ({ page, ops: _ops }) => {
-  // Fixture: zoals de dialoog zo'n regel vóór deze fix stil bewaarde.
   const calendarId = await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     const { id: _ignored, ...calendar } = structuredClone(s.calendar);
@@ -178,8 +164,6 @@ test('resourcekalenderdialoog: een al opgeslagen omgekeerde feestdag wordt gemar
   expect(await page.evaluate((id) => window.__OPS__!.store.getState().calendars.find(c => c.id === id)!.holidays, calendarId))
     .toEqual([{ name: 'Bouwvak', startDate: '2027-07-19', endDate: '2027-08-06' }]);
 });
-
-// ── Bevinding 7: twee routes voor een nieuwe kalender ───────────────────────────────────────────
 
 async function resourceRowFixture(page: Page): Promise<string> {
   return page.evaluate(() => {
@@ -209,7 +193,6 @@ test('"+ Resource calendar": Annuleren laat geen kalender en geen koppeling acht
   await row.locator('select').filter({ has: page.locator('option[value="__new"]') }).selectOption('__new');
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
-  // De dialoog staat in aanmaakmodus: er is nog niets aangemaakt of gekoppeld.
   expect(await libraryState(page, resourceId)).toEqual(before);
   await dialog.getByRole('button', { name: 'Cancel' }).click();
   await expect(dialog).toBeHidden();
@@ -229,7 +212,6 @@ test('"+ Resource calendar": Toepassen maakt en koppelt in één undo-stap, met 
   expect(createdId).toBeTruthy();
   expect(after.resourceCalendarId).toBe(createdId);
 
-  // Dezelfde fabriek als "+" in de kalenderdialoog: gelijke werktijden en gelijke feestdagen.
   const viaResourceRow = await page.evaluate((id) => {
     const c = window.__OPS__!.store.getState().calendars.find(x => x.id === id)!;
     return { workDays: c.workDays, hours: [c.workStartHour, c.workEndHour, c.hoursPerDay], holidays: c.holidays.length, generation: c.generation?.ruleSetId ?? null };
@@ -244,13 +226,10 @@ test('"+ Resource calendar": Toepassen maakt en koppelt in één undo-stap, met 
     return { workDays: c.workDays, hours: [c.workStartHour, c.workEndHour, c.hoursPerDay], holidays: c.holidays.length, generation: c.generation?.ruleSetId ?? null };
   }, idsBeforeDialog);
   expect(viaCalendarDialog).toEqual(viaResourceRow);
-  // Bouwmodus staat standaard aan: beide dus met de NL-feestdagen, net als een nieuw project.
   expect(viaResourceRow.generation).toBe('NL');
   expect(viaResourceRow.holidays).toBeGreaterThan(0);
-  // Aanmaken + koppelen via de resourcerij was één undo-stap.
   expect(after.undo).toBe(before.undo + 1);
 
-  // Eén Ctrl+Z haalt het aanmaken van de kalenderdialoog weg; de tweede ook de koppeling en de kalender.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('ControlOrMeta+z');
   await page.keyboard.press('ControlOrMeta+z');
@@ -299,11 +278,6 @@ test('"+ Resource calendar" in de Bibliotheekweergave: pas bij Toepassen aangema
   expect(after.resourceCalendarId).toBe(createdId);
 });
 
-// ── Enter in een datumveld: eerst het veld, dan de dialoogbuffer ─────────────────────────────────
-// `DateTextInput` commit bij Enter zichzelf (onCommit) en laat de toets doorbubbelen. De tussentijdse
-// Enter-commit van de kalenderdialoog moet dus de buffer MÉT die datum vastleggen, niet die van vóór
-// de toetsaanslag.
-
 test('kalenderdialoog: datum typen + Enter in het datumveld legt precies die datum vast', async ({ page, ops: _ops }) => {
   const dialog = await openCalendarDialog(page);
   await dialog.locator('button').filter({ hasText: 'Add holiday' }).click();
@@ -313,7 +287,6 @@ test('kalenderdialoog: datum typen + Enter in het datumveld legt precies die dat
   await name.fill('Bouwvak');
   await fillDate(from, '20', '07', '2026');
 
-  // Tot typen en in het jaarsegment op Enter drukken — geen Tab, geen klik elders.
   await until.getByLabel('day', { exact: true }).fill('07');
   await until.getByLabel('month', { exact: true }).fill('08');
   await until.getByLabel('year', { exact: true }).fill('2026');
@@ -321,7 +294,6 @@ test('kalenderdialoog: datum typen + Enter in het datumveld legt precies die dat
   await expect(dialog).toBeVisible();
   await expect.poll(() => storedHolidays(page)).toEqual([{ name: 'Bouwvak', startDate: '2026-07-20', endDate: '2026-08-07' }]);
 
-  // Ook een bestaande datum wijzigen + Enter gaat meteen mee: eerst Tot, dan Van (elk geldig).
   await until.getByLabel('year', { exact: true }).fill('2027');
   await until.getByLabel('year', { exact: true }).press('Enter');
   await expect.poll(() => storedHolidays(page)).toEqual([{ name: 'Bouwvak', startDate: '2026-07-20', endDate: '2027-08-07' }]);

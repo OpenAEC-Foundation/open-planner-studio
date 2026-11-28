@@ -1,5 +1,3 @@
-// Karakterisering vóór het sluiten van de hookpoort: een echte taalkeuze moet zowel de
-// weekdaglabels op de tijdas als de duur-eenheid in de gedeelde DOM-taakgrid opnieuw vertalen.
 import type { Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 
@@ -49,7 +47,6 @@ test('Gantt vertaalt weekdagen en duursuffix na een echte taalkeuze', async ({ p
   await page.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
   await page.getByRole('option', { name: /Deutsch/ }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-  // De tekstknop in de voet; het kopkruisje heet hetzelfde maar heeft geen tekstinhoud.
   const closeName = /^(Close|Sluiten|Schließen)$/;
   await page.getByRole('dialog').getByRole('button', { name: closeName }).filter({ hasText: closeName }).click();
 

@@ -1,14 +1,5 @@
-// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
 import { barPoint, expect, test } from './fixtures/ops';
 
-// Audit weergaven, bevinding 4: de groene spelingsband moet eindigen op "Laatste einde".
-// De band was `totalFloat × zoom` — werkdagen maal pixels per KALENDERdag — en stopte over een
-// weekend dagen te vroeg. Hier op echte canvaspixels: A (2d) naast B (12d), C na beide; A heeft
-// 10 werkdagen speling over twee weekenden, "Laatste einde" di 16-06, en C begint wo 17-06. De
-// band van A moet dus precies tot de linkerrand van C lopen.
-//
-// De brug zet alleen de fixture en leest balkcoördinaten; berekenen gaat via de echte F5-toets en
-// de band wordt uit de geschilderde canvaspixels gelezen.
 test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async ({ page, ops: _ops }) => {
   const ids = await page.evaluate(() => {
     const g = () => window.__OPS__!.store.getState();
@@ -24,7 +15,6 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
     setDur(A, 2); setDur(B, 12); setDur(C, 1);
     g().addSequence({ predecessorId: A, successorId: C, type: 'FINISH_START', lagDays: 0 });
     g().addSequence({ predecessorId: B, successorId: C, type: 'FINISH_START', lagDays: 0 });
-    // 12 px per dag: A, de band en de linkerrand van C passen dan ruim in de standaard viewport.
     g().setZoom(12);
     g().setViewStartDate('2026-05-29');
     return { A, C };
@@ -39,14 +29,9 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
 
   const aRight = await barPoint(page, ids.A, 'right');
   const cLeft = await barPoint(page, ids.C, 'left');
-  // D1/D2: C begint woensdag 07:00; het late einde ligt dinsdag 16:00, vijftien klokuren ervoor.
   expect(cLeft.x - aRight.x).toBeCloseTo((14 + 15 / 24) * 12, 0);
   const lateFinishX = cLeft.x - 15 / 24 * 12;
 
-  // Lees de canvasrij van A en zoek waar het band-groen ophoudt. Begin 30 px vóór "Laatste einde",
-  // niet bij de balkrand: de naam "A kort" past niet in de smalle balk en staat rechts erachter,
-  // óp het begin van de band (GanttRenderer `drawOutsideBarName`). Wacht tot de band geschilderd is
-  // (de F5-berekening plant een nieuwe paint).
   const scanBandEnd = () => page.evaluate(({ x0, y }) => {
     const canvas = [...document.querySelectorAll('canvas')].find(c => {
       const r = c.getBoundingClientRect();
@@ -60,9 +45,6 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
     const green = (i: number) => data[i * 4 + 1] > data[i * 4] + 25 && data[i * 4 + 1] > data[i * 4 + 2] + 5;
     const start = Math.round((x0 - r.left) * sx) + 2;
     if (!green(start)) return null;
-    // De band is halfdoorzichtig en gearceerd: een dagrasterlijn schemert erdoorheen en is dan
-    // niet groen genoeg. Sla daarom korte niet-groene stukjes (<= 3 px) over; de band houdt pas
-    // op waar er daarna geen groen meer volgt.
     const GAP = 3;
     let end = start;
     while (end < canvas.width) {
@@ -77,7 +59,6 @@ test('de spelingsband eindigt op "Laatste einde", ook over een weekend', async (
 
   await expect.poll(scanBandEnd, { message: 'geen spelingsband achter de balk van A geschilderd' }).not.toBeNull();
   const bandEnd = (await scanBandEnd())!;
-  // Binnen twee pixels van de rand van "Laatste einde" (anti-aliasing op de rand).
   expect(Math.abs(bandEnd - lateFinishX), `band eindigt op x=${bandEnd.toFixed(1)}, "Laatste einde" op x=${lateFinishX.toFixed(1)}`)
     .toBeLessThanOrEqual(2);
 });
