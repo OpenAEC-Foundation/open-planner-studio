@@ -10,7 +10,7 @@ terugdraaien. De besluiten van de herstelopslag zelf staan in ADR 0190 tot en me
   blijft dan in gebruik. Elke andere fout (de worker start niet, een clone- of transportfout, een crash, geen antwoord
   binnen 60 s) stopt de worker en schrijft deze en alle volgende versies op de hoofdthread. Dat wijkt bewust af van de
   save worker, die na een geslaagde start nooit terugvalt: crashherstel mag niet uitvallen omdat een worker niet start
-  of hapert (volgens het weggehaalde commentaar ook door een CSP, niet nagegaan). De invoer ligt vast vóór de eerste
+  of hapert. De invoer ligt vast vóór de eerste
   `await`, dus de terugval schrijft dezelfde versie als de worker.
 - **Samenvoegen van herstelrondes** (`createRecoveryTickQueue`, `recoveryTickQueue.ts`). De gedeelde belofte bestaat al
   voordat `round` draait, ook als die synchroon gooit, en `inFlight` gaat in dezelfde `finally` terug op `null` als
