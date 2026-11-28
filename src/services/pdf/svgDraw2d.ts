@@ -1,67 +1,31 @@
 import { resolveCornerRadii, type CornerRadii, type Draw2D, type TextAlign, type TextBaseline } from './draw2d';
 import { isRtlReportFont, reportTextFont } from './reportFont';
 
-/**
- * SVG-backend voor `Draw2D` (issue #817): het rapportpapier op het scherm als vectortekening.
- *
- * WAAROM een derde backend naast canvas (raster) en pdf-lib (vector-PDF): de oude preview was een
- * PNG per pagina. Die is korrelig, je kunt er niet op inzoomen en een klik weet niet wat er staat.
- * Deze backend neemt precies dezelfde tekenaanroepen van `renderReport` op als de canvas- en de
- * PDF-backend, en zet ze om naar SVG-elementen. Daardoor is het papier op het scherm scherp op elke
- * zoom en blijft het gelijk aan de PDF: dezelfde renderer, dezelfde tekstmeting (de lettermaten uit het
- * fontbestand, `reportTextMeasure.ts`, ook in de vector-PDF) en dezelfde bladindeling (`TileLayout`).
- *
- * De opname is één keer per instellingenwijziging; daarna haalt `reportPageSvg` per zichtbaar blad
- * alleen de opdrachten op die in de vensters van dat blad vallen (een ruimtelijke index op y). Zo
- * blijft ook een planning van duizenden taken snel: een blad bevat alleen zijn eigen rijen.
- *
- * Coördinaten zijn LOGISCHE px (dezelfde eenheid als de andere backends). Er is geen transformatie
- * en geen clip in `Draw2D`; een venster op een blad is een geneste `<svg>` met een `viewBox`, die
- * vanzelf afknipt.
- */
-
-/** Tekstmeting en basislijn, gelijk aan wat de canvas-backend met dezelfde letter zou doen. */
 export interface SvgTextMetrics {
-  /** Breedte van `text` in de CSS-letter `font` (logische px). */
   measure(text: string, font: string): number;
-  /**
-   * Afstand (logische px, positief = omlaag) van de tekenlijn die `baseline` aanwijst naar de
-   * alfabetische basislijn. `alphabetic` ⇒ 0. SVG kent geen betrouwbare equivalent van canvas'
-   * `middle`/`bottom`, dus de opname schuift elke tekst zelf naar de alfabetische basislijn.
-   */
   baselineShift(font: string, baseline: TextBaseline): number;
 }
 
-/** Eén opgenomen tekenopdracht. `b` is de omhullende in logische px: [x0, y0, x1, y1]. */
 export type SvgOp =
   | { k: 'rect'; x: number; y: number; w: number; h: number; fill?: string; stroke?: string; lw?: number; dash?: string; b: Bounds }
   | {
     k: 'path'; d: string; fill?: string; stroke?: string; lw?: number; dash?: string; b: Bounds;
-    /** Bij een pad van alleen `M`/`L`: de punten per subpad (x, y, x, y, …), om zonder ontleden af te knippen. */
     pts?: number[][];
   }
   | { k: 'text'; x: number; y: number; text: string; font: number; fill: string; anchor: 'start' | 'middle' | 'end'; b: Bounds };
 
 export type Bounds = [number, number, number, number];
 
-/** Getallen in de SVG: twee decimalen is ruim genoeg (0,01 logische px) en houdt de tekst klein. */
 function n(v: number): string {
   const r = Math.round(v * 100) / 100;
   return Object.is(r, -0) ? '0' : String(r);
 }
 
-/**
- * Neemt de tekenaanroepen van `renderReport` op. De stijl-eigenschappen volgen de canvas-API, net als
- * bij de andere backends: wat hier ingesteld staat op het moment van `fill`/`stroke`/`fillText`
- * hoort bij die opdracht.
- */
 export class SvgRecordingDraw2D implements Draw2D {
   readonly ops: SvgOp[] = [];
-  /** De unieke letters, in volgorde van eerste gebruik; een tekstopdracht wijst er een index in aan. */
   readonly fonts: string[] = [];
   private readonly fontIndex = new Map<string, number>();
 
-  // Dezelfde beginwaarden als een verse CanvasRenderingContext2D.
   font = '10px sans-serif';
   fillStyle = '#000000';
   strokeStyle = '#000000';
@@ -71,7 +35,6 @@ export class SvgRecordingDraw2D implements Draw2D {
   private dash = '';
 
   private path = '';
-  /** De punten van het pad per subpad, zolang het alleen `M`/`L` bevat; anders `null`. */
   private pts: number[][] | null = [];
   private px0 = Infinity;
   private py0 = Infinity;
@@ -88,7 +51,6 @@ export class SvgRecordingDraw2D implements Draw2D {
     this.dash = segments.length > 0 && segments.some(s => s > 0) ? segments.map(n).join(' ') : '';
   }
 
-  // ---- rects ----
   fillRect(x: number, y: number, w: number, h: number): void {
     const r = normRect(x, y, w, h);
     if (r.w === 0 || r.h === 0) return;
@@ -104,7 +66,6 @@ export class SvgRecordingDraw2D implements Draw2D {
     });
   }
 
-  // ---- paths ----
   beginPath(): void {
     this.path = '';
     this.pts = [];
@@ -138,16 +99,10 @@ export class SvgRecordingDraw2D implements Draw2D {
     this.ops.push({
       k: 'path', d: this.path, stroke: this.strokeStyle, lw: this.lineWidth, ...(this.dash ? { dash: this.dash } : {}),
       b: [this.px0 - half, this.py0 - half, this.px1 + half, this.py1 + half],
-      // Een kopie: een pad mag na `stroke()` doorlopen, en de opname moet bij deze `d` blijven passen.
       ...(this.pts ? { pts: this.pts.map(line => line.slice()) } : {}),
     });
   }
 
-  /**
-   * Afgeronde rechthoek, met dezelfde betekenis als de canvas-backend: begint een nieuw pad, elke
-   * straal begrensd op de halve breedte/hoogte, `w < 0` tekent niets. De hoeken zijn kwartcirkels
-   * (wat `arcTo` bij een rechte hoek ook tekent).
-   */
   roundRect(x: number, y: number, w: number, h: number, r: CornerRadii): void {
     if (w < 0) return;
     const [tl, tr, br, bl] = resolveCornerRadii(r, w, h);
@@ -164,7 +119,6 @@ export class SvgRecordingDraw2D implements Draw2D {
     this.grow(x + w, y + h);
   }
 
-  // ---- tekst ----
   fillText(text: string, x: number, y: number): void {
     if (!text) return;
     const width = this.metrics.measure(text, this.font);
@@ -173,10 +127,7 @@ export class SvgRecordingDraw2D implements Draw2D {
     const x0 = anchor === 'start' ? x : anchor === 'end' ? x - width : x - width / 2;
     const size = this.fontSize(this.font);
     this.ops.push({
-      // De letter waarmee de browser deze tekst tekent: voor Arabisch of Hebreeuws Noto vooraan, zoals de
-      // PDF (`reportTextFont`). De meting hierboven krijgt de gewone letter; die kiest zelf.
       k: 'text', x, y: baselineY, text, font: this.fontId(reportTextFont(text, this.font)), fill: this.fillStyle, anchor,
-      // Ruime omhullende: boven de basislijn één letterhoogte, eronder een derde.
       b: [x0, baselineY - size, x0 + width, baselineY + size * 0.35],
     });
   }
@@ -219,28 +170,20 @@ function normRect(x: number, y: number, w: number, h: number): { x: number; y: n
   };
 }
 
-/** De puntgrootte uit een CSS-letter als `bold 9px InterPDF, …` (terugval 10). */
 export function fontPx(font: string): number {
   const m = /(\d+(?:\.\d+)?)px/.exec(font);
   return m ? Number(m[1]) : 10;
 }
 
-// ---- Opname met ruimtelijke index -----------------------------------------------------------------
-
-/** Hoogte (logische px) van één emmer van de y-index. */
 const BUCKET_PX = 256;
-/** Een opdracht hoger dan dit (achtergrond, verticale rasterlijnen, weekendbanden) gaat in de lange lijst. */
 const TALL_PX = BUCKET_PX * 4;
 
-/** Een opgenomen rapport: alle opdrachten plus een index om per venster snel te selecteren. */
 export interface RecordedReport {
   width: number;
   height: number;
   ops: readonly SvgOp[];
   fonts: readonly string[];
-  /** Indexen van opdrachten per y-emmer (alleen niet-hoge opdrachten). */
   buckets: ReadonlyMap<number, readonly number[]>;
-  /** Indexen van hoge opdrachten; die worden per venster lineair op x gefilterd. */
   tall: readonly number[];
 }
 
@@ -261,24 +204,16 @@ export function indexRecording(rec: SvgRecordingDraw2D): RecordedReport {
   return { width: rec.width, height: rec.height, ops: rec.ops, fonts: rec.fonts, buckets, tall };
 }
 
-// ---- Afknippen op een venster -------------------------------------------------------------------
-
-/**
- * Hoeveel logische px een afgeknipte lijn of rechthoek buiten het venster doorloopt: ruim meer dan de
- * halve lijndikte plus de rand van de anti-aliasing, dus het knippunt valt altijd buiten beeld.
- */
 const CLIP_PAD_PX = 4;
 
 type Pt = { x: number; y: number };
 
-/** De periode van een streeppatroon ("4 2" ⇒ 6; een oneven lijst herhaalt zich, "3" ⇒ 6), of 0. */
 function dashPeriod(dash: string): number {
   const parts = dash.split(/[ ,]+/).map(Number).filter(v => Number.isFinite(v) && v >= 0);
   const sum = parts.reduce((a, b) => a + b, 0);
   return parts.length % 2 === 1 ? sum * 2 : sum;
 }
 
-/** De punten van een pad uit alleen `M`/`L`, per subpad; `null` bij een boog, `Z` of iets anders. */
 function polylines(d: string): Pt[][] | null {
   if (!/^[ML0-9 .eE+-]*$/.test(d)) return null;
   const lines: Pt[][] = [];
@@ -296,21 +231,8 @@ function polylines(d: string): Pt[][] | null {
   return consumed === d.length ? lines : null;
 }
 
-/**
- * Een opdracht afgeknipt op het venster `[x0, x1] × [y0, y1]` (plus `CLIP_PAD_PX`), of `null` als er
- * niets van overblijft. Waarom: een rasterlijn of weekendband loopt over de hele hoogte van het rapport
- * (bij 5000 taken 120.000 px). Op het blad knipt de geneste `<svg>` hem wel af, maar de browser rastert
- * elk element over zijn hele omhullende: zo kostte één schermtegel tot 0,6 s en sprong het papier traag.
- * Afgeknipt blijft binnen het venster elk pixel gelijk.
- *
- * Alleen wat zeker gelijk blijft wordt afgeknipt: rechthoeken, en lijnen van rechte stukken (`M`/`L`).
- * Van een lijn vallen alleen het begin en het eind buiten het venster weg; de hoeken ertussen blijven.
- * Een gestreepte lijn begint dan op een hele periode van het oude begin, zodat de strepen op dezelfde
- * plek blijven. Een boog, een gesloten of een gevuld pad blijft heel (balken en ruiten zijn klein).
- */
 export function clipOpToWindow(op: SvgOp, x0: number, y0: number, x1: number, y1: number): SvgOp | null {
   if (op.k === 'text') return op;
-  // Duizenden aanroepen per blad: eerst met losse getallen, objecten alleen voor de zeldzame vormen.
   const pad = CLIP_PAD_PX + (op.lw ?? 0);
   const lx = x0 - pad;
   const ly = y0 - pad;
@@ -319,7 +241,6 @@ export function clipOpToWindow(op: SvgOp, x0: number, y0: number, x1: number, y1
   const bb = op.b;
   if (bb[0] >= lx && bb[1] >= ly && bb[2] <= hx && bb[3] <= hy) return op;
   if (op.k === 'rect') {
-    // Een gestreepte rand loopt rondom; afknippen zou de strepen verschuiven.
     if (op.dash) return op;
     const rx0 = Math.max(op.x, lx);
     const ry0 = Math.max(op.y, ly);
@@ -328,7 +249,6 @@ export function clipOpToWindow(op: SvgOp, x0: number, y0: number, x1: number, y1
     if (rx1 <= rx0 || ry1 <= ry0) return null;
     return { ...op, x: rx0, y: ry0, w: rx1 - rx0, h: ry1 - ry0, b: [rx0, ry0, rx1, ry1] };
   }
-  // Een gevuld pad sluit zichzelf: stukken eraf knippen zou de vorm veranderen.
   if (op.stroke === undefined) return op;
   const pts = op.pts;
   if (pts && pts.length === 1 && pts[0].length === 4) return clipSingleLine(op, pts[0], x0, y0, x1, y1, lx, ly, hx, hy);
@@ -350,10 +270,7 @@ export function clipOpToWindow(op: SvgOp, x0: number, y0: number, x1: number, y1
     box[2] = Math.max(box[2], p.x); box[3] = Math.max(box[3], p.y);
   };
   for (const line of lines) {
-    // Een los `M` tekent niets.
     if (line.length < 2) continue;
-    // Afstand langs het subpad tot elk punt, en het stuk dat het venster raakt (eerste intrede, laatste
-    // uittrede). Alleen het begin en het eind vallen weg; het midden en de hoeken blijven zoals ze waren.
     const along = [0];
     for (let i = 1; i < line.length; i++) along.push(along[i - 1] + Math.hypot(line[i].x - line[i - 1].x, line[i].y - line[i - 1].y));
     let sIn = Infinity;
@@ -366,8 +283,6 @@ export function clipOpToWindow(op: SvgOp, x0: number, y0: number, x1: number, y1
       sOut = Math.max(sOut, along[i - 1] + t[1] * len);
     }
     if (!(sIn <= sOut)) continue;
-    // Gestreept: het subpad begint op een hele periode van het oude begin, dus de strepen blijven staan
-    // (SVG en PDF beginnen het patroon bij elk subpad opnieuw).
     const sStart = period > 0 ? Math.floor(sIn / period) * period : sIn;
     const at = (s: number): Pt => {
       for (let i = 1; i < line.length; i++) {
@@ -391,7 +306,6 @@ export function clipOpToWindow(op: SvgOp, x0: number, y0: number, x1: number, y1
 
 const dashPeriods = new Map<string, number>();
 
-/** `n(v)` met een geheugen van twee waarden: in één venster krijgen duizenden lijnen dezelfde twee uiteinden. */
 const numMemo = { a: Number.NaN, aText: '', b: Number.NaN, bText: '', next: 0 };
 function numText(v: number): string {
   if (v === numMemo.a) return numMemo.aText;
@@ -402,12 +316,6 @@ function numText(v: number): string {
   return text;
 }
 
-/**
- * De snelle weg van {@link clipOpToWindow} voor één lijnstuk (de rasterlijnen: duizenden per blad), zonder
- * tussenobjecten. Een horizontaal of verticaal stuk dat het venster zelf langs zijn richting alleen raakt
- * (de rasterlijnen beginnen precies op de onderrand van de kop), tekent daar niets: zijn uiteinden zijn
- * plat. Dat stuk valt weg.
- */
 function clipSingleLine(
   op: Extract<SvgOp, { k: 'path' }>, p: readonly number[], x0: number, y0: number, x1: number, y1: number,
   lx: number, ly: number, hx: number, hy: number,
@@ -415,9 +323,7 @@ function clipSingleLine(
   const ax = p[0]; const ay = p[1]; const bx = p[2]; const by = p[3];
   if (ax === bx && ay !== by && Math.min(Math.max(ay, by), y1) - Math.max(Math.min(ay, by), y0) <= 0) return null;
   if (ay === by && ax !== bx && Math.min(Math.max(ax, bx), x1) - Math.max(Math.min(ax, bx), x0) <= 0) return null;
-  // Een ongestreepte rechte lijn (verreweg de meeste: het raster): de vaste coördinaat staat al als tekst
-  // in de opgenomen `d` (`M<x> <y>L<x> <y>`), en de afgeknipte uiteinden zijn per venster dezelfde.
-  if (!op.dash && (ax === bx || ay === by) && op.d.charCodeAt(0) === 77 /* M */) {
+  if (!op.dash && (ax === bx || ay === by) && op.d.charCodeAt(0) === 77 ) {
     const space = op.d.indexOf(' ');
     const ell = op.d.indexOf('L', space);
     if (space > 0 && ell > space) {
@@ -438,7 +344,6 @@ function clipSingleLine(
       return { k: 'path', d: `M${numText(s)} ${ys}L${numText(e)} ${ys}`, stroke: op.stroke, lw: op.lw, b: [s, ay - half, e, ay + half] };
     }
   }
-  // Liang–Barsky op de rechthoek met marge.
   const dx = bx - ax;
   const dy = by - ay;
   let t0 = 0;
@@ -466,7 +371,6 @@ function clipSingleLine(
   };
 }
 
-/** Het deel `[t0, t1]` (0 = `a`, 1 = `b`) van een lijnstuk binnen de rechthoek `lo`–`hi` (Liang–Barsky), of `null`. */
 function clipSegment(a: Pt, b: Pt, lo: Pt, hi: Pt): [number, number] | null {
   const dx = b.x - a.x;
   const dy = b.y - a.y;
@@ -491,7 +395,6 @@ function clipSegment(a: Pt, b: Pt, lo: Pt, hi: Pt): [number, number] | null {
   return [t0, t1];
 }
 
-/** De opdrachten (indexen, in tekenvolgorde) die het bronvenster raken. */
 export function opsInWindow(rec: RecordedReport, x0: number, y0: number, x1: number, y1: number): number[] {
   const hit = new Set<number>();
   const overlaps = (op: SvgOp) => op.b[2] >= x0 && op.b[0] <= x1 && op.b[3] >= y0 && op.b[1] <= y1;
@@ -503,8 +406,6 @@ export function opsInWindow(rec: RecordedReport, x0: number, y0: number, x1: num
   }
   return [...hit].sort((a, b) => a - b);
 }
-
-// ---- Serialisatie ------------------------------------------------------------------------------
 
 function esc(text: string): string {
   return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -521,14 +422,6 @@ function paintAttrs(op: { fill?: string; stroke?: string; lw?: number; dash?: st
   return ` fill="${escAttr(op.fill ?? '#000000')}"`;
 }
 
-/**
- * Eén opdracht als SVG-element. Een tekst verwijst naar zijn letterklasse (`<prefix><index>`).
- *
- * `rtl`: het blad staat in een rechts-naar-linkstaal. Canvas en PDF ordenen gemengde tekst dan met
- * basisrichting rtl, maar `textAlign` links/rechts blijft daar absoluut. In SVG hangt `text-anchor`
- * aan de schrijfrichting (`start` = rechts in rtl), dus het anker wisselt hier om: de linkerrand
- * blijft de linkerrand.
- */
 export function opToSvg(op: SvgOp, classPrefix: FontClasses, rtl = false): string {
   switch (op.k) {
     case 'rect':
@@ -542,7 +435,6 @@ export function opToSvg(op: SvgOp, classPrefix: FontClasses, rtl = false): strin
   }
 }
 
-/** Een kleur zonder doorzichtigheid: dan is één samengevoegd pad gelijk aan losse opdrachten. */
 function isOpaque(color: string | undefined): boolean {
   if (!color) return false;
   const c = color.trim().toLowerCase();
@@ -551,38 +443,24 @@ function isOpaque(color: string | undefined): boolean {
   return true;
 }
 
-/** Sleutel waarop opeenvolgende opdrachten samen één `<path>` mogen worden, of `null`. */
 function mergeKey(op: SvgOp): string | null {
-  // Lijnen: één pad met meerdere subpaden tekent hetzelfde als losse paden (geen vulregel, dekkende kleur).
   if (op.k === 'path' && op.stroke !== undefined && isOpaque(op.stroke)) return `s|${op.stroke}|${op.lw ?? 1}|${op.dash ?? ''}`;
-  // Gevulde rechthoeken: allemaal met de klok mee, dus ook overlappend geen gaten (nonzero).
   if (op.k === 'rect' && op.stroke === undefined && isOpaque(op.fill)) return `f|${op.fill}`;
   return null;
 }
 
 function mergedD(op: SvgOp): string {
   if (op.k === 'path') return op.d;
-  // Een opgenomen rechthoek heeft altijd een positieve maat (`normRect` bij het opnemen), dus elk
-  // subpad draait met de klok mee en overlap slaat geen gat.
   if (op.k === 'rect') return `M${n(op.x)} ${n(op.y)}h${n(op.w)}v${n(op.h)}h${n(-op.w)}Z`;
   return '';
 }
 
-/** Lijnen of vlakken in één dekkende kleur: daarbinnen maakt de volgorde voor de pixels niets uit. */
 function colorKey(op: SvgOp): string | null {
   if (op.k === 'path' && op.stroke !== undefined && isOpaque(op.stroke)) return `s|${op.stroke}`;
   if (op.k === 'rect' && op.stroke === undefined && isOpaque(op.fill)) return `f|${op.fill}`;
   return null;
 }
 
-/**
- * Opdrachten als SVG-elementen, in tekenvolgorde. Opeenvolgende lijnen in dezelfde dekkende kleur worden
- * één `<path>` per lijnstijl (dikte en streep), opeenvolgende dekkende rechthoeken in dezelfde kleur één
- * `<path>`: een Gantt-blad heeft duizenden rasterlijnen en celranden (bij een lange planning om en om dun
- * en dik), en minder elementen maakt het inlezen, opmaken en tekenen in de browser veel sneller. Binnen
- * zo'n reeks van één kleur maakt de volgorde niet uit (dezelfde kleur over dezelfde kleur); wat ervoor
- * of erna komt, blijft eronder of erboven liggen.
- */
 export function opsToSvg(ops: readonly SvgOp[], classPrefix: FontClasses, rtl = false): string[] {
   const out: string[] = [];
   let i = 0;
@@ -592,7 +470,6 @@ export function opsToSvg(ops: readonly SvgOp[], classPrefix: FontClasses, rtl = 
     if (color === null) { out.push(opToSvg(op, classPrefix, rtl)); i++; continue; }
     let j = i + 1;
     while (j < ops.length && colorKey(ops[j]) === color) j++;
-    // Per lijnstijl, in de volgorde van eerste voorkomen.
     const groups = new Map<string, SvgOp[]>();
     for (let k = i; k < j; k++) {
       const key = mergeKey(ops[k])!;
@@ -615,22 +492,12 @@ export function opsToSvg(ops: readonly SvgOp[], classPrefix: FontClasses, rtl = 
   return out;
 }
 
-/**
- * De letterklasse van een tekst: een voorvoegsel plus de index in de letterlijst van de opname, of een
- * lijst klassenamen per index (`reportFontClass`).
- */
 export type FontClasses = string | readonly string[];
 
 function fontClassOf(classes: FontClasses, font: number): string {
   return typeof classes === 'string' ? `${classes}${font}` : (classes[font] ?? `rf${font}`);
 }
 
-/**
- * De klassenaam van één CSS-letter, afgeleid van de letter zelf (FNV-1a): dezelfde letter heeft in elke
- * opname en op elk blad dezelfde klasse. Zo kan één gedeelde stijlregel per letter alle bladen opmaken,
- * in plaats van een `<style>` per blad (elke nieuwe `<style>` laat de browser het hele document opnieuw
- * opmaken).
- */
 export function reportFontClass(font: string): string {
   let h = 0x811c9dc5;
   for (let i = 0; i < font.length; i++) {
@@ -640,24 +507,8 @@ export function reportFontClass(font: string): string {
   return `rf${(h >>> 0).toString(36)}`;
 }
 
-/**
- * De vaste tekstregel van het papier. Kerning staat uit, net als in de canvas-backend en de PDF (die
- * tellen advances zonder kerning; tekst met Arabisch of Hebreeuws kernt wel, zie {@link reportFontRule});
- * `white-space: pre` houdt spaties zoals canvas ze tekent.
- * `geometricPrecision`: zonder die regel zet Chromium kleine tekst (een blad op schermgrootte, 8 px ×
- * schaal) per teken op hele pixels, en dan vallen er gaten in woorden. Alleen voor tekst op een blad:
- * een `<style>` in een SVG geldt voor het hele document.
- */
 export const REPORT_PAGE_TEXT_RULE = 'svg[data-report-page-svg] text{font-kerning:none;white-space:pre;text-rendering:geometricPrecision}';
 
-/**
- * De regel voor één letterklasse. `font` is de canvas-letter (`bold 9px InterPDF, …`); de
- * CSS-`font`-shorthand leest exact dezelfde schrijfwijze.
- *
- * De letter van een tekst met Arabisch of Hebreeuws (`rtlReportFont`) tekent met kerning: de PDF zet zo'n
- * tekst via `fontkit.layout` en dat kernt. Die regel moet zwaarder wegen dan {@link REPORT_PAGE_TEXT_RULE},
- * en blijft één regel (`insertRule` in `paperFontRules.ts` neemt er één tegelijk).
- */
 export function reportFontRule(font: string): string {
   const cls = reportFontClass(font);
   return isRtlReportFont(font)
@@ -665,7 +516,6 @@ export function reportFontRule(font: string): string {
     : `.${cls}{font:${font}}`;
 }
 
-/** De letterklassen van een opname als CSS (`reportFontRule` per letter), met de vaste tekstregel. */
 export function fontClassCss(fonts: readonly string[]): string {
   return fonts.map(reportFontRule).join('') + REPORT_PAGE_TEXT_RULE;
 }

@@ -1,40 +1,22 @@
-// Eigen lettertype in rapporten (issue #770, besluit Ethan 14 november 2026): de kern zonder scherm.
-//
-// Een planner kiest een lettertype van de computer of een lettertypebestand. Deze module leest zo'n bestand
-// (`.ttf`, `.otf` of een collectie `.ttc`), zegt per face of de app hem mag en kan gebruiken, kiest per familie
-// de gewone en de vette variant, en haalt één face als los bestand uit een collectie. Zonder imports en zonder
-// DOM: de planningscheck draait het headless, en de desktopapp leest er de lettertypemappen mee in stukken
-// (`ByteReader`), zonder elk bestand helemaal te laden.
-//
-// WAAROM zelf lezen en niet fontkit: fontkit wil het hele bestand, en voor de lijst van de computer zijn alleen
-// de kop, de naamtabel en OS/2 nodig (een paar kilobyte per bestand, tegen tot 20 MB voor een CJK-letter).
-
-/** Leest `length` bytes vanaf `offset`. Geeft aan het eind van het bestand minder terug dan gevraagd. */
 export type ByteReader = (offset: number, length: number) => Promise<Uint8Array>;
 
 export function bytesReader(bytes: Uint8Array): ByteReader {
   return async (offset, length) => bytes.subarray(offset, offset + length);
 }
 
-/** Eén face in een lettertypebestand. `dirOffset`: waar zijn tabeldirectory staat (0, behalve in een collectie). */
 export interface FontFaceInfo {
   dirOffset: number;
-  /** Ligt de face in een collectie? Dan moet hij er met {@link extractFace} uit voor PDF en browser. */
   inCollection: boolean;
   family: string;
   subfamily: string;
   postscriptName: string;
-  /** OS/2 `usWeightClass` (400 gewoon, 700 vet). */
   weight: number;
   italic: boolean;
-  /** OS/2 `fsType`: de inbedrechten. */
   fsType: number;
-  /** Heeft een `fvar`-tabel. */
   variable: boolean;
   outlines: 'glyf' | 'cff' | null;
 }
 
-/** Waarom de app een face of familie niet gebruikt. De keuzelijst toont de reden erbij. */
 export type FontRefusal = 'embeddingRestricted' | 'variable' | 'noOutlines' | 'postscriptOutlines' | 'noRegular';
 
 interface TableRecord { offset: number; length: number }
@@ -51,7 +33,7 @@ async function readExact(read: ByteReader, offset: number, length: number): Prom
 
 const tagAt = (v: DataView, at: number) => String.fromCharCode(v.getUint8(at), v.getUint8(at + 1), v.getUint8(at + 2), v.getUint8(at + 3));
 
-const SFNT_VERSIONS = new Set([0x00010000, 0x4f54544f /* OTTO */, 0x74727565 /* true */]);
+const SFNT_VERSIONS = new Set([0x00010000, 0x4f54544f , 0x74727565 ]);
 
 async function readDirectory(read: ByteReader, dirOffset: number): Promise<Map<string, TableRecord>> {
   const head = await readExact(read, dirOffset, 12);
@@ -65,7 +47,6 @@ async function readDirectory(read: ByteReader, dirOffset: number): Promise<Map<s
   return tables;
 }
 
-/** De namen 1, 2, 6, 16 en 17 uit de `name`-tabel; Windows-Unicode (Engels eerst) gaat voor Mac Roman. */
 async function readNames(read: ByteReader, table: TableRecord): Promise<Map<number, string>> {
   const v = await readExact(read, table.offset, table.length);
   const count = v.getUint16(2);
@@ -126,7 +107,6 @@ async function readFace(read: ByteReader, dirOffset: number, inCollection: boole
   };
 }
 
-/** Alle faces in een lettertypebestand: één bij `.ttf`/`.otf`, meer bij een collectie. Gooit bij iets anders. */
 export async function readFontFaces(read: ByteReader): Promise<FontFaceInfo[]> {
   const head = await readExact(read, 0, 12);
   if (tagAt(head, 0) !== 'ttcf') return [await readFace(read, 0, false)];
@@ -138,16 +118,6 @@ export async function readFontFaces(read: ByteReader): Promise<FontFaceInfo[]> {
   return faces;
 }
 
-/**
- * Mag en kan de app deze face in een PDF zetten? `null` = ja.
- * - fsType bit 1 (Restricted License) of bit 9 (alleen bitmaps): inbedden verboden.
- * - `fvar`: een variabel lettertype; pdf-lib bedt alleen de standaardstand in, dus vet zou in de PDF niet vet zijn.
- * - Geen `glyf` en geen `CFF `: geen contouren om in te bedden.
- * - `CFF ` (PostScript-contouren, veel `.otf`): pdf-lib 1.17 herkende ze niet (`isCFF` leest `font.cff`, dat
- *   @pdf-lib/fontkit niet had) en schreef ze als TrueType-letter in; Poppler meldde dan een verkeerd
- *   lettertypetype. fontkit 3 (#1050) heeft `font.cff` wel, maar dat pad is niet getoetst (knownbug 1942); tot
- *   dan weigert de app ze met een eigen reden.
- */
 export function faceRefusal(face: FontFaceInfo): FontRefusal | null {
   if ((face.fsType & 0x0002) !== 0 || (face.fsType & 0x0200) !== 0) return 'embeddingRestricted';
   if (face.variable) return 'variable';
@@ -156,20 +126,13 @@ export function faceRefusal(face: FontFaceInfo): FontRefusal | null {
   return null;
 }
 
-/** Een familie zoals de keuzelijst haar toont: de gewone en (als die er is) de vette variant, of een reden. */
 export interface FontFamilyChoice<F extends FontFaceInfo = FontFaceInfo> {
   family: string;
   regular: F | null;
-  /** `null`: geen vette variant; de vette tekst komt dan in de gewone letter (besluit 3a). */
   bold: F | null;
   refusal: FontRefusal | null;
 }
 
-/**
- * Groepeert faces per familie en kiest per familie de gewone en de vette variant. Cursief telt niet mee.
- * Gewoon: het gewicht het dichtst bij 400. Vet: minstens 200 zwaarder dan gewoon, het dichtst bij 700. Een
- * geweigerde vette variant valt weg; een geweigerde gewone variant weigert de hele familie. Gesorteerd op naam.
- */
 export function groupFontFamilies<F extends FontFaceInfo>(faces: readonly F[]): FontFamilyChoice<F>[] {
   const byFamily = new Map<string, F[]>();
   for (const face of faces) {
@@ -191,13 +154,7 @@ export function groupFontFamilies<F extends FontFaceInfo>(faces: readonly F[]): 
   return result.sort((a, b) => a.family.localeCompare(b.family, 'en', { sensitivity: 'base' }));
 }
 
-/**
- * Eén face als los lettertypebestand. Een los bestand komt ongewijzigd terug; uit een collectie bouwt dit een
- * nieuw bestand met alleen de tabellen van die face. Nodig omdat pdf-lib en de browser (`@font-face`) uit een
- * collectie niet de goede face kiezen.
- */
 export async function extractFace(read: ByteReader, face: FontFaceInfo): Promise<Uint8Array> {
-  // Een los bestand: het hele bestand (de lezer geeft aan het eind minder terug dan gevraagd).
   if (!face.inCollection) return (await read(0, Number.MAX_SAFE_INTEGER)).slice();
   const head = await readExact(read, face.dirOffset, 12);
   const tables = [...(await readDirectory(read, face.dirOffset))];

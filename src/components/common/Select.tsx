@@ -14,15 +14,7 @@ export type SelectOption = {
   value: string;
   label: string;
   disabled?: boolean;
-  /** Optionele uitleg bij deze optie. In de open lijst krijgt de optie dan een i-icoon met deze
-   *  tekst als directe tooltip (`TooltipHost`, `data-tooltip-instant`: hover, klik en tik). Staat er
-   *  een regeleinde (`\n`) in, dan is de eerste regel de vette kernzin (`data-tooltip-lead`).
-   *  Toetsenbord: de focus blijft op de trigger; bij de gemarkeerde optie wijst de trigger met
-   *  `aria-describedby` naar de uitleg, zodat een schermlezer hem voorleest. Zonder `description`
-   *  verandert er niets aan de keuzelijst. */
   description?: string;
-  /** Optioneel een korte, ALTIJD zichtbare regel onder het label in de open lijst (bv. een
-   *  taaktype in gewone taal met een voorbeeld). Zonder `hint` blijft de optie precies zoals ze was. */
   hint?: string;
 };
 
@@ -31,40 +23,21 @@ interface SelectProps {
   onChange: (value: string) => void;
   options: SelectOption[];
   placeholder?: string;
-  /** Label voor een `value` die bij geen optie hoort maar wél echt gezet is (bv. een type uit een
-   *  import dat de lijst niet aanbiedt). De trigger toont het als gewone waarde, niet grijs zoals
-   *  `placeholder`. De lijst zelf krijgt er geen optie bij en opent zonder actieve optie. */
   valueLabel?: string;
   disabled?: boolean;
   id?: string;
   'aria-label'?: string;
   className?: string;
-  /** Begin al UITGEKLAPT (met de volledige lijst zichtbaar) i.p.v. pas
-   *  na een tweede interactie te openen — nodig voor gridcel-editors, waar "de cel in gaan" zélf al
-   *  de keuzemoment is. Focust bij mount ook meteen de trigger, zodat pijltjes/Enter direct werken.
-   *  Niet-grid-aanroepers laten dit weg en starten gesloten. */
   autoOpen?: boolean;
   'aria-invalid'?: true;
   'aria-describedby'?: string;
-  /** Maak de trigger zo breed als het LANGSTE optielabel (plus opvulling en pijltje), zodat het
-   *  gekozen woord in geen enkele taal wordt afgekapt en de breedte niet verspringt bij een andere
-   *  keuze. Voor korte suffix-kiezers naast een invoerveld (duur-eenheid). De wrapper moet de
-   *  breedte dan niet vastzetten (`shrink-0`, geen `w-*`). */
   fitWidestOption?: boolean;
-  /**
-   * Een teken dat al getypt is vóór de lijst opende (typen op een dichte gridcel). De lijst start op
-   * `value` en springt daarna naar de eerste optie die met dit teken begint, net als typen in de open lijst.
-   */
   initialTypeahead?: string;
-  /** Kiest de gebruiker de al gekozen optie opnieuw (klik, Enter of Spatie), dan roept `Select`
-   *  `onChange` NIET aan, zoals een native `<select>`. Wie die keuze toch moet horen (de gridcel-
-   *  editor legt vast en sluit bij elke keuze), geeft deze callback mee. */
   onReselect?: (value: string) => void;
 }
 
 interface MenuRect {
   left: number;
-  /** Rechterrand van de trigger: in RTL lijnt de lijst daarop uit. */
   right: number;
   rtl: boolean;
   top: number;
@@ -75,13 +48,9 @@ interface MenuRect {
 
 const MENU_GAP = 4;
 const MENU_MAX_HEIGHT = 280;
-/** Vanaf zoveel opties tekent de open lijst alleen de zichtbare rijen (plus een buffer). Een lijst
- *  met duizenden opties (bv. "Bovenliggende taak" in een groot P6-project) opende anders pas na
- *  ruim een seconde. Korte lijsten tekenen alle opties, zoals altijd. */
 const SELECT_VIRTUAL_THRESHOLD = 200;
 const VIRTUAL_BUFFER = 8;
 
-/** Eén canvas voor alle breedtemetingen: meet de labels zonder er DOM-nodes voor te maken. */
 let measureContext: CanvasRenderingContext2D | null = null;
 function measureLabels(labels: readonly string[], font: string): number {
   if (!measureContext) measureContext = document.createElement('canvas').getContext('2d');
@@ -92,7 +61,6 @@ function measureLabels(labels: readonly string[], font: string): number {
   return widest;
 }
 
-/** Rijhoogte van een gevirtualiseerde optie: de `min-height: 2rem` uit Select.css, als vaste hoogte. */
 function virtualRowHeight(): number {
   const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
   return (Number.isFinite(rem) && rem > 0 ? rem : 16) * 2;
@@ -125,7 +93,6 @@ export function Select({
   const [rect, setRect] = useState<MenuRect | null>(null);
   const [scrollTop, setScrollTop] = useState(0);
   const virtual = options.length >= SELECT_VIRTUAL_THRESHOLD;
-  // Breedte van het langste label, per optielijst en lettertype maar één keer gemeten.
   const labelWidthCache = useRef<{ options: SelectOption[]; font: string; width: number } | null>(null);
 
   const triggerRef = useRef<HTMLButtonElement>(null);
@@ -141,9 +108,6 @@ export function Select({
   const selectedLabel = selectedIndex >= 0 ? options[selectedIndex].label : valueLabel;
 
   const firstEnabled = options.findIndex(o => !o.disabled);
-  // De keuzelijst leest deze waarde uitsluitend op de gesloten→open-grens. Tijdens een open sessie
-  // mogen nieuwe opties de toetsenbordcursor niet terugzetten; bij een volgende open sessie moet de
-  // dan actuele selectie juist wel worden gebruikt.
   const selectedIndexRef = useRef(selectedIndex);
   selectedIndexRef.current = selectedIndex;
   const lastEnabled = (() => {
@@ -170,11 +134,9 @@ export function Select({
     });
   }, []);
 
-  // Recompute position whenever open, and keep it in sync on scroll/resize.
   useLayoutEffect(() => {
     if (!open) return;
     computeRect();
-    // Het scrollen van de lijst zelf verplaatst de trigger niet; dat hoeft geen nieuwe meting.
     const onScrollOrResize = (e: Event) => {
       if (e.target instanceof Node && menuRef.current?.contains(e.target)) return;
       computeRect();
@@ -187,15 +149,6 @@ export function Select({
     };
   }, [open, computeRect]);
 
-  // Het menu is minstens zo breed als de trigger, maar groeit tot het langste label (plus een
-  // eventueel i-icoon) past; anders knipt een smalle trigger de opties af (in it/pl/de zag je twee
-  // keer hetzelfde begin). In LTR lijnt het uit op de linkerrand van de trigger en schuift het naar
-  // links als het rechts buiten het venster valt. In RTL lijnt het uit op de rechterrand en groeit
-  // het naar links; het blijft altijd binnen het venster.
-  //
-  // Een gevirtualiseerde lijst tekent niet alle opties, dus `max-content` kent het langste label
-  // niet. Daar meet een canvas alle labels in het lettertype van de lijst; de opvulling, het
-  // i-icoon, de rand en de scrollbalk komen uit de getekende rijen.
   useLayoutEffect(() => {
     if (!open || !rect || !menuRef.current) return;
     const menu = menuRef.current;
@@ -227,17 +180,11 @@ export function Select({
     menu.style.left = `${Math.max(minLeft, Math.min(wanted, maxLeft))}px`;
   }, [open, rect, virtual, options]);
 
-  // Bij autoOpen begint de trigger nooit gefocust vanuit de gewone
-  // klik-/tabvolgorde (de gridcel-editor mount 'm rechtstreeks) — zonder deze focus werken
-  // pijltjes/Enter/Escape pas na een extra klik.
   useEffect(() => {
     if (autoOpen) triggerRef.current?.focus();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Bij openen is de gekozen optie actief. Hoort `value` bij geen enkele optie (een plaatshouder
-  // zoals "Verplaatsen naar…"), dan is er GEEN actieve optie: anders kiest een extra Enter of Spatie
-  // meteen de eerste optie. Pijl-omlaag maakt dan de eerste optie actief.
   useEffect(() => {
     if (open) {
       setHighlight(selectedIndexRef.current);
@@ -245,8 +192,6 @@ export function Select({
     }
   }, [open]);
 
-  // Keep the highlighted option scrolled into view. In een gevirtualiseerde lijst bestaat de rij
-  // misschien nog niet: dan rekent de lijst de scrollpositie uit de rijhoogte.
   const menuReady = rect !== null;
   useEffect(() => {
     if (!open || highlight < 0) return;
@@ -262,7 +207,6 @@ export function Select({
     optionRefs.current[highlight]?.scrollIntoView({ block: 'nearest' });
   }, [open, highlight, virtual, menuReady]);
 
-  // Outside-click / focus-out closing.
   useEffect(() => {
     if (!open) return;
     const onPointerDown = (e: PointerEvent) => {
@@ -279,8 +223,6 @@ export function Select({
     if (returnFocus) triggerRef.current?.focus();
   }, []);
 
-  // Dezelfde optie opnieuw kiezen sluit alleen de lijst, net als een native `<select>`: geen
-  // `onChange`. Anders wiste bv. dezelfde curve opnieuw kiezen een geïmporteerde P6-curve.
   const selectAt = useCallback(
     (index: number) => {
       const opt = options[index];
@@ -297,7 +239,6 @@ export function Select({
       setHighlight(prev => {
         const n = options.length;
         if (n === 0) return -1;
-        // Zonder actieve optie begint omlaag bij de eerste en omhoog bij de laatste optie.
         let i = prev < 0 ? (dir === 1 ? -1 : n) : prev;
         for (let step = 0; step < n; step++) {
           i = (i + dir + n) % n;
@@ -309,10 +250,8 @@ export function Select({
     [options],
   );
 
-  /** PageUp/PageDown: een schermhoogte verder, zonder rond te lopen; landt op een geldige optie. */
   const pageHighlight = useCallback(
     (dir: 1 | -1) => {
-      // Eén formule voor korte en lange lijsten: zoveel rijen als er in beeld passen, min één.
       const menu = menuRef.current;
       const row = virtual
         ? virtualRowHeight()
@@ -348,8 +287,6 @@ export function Select({
     [options],
   );
 
-  // Na het openzetten van de highlight hierboven (dat effect staat eerder, dus draait eerst). De buffer
-  // wordt gelijkgezet, niet aangevuld: StrictMode draait mount-effecten dubbel, in dezelfde volgorde.
   useEffect(() => {
     if (!open || !initialTypeahead) return;
     typeahead.current.buffer = '';
@@ -399,23 +336,12 @@ export function Select({
       case 'Enter':
       case ' ':
         e.preventDefault();
-        // StopPropagation zodra dit ECHT een keuze maakt — anders zou
-        // dezelfde Enter ook nog doorbubbelen naar een omringende "Enter commit"-handler (zoals de
-        // gridcel-editor), die de keuze dan een TWEEDE keer zou verwerken. Grid-integratie roept de
-        // commit zelf al aan vanuit onChange (zie TaskCellEditor); dit voorkomt dat dubbel gebeurt.
-        // Dezelfde waarde opnieuw kiezen roept geen onChange aan. Zonder `onReselect` mag de Enter
-        // dan wél door (een omringende Enter-handler ziet een gewone Enter); met `onReselect` handelt
-        // die callback de keuze af en stopt de toets hier. Zonder actieve optie kiest Enter of
-        // Spatie niets.
         if (highlight >= 0) {
           if (options[highlight]?.value !== value || onReselect) e.stopPropagation();
           selectAt(highlight);
         }
         break;
       case 'Escape':
-        // Escape in een open lijst sluit alleen de lijst. Zonder stopPropagation sloot dezelfde
-        // toets ook de omringende dialoog (`useDialogKeys` luistert op `document`) en gooide hij het
-        // concept weg. Een dichte trigger laat Escape door, net als een native `<select>`.
         e.preventDefault();
         e.stopPropagation();
         close();
@@ -430,12 +356,6 @@ export function Select({
     }
   };
 
-  // `autoOpen` maakt `open` al bij de EERSTE render `true`, dus ook tijdens `renderToStaticMarkup`
-  // (dit project heeft géén jsdom) — createPortal(..., document.body) crasht dan op een ontbrekend
-  // `document`. `typeof document !== 'undefined'` maakt de portal SSR-veilig: de menu-portal
-  // bestaat pas zinvol zodra de component in een echte browser draait.
-  // Gevirtualiseerd: alleen de rijen in beeld (plus een buffer), met lege vlakken erboven en
-  // eronder zodat de scrollbalk de hele lijst voorstelt.
   const rowHeight = virtual && open && rect && typeof document !== 'undefined' ? virtualRowHeight() : 0;
   const windowStart = rowHeight ? Math.max(0, Math.floor(scrollTop / rowHeight) - VIRTUAL_BUFFER) : 0;
   const windowEnd = rowHeight && rect
@@ -466,7 +386,6 @@ export function Select({
         }
         onMouseEnter={() => !opt.disabled && setHighlight(i)}
         onMouseDown={e => {
-          // Prevent the trigger from losing focus before we handle the click.
           e.preventDefault();
         }}
         onClick={() => selectAt(i)}
@@ -481,10 +400,6 @@ export function Select({
         )}
         {opt.description && (
           <>
-            {/* i-icoon: alleen voor muis en tik (de focus blijft op de trigger); een klik
-                toont de uitleg en kiest de optie NIET. Schermlezers krijgen de uitleg via
-                `aria-describedby` op de trigger (verborgen spans ná de opties, zodat de tekst van de optie
-                zelf alleen het label blijft). */}
             <span
               className="ops-select__option-info"
               title={opt.description}
@@ -516,7 +431,6 @@ export function Select({
             style={{
               left: rect.left,
               minWidth: rect.width,
-              // Gevirtualiseerd zet de breedtemeting hierboven de breedte zelf.
               ...(virtual ? {} : { width: 'max-content' }),
               maxWidth: window.innerWidth - MENU_GAP * 4,
               maxHeight: rect.maxHeight,
@@ -564,7 +478,6 @@ export function Select({
         onClick={() => !disabled && setOpen(o => !o)}
         onKeyDown={onTriggerKeyDown}
         onBlur={e => {
-          // Close if focus moves entirely outside trigger + menu.
           const next = e.relatedTarget as Node | null;
           if (next && (menuRef.current?.contains(next) || triggerRef.current?.contains(next))) {
             return;
@@ -582,8 +495,6 @@ export function Select({
           {fitWidestOption ? (
             <>
               <span className="ops-select__value-text">{selectedLabel ?? placeholder ?? ''}</span>
-              {/* Onzichtbare maatvoerders: het label staat in een `::before` uit `data-label`, dus de
-                  tekstinhoud (en `toHaveText`) van de trigger blijft alleen het gekozen woord. */}
               {options.map(opt => (
                 <span
                   key={opt.value}

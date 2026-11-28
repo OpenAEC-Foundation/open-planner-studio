@@ -1,12 +1,3 @@
-/**
- * Curvegrafiek voor de rapporten (voortgangscurve, issue #689). Eén pure ligging
- * (`layoutCurveChart`: assen, lijnen, band, statusdatumlijn in logische px) en twee tekenaars: het
- * scherm tekent de ligging als SVG in de themakleuren (`CurveChartView`), de PDF tekent hem hier via
- * `Draw2D` op wit papier. Zo kunnen scherm en PDF niet uit elkaar lopen, net als de kolomspec van de
- * tabelrapporten (`pdfTable.ts`).
- *
- * Deze module doet geen i18n: alle teksten (aslabels, legenda, statusdatum) komen al vertaald binnen.
- */
 import type { Draw2D } from './draw2d';
 import { ellipsize } from '@/engine/renderer/textFit';
 import { isoDayNumber as dayNum } from '@/engine/reports/progressCurve';
@@ -16,37 +7,27 @@ export interface CurveChartPoint { day: string; pct: number }
 export interface CurveChartSeries {
   key: string;
   label: string;
-  /** Lijnkleur (hex), dezelfde in DOM en PDF. */
   color: string;
   dashed?: boolean;
   points: CurveChartPoint[];
 }
 
 export interface CurveChartSpec {
-  /** As (ISO-dagen). */
   from: string;
   to: string;
   series: CurveChartSeries[];
-  /** Gevulde band tussen twee curves met dezelfde meetpunten. */
   band?: { key: string; label: string; color: string; upper: CurveChartPoint[]; lower: CurveChartPoint[] };
-  /** Verticale lijn (de statusdatum). */
   marker?: { day: string; label: string; color: string };
-  /** X-asstrepen met hun label (al opgemaakt). */
   xTicks: { day: string; label: string }[];
-  /** Y-asstrepen (0–100) met hun label (al opgemaakt). */
   yTicks: { pct: number; label: string }[];
-  /** Toegankelijke naam van de grafiek. */
   ariaLabel: string;
-  /** Kleine regel onder de legenda (bv. hoe de werkelijke curve benaderd is). */
   footnote?: string;
 }
 
 export const CURVE_CHART_WIDTH = 760;
 export const CURVE_CHART_HEIGHT = 280;
-/** Hoogte van de legendaregel onder de grafiek (PDF). */
 export const CURVE_CHART_LEGEND_HEIGHT = 24;
 export const CURVE_CHART_FOOTNOTE_HEIGHT = 18;
-/** Dekking van de band: de DOM zet hem als `fill-opacity`, de PDF mengt de kleur met wit. */
 export const CURVE_BAND_OPACITY = 0.2;
 
 const MARGIN = { left: 44, right: 14, top: 22, bottom: 26 };
@@ -60,8 +41,6 @@ export interface CurveChartLayout {
   yTicks: { y: number; label: string }[];
   xTicks: { x: number; label: string }[];
   lines: { key: string; color: string; dashed: boolean; pts: Pt[] }[];
-  /** De band als vlak plus zijn twee randen: bij nul speling vallen de randen samen en is het vlak
-   *  leeg, dan blijft de doelvoortgang toch als lijn zichtbaar. */
   band?: { color: string; polygon: Pt[]; edges: [Pt[], Pt[]] };
   marker?: { x: number; label: string; color: string; labelAlign: 'left' | 'right' };
 }
@@ -94,7 +73,6 @@ export function layoutCurveChart(spec: CurveChartSpec, width = CURVE_CHART_WIDTH
   };
 }
 
-/** Een hexkleur gemengd met wit — de PDF kent geen doorzichtigheid. */
 export function mixWithWhite(hex: string, alpha: number): string {
   const m = /^#?([0-9a-f]{6})$/i.exec(hex);
   if (!m) return hex;
@@ -105,13 +83,11 @@ export function mixWithWhite(hex: string, alpha: number): string {
 
 const PRINT = { grid: '#e5e7eb', axis: '#9ca3af', text: '#6b7280' };
 
-/** Tekent de grafiek (zonder legenda) met linksboven op (`x0`, `y0`). */
 export function drawCurveChart(d2d: Draw2D, layout: CurveChartLayout, x0: number, y0: number, fontFamily: string): void {
   const { plot } = layout;
   const X = (x: number) => x0 + x;
   const Y = (y: number) => y0 + y;
   d2d.setLineDash([]);
-  // Raster en y-labels.
   d2d.font = `10px ${fontFamily}`;
   d2d.textBaseline = 'middle';
   d2d.textAlign = 'right';
@@ -125,7 +101,6 @@ export function drawCurveChart(d2d: Draw2D, layout: CurveChartLayout, x0: number
     d2d.fillStyle = PRINT.text;
     d2d.fillText(t.label, X(plot.x - 6), Y(t.y));
   }
-  // Band.
   if (layout.band && layout.band.polygon.length > 2) {
     d2d.fillStyle = mixWithWhite(layout.band.color, CURVE_BAND_OPACITY);
     d2d.beginPath();
@@ -140,7 +115,6 @@ export function drawCurveChart(d2d: Draw2D, layout: CurveChartLayout, x0: number
       d2d.stroke();
     }
   }
-  // X-as met strepen en labels.
   d2d.strokeStyle = PRINT.axis;
   d2d.lineWidth = 1;
   d2d.beginPath();
@@ -158,7 +132,6 @@ export function drawCurveChart(d2d: Draw2D, layout: CurveChartLayout, x0: number
     d2d.stroke();
     d2d.fillText(ellipsize(d2d, t.label, Math.max(20, spacing - 4)), X(t.x), Y(plot.y + plot.h + 14));
   }
-  // Curves.
   for (const line of layout.lines) {
     if (line.pts.length < 1) continue;
     d2d.strokeStyle = line.color;
@@ -169,7 +142,6 @@ export function drawCurveChart(d2d: Draw2D, layout: CurveChartLayout, x0: number
     d2d.stroke();
   }
   d2d.setLineDash([]);
-  // Statusdatum.
   if (layout.marker) {
     const m = layout.marker;
     d2d.strokeStyle = m.color;
@@ -190,7 +162,6 @@ export function drawCurveChart(d2d: Draw2D, layout: CurveChartLayout, x0: number
   d2d.textBaseline = 'alphabetic';
 }
 
-/** De legenda-items in tekenvolgorde: band, dan de lijnen, dan de statusdatum. */
 export function curveLegendItems(spec: CurveChartSpec): { key: string; label: string; color: string; kind: 'band' | 'line' | 'dashed' | 'marker' }[] {
   const items: { key: string; label: string; color: string; kind: 'band' | 'line' | 'dashed' | 'marker' }[] = [];
   for (const s of spec.series) if (s.points.length > 0) items.push({ key: s.key, label: s.label, color: s.color, kind: s.dashed ? 'dashed' : 'line' });
@@ -199,7 +170,6 @@ export function curveLegendItems(spec: CurveChartSpec): { key: string; label: st
   return items;
 }
 
-/** Tekent de legenda op één regel vanaf (`x0`, `y0`); geeft niets terug (vaste hoogte). */
 export function drawCurveLegend(d2d: Draw2D, spec: CurveChartSpec, x0: number, y0: number, maxWidth: number, fontFamily: string, textColor: string): void {
   const midY = y0 + CURVE_CHART_LEGEND_HEIGHT / 2;
   let x = x0;

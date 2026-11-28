@@ -1,23 +1,3 @@
-// MCP-toolmodule — het WIJZIGEN van bestaande relaties (`planner_update_dependencies`).
-//
-// WAAROM. Zonder deze tool kan een FS naar SS, of alleen de lag, uitsluitend via
-// verwijderen-en-opnieuw-toevoegen — met twee nadelen die een agent niet kan zien: het sequence-id
-// verandert (elke verwijzing die hij net uit `get_project_overview` haalde is dood) en het kost twee
-// undo-stappen. De overview geeft sequence-id's in de relatienotatie mee (`"→2.3 FS+2d #seq-7"`) om
-// een relatie AAN TE WIJZEN; deze module levert het gereedschap om hem te VERANDEREN.
-//
-// WAAROM EEN EIGEN MODULE en niet in `taskTools.ts`: dat bestand draagt al vier onderwerpen (taken,
-// relaties, historie, herberekening). De gedeelde kennis (type-aliassen, lag-notatie,
-// schema-fragmenten) zit in de leaf-module `sequenceFields.ts`, die `taskTools`, `readTools` én deze
-// module gebruiken — er is dus GEEN tweede parser. `add_/remove_dependencies` staan nog in
-// `taskTools.ts`.
-//
-// CONVENTIES (identiek aan de andere bulk-mutatietools):
-//   * driedeling `parseX` / `xCore` / `handler`, zodat de tool los én als `planner_batch`-stap werkt;
-//   * per-item-weigeringen zijn ZACHT (`itemRejections`) — één rotte regel rolt de bulk nooit terug;
-//   * een KRINGVERWIJZING is HARD (`McpStepError('CYCLE')`) met volledige rollback;
-//   * NOOIT `ok` zonder effect: een item dat de relatie niet daadwerkelijk verandert wordt geweigerd
-//     met de reden dat de waarden al zo staan.
 import type { McpContext, McpToolOk } from '../contracts';
 import type { BatchStepTool } from './batchTool';
 import { McpStepError, runMutateTool, toolError, type MutationOutcome } from './runtime';
@@ -40,18 +20,8 @@ import {
 import type { Sequence, SequenceType } from '@/types/sequence';
 import { markDocumentEdited } from '@/state/documentEdited';
 
-/** De ENIGE sleutels die een update-item mag dragen. Alles daarbuiten wordt bij naam geweigerd. */
 const ITEM_KEYS = ['seqId', 'type', 'lag', 'predecessorId', 'successorId'];
 
-/**
- * Gerichte hints bij sleutels die een agent redelijkerwijs probeert. Twee categorieën:
- *   - synoniemen die wél kunnen (`lagDays`/`lagPercent`/`id`) ⇒ wijs de goede sleutel aan;
- *   - modelvelden die BEWUST NIET zetbaar zijn (`lagUnit`, `lagMinutes`) ⇒ zeg dat, en waarom. Die
- *     twee bestaan in `Sequence` en overleven de IFC-round-trip, maar de LEESKANT toont ze niet
- *     (`lagLabel` rendert alleen dagen en procent). Ze schrijfbaar maken zou een agent iets laten
- *     zetten dat hij daarna nergens kan teruglezen of verifiëren. Zodra de leeskant ze toont, horen
- *     ze hier zetbaar te worden.
- */
 const FIELD_HINTS: Record<string, string> = {
   id: 'use `seqId` — the sequence id that get_project_overview/get_task return after the `#`',
   lagDays: 'use `lag` (number 2/-1 or string "+2d")',
@@ -66,7 +36,6 @@ const FIELD_HINTS: Record<string, string> = {
   fields: 'the fields sit directly on the item here (no `fields` block): { seqId, type, lag, … }',
 };
 
-/** De velden van één relatie zoals deze tool ze projecteert (id en `lagUnit` blijven ongemoeid). */
 interface SeqFields {
   predecessorId: string;
   successorId: string;
@@ -76,7 +45,6 @@ interface SeqFields {
   lagMinutes?: number;
 }
 
-/** Eén geaccepteerde wijziging: de doelstaat plus het VOOR/NA-verschil dat we rapporteren. */
 interface DepCandidate {
   seqId: string;
   next: SeqFields;
@@ -94,16 +62,6 @@ function fieldsOf(seq: Sequence): SeqFields {
   };
 }
 
-/**
- * Statische classificatie van een relatie-update-batch: vormvalidatie per item, bestaan, dedup en de
- * NO-OP-check. Gedeeld door het lege-batch-snelpad (handler) en de kern — precies zoals `classifyDeps`
- * dat voor `add_dependencies` doet. De KRING-check zit hier bewust NIET in: die draait één keer over
- * de volledige projectie in de kern, als HARDE stap-fout.
- *
- * `projected` bevat na afloop ALLE relaties met de geaccepteerde wijzigingen toegepast. Daarmee zijn
- * twee items uit dezelfde call niet in staat om samen een duplicaat (of straks een kring) te maken
- * zonder dat we het zien.
- */
 function classifyDepUpdates(
   st: AppState,
   updates: unknown[],
@@ -116,7 +74,6 @@ function classifyDepUpdates(
   const candidates: DepCandidate[] = [];
   const byId = new Map(st.sequences.map((s) => [s.id, s]));
   const projected = new Map(st.sequences.map((s) => [s.id, fieldsOf(s)]));
-  // Eén Map voor zowel het bestaan-check als de verzameltaak-lookup hieronder.
   const byTaskId = new Map(st.tasks.map((t) => [t.id, t]));
   const lookupTask = (tid: string) => byTaskId.get(tid);
   const seenSeqIds = new Set<string>();
@@ -136,9 +93,6 @@ function classifyDepUpdates(
       continue;
     }
 
-    // Onbekende sleutels: bij NAAM geweigerd, mét het alternatief. De schemapoort komt hier niet —
-    // de binnenkant van array-items is per DIEPTE-REGEL aan de tool, juist omdat één rot item hier
-    // een zachte weigering hoort te zijn en niet de hele bulk mag omgooien.
     const unknownKeys = Object.keys(it).filter((k) => !ITEM_KEYS.includes(k));
     if (unknownKeys.length > 0) {
       const k = unknownKeys[0];
@@ -178,7 +132,6 @@ function classifyDepUpdates(
       continue;
     }
 
-    // --- type -----------------------------------------------------------------------------------
     let nextType = cur.type;
     if (it.type !== undefined) {
       const t = normalizeSeqType(it.type);
@@ -186,7 +139,6 @@ function classifyDepUpdates(
       nextType = t;
     }
 
-    // --- endpoints ------------------------------------------------------------------------------
     let bad: string | null = null;
     let nextPred = cur.predecessorId;
     let nextSucc = cur.successorId;
@@ -205,17 +157,6 @@ function classifyDepUpdates(
       rejections.push({ id: seqId, reason: selfRelationReason(nextPred) });
       continue;
     }
-    // Voorouder-relatie als NIEUW eindpunt-paar: verhangen náár een
-    // relatie tussen een taak en zijn EIGEN (voor)ouder-samenvatting zou `expandSummaryRelations`
-    // een directe cyclus laten genereren. Een gewoon verzameltaak-eindpunt is verder GEEN
-    // weigergrond — dat rekent gewoon mee. Dit pad schrijft de eindpunten rechtstreeks op de
-    // draft (zie de mutatie verderop), dus dit is de ENIGE plek waar dit tegengehouden kan worden —
-    // anders dan bij het aanmaken (classifyDeps → addSequence) zit er hier geen tweede laag onder.
-    //
-    // Bewust ALLEEN op eindpunten die daadwerkelijk WIJZIGEN: een bestaande relatie kan al een
-    // voorouder-eindpunt hebben (uit een import — de solver-guard in `expandSummaryRelations` droppt
-    // 'm dan zelf, geen crash) en moet dan nog op type/lag te wijzigen zijn. Verhangen wég van een
-    // voorouder-relatie (het herstelpad) blijft dus ook toegestaan.
     const predIsNew = nextPred !== cur.predecessorId;
     const succIsNew = nextSucc !== cur.successorId;
     if (
@@ -226,10 +167,6 @@ function classifyDepUpdates(
       continue;
     }
 
-    // --- lag ------------------------------------------------------------------------------------
-    // Een opgegeven lag zet ALTIJD de volledige lag-representatie (dagen ⇄ procent, en de uit IFC
-    // ingelezen minuut-lag gaat weg): de solver leest `lagPercent` → `lagMinutes` → `lagDays`, dus
-    // een achterblijvend veld zou de nieuwe waarde stil overrulen. Zie `lagPatchOf`.
     let nextLag: Pick<SeqFields, 'lagDays' | 'lagPercent' | 'lagMinutes'> = {
       lagDays: cur.lagDays,
       ...(cur.lagPercent !== undefined ? { lagPercent: cur.lagPercent } : {}),
@@ -239,8 +176,6 @@ function classifyDepUpdates(
       const parsed = parseLag(it.lag);
       if (!parsed.ok) { rejections.push({ id: seqId, reason: parsed.reason }); continue; }
       const p = lagPatchOf(parsed.value);
-      // HIER wordt een bestaande `lagMinutes` gewist: hij wordt bewust NIET uit `cur` meegenomen.
-      // Zie de waarschuwing bij `lagPatchOf` — dit is de plek die die waarschuwing opvolgt.
       nextLag = {
         lagDays: p.lagDays,
         ...(p.lagPercent !== undefined ? { lagPercent: p.lagPercent } : {}),
@@ -249,7 +184,6 @@ function classifyDepUpdates(
 
     const next: SeqFields = { predecessorId: nextPred, successorId: nextSucc, type: nextType, ...nextLag };
 
-    // --- niets veranderd? -----------------------------------------------------------------------
     const changes: Record<string, unknown> = {};
     if (next.predecessorId !== cur.predecessorId) {
       changes.predecessorId = { from: cur.predecessorId, to: next.predecessorId };
@@ -264,7 +198,6 @@ function classifyDepUpdates(
       changes.lag = {
         from: lagReport(cur),
         to: lagReport(next),
-        // Expliciet gemeld: het label alleen zou "0 → 0" tonen terwijl de werkzame lag verdwijnt.
         ...(clearedMinutes ? { clearedLagMinutes: cur.lagMinutes } : {}),
       };
     }
@@ -276,10 +209,6 @@ function classifyDepUpdates(
       continue;
     }
 
-    // --- duplicaat ------------------------------------------------------------------------------
-    // Eén relatie per (voorganger, opvolger, type) — dezelfde regel die `addSequence` hanteert. Een
-    // TYPE-wijziging (of een verlegd eindpunt) kan een bestaande relatie dubbelen; dat mag niet stil
-    // gebeuren, want de store-`updateSequence` negeert zo'n botsing zonder een woord te zeggen.
     const key = relationKey(next);
     let clash: string | null = null;
     for (const [otherId, f] of projected) {
@@ -302,7 +231,6 @@ function classifyDepUpdates(
   return { candidates, rejections, projected };
 }
 
-/** Vormvalidatie van `update_dependencies`; string = foutboodschap (harde VALIDATION). */
 function parseUpdateDeps(args: unknown): unknown[] | string {
   const a = (args ?? {}) as { updates?: unknown };
   if (!Array.isArray(a.updates) || a.updates.length === 0) {
@@ -311,28 +239,10 @@ function parseUpdateDeps(args: unknown): unknown[] | string {
   return a.updates;
 }
 
-/**
- * Synchrone, transactie-vrije kern van `update_dependencies`.
- *
- * Er is bewust GEEN draft-primitief voor: net als bij `remove_dependencies` muteren we via één
- * draft-stijl `setState` binnen de transactie (snapshot-/recompute-vrij — de suppressievlag en de
- * eind-runCPM van `runInMcpTransaction` dekken dat). De store-actie `updateSequence` is hier
- * ONBRUIKBAAR: die pusht zijn eigen undo-snapshot én negeert een duplicaat-botsing STIL (`return`
- * zonder melding) — precies wat dit oppervlak niet mag doen.
- */
 function updateDependenciesCore(ctx: McpContext, updates: unknown[]): MutationOutcome {
   const st = ctx.app.store.getState();
   const { candidates, rejections, projected } = classifyDepUpdates(st, updates);
 
-  // KRING: over de VOLLEDIGE projectie (alle relaties mét de geaccepteerde wijzigingen), via exact
-  // hetzelfde pad als `add_dependencies` — `validate.noCycle` telt `sequences` plus de voorgestelde
-  // kanten (uitgevouwen over de samenvattingstaken van `tasks`), dus voeren we de projectie als
-  // "voorgestelde" kanten aan en houden we de bestaande verzameling leeg. Elke kring in de projectie
-  // telt daardoor, ook een die er al was.
-  //
-  // NB: een TYPE- of LAG-wijziging alleen kan nooit een kring maken (de kanten-graaf kent alleen
-  // voorganger→opvolger, en die blijven dan gelijk). Verleg je een EINDPUNT, dan kan het wel — en
-  // daarom staat de check hier onvoorwaardelijk: hij is goedkoop en dekt beide gevallen.
   const cyc = validate.noCycle(
     { tasks: st.tasks, assignments: st.assignments, sequences: [] },
     [...projected.values()].map((f) => ({ predecessorId: f.predecessorId, successorId: f.successorId })),
@@ -348,8 +258,6 @@ function updateDependenciesCore(ctx: McpContext, updates: unknown[]): MutationOu
         seq.successorId = c.next.successorId;
         seq.type = c.next.type;
         seq.lagDays = c.next.lagDays;
-        // `delete` i.p.v. `= undefined`: zo is de relatie identiek aan een die deze velden nooit had
-        // (en aan wat de IFC-reader teruggeeft).
         if (c.next.lagPercent === undefined) delete seq.lagPercent;
         else seq.lagPercent = c.next.lagPercent;
         if (c.next.lagMinutes === undefined) delete seq.lagMinutes;
@@ -365,9 +273,6 @@ function updateDependenciesCore(ctx: McpContext, updates: unknown[]): MutationOu
   };
 }
 
-/** De taken wier planning door een relatie-wijziging kan verschuiven: de opvolger — zowel de NIEUWE
- *  (uit de zojuist herrekende store) als de OUDE (uit de voor-staat), want een verlegd eindpunt laat
- *  de vorige opvolger juist los. */
 function affectedTaskIds(state: AppState, seqIds: string[], before: Map<string, SeqFields>): string[] {
   const live = state.sequences;
   const ids = new Set<string>();
@@ -400,7 +305,6 @@ const updateDependencies: BatchStepTool = {
           required: ['seqId'],
           properties: {
             seqId: { type: 'string' },
-            // Gedeelde schema-fragmenten (sequenceFields.ts): identiek aan add_dependencies.
             type: SEQ_TYPE_SCHEMA,
             lag: LAG_SCHEMA,
             predecessorId: { type: 'string' },
@@ -418,9 +322,6 @@ const updateDependencies: BatchStepTool = {
     const parsed = parseUpdateDeps(args);
     if (typeof parsed === 'string') return toolError(ctx, 'VALIDATION', parsed);
     const before = new Map(ctx.app.store.getState().sequences.map((s) => [s.id, fieldsOf(s)]));
-    // Lege-batch-snelpad (zelfde reden als bij de andere bulk-tools): levert de statische
-    // classificatie nul kandidaten, dan hoeft er géén transactie (en AI-backup) te draaien. Een
-    // wijziging-loze transactie legt ook zelf geen undo-stap vast (zie `okDirect`).
     {
       const state = ctx.app.store.getState();
       const pre = classifyDepUpdates(state, parsed);
@@ -441,5 +342,4 @@ const updateDependencies: BatchStepTool = {
   },
 };
 
-/** De relatie-wijzigingsmodule (registreer via één regel in `toolRegistry.MODULES`). */
 export const dependencyTools: BatchStepTool[] = [updateDependencies];

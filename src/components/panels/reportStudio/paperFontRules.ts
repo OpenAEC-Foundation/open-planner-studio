@@ -1,10 +1,5 @@
 import { REPORT_PAGE_TEXT_RULE, reportFontRule } from '@/services/pdf/svgDraw2d';
 
-// De letterregels van het papier (issue #817): één `<style>` in het document voor alle bladen, in plaats
-// van een `<style>` per blad. Een nieuwe `<style>` laat de browser het hele document opnieuw opmaken; bij
-// elk blad dat in beeld kwam kostte dat 5 tot 15 ms. Een regel per letter komt er alleen bij als een
-// opname een nieuwe letter gebruikt (een andere rapportletter of lettergrootte).
-
 const known = new Set<string>();
 let sheet: CSSStyleSheet | null = null;
 
@@ -19,7 +14,6 @@ function paperSheet(): CSSStyleSheet | null {
   return sheet;
 }
 
-/** Zorgt dat elke letter van een opname een regel heeft (`reportFontClass` in de SVG van een blad). */
 export function ensurePaperFontRules(fonts: readonly string[]): void {
   if (fonts.every(font => known.has(font)) && sheet?.ownerNode?.isConnected) return;
   const target = paperSheet();
