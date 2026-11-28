@@ -4,7 +4,6 @@ import { Dialog } from '@/components/common/Dialog';
 import { useAppStore } from '@/state/appStore';
 import { buildImportLabels } from '@/i18n/importLabels';
 
-/** Eén compacte keuze voor de plusknoppen in de documentkiezer. */
 export function NewOrOpenProjectDialog() {
   const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);

@@ -11,10 +11,8 @@ export interface LevelingPreviewRow {
   delay: number;
 }
 
-/** Alleen de zichtbare voorstelregels mounten; Toepassen blijft het volledige resultaat gebruiken. */
 export function LevelingPreviewTable({ rows, formatStart }: {
   rows: readonly LevelingPreviewRow[];
-  /** De start van een taak volgens B4 (`useTaskIdDateText`, startachtig). */
   formatStart: (taskId: string, iso: string) => string;
 }) {
   const { t } = useTranslation('common');
@@ -47,7 +45,6 @@ export function LevelingPreviewTable({ rows, formatStart }: {
       aria-label={t('resource.leveling.dialogTitle')}
       onScroll={event => setScrollTop(event.currentTarget.scrollTop)}
       onKeyDown={event => {
-        // De browser scrolt deze lijst; globale Gantt-sneltoetsen mogen Home/pijlen niet overnemen.
         if (['Home', 'End', 'PageUp', 'PageDown', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', ' '].includes(event.key)) {
           event.stopPropagation();
         }

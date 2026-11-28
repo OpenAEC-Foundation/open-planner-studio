@@ -5,54 +5,22 @@ import { RECOVERY_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { useTimeNotation } from '@/hooks/displayDate';
 import { formatLocalDateTime } from '@/utils/displayTime';
 
-/**
- * Eén te herstellen document, zoals de {@link RecoveryDialog} het toont.
- * Puur presentatie-data — de dialoog doet zelf geen file-I/O, zodat er geen
- * `@tauri-apps/*`-import in dit component zit en de web-build veilig blijft.
- */
 export interface RecoveryEntry {
-  /** Stabiele sleutel (document-id of 'legacy'). */
   id: string;
-  /** Weergavenaam: bestandsnaam (indien bekend) of projectnaam. */
   name: string;
-  /** Volledig pad naar het bronbestand, indien het document ooit is opgeslagen. */
   filePath: string | null;
-  /** Aantal taken in de snapshot (goedkoop uit de geparste IFC). */
   taskCount: number;
-  /** Tijdstip van de snapshot (mtime van het recovery-bestand), of null. */
   mtime: Date | null;
 }
 
 interface RecoveryDialogProps {
   entries: RecoveryEntry[];
-  /** Herstel alle documenten en ruim de recovery-bestanden op. */
   onRestore: () => void;
-  /** Herstel niets en ruim de recovery-bestanden op. */
   onDiscard: () => void;
-  /**
-   * Sluit de dialoog zónder op te ruimen en zónder te herstellen. Bewust
-   * veilig: de recovery-bestanden blijven staan, zodat een gebruiker die per
-   * ongeluk Escape drukt zijn werk niet verliest — bij de volgende start
-   * verschijnt de vraag opnieuw.
-   */
   onClose: () => void;
-  /**
-   * De ?-knop: verbergt het venster zolang Help openstaat, zonder te kiezen. Het herstel blijft dus
-   * gewoon openstaan (de auto-save staat nog uit) en het venster komt terug zodra Help dicht is.
-   */
   onHelp: () => void;
 }
 
-/**
- * In-app herstel-dialoog: vervangt de native OS-`ask()`. Toont per te herstellen
- * document de naam, het bestandspad, het aantal taken en het tijdstip van de
- * laatste auto-save-snapshot, met de keuze om alles te herstellen of te
- * verwerpen.
- *
- * Gestyled zoals de andere dialogen (UpdateDialog/CloseDocumentDialog):
- * gecentreerde overlay, kaart met header/body/footer en `btn`-knoppen. Doet zelf
- * geen file-I/O — App.tsx levert de data en handelt de keuze af.
- */
 export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp }: RecoveryDialogProps) {
   const { t, i18n } = useTranslation('common');
   const timeNotation = useTimeNotation();
@@ -60,7 +28,6 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp 
 
 
   return (
-    // Escape = bewaren; Enter herstelt leesbare kopieën of bewaart uitsluitend onleesbare kopieën.
     <Dialog
       onBackdropClick={onClose}
       onCancel={onClose}
@@ -68,16 +35,12 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp 
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[520px] max-h-[90vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-recovery-dialog': true }}
     >
-        {/* Header */}
-        {/* ?-knop zonder vraag (geen invoer). Bewust NIET via `onClose` (dat stelt het herstel uit tot
-            de volgende start): `onHelp` verbergt het venster alleen zolang Help openstaat. */}
         <DialogHeader
           title={t('recovery.dialogTitle')}
           onClose={onClose}
           help={{ articleId: RECOVERY_HELP_ARTICLE_ID, close: onHelp }}
         />
 
-        {/* Body */}
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
           <p className="text-text-secondary leading-relaxed">{t(unreadableOnly ? 'recovery.unreadableOnlyExplanation' : 'recovery.explanation')}</p>
 
@@ -109,7 +72,6 @@ export function RecoveryDialog({ entries, onRestore, onDiscard, onClose, onHelp 
           </ul>
         </div>
 
-        {/* Footer */}
         <div className="flex justify-end gap-3 px-4 py-3 border-t border-border">
           <button onClick={onDiscard} className="btn btn--sm btn--secondary">
             {t(unreadableOnly ? 'recovery.deleteCopies' : 'recovery.dontRestore')}

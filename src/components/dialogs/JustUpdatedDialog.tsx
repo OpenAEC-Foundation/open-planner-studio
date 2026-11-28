@@ -26,15 +26,6 @@ async function openExternal(url: string): Promise<boolean> {
   } catch { return false; }
 }
 
-/**
- * "Je bent net geüpdatet"-dialoog. Toont de versiesprong plus drie weetjes over de update:
- * grootteverschil van de installer, dagen sinds de vorige release en de GitHub-release-beschrijving.
- * Verschijnt zodra `ui.justUpdated` gevuld is (gezet door de opstart-detectie in useUpdateCheck, of
- * handmatig via Instellingen → "Wat is er nieuw"). Is `from` `null` (verse installatie / geen
- * eerdere versie bekend), dan tonen we geen pijl maar enkel de huidige versie.
- * Elke weetjes-regel toont zich alléén als de bijbehorende data beschikbaar is — bij offline/fout
- * blijft enkel de versiesprong over. Desktop-only qua trigger; de fetch werkt overal.
- */
 export function JustUpdatedDialog() {
   const { t, i18n } = useTranslation('common');
   const setUI = useAppStore((s) => s.setUI);
@@ -70,7 +61,6 @@ export function JustUpdatedDialog() {
   const stats = release?.stats;
   const shownDays = stats?.daysSincePrevious ?? days;
   const openLink = (url: string) => { setOpenError(false); void openExternal(url).then(ok => setOpenError(!ok)); };
-  // Eerst deze dialoog sluiten, dan Help openen — anders opende Help áchter de dialoog.
   const openGuide = (docsId: string) => { close(); openHelpArticleGuarded(docsId); };
   const Highlight = ({ item, primary = false }: { item: ReleaseHighlight; primary?: boolean }) => {
     return <article className={primary ? 'border border-border bg-surface-hover rounded-[12px] p-5 flex gap-4 items-start' : 'border border-border rounded-[10px] p-3 flex gap-3 items-start'}>
@@ -86,12 +76,9 @@ export function JustUpdatedDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[min(680px,calc(100vw-2rem))] max-h-[90vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-just-updated-dialog': true }}
     >
-      {/* Header */}
       <DialogHeader title={t('updates.justUpdated.title')} onClose={close} />
 
-      {/* Body */}
       <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-5 text-small leading-4">
-        {/* Versiesprong — zonder bekende "van"-versie (verse installatie) alleen de huidige. */}
         {justUpdated.from === null ? (
           <div className="flex items-center gap-2 text-body leading-5 font-semibold"><span className="h-3 w-3 rounded-full bg-accent ring-4 ring-accent/20" /><span className="text-accent">{justUpdated.to}</span><span className="text-text-secondary">{t('updates.justUpdated.newVersion')}</span></div>
         ) : (
@@ -115,7 +102,6 @@ export function JustUpdatedDialog() {
         )}
       </div>
 
-      {/* Footer */}
       <div className="flex justify-end px-4 py-3 border-t border-border">
         <button onClick={close} className="btn btn--sm btn--primary">
           {t('updates.justUpdated.acknowledge')}

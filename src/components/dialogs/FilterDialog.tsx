@@ -24,7 +24,6 @@ type RuleNode = Extract<FilterNode, { kind: 'rule' }>;
 const defaultRule = (): RuleNode => ({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'contains', value: '' });
 export const defaultGroup = (): GroupNode => ({ kind: 'group', op: 'AND', children: [] });
 
-/** Waarde-editor die zich aanpast aan het veldtype/de operator. */
 function RuleValueEditor({
   rule, ctx, onChange,
 }: {
@@ -133,7 +132,6 @@ function RuleValueEditor({
     );
   }
 
-  // text
   return (
     <input type="text" value={typeof rule.value === 'string' ? rule.value : ''}
       onChange={e => onChange({ value: e.target.value })}
@@ -188,7 +186,6 @@ function RuleEditor({
   );
 }
 
-/** De filterboom-editor; controlled, ook gebruikt door de layoutdialoog. */
 export function GroupEditor({
   node, depth, ctx, fields, onChange, onRemove,
 }: {
@@ -278,12 +275,6 @@ export function GroupEditor({
   );
 }
 
-/**
- * Filter-editor, P6-achtig: All/Any-groepen (in de UI max 2 diep, datastructuur
- * onbeperkt), rijen {veld ▾, operator ▾, waarde}. Waarde-invoer past zich aan het veldtype aan.
- * "Toepassen" schrijft naar `view.filter` (lege root ⇒ `null`, kanoniek "geen filter"); "Wissen" zet
- * direct `filter: null`.
- */
 export function FilterDialog() {
   const { t } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
@@ -295,10 +286,7 @@ export function FilterDialog() {
   const [root, setRoot] = useState<GroupNode>(
     () => (viewFilter && viewFilter.kind === 'group' ? viewFilter : defaultGroup()),
   );
-  // Het filter bij het openen: de ?-knop vraagt alleen iets als de regels zijn veranderd.
   const [initialRoot] = useState(() => JSON.stringify(root));
-  // Een opgeslagen filter is een layout die alleen een filter draagt. Deze dialoog
-  // beheert dus een DEEL van de layoutlijst; de overige layouts reizen ongewijzigd mee bij opslaan.
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const savedFilters = useMemo(() => layouts.filter(isFilterOnlyLayout), [layouts]);
   const [savedFilterName, setSavedFilterName] = useState('');
@@ -309,7 +297,6 @@ export function FilterDialog() {
     void loadLayouts().then(all => { if (!cancelled) setLayouts(all); }, ignoreUnreadable);
     return () => { cancelled = true; };
   }, []);
-  // Nieuwere layouts in de opslag (de host na de start, #818, of een ander tabblad): opnieuw laden.
   useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(setLayouts, ignoreUnreadable); });
 
   const ctx: FieldCatalogCtx = useFieldCatalogCtx();
@@ -326,7 +313,6 @@ export function FilterDialog() {
     setSelectedSavedFilterId('');
   };
 
-  /** Een wijziging op de vers gelezen lijst, nooit deze kopie terugschrijven (`updateLayouts`, knownbug 1362). */
   const persistLayouts = (change: (current: Layout[]) => Layout[], onSaved: () => void) => {
     void updateLayouts(change).then(next => { setLayouts(next); onSaved(); }, layoutsNotSaved);
   };
@@ -347,7 +333,6 @@ export function FilterDialog() {
       name: savedFilterName.trim() || t('view.layout.name'),
       filter: structuredClone(root),
     };
-    // Pas na het opslaan selecteren en de naam leegmaken: mislukt het, dan blijft de invoer staan.
     persistLayouts(current => [...current, saved], () => {
       setSelectedSavedFilterId(saved.id);
       setSavedFilterName('');
@@ -361,7 +346,6 @@ export function FilterDialog() {
   };
 
   return (
-    // Let op: deze dialoog had bewust GEEN Escape-afhandeling — daarom geen `onCancel`.
     <Dialog
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
     >

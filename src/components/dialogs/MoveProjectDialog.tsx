@@ -9,19 +9,6 @@ import { localTodayIso } from '@/utils/dateUtils';
 import type { MoveProjectPreview } from '@/state/slices/projectSlice';
 import { MOVE_PROJECT_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
-/**
- * "Project verplaatsen…" — verschuif de HELE planning naar een nieuwe startdatum.
- *
- * Vorm gemodelleerd op `LevelingDialog`: opties → expliciet Berekenen → preview van een PUUR
- * (niet-muterend) rekenresultaat → Toepassen/Annuleren. Elke optiewijziging wist de preview, zodat
- * er nooit een voorbeeld van ándere opties op het scherm staat.
- *
- * De preview draait een volwaardige droogrun-CPM, geen schatting. Dat is essentieel: de KALENDER
- * schuift bewust NIET mee (feestdagen/bouwvak/winterstop liggen op absolute datums), dus het
- * projecteinde kan met een ánder aantal kalenderdagen verspringen dan de verschuiving zelf. Een
- * goedkope schatting kan per definitie alleen "oude einddatum + Δ" opleveren — precies het antwoord
- * dat fout is. Die afwijking is de prominente waarschuwing hieronder.
- */
 export function MoveProjectDialog() {
   const { t } = useTranslation('common');
   const project = useAppStore(s => s.project);
@@ -34,17 +21,14 @@ export function MoveProjectDialog() {
   const close = () => setUI({ showMoveProjectDialog: false });
 
   const [newStart, setNewStart] = useState(project.startDate?.slice(0, 10) ?? '');
-  // De startdatum bij het openen: de ?-knop vraagt alleen iets als de invoer is veranderd.
   const [initialStart] = useState(newStart);
   const [shiftBaselines, setShiftBaselines] = useState(false);
   const [preview, setPreview] = useState<MoveProjectPreview | null>(null);
 
-  // Elke optiewijziging wist de preview (LevelingDialog-patroon).
   const changeStart = (v: string) => { setNewStart(v); setPreview(null); };
   const changeShiftBaselines = (v: boolean) => { setShiftBaselines(v); setPreview(null); };
 
   const hasCurrentStart = !!project.startDate && !isNaN(new Date(project.startDate).getTime());
-  // Het veld commit live; een halve of onbestaande datum commit niet, dus `newStart` is dan nog de vorige.
   const [draftValid, setDraftValid] = useState(true);
   const validNewStart = draftValid && /^\d{4}-\d{2}-\d{2}$/.test(newStart) && !isNaN(new Date(newStart).getTime());
   const delta = preview?.deltaDays ?? NaN;
@@ -57,7 +41,6 @@ export function MoveProjectDialog() {
 
   const canApply = validNewStart && !!preview && !preview.error && Number.isFinite(delta) && delta !== 0;
 
-  /** Toepassen; `false` = niets verplaatst (nog geen geldig voorbeeld, of de actie weigerde). */
   const apply = (): boolean => {
     if (!canApply) return false;
     const res = moveProject(newStart, { shiftBaselines });
@@ -67,14 +50,6 @@ export function MoveProjectDialog() {
   const isPast = validNewStart && newStart < localTodayIso();
   const fmt = (iso: string) => displayDate(iso, notation) || '—';
 
-  // Schuift het EINDE met een ander aantal dagen op dan de verschuiving zelf,
-  // of verandert de duur in werkdagen, dan heeft de kalender ingegrepen.
-  //
-  // Het zijn twee ONAFHANKELIJKE symptomen en ze treden los van elkaar op: verplaats je een planning
-  // over een bouwvak heen zonder dat het aantal werkdagen verandert, dan verspringt alleen het einde;
-  // valt er juist een feestdag weg én bij, dan kan het einde precies meeschuiven terwijl de duur
-  // verandert. Eén tekst die altijd béíde noemt levert dan een lege mededeling op ("de projectduur
-  // gaat van 177 naar 177 werkdagen"). Daarom per geval een eigen sleutel.
   const endShifted = !!preview && !preview.error && preview.endAfter !== '' &&
     preview.endDeltaDays !== preview.deltaDays;
   const durationShifted = !!preview && !preview.error && preview.endAfter !== '' &&
@@ -84,10 +59,6 @@ export function MoveProjectDialog() {
     : endShifted ? 'endShiftedOnly'
     : 'durationOnly';
 
-  // Meeverschoven-detailregel. Bewust GEEN doorlopende zin met vier tellingen erin: die kan per
-  // telling enkelvoud of meervoud nodig hebben ("1 deadlines") en dat is met één sleutel niet op te
-  // lossen. In de "label: aantal"-vorm congrueert het label niet met het getal, dus is de regel in
-  // elke taal correct zonder pluralisatie. Nul-categorieën vallen weg — "0 deadlines" was ruis.
   const detailItems = !preview || preview.error ? [] : ([
     ['detailConstraints', preview.impact.constraintCount],
     ['detailDeadlines', preview.impact.deadlineCount],
@@ -108,13 +79,11 @@ export function MoveProjectDialog() {
         onClose={close}
         help={{
           articleId: MOVE_PROJECT_HELP_ARTICLE_ID,
-          // Opslaan = Toepassen: alleen met een berekend voorbeeld, net als de knop onderaan.
           confirmLeave: { dirty: newStart !== initialStart || shiftBaselines, onSave: apply },
         }}
       />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-3 text-small leading-4">
-        {/* Zonder geldige huidige startdatum valt er niets te berekenen. */}
         {!hasCurrentStart ? (
           <div className="!text-body" style={{ color: 'var(--error)' }}>
             {t('moveProject.invalidCurrentStart')}
@@ -153,7 +122,6 @@ export function MoveProjectDialog() {
               </div>
             )}
 
-            {/* Default UIT; alleen tonen als er baselines zijn. */}
             {baselines.length > 0 && (
               <label className="flex items-start gap-2">
                 <input
@@ -200,14 +168,12 @@ export function MoveProjectDialog() {
                     </div>
                     <div>{t('moveProject.startRow', { before: fmt(preview.startBefore), after: fmt(preview.startAfter) })}</div>
 
-                    {/* Een project zonder taken heeft geen projecteinde om te tonen. */}
                     {preview.impact.taskCount === 0 ? (
                       <div style={{ color: 'var(--theme-text-dim)' }}>{t('moveProject.noTasks')}</div>
                     ) : (
                       <>
                         <div>{t('moveProject.endRow', { before: fmt(preview.endBefore), after: fmt(preview.endAfter) })}</div>
 
-                        {/* HET hart van de preview: hier wordt zichtbaar dat de kalender niet meeschuift. */}
                         {calendarIntervened ? (
                           <div
                             className="flex items-start gap-2 rounded-[8px] p-2 !text-body"
@@ -239,7 +205,6 @@ export function MoveProjectDialog() {
                       </>
                     )}
 
-                    {/* Overige waarschuwingen — allemaal informatief, geen blokkade. */}
                     {(preview.impact.actualCount > 0 || preview.impact.hardPinCount > 0 ||
                       preview.impact.externalLinkCount > 0 || preview.holidayGapCalendars.length > 0 ||
                       preview.impact.dateCustomFieldCount > 0) && (

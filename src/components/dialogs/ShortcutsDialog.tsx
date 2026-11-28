@@ -8,8 +8,6 @@ import { SHORTCUTS, type ShortcutCategory, type ShortcutCombo, type ShortcutDef 
 import { isMacPlatform, formatComboGroup } from '@/hooks/keyboard/shortcutFormat';
 import { isTauri } from '@/utils/platform';
 
-/** Vaste categorievolgorde; `grid` staat achteraan als eigen
- *  sectie voor de taakgridtoetsen (zie shortcutRegistry.ts). */
 const CATEGORY_ORDER: ShortcutCategory[] = ['file', 'edit', 'structure', 'view', 'nav', 'grid'];
 
 interface ShortcutRow {
@@ -17,17 +15,9 @@ interface ShortcutRow {
   combos: ShortcutCombo[];
 }
 
-/**
- * Groepeert `SHORTCUTS` op categorie en dedupliceert op `labelKey`: entries die dezelfde
- * `labelKey` delen zijn per ontwerp aliassen van dezelfde actie (bv. `structure.indent` +
- * `structure.indentAlt`, of de negen `Ctrl+1..9`-documentwissels) en verschijnen dus als ÉÉN rij
- * met alle bijbehorende toetscombinaties — nooit als losse rijen met een identiek label.
- * `displayOnly`-entries (bv. de kale zoom-toetsen die in `useZoomShortcuts.ts` leven) tellen hier
- * gewoon mee: deze dialoog is puur informatief, geen afhandel-pad.
- */
 function buildRows(): Record<ShortcutCategory, ShortcutRow[]> {
   const byCategory: Record<ShortcutCategory, ShortcutRow[]> = { file: [], edit: [], structure: [], view: [], nav: [], grid: [] };
-  const index = new Map<string, ShortcutRow>(); // key: `${category}:${labelKey}`
+  const index = new Map<string, ShortcutRow>();
 
   for (const entry of SHORTCUTS) {
     if (entry.hiddenInBrowser && !isTauri()) continue;
@@ -43,12 +33,6 @@ function buildRows(): Record<ShortcutCategory, ShortcutRow[]> {
   return byCategory;
 }
 
-/**
- * Sneltoetsen-overzichtsdialoog — Ctrl/Cmd+/ en het "Sneltoetsen"-knopje in de
- * Weergave-ribbontab. Rendert VOLLEDIG uit `SHORTCUTS` (het register is de enige bron van
- * waarheid, zie shortcutRegistry.ts): een nieuwe toets daar verschijnt hier automatisch, zonder
- * een aparte lijst bij te houden. Alleen-lezen — geen instellingen, geen herbind-UI.
- */
 export function ShortcutsDialog() {
   const { t } = useTranslation(['common', 'menu']);
   const setUI = useAppStore(s => s.setUI);
@@ -65,8 +49,6 @@ export function ShortcutsDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[560px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-shortcuts-dialog': true }}
     >
-        {/* Proefplek van de ?-knop (contextuele hulp): een leesdialoog zonder invoer, dus Help opent
-            direct na het sluiten — geen Opslaan/Annuleren/Terug-vraag nodig. */}
         <DialogHeader
           title={t('shortcuts.title')}
           icon={<Icon id="ui.shortcuts" size={16} />}
@@ -89,9 +71,6 @@ export function ShortcutsDialog() {
                       key={row.labelKey}
                       className="flex items-center justify-between gap-3 px-2 py-1.5 rounded-[8px] hover:bg-surface-hover"
                     >
-                      {/* `row.labelKey` komt uit het register en is getypt als sleutel uit
-                          `common` of `menu` (`ShortcutDef.labelKey`): de typecheck vangt een
-                          ontbrekende vertaling, zonder cast. */}
                       <span className="flex-1 truncate">{t(row.labelKey)}</span>
                       <span className="flex-shrink-0 font-mono !text-body text-text-secondary whitespace-nowrap">
                         {formatComboGroup(row.combos, isMac, orJoiner)}

@@ -3,32 +3,15 @@ import { useTranslation } from 'react-i18next';
 import { Dialog } from '@/components/common/Dialog';
 
 export interface ConfirmDialogProps {
-  /** De te bevestigen vraag/mededeling — tekst wordt door de aanroeper vertaald aangeleverd. */
   message: string;
   onConfirm: () => void;
   onCancel: () => void;
-  /** Default: `t('delete')` — past bij het meest voorkomende gebruik (verwijderen). */
   confirmLabel?: string;
-  /** Default: `t('cancel')`. */
   cancelLabel?: string;
-  /** Rode bevestigknop (destructieve actie, bv. verwijderen). Default false. */
   danger?: boolean;
-  /** Enter bedient alleen een gefocuste knop van deze vraag. Default false. */
   requireButtonFocus?: boolean;
 }
 
-/**
- * Generieke in-app bevestigingsdialoog ter vervanging van `window.confirm()`.
- * Puur presentationeel (geen store-koppeling). Toetsen: Escape = annuleren; Enter op een gefocuste
- * knop van deze dialoog activeert díé knop (Enter op Annuleren = annuleren, zoals
- * `focusedButtonOwnsEnter` in `useDialogKeys`); zonder knopfocus bevestigt Enter standaard.
- * Met `requireButtonFocus` wordt Enter dan opgevangen zonder actie. Bedoeld om BOVEN een reeds openstaande dialoog te stapelen
- * (LayoutsDialog/BaselineDialog/AiConnectionGroup zijn zelf al `fixed inset-0`-overlays met `z-50`),
- * dus deze laag gebruikt `z-[60]`, boven de aanroepende dialoog. `LibrarySection.tsx`
- * (Backstage → Bibliotheek, bedrijf verwijderen) stapelt ANDERS: Backstage is zelf geen `fixed inset-0`-dialoog, dus
- * daar is dit de EERSTE modale laag in plaats van een stapelend tweede laagje; de `z-[60]` werkt
- * daar net zo goed (er is simpelweg niets onder om boven uit te steken).
- */
 export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, cancelLabel, danger, requireButtonFocus }: ConfirmDialogProps) {
   const { t } = useTranslation('common');
   const buttonsRef = useRef<HTMLDivElement>(null);
@@ -38,32 +21,18 @@ export function ConfirmDialog({ message, onConfirm, onCancel, confirmLabel, canc
       if (e.key === 'Escape') { e.preventDefault(); e.stopPropagation(); onCancel(); }
       else if (e.key === 'Enter') {
         e.stopPropagation();
-        // IME-Enter bevestigt alleen de tekstcompositie, nooit deze (mogelijk destructieve) vraag.
-        // Ook de standaard knopactivatie blokkeren, ongeacht waar de focus staat.
         if (e.isComposing) { e.preventDefault(); return; }
-        // Focus op een knop van déze dialoog (na openen staat die op Annuleren): geen
-        // preventDefault, zodat de browser die knop zelf activeert. Anders verwijderde Enter op
-        // Annuleren toch (knownbug 33-review).
         const el = document.activeElement;
         if (el instanceof HTMLButtonElement && buttonsRef.current?.contains(el)) return;
         e.preventDefault();
         if (!requireButtonFocus) onConfirm();
       }
     };
-    // Capture-fase: deze dialoog stapelt boven een al openstaande dialoog die zelf ook een
-    // Escape/Enter-listener heeft (bv. LayoutsDialog/BaselineDialog sluiten op Escape) — zonder
-    // capture zou die onderliggende listener ook vuren en de aanroepende dialoog per ongeluk sluiten.
     document.addEventListener('keydown', onKey, true);
     return () => document.removeEventListener('keydown', onKey, true);
   }, [onCancel, onConfirm, requireButtonFocus]);
 
   return (
-    // `z-[60]` + stopBackdropPropagation: deze laag stapelt BOVEN een al openstaande dialoog
-    // (LayoutsDialog/BaselineDialog) die zelf ook een backdrop-onClick=close heeft. Zonder
-    // stopPropagation zou een klik op déze backdrop (buiten de kaart, binnen de DOM-boom van de
-    // onderliggende dialoog) doorbubbelen en die dialoog óók sluiten — de gebruiker wilde alleen
-    // de bevestiging annuleren. De toetsen lopen om dezelfde reden via het eigen capture-effect
-    // hierboven, niet via de standaard-`useDialogKeys` van `Dialog`.
     <Dialog
       overlayClassName="bg-black/60 z-[60]"
       stopBackdropPropagation
