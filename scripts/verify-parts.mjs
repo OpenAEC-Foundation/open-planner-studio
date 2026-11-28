@@ -1,19 +1,4 @@
 #!/usr/bin/env node
-// De `verify`-poort, verdeeld over parallelle CI-jobs.
-//
-// De stappen komen RECHTSTREEKS uit package.json: `npm run verify` wordt op `&&` gesplitst en
-// `npm test` uitgeklapt tot zijn eigen stappen. Dit script deelt ze alleen in. Een stap die hier
-// niet expliciet is ingedeeld, valt in STATIC — een nieuwe stap in `verify` kan dus nooit buiten CI
-// vallen, en er is geen tweede lijst die kan achterlopen (de reden dat ci.yml tot nu toe bewust één
-// commando draaide). live.yml en release.yml draaien geen verify meer: live.yml deployt pas na een
-// geslaagde ci.yml-run, en release.yml leest met release-ci-check.mjs of die run groen is.
-//
-//   node scripts/verify-parts.mjs --list            # alle delen met hun stappen
-//   node scripts/verify-parts.mjs <deel> [-- args]  # draai één deel; args gaan naar de laatste stap
-//   node scripts/verify-parts.mjs --check-ci <ci.yml>  # elk deel staat in de CI-matrix, niets extra
-//
-// Exit 0 = alle stappen van het deel groen, anders de exitcode van de eerste rode stap (zelfde
-// semantiek als de `&&`-keten van `verify`).
 import { readFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
@@ -22,7 +7,6 @@ import { dirname, join } from 'node:path';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const STATIC = 'static';
 
-/** Expliciete indeling; al het andere valt in STATIC. */
 const ASSIGN = {
   'test:planning': 'planning',
   'test:browser': 'browser',
@@ -31,7 +15,6 @@ const ASSIGN = {
   'test:dev-server': 'suites',
 };
 
-/** `npm run a && npm test && …` → ['a', 'test', …]; faalt hard op een vorm die we niet kennen. */
 function chainSteps(scripts, name) {
   const cmd = scripts[name];
   if (typeof cmd !== 'string') throw new Error(`package.json mist het script "${name}"`);
@@ -47,12 +30,10 @@ function chainSteps(scripts, name) {
   });
 }
 
-/** Alle bladstappen van `verify`, in volgorde, met `test` uitgeklapt. */
 export function verifySteps(scripts) {
   return chainSteps(scripts, 'verify').flatMap(step => (step === 'test' ? chainSteps(scripts, 'test') : [step]));
 }
 
-/** { deel: [stappen] } in de volgorde van `verify`. */
 export function partition(scripts) {
   const parts = {};
   for (const step of verifySteps(scripts)) {
@@ -62,12 +43,6 @@ export function partition(scripts) {
   return parts;
 }
 
-/**
- * De matrixrecords uit ci.yml: elk `- part: …` begint een record; `shard:` (en de andere sleutels) horen
- * bij het record zolang ze dieper ingesprongen staan dan dat streepje. Zo hoort een shard altijd bij zijn
- * eigen `part` (review PR #399: een losse regex over `shard:`-regels zag niet dat een record met `4/4`
- * naar een ander deel was verhuisd). Een `shard:` buiten een record is ook een record, met part `null`.
- */
 export function matrixRecords(yaml) {
   const records = [];
   let current = null;
@@ -89,10 +64,8 @@ export function matrixRecords(yaml) {
   return records;
 }
 
-/** De delen die over meer jobs verdeeld mogen zijn. */
 const SHARDED_PARTS = ['browser', 'planning'];
 
-/** Problemen met de shards: alleen de delen hierboven hebben een shard, en per deel zijn ze samen 1/n … n/n. */
 export function shardProblemsOf(records) {
   const problems = [];
   for (const r of records) {

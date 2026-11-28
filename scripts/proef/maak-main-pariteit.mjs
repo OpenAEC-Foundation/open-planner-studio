@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-// #804 fase 1a: de verwachting voor de pariteitsproef tegen main (bijsturing 1 punt 2 van de orkestrator).
-//
-// Eis: met de flag `ifcForeignContent` uit opent en bewaart de app een IFC-bestand byte-gelijk aan main, en weigert hij
-// een bestand met een gebouwmodel met dezelfde melding. Dit script draait de kern `tests/planning/ifcPariteitKern.ts`
-// met de code van main (`git archive` van BASIS) op de invoer uit de werkmap, en schrijft de uitkomst naar
-// `tests/planning/fixtures/main-pariteit.json`. `check-ifc-foreign-pariteit.ts` draait dezelfde kern met de code van de
-// branch en vergelijkt.
-//
-// Licht: één esbuild-bundel en één Node-proces. Draaien:
-//   node scripts/proef/maak-main-pariteit.mjs                 # de fixture opnieuw maken
-//   node scripts/proef/maak-main-pariteit.mjs --uitvoer <map>  # ook de volledige uitvoer van main per bestand (diffen)
-// Opnieuw maken is nodig als een invoerbestand verandert (de check meldt dat), of na een bewuste wijziging van lezer of
-// writer op main: kies dan een nieuwe BASIS en zeg dat in de PR.
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { join, resolve, dirname } from 'node:path';
@@ -24,7 +11,6 @@ const ESBUILD = join(ROOT, 'node_modules/.bin/esbuild');
 const uitvoerAt = process.argv.indexOf('--uitvoer');
 const uitvoerDir = uitvoerAt >= 0 ? resolve(process.argv[uitvoerAt + 1]) : '';
 
-// De werkmap staat in de repo (`temp/` is genegeerd), zodat esbuild de pakketten in `node_modules` vindt.
 mkdirSync(join(ROOT, 'temp'), { recursive: true });
 const work = mkdtempSync(join(ROOT, 'temp', 'ops-pariteit-'));
 try {

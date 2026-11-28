@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-/**
- * Stuur één opdracht naar het dev-only Tauri ops-testkanaal en wacht op het antwoord.
- *
- * Gebruik:
- *   node scripts/ops-test-client.mjs /absoluut/pad/naar/ops-test '{"id":"x","op":"ping"}'
- *
- * De opdracht wordt atomair gepubliceerd. Een antwoord telt alleen als het hetzelfde id draagt,
- * zodat een achtergebleven res.json van een eerdere run nooit als bewijs kan worden aangezien.
- */
 import { readFile, rename, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
@@ -45,7 +36,6 @@ for (;;) {
       process.exit(response.ok === true ? 0 : 2);
     }
   } catch {
-    // De poller heeft nog geen antwoord gepubliceerd of schrijft het momenteel atomair weg.
   }
   if (Date.now() >= deadline) {
     console.error(`Geen antwoord voor opdracht ${command.id} binnen 15000 ms.`);

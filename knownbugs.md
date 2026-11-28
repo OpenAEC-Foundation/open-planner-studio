@@ -6596,6 +6596,11 @@ en noem het in je rapport of PR-tekst.
       afkeuren. Controle 1 en 2 gedraaid op aia09-mp50; controle 3 alleen in de code gelezen en nagespeeld, nog niet
       gebouwd. — S
 
+2802. **De releaseverificatie volgt het contract van een oudere updater dan de app gebruikt.** `docs/release-verificatie.md`
+      en de bronregel van `scripts/verify-release.mjs` noemen tauri-plugin-updater 2.10.1 en minisign-verify 0.2.5;
+      `src-tauri/Cargo.lock` heeft 2.14.1 en 0.3.0. Gezien in `Cargo.lock`; of de controles nog precies passen bij de
+      nieuwe versies is niet nagegaan. — S
+
 2810. **De vergelijking `perf-ifc-nesting.yml` wordt rood op elke PR die alleen haar testbestanden raakt.** De workflow
      start op een wijziging in `check-ifc-nesting-index.ts`, `ifcNestingFixture.ts` of `measure-ifc-nesting.ts`. Daarna
      stopt `npm run i18n:resolve` met exit 1, omdat de uitgecheckte PR-head één ouder heeft en geen mergecommit is;

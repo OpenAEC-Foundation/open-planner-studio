@@ -1,19 +1,5 @@
 #!/usr/bin/env node
 
-/**
- * Extraheert uitsluitend de door P6 23.12 vastgelegde kolommen uit het publieke
- * cpp-cpm-engine-vergelijkingsraamwerk. De enginekolommen en verdicts worden niet ingelezen in het
- * resultaat: hun vergelijking gooide kloktijden weg, normaliseerde exclusieve/inclusieve finishes
- * en de bronengine is na de capture op deze cases nagefit. Ze zijn daarom geen onafhankelijke
- * meetlat voor Open Planner Studio.
- *
- * Gebruik:
- *   node scripts/generate-p6-verified-cases.mjs <p6-comparison-map> [uitvoer-json]
- *
- * De bronmap mag ook via OPS_P6_COMPARISON worden gezet. Er staat bewust geen lokaal corpuspad in
- * dit script.
- */
-
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';

@@ -30,11 +30,6 @@ function spawnPlaywright({ executable, cwd, env, args }) {
 
 const DURATION_SHARD = '--duration-shard';
 
-/**
- * `--duration-shard=k/n` (of `--duration-shard k/n`): draai alleen de specs die `browser-shards.mjs` op
- * gemeten duur aan shard k van n toewijst, via Playwrights `--test-list` (exacte paden, geen regex).
- * Geeft de overige argumenten plus de lijst terug; zonder die vlag `null`.
- */
 export function extractDurationShard(args) {
   const rest = [];
   let value = null;
@@ -56,7 +51,6 @@ export async function runBrowserTests({
 }) {
   if (!root) throw new Error('Niet in een git-worktree — browsertests kunnen niet starten.');
 
-  // De shardlijst vóór de poort en de preflight: een fout in de vlag kost dan geen browserstart.
   const durationShard = extractDurationShard(args);
   let shardSpecs = null;
   if (durationShard) {
@@ -81,7 +75,6 @@ export async function runBrowserTests({
     const { current, total } = durationShard.shard;
     listDir = mkdtempSync(join(tmpdir(), 'ops-browser-shard-'));
     const listFile = join(listDir, `shard-${current}-of-${total}.txt`);
-    // `--test-list` rekent paden relatief aan testDir (tests/browser).
     writeFileSync(listFile, `${shardSpecs.map((f) => f.slice(SPEC_DIR.length + 1)).join('\n')}\n`);
     console.log(`browser-shard ${current}/${total} op duur: ${shardSpecs.length} specs`);
     playwrightArgs = [...durationShard.rest, '--test-list', listFile];

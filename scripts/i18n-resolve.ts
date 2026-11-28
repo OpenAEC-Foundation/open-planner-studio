@@ -1,31 +1,3 @@
-// `npm run i18n:resolve` — voegt na `git merge <branch>` alle locale-bestanden PER SLEUTEL samen,
-// in plaats van per regel zoals git. Draai het direct na de merge, vóór je iets anders aan de
-// locale-bestanden doet — óók als git geen conflict in de locale-bestanden meldde:
-//
-//   git merge origin/main        # conflicten? dan loopt de merge nog: resolve, daarna `git commit`
-//   npm run i18n:resolve         # alle locale-bestanden opnieuw samengevoegd, opgemaakt en ge-`git add`
-//
-// Maakte git de merge-commit al (geen enkel conflict), dan controleert hetzelfde commando die
-// merge-commit (HEAD^1 + HEAD^2) per sleutel; wat het corrigeert staat daarna klaar voor
-// `git commit --amend --no-edit` of een eigen commit, en klopt alles al, dan wijzigt het niets.
-//
-// Waarom niet gewoon git: sinds de eenmalige herschikking (vaste opmaak, `npm run i18n:fmt`) staan
-// sleutels op andere regels dan in oudere branches. Git geeft dan conflicten over hele blokken, en
-// erger: een bestand dat git "zonder conflict" samenvoegt kan fout zijn — een sleutel die de ene kant
-// verwijdert en de andere alleen verplaatst, komt stil terug. Dit script leest daarom voor ELK
-// locale-bestand de drie versies uit git (merge-base, HEAD en MERGE_HEAD; na de merge-commit HEAD^1
-// en HEAD^2) en voegt ze samen met `mergeLocale` (scripts/i18n-tools.ts); wat git in de werkmap
-// schreef, telt niet mee.
-//
-// Botst een sleutel echt (aan beide kanten anders gewijzigd), dan krijgt die tijdens de merge
-// voorlopig de waarde van HEAD, wordt het bestand NIET ge-`git add` (git weigert dan te committen)
-// en noemt het script per botsing beide waarden; pas het bestand aan en `git add` het zelf (exit 1).
-// Achteraf blijft de waarde staan die de merge-commit voor zo'n sleutel al koos; het script noemt
-// de sleutel alleen ter controle.
-//
-// Alleen bij een merge met één merge-base (geen rebase, cherry-pick of criss-cross-merge). Staat
-// package.json zelf in conflict, los dat dan EERST op: npm én esbuild lezen het, dus geen enkel
-// script start zolang er conflictmarkeringen in staan.
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -51,8 +23,6 @@ const root = git('rev-parse', '--show-toplevel')?.trim();
 if (!root) fail('niet in een git-werkmap');
 process.chdir(root);
 
-// Tijdens een merge: HEAD + MERGE_HEAD. Anders moet HEAD zelf een merge-commit zijn (git maakte hem
-// al omdat er geen conflict was); dan HEAD^1 + HEAD^2, en mogen de locales geen niet-gecommitte wijzigingen hebben.
 const merging = git('rev-parse', '-q', '--verify', 'MERGE_HEAD') !== null;
 let ours = 'HEAD';
 let theirs = 'MERGE_HEAD';
@@ -92,13 +62,9 @@ for (const ns of NAMESPACES) {
     const oursText = git('show', `${ours}:${rel}`);
     const theirsText = git('show', `${theirs}:${rel}`);
     const baseText = git('show', `${base}:${rel}`);
-    // Een nieuwe taal aan één kant (niet in de merge-base) is gewoon toegevoegd: de lege kant telt als
-    // ongewijzigd. Alleen een bestand dat aan één kant verdween, vraagt om een keuze met de hand.
     if ((oursText === null || theirsText === null) && (baseText !== null || (oursText === null && theirsText === null))) {
       fail(`${rel} ontbreekt aan één kant van de merge — los dit bestand met de hand op`);
     }
-    // Achteraf is de merge-commit zelf de eerder gemaakte keuze: een botsing die daar al (met de
-    // hand) is opgelost, blijft zo staan in plaats van terug te vallen op HEAD^1.
     const chosenText = merging ? null : git('show', `HEAD:${rel}`);
     const result = mergeLocale(
       baseText === null ? {} : parse(baseText, `${rel} (merge-base)`),
@@ -123,15 +89,6 @@ for (const ns of NAMESPACES) {
   }
 }
 
-// Vertaalstraat: de bron-hashes in i18n/ui-sources/<taal>.json per sleutel samenvoegen, net als de
-// locales (anders botsen twee PR's die elk een sleutel toevoegen op dezelfde slotregel). Een hash die
-// aan beide kanten anders werd, valt tijdens de merge weg. De sleutel heet dan "zonder hash": in een taal
-// van UI_BASELINE pakt `prepare ui --stale` hem op en houdt de releasepoort hem tegen; in een nieuwe taal
-// (buiten UI_BASELINE) telt hij als ontbrekend. Dat blokkeert de merge niet; het script noemt de sleutel
-// wel. Achteraf (op de merge-commit) blijft de hash uit de merge-commit staan, net als bij de locales.
-// Afweging: die keuze controleert niemand tegen de vertaling. Wie de merge met de hand oplost zonder
-// dit script, kan zo een hash van de ene kant bij de tekst van de andere kant zetten. Daarom tijdens de
-// merge altijd `npm run i18n:resolve` (dan valt een botsende hash weg en houdt de releasepoort hem tegen).
 const sourceDrops: string[] = [];
 const sourceKept: string[] = [];
 const nlMerged = Object.fromEntries(NAMESPACES.map(ns => [ns, parse(

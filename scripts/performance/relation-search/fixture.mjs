@@ -1,4 +1,3 @@
-// Eén vaste vlakke planning voor beide revisies en beide meetroutes.
 export function fixture(size) {
   return Array.from({ length: size }, (_, i) => ({
     id: `zoek-${i}`, name: i === 0 ? 'Eigenaar' : i === size - 1 ? 'Late unieke taak' : `Werk Étage ${i}`,

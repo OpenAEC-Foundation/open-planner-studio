@@ -1,11 +1,4 @@
 #!/usr/bin/env node
-/**
- * Echte spreadsheetgrens voor het taakgridklembordcontract.
- *
- * Bouwt de TSV met de productie-serializer, laat LibreOffice Calc die tekst naar XLSX en terug naar
- * tabgescheiden tekst converteren, en valideert daarna met de productieparser dat alle cellen —
- * inclusief de volledige OPS-EXT/1-suffix — exact terugkomen.
- */
 import { mkdtemp, readFile, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -88,9 +81,6 @@ const returnedDir = join(work, 'returned');
 const mkdir = spawnSync('mkdir', ['-p', profile, xlsxDir, returnedDir], { encoding: 'utf8' });
 if (mkdir.status !== 0) throw new Error(`tijdelijke mappen maken faalde: ${mkdir.stderr}`);
 
-// 9=tab, 34=quote, 76=UTF-8, rij 1; de laatste `false` schakelt speciale-getaldetectie uit.
-// Dat is de spreadsheetinstelling "aangehaalde/ingevoerde waarden als tekst behouden" en voorkomt
-// dat Calc een persoonlijke taakgriddatum stil naar een locale spreadsheetdatum herschrijft.
 const importFilter = 'Text - txt - csv (StarCalc):9,34,76,1,,0,false,true,true,false';
 const toXlsx = spawnSync(soffice, [
   '--headless', `-env:UserInstallation=${pathToFileURL(profile).href}`,

@@ -1,24 +1,3 @@
-// Alle plekken in `src/` die een instelling in `localStorage` schrijven of wissen, op de TypeScript-AST
-// (#818). `tests/planning/check-site-host-preferences.ts` toetst de gevonden sleutels tegen
-// `HOST_PERSISTED_KEYS`/`HOST_EXCLUDED_*` (`src/services/fileAccess/siteHostSettingKeys.ts`).
-//
-// Wat telt als schrijfplek (echte aanroepen, geen tekstzoektocht; spaties, commentaar en strings maken
-// niet uit):
-// - een aanroep van `writeLocal`, `removeLocal` of `setSetting` (die laatste schrijft `ops-<sleutel>`),
-//   ook onder een andere naam (`import { writeLocal as persist }` → `persist(…)`) en via een
-//   namespace-import (`import * as settings` → `settings.writeLocal(…)` of `settings['writeLocal'](…)`);
-//   de importbindingen komen uit `valueBindings()` (`ts-imports.mjs`);
-// - een aanroep van `setItem` of `removeItem` op elk object, ook als `x['setItem'](…)`, behalve op
-//   `sessionStorage` (die overleeft geen herlaad en hoort niet bij de host); en `clear()` op een object
-//   waarvan de naam op `storage` eindigt (`localStorage`, `storage`, …): `clear` is ook een methode van
-//   elke `Map` en `Set`, en zonder typechecker is de naam het onderscheid;
-// - elke andere verwijzing naar `setItem`/`removeItem`/`clear` of naar `writeLocal`/`removeLocal`/
-//   `setSetting` die geen directe aanroep of import is (een alias, `.bind`, doorgeven als waarde):
-//   die telt als schrijfplek met een onbekende sleutel.
-//
-// De sleutel is het eerste argument: een letterlijke tekst, of een `const` met een letterlijke tekst in
-// hetzelfde bestand (ook via één geïmporteerde `export const`, ook onder een andere naam). Anders is de sleutel onbekend
-// (`key: null`) en moet de plek in de toegestane lijst van de check staan, met bestand en functie.
 import { existsSync } from 'node:fs';
 import { parse, pathsFor, slash, sourceFiles, ts, valueBindings } from './ts-imports.mjs';
 import { join, relative } from 'node:path';
@@ -26,11 +5,9 @@ import { join, relative } from 'node:path';
 const HELPERS = new Set(['writeLocal', 'removeLocal', 'setSetting']);
 const STORAGE_METHODS = new Set(['setItem', 'removeItem', 'clear']);
 const storageLike = (text) => /storage$/i.test(text) && text !== 'sessionStorage' && !/\bsessionStorage$/.test(text);
-/** Telt deze methode op deze ontvanger als opslag? `clear` alleen op iets dat op `storage` eindigt. */
 const countsAsStorage = (name, receiverText) =>
   !/(^|\.)sessionStorage$/.test(receiverText) && (name !== 'clear' || storageLike(receiverText));
 
-/** De naam van de dichtstbijzijnde omsluitende functie of methode (`<module>` op het hoogste niveau). */
 function enclosingName(node) {
   for (let n = node.parent; n; n = n.parent) {
     if ((ts.isFunctionDeclaration(n) || ts.isMethodDeclaration(n) || ts.isFunctionExpression(n)) && n.name) return n.name.getText();
@@ -43,7 +20,6 @@ function enclosingName(node) {
   return '<module>';
 }
 
-/** Letterlijke tekst van een `const NAME = '…'` in dit bestand, of via één import. */
 function constText(sourceFile, name, imports, depth = 0) {
   let found = null;
   const visit = (node) => {
@@ -74,7 +50,6 @@ function keyOf(arg, sourceFile, imports) {
   return null;
 }
 
-/** De methodenaam van `x.m` of `x['m']`, anders `null`. */
 function memberName(node) {
   if (ts.isPropertyAccessExpression(node)) return node.name.text;
   if (ts.isElementAccessExpression(node) && ts.isStringLiteralLike(node.argumentExpression)) return node.argumentExpression.text;
@@ -82,7 +57,6 @@ function memberName(node) {
 }
 
 /**
- * Alle schrijfplekken onder `<root>/src`.
  * @returns {{ file: string, line: number, func: string, call: string, key: string | null }[]}
  */
 export function findSettingWrites(root) {
@@ -91,21 +65,18 @@ export function findSettingWrites(root) {
   for (const file of sourceFiles(join(root, 'src'))) {
     const sourceFile = parse(file);
     const rel = slash(relative(root, file));
-    /** Lokale naam → { target, imported } van elke waarde-import. */
     const imports = new Map();
     for (const statement of sourceFile.statements) {
       if (!ts.isImportDeclaration(statement) || !ts.isStringLiteral(statement.moduleSpecifier)) continue;
       const target = normalizedModule(file, statement.moduleSpecifier.text);
       for (const { imported, local } of valueBindings(statement.importClause)) imports.set(local, { target, imported });
     }
-    /** De helper achter een lokale naam: een import van een helper (ook hernoemd), of de eigen naam. */
     const helperOf = (local) => {
       const binding = imports.get(local);
       if (binding) return HELPERS.has(binding.imported) ? binding.imported : null;
       return HELPERS.has(local) ? local : null;
     };
     const isNamespace = (node) => ts.isIdentifier(node) && imports.get(node.text)?.imported === '*';
-    /** `settings.writeLocal` of `settings['writeLocal']` op een namespace-import: de helper, anders `null`. */
     const namespaceHelper = (node) => {
       const name = memberName(node);
       return name && HELPERS.has(name) && isNamespace(node.expression) ? name : null;
@@ -118,7 +89,6 @@ export function findSettingWrites(root) {
       key,
     });
     const visit = (node) => {
-      // Directe aanroep van een helper, ook hernoemd of via een namespace-import.
       const helper = ts.isCallExpression(node)
         ? (ts.isIdentifier(node.expression) ? helperOf(node.expression.text) : namespaceHelper(node.expression))
         : null;
@@ -129,7 +99,6 @@ export function findSettingWrites(root) {
         node.arguments.forEach(visit);
         return;
       }
-      // Directe aanroep van `setItem`/`removeItem`/`clear` op een object.
       if (ts.isCallExpression(node)) {
         const name = memberName(node.expression);
         if (name && STORAGE_METHODS.has(name)) {
@@ -142,12 +111,10 @@ export function findSettingWrites(root) {
           return;
         }
       }
-      // Elke andere verwijzing naar een opslagmethode: een alias of doorgegeven functie.
       const name = memberName(node);
       if (name && STORAGE_METHODS.has(name)) {
         if (countsAsStorage(name, node.expression.getText(sourceFile))) add(node, `alias ${node.getText(sourceFile)}`, null);
       }
-      // Een helper die als waarde wordt doorgegeven, ook via een namespace (`const f = settings.writeLocal`).
       if (namespaceHelper(node)) {
         add(node, `alias ${node.getText(sourceFile)}`, null);
         return;

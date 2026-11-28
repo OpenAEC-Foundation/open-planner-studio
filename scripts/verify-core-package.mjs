@@ -1,15 +1,4 @@
 #!/usr/bin/env node
-// Poort voor het gebouwde pakket `@openaec/open-planner-core` (docs/headless-kern.md).
-//
-// Bouwt het pakket in een tijdelijke map, maakt er met `npm pack` een tarball van, installeert die
-// in een kopie van `headless/consumer-example/` en draait het voorbeeld zoals een externe gebruiker
-// het zou doen. Daarna een typecheck van een kleine TypeScript-consument tegen de meegeleverde
-// declaraties. Geen netwerk nodig: het pakket heeft geen dependencies.
-//
-// De rekensemantiek (kern = app voor alle voorbeeldbestanden) toetst
-// tests/planning/check-headless-core.ts; hier gaat het om het pakket als geheel.
-//
-//   npm run verify:core-package      # exit 0 = groen
 import { spawnSync } from 'node:child_process';
 import { cpSync, existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -38,8 +27,6 @@ function must(label, r) {
   return r;
 }
 
-// Verwachte uitkomst voor één vast voorbeeld. Wijzigt het voorbeeld (`npm run gen:examples`), pas
-// deze waarden dan aan; de app-gelijkheid zelf bewaakt check-headless-core.ts.
 const EXAMPLE = join(root, 'examples', '01-grachtenpand-amsterdam.ifc');
 const EXPECTED = { name: 'New-Build Canal House, Amsterdam', start: '2027-03-01', finish: '2028-01-12T16:00', tasks: 51 };
 const MODEL = join(root, 'tests', 'fixtures', 'ifc-foreign', 'eigen-plus-model.ifc');
@@ -49,7 +36,6 @@ try {
   const appPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
   const pkgDir = join(work, 'pkg');
 
-  // 1. Bouwen (met de grenscontrole op de bundel) en inpakken.
   must('build:core', run(process.execPath, [join(root, 'scripts/build-core.mjs'), '--out', pkgDir], root));
   const built = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8'));
   ok('1 naam', built.name === '@openaec/open-planner-core', built.name);
@@ -66,8 +52,6 @@ try {
     JSON.stringify(packedFiles) === JSON.stringify(['LICENSE', 'LICENSE.GPL', 'README.md', 'THIRD-PARTY-NOTICES.md', 'api.d.ts', 'index.d.ts', 'index.mjs', 'package.json']),
     packedFiles.join(', '));
 
-  // Licenties van de meegebundelde dependencies: elk pakket dat de bundel bevat, met zijn eigen
-  // licentietekst uit node_modules. De verwachte lijst komt uit de lockfile-versies, niet uit de bouw.
   const notices = readFileSync(join(pkgDir, 'THIRD-PARTY-NOTICES.md'), 'utf8');
   for (const dep of ['zustand', 'immer', 'i18next']) {
     const meta = JSON.parse(readFileSync(join(root, 'node_modules', dep, 'package.json'), 'utf8'));
@@ -78,7 +62,6 @@ try {
   const listed = /Bundled packages: ([^\n]+)\./.exec(notices)?.[1] ?? '';
   ok('2b de notices noemen precies de gebundelde pakketten', listed === 'i18next, immer, zustand', listed);
 
-  // 2. Het consumeervoorbeeld in een tijdelijke map, met het pakket uit de tarball.
   const consumer = join(work, 'consumer');
   cpSync(join(root, 'headless/consumer-example'), consumer, {
     recursive: true,
@@ -134,7 +117,6 @@ try {
   ok('7d hetzelfde modelbestand als tekst ⇒ exit 1 met code IFC_READ_FAILED, zoals op main',
     modelAsText.status === 1 && modelAsText.stderr.startsWith('IFC_READ_FAILED:'), modelAsText.out.slice(0, 300));
 
-  // 3. De typedeclaraties werken voor een TypeScript-consument (NodeNext, strict).
   writeFileSync(join(consumer, 'types-check.ts'), `
 import {
   openIfc, openIfcBytes, PlannerCoreError, VERSION, type CoreErrorCode, type ForeignContentSummary, type ScheduleSummary,
