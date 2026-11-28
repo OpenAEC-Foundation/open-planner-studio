@@ -2,13 +2,6 @@ import { useTranslation } from 'react-i18next';
 import { useAppStore } from '@/state/appStore';
 import { NoticeStrip } from './NoticeStrip';
 
-/**
- * Modus-strook voor de splits-modus.
- *
- * Zelfde vorm en zelfde reden als `DependencyModeNotice`: het is een MODUS (hij verandert wat een
- * sleep vanaf een balk doet), dus hij mag niet onzichtbaar aan staan. Hier staat ook de ENIGE
- * uitleg van het gebaar — losse bijschriften bij de knop of onder de Gantt zijn bewust weggelaten.
- */
 export function SplitModeNotice() {
   const { t } = useTranslation('common');
   const active = useAppStore((s) => s.ui.showSplitMode);

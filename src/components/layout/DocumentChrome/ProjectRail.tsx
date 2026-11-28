@@ -6,7 +6,6 @@ import './DocumentChrome.css';
 
 interface HoverState { card: DocumentCard; top: number; }
 
-/** B · Projectbalk — verticale balk links (VS Code activity-bar-stijl). */
 export function ProjectRail() {
   const { t } = useTranslation('common');
   const cards = useDocumentCards();

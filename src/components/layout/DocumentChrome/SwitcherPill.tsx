@@ -3,7 +3,6 @@ import { Icon } from '@/components/icons';
 import { useDocumentCards, useDocumentActions } from './useDocumentCards';
 import './DocumentChrome.css';
 
-/** C · Wisselaar — minimale projectpil in de titelbalk. */
 export function SwitcherPill() {
   const { t } = useTranslation('common');
   const cards = useDocumentCards();

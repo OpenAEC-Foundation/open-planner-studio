@@ -12,7 +12,7 @@ import {
 export interface DocumentCard {
   id: string;
   title: string;
-  fileName: string | null; // bestandsnaam (met extensie) of null bij niet-opgeslagen
+  fileName: string | null;
   code: string;
   color: string;
   isActive: boolean;
@@ -24,32 +24,21 @@ export interface DocumentCard {
   thumb: ThumbBar[];
 }
 
-/**
- * Bouwt de afgeleide kaart-info voor elk geopend document. Het actieve
- * document leest uit de top-level store-velden; inactieve uit hun payload.
- * Eén bron voor de tabstrip, de projectbalk, de flyout én het overzicht.
- * Mini-Gantts zijn alleen nodig zolang het projectoverzicht open is.
- */
 export function useDocumentCards(includeThumbnails = false): DocumentCard[] {
   const { t } = useTranslation('common');
   const documents = useAppStore((s) => s.documents);
   const activeId = useAppStore((s) => s.activeDocumentId);
-  // Top-level (actief document) — laat de kaarten meeveranderen bij elke edit.
   const project = useAppStore((s) => s.project);
   const tasks = useAppStore((s) => s.tasks);
   const cpmResult = useAppStore((s) => s.cpmResult);
   const filePath = useAppStore((s) => s.filePath);
   const isDirty = useAppStore((s) => s.isDirty);
-  // P6 Project-ID van het actieve document (XER of P6 XML) — één bron: `documentProjectCode`.
   const activeCode = useAppStore((s) => documentProjectCode(s.project, s.xerImportMetadata));
 
   return useMemo(() => {
     const untitled = t('project.untitled');
     const fileBase = (p: string | null) => (p ? basename(p) : null);
 
-    // Rauwe titels eerst, zodat naamloze documenten onderling een volgnummer kunnen krijgen: twee
-    // lege tabbladen (bv. na dupliceren van een naamloos project) heetten anders allebei
-    // "Nieuwe planning". Zelfde afleiding als `getOpenDocuments()` in documentSlice.
     const rawTitles = documents.map((entry) => {
       const active = entry.id === activeId;
       const p = active ? project : entry.payload!.project;
@@ -89,20 +78,16 @@ export function useDocumentCards(includeThumbnails = false): DocumentCard[] {
   }, [documents, activeId, project, tasks, cpmResult, filePath, isDirty, activeCode, t, includeThumbnails]);
 }
 
-/** Gedeelde acties voor alle drie de chrome-stijlen + het overzicht. */
 export function useDocumentActions() {
   const switchDocument = useAppStore((s) => s.switchDocument);
   const requestCloseDocument = useAppStore((s) => s.requestCloseDocument);
   const setUI = useAppStore((s) => s.setUI);
-  // De titelbalk-wisselaar blijft ook in Help bereikbaar; de startvraag hoort bij het huidige document.
   const startQuestionOpen = useAppStore(s => s.ui.pendingActualStartQuestion !== null);
 
   const switchTo = useCallback((id: string) => {
     if (!startQuestionOpen) switchDocument(id);
   }, [startQuestionOpen, switchDocument]);
 
-  // Dirty document → open de sluit-bevestiging (Opslaan/Niet opslaan/Annuleren);
-  // schoon document sluit meteen. Loopt er een opslag, dan eerst "Wordt nog opgeslagen…" (#804 stap 3).
   const closeWithGuard = useCallback(
     (doc: { id: string }) => {
       if (!startQuestionOpen) requestCloseDocument(doc.id);

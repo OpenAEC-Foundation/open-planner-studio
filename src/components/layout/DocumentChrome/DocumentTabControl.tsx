@@ -13,11 +13,6 @@ interface DocumentTabControlProps {
   onClose: (event: MouseEvent<HTMLButtonElement>) => void;
 }
 
-/**
- * Eén semantische tabcontrol met een zuster-sluitknop. De sluitknop is bewust
- * geen descendant van `role=tab`: zijn naam mag de toegankelijke tabnaam niet
- * vervuilen en hij blijft een zelfstandig bedienbaar element.
- */
 export function DocumentTabControl({
   card,
   index,
@@ -48,7 +43,6 @@ export function DocumentTabControl({
         data-testid="document-tab"
       >
         <span className="ops-dot" aria-hidden="true" />
-        {/* dir="auto": een Latijnse naam in een RTL-interface houdt zijn begin; de ellips valt aan het eind. */}
         <span className="ops-tab-name" aria-hidden="true" dir="auto">{card.title}</span>
         {card.isDirty && <span className="ops-dirty-dot" aria-hidden="true" />}
       </button>
