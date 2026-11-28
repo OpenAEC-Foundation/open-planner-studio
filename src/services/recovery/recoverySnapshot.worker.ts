@@ -4,7 +4,6 @@ import { writeRecoverySnapshot, type RecoverySnapshot, type RecoverySnapshotInpu
 export type RecoveryWorkerRequest = { id: number; snapshot: RecoverySnapshotInput };
 export type RecoveryWorkerResponse = { id: number } & (RecoverySnapshot | { error: string; calendarTimeMinutes?: number });
 
-// Geen store, DOM, bestandstoegang of Tauri in deze worker.
 self.onmessage = ({ data }: MessageEvent<RecoveryWorkerRequest>) => {
   let response: RecoveryWorkerResponse;
   try {

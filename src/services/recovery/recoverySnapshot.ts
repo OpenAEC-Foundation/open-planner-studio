@@ -4,22 +4,8 @@ import { saveRecovery } from './recoveryStore';
 import type { RecoveryDeltaTracker, RecoverySourceDocument } from './recoveryDelta';
 import { confirmRecordedPending } from './recoveryPendingSource';
 
-/**
- * De IFC-tekst van één crashherstel-snapshot. Eigenaarsbesluit plan (9): het XER-bronarchief gaat
- * NIET mee in elke snapshot. De snapshot draagt alleen een verwijzing (lengte + SHA-256, pset-schema 3);
- * de bytes staan één keer als content-adressed blob in de crashherstelopslag (`recoveryStore`).
- * Daardoor raakt een auto-save-tick het archief niet aan: geen base64-codering, geen kopie, geen
- * schrijfactie van megabytes. Het echte opslaan (`buildWriteIFCInput` zonder deze optie) schrijft
- * het archief wél volledig; het IFC-projectbestand blijft de bron.
- */
 export { serializeRecoverySnapshot };
 
-/**
- * Eén crashherstel-ronde: delta bepalen, gewijzigde documenten serialiseren, opslaan en pas daarna
- * de persistentiebasis verschuiven. `false` = er viel niets te schrijven. Fouten gaan naar de
- * aanroeper (de auto-save meldt ze); de basis blijft dan staan, zodat de volgende ronde het opnieuw
- * probeert.
- */
 export async function runRecoveryTick(
   tracker: RecoveryDeltaTracker,
   activeDocumentId: string | null,
@@ -35,16 +21,11 @@ export async function runRecoveryTick(
     try {
       if (!enabled()) return false;
       const save = await tracker.prepareAsync(active, retained, serialize);
-      // Stop/clean quit kan tijdens workerwerk plaatsvinden. Bied daarna nooit een late save aan;
-      // een al aangeboden save staat in de backendketen vóór het wissen.
       if (!save || !enabled()) return false;
       await saveRecovery({ ...save, onSourceCopyFailure });
       tracker.commit(active, retained);
       return true;
     } finally {
-      // Knownbug 1131 stap 1: een lopende vervanging wacht tot haar `pendingSha256` in het manifest staat. Alleen de
-      // gepersisteerde basis telt. Een document met een bronkopie (site, download) heeft geen doel om te vervangen, en
-      // daar kan een mislukte kopie de bronverwijzing uit het manifest laten terwijl de basis haar wel noemt.
       confirmRecordedPending(id => documents.some(d => d.id === id && !d.sourceCopy)
         ? tracker.persistedIfcSource(id)?.pendingSha256 : undefined);
     }

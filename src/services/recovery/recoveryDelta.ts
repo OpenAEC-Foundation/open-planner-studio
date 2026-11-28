@@ -12,36 +12,24 @@ import { decodeXerSourceArchive } from '@/services/xerSourceArchive';
 import type { RecoverySnapshot } from './recoverySnapshotInput';
 import { hasSharedGlobalIds, type RecoverySnapshotIdentities } from './recoveryIdentity';
 
-/** Eén open document, precies zoals de auto-save het aan de recoverylaag aanbiedt. */
 export interface RecoverySourceDocument extends RecoveryDocMetadata {
   source: IFCSaveSource;
   sourceCopy?: RecoverySourceCopy;
 }
 
-/** De manifeststaat die na een geslaagde opslagronde werkelijk gepersisteerd is. */
 export interface PersistedRecoveryState {
   activeDocumentId: string | null;
   documents: RecoveryDocMetadata[];
   sources: ReadonlyMap<string, IFCSaveSource>;
-  /** De sitebasis bij de kopie; geen bronbytes in deze vergelijkingscache. */
   copyVersions?: ReadonlyMap<string, string | null>;
 }
 
 export interface RecoveryDelta {
-  /** Alleen deze documenten moeten opnieuw met `writeIFC` worden geserialiseerd. */
   changedDocuments: RecoverySourceDocument[];
-  /** Een actieve tab-, pad- of dirty-metadatawijziging vraagt alleen een manifestschrijf. */
   manifestChanged: boolean;
-  /** Geen inhouds- én geen metadatawijziging betekent: helemaal geen I/O. */
   needsPersist: boolean;
 }
 
-/**
- * De manifestmetadata van één document. `xerArchive` volgt uit de bron zelf (de sha256 van het
- * bronarchief), zodat manifest en referentiesnapshot per constructie naar dezelfde blob wijzen.
- * Het site-doel staat er alleen in als er een is: zonder site heeft de metadata exact dezelfde
- * velden als vóór issue #309.
- */
 function metadataOf(document: RecoverySourceDocument): RecoveryDocMetadata {
   const { id, filePath, isDirty, datesAsRecorded } = document;
   const sha = document.source.xerSourceArchive?.sha256;
@@ -49,18 +37,12 @@ function metadataOf(document: RecoverySourceDocument): RecoveryDocMetadata {
     id, filePath, isDirty, datesAsRecorded,
     ...(sha ? { xerArchive: sha } : {}),
     ...siteMetaFields(document),
-    // #804 fase 1a, fixronde 1: het doel van een bron met een vreemd deel volgt uit de bron zelf, net als `xerArchive`,
-    // zodat manifest en snapshot (de vingerafdruk) per constructie bij elkaar horen. Zonder kenmerk: weggelaten.
     ...foreignSourceMetaFields({ foreignSource: document.foreignSource !== undefined ? document.foreignSource : foreignSourceTargetOf(document.source.foreignSourceMark) }),
     ...ifcSourceMetaFields(document),
     ...ifcxMetaFields(document),
   };
 }
 
-/**
- * Per verwezen archief een LAZY leverancier van de bronbytes. Een closure kost niets; de opslaglaag
- * roept hem alleen aan als de blob nog ontbreekt.
- */
 function archiveSuppliers(documents: readonly RecoverySourceDocument[]): Map<string, RecoveryArchiveSupplier> {
   const out = new Map<string, RecoveryArchiveSupplier>();
   for (const document of documents) {
@@ -77,12 +59,8 @@ function sameMetadata(a: readonly RecoveryDocMetadata[], b: readonly RecoveryDoc
       && value.id === other.id
       && value.filePath === other.filePath
       && value.isDirty === other.isDirty
-      // De modusvlag hoort bij de manifestmetadata: een documentwissel in of
-      // uit "datums zoals opgeslagen" moet ook zónder inhoudswijziging een manifestschrijf geven.
       && value.datesAsRecorded === other.datesAsRecorded
       && (value.xerArchive ?? null) === (other.xerArchive ?? null)
-      // Het site-doel en zijn basisversie zijn ook manifestmetadata: een opslag op de site (nieuwe
-      // versie) of een nieuw doel geeft zonder inhoudswijziging een manifest-only schrijfactie.
       && sameRecoverySiteMeta(value, other)
       && sameRecoveryForeignSource(value, other)
       && sameRecoveryIfcSource(value, other)
@@ -90,11 +68,6 @@ function sameMetadata(a: readonly RecoveryDocMetadata[], b: readonly RecoveryDoc
   });
 }
 
-/**
- * Bepaal de recoverydelta uitsluitend uit de IFC-bronvelden. `isDirty` zit in manifestmetadata
- * voor de herstelweergave, maar is uitdrukkelijk GEEN revisie-id: een ongewijzigd document kan
- * dirty blijven en een actieve-tabwissel heeft geen nieuwe IFC nodig.
- */
 export function planRecoveryDelta(
   activeDocumentId: string | null,
   documents: readonly RecoverySourceDocument[],
@@ -116,7 +89,6 @@ export function planRecoveryDelta(
   };
 }
 
-/** Maak pas na een geslaagde opslagronde een nieuwe persistentiebasis. */
 export function persistedRecoveryState(
   activeDocumentId: string | null,
   documents: readonly RecoverySourceDocument[],
@@ -144,17 +116,10 @@ const identitiesOf = ({ tracked, identities }: SnapshotIdentities): SnapshotIden
 
 const tracksIdentities = (doc: RecoverySourceDocument) => doc.ifcSource !== undefined || !!doc.ifcx?.references;
 
-/** De vergelijkingscache heeft de bronbytes niet nodig (IFC_DIRTY_KEYS). */
 function comparisonSource(source: IFCSaveSource): IFCSaveSource {
   return source.ifcSource ? { ...source, ifcSource: null } : source;
 }
 
-/**
- * Stateful adapter voor de auto-save-hook. `prepare` mag IFC-teksten cachen, maar alleen
- * `commit` verschuift de persistentiebasis. De hook roept `commit` pas ná een geslaagde
- * `saveRecovery` aan; een quota-/storagefout laat de gewijzigde bron dus verplicht in de volgende
- * delta staan in plaats van hem stil als al opgeslagen te behandelen.
- */
 export class RecoveryDeltaTracker {
   private persisted: PersistedRecoveryState | null = null;
   private readonly serialized = new Map<string, { source: IFCSaveSource; ifc: string } & SnapshotIdentities>();
@@ -163,7 +128,6 @@ export class RecoveryDeltaTracker {
   private readonly skipped = new Set<string>();
   private tail: Promise<unknown> = Promise.resolve();
 
-  /** Houd delta, serialisatie, manifestcommit en persistentiebasis in dezelfde schrijfvolgorde. */
   runExclusive<T>(action: () => Promise<T>): Promise<T> {
     const run = this.tail.then(action, action);
     this.tail = run.catch(() => undefined);
@@ -178,7 +142,6 @@ export class RecoveryDeltaTracker {
     const delta = this.delta(activeDocumentId, documents);
     if (!delta.needsPersist) return null;
     this.skipped.clear();
-    // Eén worker houdt het geheugengebruik begrensd; andere documenten wachten op hun beurt.
     for (const document of delta.changedDocuments) {
       if (!this.cachedSnapshot(document)) {
         const tracked = tracksIdentities(document);
@@ -196,8 +159,6 @@ export class RecoveryDeltaTracker {
     return this.prepare(this.recoverableActiveId(activeDocumentId, retained), retained, () => { throw new Error('Crashherstel-cache ontbreekt.'); });
   }
 
-  /** Gebruik voor een geweigerd document exact de laatst gepersisteerde bron
-   * én metadata. Een nieuw geweigerd document heeft nog geen herstelkopie. */
   private recoverableDocuments(documents: readonly RecoverySourceDocument[]): RecoverySourceDocument[] {
     return documents.flatMap(document => {
       if (!this.skipped.has(document.id)) return [document];
@@ -236,13 +197,11 @@ export class RecoveryDeltaTracker {
     return this.persisted !== null;
   }
 
-  /** De snapshots zijn gewist (schone exit): de volgende ronde schrijft weer alles. De serialisatiecache blijft. */
   forgetPersisted(): void {
     this.persisted = null;
     this.committed = new Map();
   }
 
-  /** De bronverwijzing van een document zoals het laatst geslaagde manifest haar schreef. */
   persistedIfcSource(documentId: string): RecoveryIfcSource | undefined {
     return this.persisted?.documents.find(d => d.id === documentId)?.ifcSource;
   }

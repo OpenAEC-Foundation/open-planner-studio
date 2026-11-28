@@ -2,7 +2,6 @@ import type { RecoveryManifestDoc } from '@/services/recovery/recoveryPaths';
 import { ifcxEnabled } from '@/utils/featureFlags';
 import { loadFeatureFlags } from '@/utils/settingsStore';
 
-/** 1/2: stabiele snapshots; 3: generaties; 4: datumstand; 5: XER-archiefverwijzing. */
 export const RECOVERY_MANIFEST_VERSION = 5;
 const IFCX_REFERENCES_VERSION = 6;
 
@@ -17,7 +16,6 @@ export class RecoveryManifestError extends Error {
   }
 }
 
-/** Geen migratie: alleen de werkelijk geschreven versies zijn leesbaar. */
 export function checkRecoveryManifestVersion(version: unknown): void {
   if (typeof version !== 'number' || !Number.isInteger(version) || version < 1) {
     throw new RecoveryManifestError('invalid-version');
@@ -27,18 +25,15 @@ export function checkRecoveryManifestVersion(version: unknown): void {
   }
 }
 
-/** Eén manifest mag een document maar één keer vertegenwoordigen, ook in de oude docIds-vorm. */
 export function checkRecoveryDocumentIds(ids: unknown): asserts ids is string[] {
   if (!Array.isArray(ids)) throw new RecoveryManifestError('invalid-shape');
   const seen = new Set<string>();
-  // for…of bezoekt ook ontbrekende posities (als undefined); some/map slaan die over.
   for (const id of ids) {
     if (typeof id !== 'string' || !id || seen.has(id)) throw new RecoveryManifestError('invalid-shape');
     seen.add(id);
   }
 }
 
-/** Identiteiten zijn nodig om metadata en bytes te koppelen; optionele sitevelden blijven tolerant. */
 export function checkRecoveryDocuments(documents: unknown, version?: number): asserts documents is RecoveryManifestDoc[] {
   if (!Array.isArray(documents)) throw new RecoveryManifestError('invalid-shape');
   const ids: string[] = [];
