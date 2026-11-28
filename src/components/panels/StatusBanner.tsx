@@ -2,8 +2,6 @@ import type { ReactNode } from 'react';
 import { Icon } from '@/components/icons';
 
 const TONES = {
-  // Een echte waarschuwing: semantische --warning-token + per-thema --theme-warning-text, leesbaar
-  // in alle drie de thema's.
   warning: {
     className: 'flex items-center gap-2 mx-2 mt-2 px-2.5 py-1.5 rounded-[8px] border font-medium',
     style: {
@@ -13,7 +11,6 @@ const TONES = {
     },
     role: 'alert',
   },
-  // Informatief, geen fout: de "dim"-stijl.
   dim: {
     className: 'flex items-center gap-2 mx-2 mt-2 px-2.5 py-1.5 rounded-[8px] border font-medium text-text-secondary',
     style: {
@@ -24,16 +21,10 @@ const TONES = {
   },
 } as const;
 
-/**
- * Banner met driehoek-icoon boven een resourcetabel (Bibliotheek- en Bezettingsweergave).
- * `warning` is een waarschuwing (`role="alert"`), `dim` een melding (`role="status"`).
- */
 export function StatusBanner({ tone, children, bannerProps, inline = false }: {
   tone: keyof typeof TONES;
   children: ReactNode;
-  /** Zonder de buitenmarge (`mx-2 mt-2`): voor een blok binnen een formulierveld. */
   inline?: boolean;
-  /** Data-attribuut voor de self-test-harness. */
   bannerProps?: Record<string, unknown>;
 }) {
   const { className, style, role } = TONES[tone];

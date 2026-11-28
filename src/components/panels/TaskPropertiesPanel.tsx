@@ -23,14 +23,6 @@ import { TaskSplitsSection } from '@/components/task-sections/TaskSplitsSection'
 import { TaskAssignmentsSection } from '@/components/task-sections/TaskAssignmentsSection';
 import { TaskCodesFieldsSection } from '@/components/task-sections/TaskCodesFieldsSection';
 
-// RESOURCE_CURVES/CURVE_KEY wonen in `@/components/task-sections/shared` — importeer ze vanaf daar.
-// Re-export hier zou een cirkelvormige afhankelijkheid met task-sections/shared kunnen introduceren.
-
-/**
- * Eigenschappenpaneel voor de geselecteerde taak, opgebouwd uit de gedeelde
- * `task-sections/*`-componenten (ook gebruikt door `TaskDialog`). Dit paneel is INSTANT-APPLY
- * (`update(patch) => updateTask(task.id, patch)`).
- */
 export function TaskPropertiesPanel() {
   const { t } = useTranslation('task');
 
@@ -41,12 +33,7 @@ export function TaskPropertiesPanel() {
   const deleteTask = useAppStore(s => s.deleteTask);
   const recalculate = useAppStore(s => s.recalculate);
   const setTaskCalendar = useAppStore(s => s.setTaskCalendar);
-  // Voortgang: de actie dwingt de voortgangsinvarianten af — zie TaskProgressFields-docstring
-  // voor waarom dit dedicated setters zijn (i.p.v. de generieke patch). `enterTaskProgress` is de
-  // UI-variant: dezelfde bewerking plus de invoerregels van `engine/progressEntry.ts` (statusdatum
-  // op vandaag, met een melding, als er nog geen is).
   const enterTaskProgress = useAppStore(s => s.enterTaskProgress);
-  // Automatisch berekenen pas als een veld af is, niet halverwege het typen.
   const textEntryHold = useTextEntryAutoCalcHold();
 
   if (!activeTaskId) {
@@ -61,11 +48,6 @@ export function TaskPropertiesPanel() {
   if (!task) return null;
 
   const update = (updates: Partial<Task>) => {
-    // Coalesceer opeenvolgende bewerkingen van HETZELFDE veld tot één undo-stap: de instant-apply-
-    // velden (naam/omschrijving/duur/datum/…) committeren per toetsaanslag, wat anders per aanslag
-    // een undo-stap zou opleveren. De key onderscheidt de afzonderlijke `time`-subvelden (start vs
-    // duur vs finish blijven dus aparte undo-stappen), en een bewerking van een ánder veld breekt de
-    // reeks vanzelf af (andere key). Zelfde coalesce-mechanisme als de balk-sleep/voortgangs-schuif.
     const parts: string[] = [];
     for (const k of Object.keys(updates) as (keyof Task)[]) {
       if (k === 'time' && updates.time) {
@@ -106,8 +88,6 @@ export function TaskPropertiesPanel() {
 
       <TaskTimeFields task={task} onChange={update} />
 
-      {/* Een werkregelwissel rekent niets en gaat daarom via `setTaskWorkRule`
-          (geen `scheduleStale`, "datums zoals opgeslagen" blijft staan), niet via de generieke update. */}
       <TaskWorkRuleField task={task} onChange={patch => setTaskWorkRule(task.id, patch.workRule)} />
 
       <TaskFreePeriodWarning taskId={task.id} />

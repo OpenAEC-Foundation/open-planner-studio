@@ -7,16 +7,6 @@ import { scopeTaskResources } from '@/utils/taskResourceScope';
 import { ensureThemeVisible, resourceDisplayColor } from '@/engine/renderer/resourcePalette';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 
-/**
- * Compacte resource-lijst voor de gedockte rechter-rail (naast `TaskPropertiesPanel`, zie
- * `RightRail`). Bewust een STERK verkorte
- * kolommenset t.o.v. de volledige `ResourcePanel`: alleen naam (readonly hier — hernoemen blijft
- * een taak voor het volledige paneel), max. eenheden (bewerkbaar, zelfde `updateResource`-actie)
- * en een simpele belasting-badge afgeleid uit `resourceLoadResult.overallocatedDays` (dezelfde bron
- * als het histogram) — géén tarief/kalender/eenheid/ouder-bewerking hier. Vóór de naam
- * staat wél het kleurvlakje in de resourcekleur — dezelfde `resourceDisplayColor` (+ donker-thema-
- * verlichting) als het resource-accent onder de Gantt-balk, zodat je dat accent hier kunt aflezen.
- */
 export function ResourcePanelCompact() {
   const { t } = useTranslation('common');
   const allResources = useAppStore(s => s.resources);
@@ -59,7 +49,6 @@ export function ResourcePanelCompact() {
                 <Icon id="status.resource-overallocated" size={14} />
             </span>
             )}
-            {/* Kostenresource (#815): geen capaciteit, dus geen bewerkbaar veld. */}
             {isCostResource(r) ? (
               <span
                 className="w-14 pe-1 text-right text-text-secondary flex-shrink-0"
@@ -71,10 +60,6 @@ export function ResourcePanelCompact() {
               value={r.maxUnits}
               ariaLabel={t('resource.maxUnits')}
               onCommit={n => updateResource(r.id, { maxUnits: n })}
-              // `!w-14` met uitroepteken is hier VERPLICHT: `.input` in globals.css staat buiten elke
-              // cascade-layer en zet `width:100%`, terwijl Tailwind-utilities in `@layer utilities`
-              // zitten — unlayered CSS wint dus altijd van een kale `w-14`. Zonder `!` wordt de input
-              // 100% breed en krimpt de naam-span hiernaast naar 0 px.
               className="input !text-body !px-1 !py-0.5 !w-14 text-right"
               title={t('resource.maxUnits')}
             />

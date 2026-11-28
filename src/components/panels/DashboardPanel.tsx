@@ -1,20 +1,11 @@
 import type { CSSProperties, ReactNode } from 'react';
 
-// Gedeeld frame van de twee donkere "dashboard"-panelen onder de rechterrail: de DebugTerminal
-// (log-bus) en het AI-activiteitenpaneel (activityLog). Zelfde schil, werkbalk, icoonknoppen,
-// tijdstempel en snapshotbron; alleen de inhoud van werkbalk en feed verschilt.
-
-/** Tijdstempel als HH:MM:SS in lokale tijd. */
 export function formatClockTime(ts: number): string {
   const d = new Date(ts);
   const pad = (n: number) => n.toString().padStart(2, '0');
   return `${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
 }
 
-/**
- * Bron voor `useSyncExternalStore`, die een stabiele getSnapshot wil: de laatst gemelde
- * array-referentie wordt gecachet. Aanroepen op moduleniveau — de cache-listener blijft staan.
- */
 export function createSnapshotStore<T>(
   initial: T,
   subscribeSource: (listener: (value: T) => void) => () => void,
@@ -38,7 +29,6 @@ const ICON_BUTTON_STYLE: CSSProperties = {
   transition: 'background 0.12s ease, color 0.12s ease',
 };
 
-/** Icoonknop in de werkbalk (pauze/wissen/sluiten): transparant, met een hover-lift. */
 export function DashboardIconButton({ onClick, title, children }: {
   onClick: () => void;
   title: string;
@@ -63,7 +53,6 @@ export function DashboardIconButton({ onClick, title, children }: {
   );
 }
 
-/** Paneelschil: vaste hoogte, werkbalk van één regel, daaronder de feed (`children`). */
 export function DashboardPanel({ height, toolbar, children }: {
   height: number;
   toolbar: ReactNode;
