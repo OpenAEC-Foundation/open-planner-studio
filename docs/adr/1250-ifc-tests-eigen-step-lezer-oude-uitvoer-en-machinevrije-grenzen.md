@@ -15,8 +15,11 @@ en een schaaltoets keurt op een telling, niet op tijd.
 - De fixtures `ifc-arity-oude-writer.ifc`, `h7-kalender-oude-writer.ifc` en `h7-tijden-oude-writer.ifc` zijn
   geschreven met een oudere writer; `ifc-arity-oude-writer-merged.ifc` is zo'n oud bestand na `MergeProjects` van
   IfcOpenShell 0.9.0. De `.json` naast de twee H7-fixtures legt vast wat er vóór het opslaan in het geheugen stond
-  (writer 531940ac). Ze bewijzen dat de lezer oude bestanden leest zoals voorheen; schrijf ze niet opnieuw met de
-  huidige writer. `check-ifc-legacy-arity.ts` toetst eerst dat de fixture echt de oude ariteit heeft.
+  (writer 531940ac). Schrijf ze niet opnieuw met de huidige writer. Per fixture verschilt wat ze beschermen:
+  `check-ifc-legacy-arity.ts` toetst eerst dat een ariteitsfixture echt de oude ariteit heeft; de MergeProjects-fixture
+  bevat een terrein en een muur, en de test leest de planning pas nadat die twee modelregels zijn weggefilterd
+  (knownbug 110). De H7-tests verwachten de kalenderwaarden van vóór het opslaan, ook waar de oude writer een
+  ongeldige tijd schreef (`7.5:00:00`, dat de lezer van toen tot 07:00 afkapte).
 - `GOLDEN` in `check-ifc-werktijd-per-dag.ts` legt de kalenderregels vast (met relatieve STEP-verwijzingen `#+n`) van
   een uniforme uurweek en van een dagkalender, zoals de writer van main 1e192b31a ze schreef, vóór de indeling per
   weekdag (`docs/ifc-round-trip.md`, *Kalenders: werkblokken per weekdag*). Twee verschillen zijn bewust, van de

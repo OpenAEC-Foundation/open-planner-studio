@@ -6598,7 +6598,8 @@ en noem het in je rapport of PR-tekst.
 
 2810. **De vergelijking `perf-ifc-nesting.yml` wordt rood op elke PR die alleen haar testbestanden raakt.** De workflow
      start op een wijziging in `check-ifc-nesting-index.ts`, `ifcNestingFixture.ts` of `measure-ifc-nesting.ts`. Daarna
-     stopt hij met exit 1: `npm run i18n:resolve` verwacht een mergecommit, en `docs/superpowers/evidence/ifc-nesting-index.mjs`
+     stopt `npm run i18n:resolve` met exit 1, omdat de uitgecheckte PR-head één ouder heeft en geen mergecommit is;
+     de meetstap komt dan niet aan de beurt. Ook die zou stoppen: `docs/superpowers/evidence/ifc-nesting-index.mjs`
      eist dat `src/services/ifc/ifcReader.ts` het enige gewijzigde bestand in `src/` is. Zo ging het op #1407; daarom
      bleven die drie bestanden daar buiten de opruiming. Voorstel: de meting alleen starten als `ifcReader.ts` wijzigt. — B
 
