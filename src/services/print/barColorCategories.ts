@@ -5,23 +5,19 @@ import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { CustomTaskType, Task } from '@/types/task';
 import type { FieldRef } from '@/types/view';
 
-/** Minimale projectcontext waarmee de gedeelde Group-veldlijst en fallback bepaald worden. */
 export interface BarColorFieldContext {
   activityCodeTypes: ReadonlyArray<ActivityCodeType>;
   customFieldDefs: ReadonlyArray<CustomFieldDef>;
 }
 
-/** Projectdata die nodig is om de gekozen categorie ook per taak op te lossen. */
 export interface BarColorContext extends BarColorFieldContext {
   resources: ReadonlyArray<Resource>;
   assignments: ReadonlyArray<ResourceAssignment>;
   taskTypeLabels?: Readonly<Record<string, string>>;
-  /** Catalogus van eigen werkcategorieën van het project: naam en kleur per `customTaskTypeId`. */
   customTaskTypes?: ReadonlyArray<CustomTaskType>;
   noneLabel: string;
 }
 
-/** Een opgeloste categoriewaarde. Alleen Resource kan er meer dan een per taak opleveren. */
 export interface BarCategoryValue {
   key: string;
   label: string;
@@ -32,7 +28,6 @@ export interface BarCategoryValue {
 
 export interface EffectiveBarColorSelection {
   effective: BarColorSelection;
-  /** De bewaarde keuze die in dit project niet bestaat; de globale keuze zelf blijft intact. */
   missingField?: FieldRef;
 }
 
@@ -55,23 +50,14 @@ function noneValue(field: FieldRef, noneLabel: string): BarCategoryValue {
   };
 }
 
-/**
- * Een groepeerveld dat (nog) geen balkkleur kan dragen: Resourcetype is een indeling,
- * geen kleurbron — resources hebben een eigen kleur, typen niet.
- */
 export function isBarColorCandidate(field: FieldRef): boolean {
   return field.src !== 'resourceType';
 }
 
-/** De toegestane categorievelden komen bewust rechtstreeks uit de Group-catalogus. */
 export function isBarColorFieldAvailable(field: FieldRef, ctx: BarColorFieldContext): boolean {
   return isBarColorCandidate(field) && groupFieldList(ctx).some(candidate => fieldsEqual(candidate, field));
 }
 
-/**
- * Een verdwenen projectgebonden keuze wordt alleen effectief Task Type. De oorspronkelijke
- * selectie wordt niet gewijzigd; de UI kan via `missingField` uitleggen waarom een fallback geldt.
- */
 export function effectiveBarColorSelection(
   selection: BarColorSelection,
   ctx: BarColorFieldContext,
@@ -103,7 +89,6 @@ function resourceValues(task: Task, ctx: BarColorContext): BarCategoryValue[] {
   return values;
 }
 
-/** Lost één Group-veld op tot een stabiele sleutel, gebruikerslabel en eventuele expliciete kleur. */
 export function resolveBarCategoryValues(
   task: Task,
   field: FieldRef,
@@ -128,7 +113,6 @@ export function resolveBarCategoryValues(
     }];
   }
 
-  // Geen kleurbron (zie `isBarColorCandidate`); `effectiveBarColorSelection` laat het nooit zover komen.
   if (field.src === 'resourceType') return [noneValue(field, ctx.noneLabel)];
 
   if (field.src === 'customField') {
@@ -143,7 +127,6 @@ export function resolveBarCategoryValues(
   if (rawValue === undefined || rawValue === null || rawValue === '') {
     return [noneValue(field, ctx.noneLabel)];
   }
-  // Eigen werkcategorie: eigen sleutel, naam en bewaarde kleur in plaats van die van "Overig" (issue #856).
   const customType = field.key === 'taskType' && rawValue === 'USERDEFINED' && task.customTaskTypeId
     ? ctx.customTaskTypes?.find(candidate => candidate.id === task.customTaskTypeId)
     : undefined;
@@ -165,7 +148,6 @@ export function resolveBarCategoryValues(
   }];
 }
 
-/** Unieke waarden van de daadwerkelijk zichtbare bladtaken, in eerste-weergavevolgorde. */
 export function visibleBarColorCategories(
   tasks: ReadonlyArray<Task>,
   field: FieldRef,

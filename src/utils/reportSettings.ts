@@ -1,25 +1,3 @@
-// Rapportinstellingen (Rapport-ribbontab) — persistente voorkeuren van het rapportpaneel.
-//
-// WAAROM een eigen moduletje en NIET het settings-register (`settingsRegistry.ts`)?
-// Dat register bindt elke instelling aan een veld in `UIState`, en alles wat in `UIState` landt valt
-// in dit project onder de "3-plekken-regel": elke app-instelling moet tegelijk verschijnen in de
-// tandwiel-popup, de Instellingen-ribbontab én Backstage → Instellingen (via het gedeelde
-// `SettingsPanelContent`). Rapportopties horen daar niet thuis — ze horen bij het rapportpaneel
-// zelf, waar ze in context staan naast de live preview. Bovendien zou het `UIState` met veertien
-// velden opblazen die verder geen enkel ander onderdeel van de app leest.
-//
-// WAAROM één sleutel met een object erin, en geen veertien losse `ops-*`-sleutels?
-// Dit is één samenhangende voorkeurenset van één paneel; als groep opslaan houdt localStorage
-// overzichtelijk, maakt het uitbreiden triviaal (veld erbij = default erbij) en voorkomt veertien
-// bijna-identieke `saveX`-wrappers in `settingsStore.ts`. De prefix (`ops-`) en JSON-serialisatie
-// komen van `getSetting`/`setSetting`, dus we blijven op hetzelfde opslagpad als de rest van de app.
-//
-// WAAROM staat `companyName` hier NIET bij:
-// die wordt in het paneel geïnitialiseerd uit `project.company` en is dus PROJECTDATA, geen
-// app-voorkeur. Zou hij globaal bewaard worden, dan zou de bedrijfsnaam van project A stilletjes in
-// het rapport van project B opduiken (of andersom: het projectveld overschrijven). Bedrijfsnaam
-// hoort in het projectbestand thuis (IFC-round-trip), niet in localStorage.
-
 import { readLocal, tryReadLocal, writeLocal } from '@/utils/settingsStore';
 import { snapToChoice } from '@/utils/numberChoice';
 import { parseBoolean, parseClampedInt, parseClampedNumber, parseEnum } from '@/utils/settingParsers';
@@ -33,21 +11,15 @@ import type { ResourceLoadingBucket } from '@/engine/reports/resourceLoading';
 import { DEFAULT_REPORT_FONT_ID, REPORT_FONT_IDS, type ReportFontChoice } from '@/services/pdf/reportFont';
 import { RESOURCE_DIAGRAM_LAYOUT_ID } from '@/engine/view/layoutPresets';
 
-/** De `localStorage`-sleutel van de rapportinstellingen. */
 const LOCAL_KEY = 'ops-reportSettings';
 
 export type ReportType =
   | 'gantt'
-  // Resourcediagram (issue #113, gfayat): de Gantt-afdruk gegroepeerd per resource — "wie doet
-  // wat, en wanneer" — met desgewenst een pagina per resource. Zie `src/engine/reports/resourceGantt.ts`.
   | 'resourceGantt'
   | 'milestones' | 'variance'
-  // Tabelrapporten uit discussie #31 (manuvarkey) — zie `src/engine/reports/`.
   | 'lookAhead' | 'critical' | 'progress' | 'health' | 'resourceLoading' | 'resourceAssignments' | 'wbsSummary'
-  // Voortgangscurve (issue #689): kerncijfers en een S-curve — zie `src/engine/reports/progressCurve.ts`.
   | 'progressCurve';
 
-/** De rapporttypen die via het gedeelde tabelrapport (`TableReportView`) lopen. */
 export const TABLE_REPORT_TYPES: readonly ReportType[] = [
   'lookAhead', 'critical', 'progress', 'progressCurve', 'health', 'resourceLoading', 'resourceAssignments', 'wbsSummary',
 ];
@@ -56,18 +28,6 @@ export function isTableReportType(type: ReportType): boolean {
   return TABLE_REPORT_TYPES.includes(type);
 }
 
-/**
- * Opties van de tabelrapporten — één object, samen bewaard met de rest van de rapportinstellingen.
- * De drempels zijn werkdagen; de vensters zijn rapportageperiodes (één gedeeld periodemodel met
- * presets rond de statusdatum, de projectspanne of een eigen datumbereik — zie
- * `src/engine/reports/reportingPeriod.ts`). Defaults: look-ahead de komende maand,
- * voortgang de afgelopen maand, belasting en toewijzingen de hele projectspanne; near-critical ≤ 5 wd,
- * gezondheid volgens DCMA (44 wd). Bestaande gebruikers raken die defaults niet: hun opgeslagen
- * weken-getal migreert naar de bijbehorende preset (zie `legacyWeeksPeriod`). De oude sleutels
- * worden daarna NIET teruggeschreven — wie terugrolt naar een oudere appversie valt voor deze
- * vier opties stil terug op de fabrieksdefault. Dat is aanvaardbaar voor een rapportvoorkeur
- * (geen projectdata), maar het is een bewuste keuze, geen vergissing.
- */
 export interface TableReportOptions {
   lookAheadPeriod: ReportingPeriod;
   nearCriticalDays: number;
@@ -76,12 +36,10 @@ export interface TableReportOptions {
   healthLongDurationDays: number;
   healthLagDays: number;
   resourceLoadPeriod: ReportingPeriod;
-  /** Aggregatie van het belastingsrapport: per kalenderweek of per kalendermaand. */
   resourceLoadBucket: ResourceLoadingBucket;
   resourceLoadOnlyOverloaded: boolean;
   resourceAssignmentPeriod: ReportingPeriod;
   resourceAssignmentIncludeCompleted: boolean;
-  /** 0 = volledige WBS. */
   wbsSummaryLevel: number;
   wbsSummaryIncludeActivities: boolean;
 }
@@ -102,7 +60,6 @@ export const DEFAULT_TABLE_REPORT_OPTIONS: TableReportOptions = {
   wbsSummaryIncludeActivities: false,
 };
 
-/** De periode-opties — één lijst, zodat UI en loader dezelfde velden kennen. */
 export const TABLE_REPORT_PERIOD_KEYS = ['lookAheadPeriod', 'progressPeriod', 'resourceLoadPeriod', 'resourceAssignmentPeriod'] as const;
 export type TableReportPeriodKey = (typeof TABLE_REPORT_PERIOD_KEYS)[number];
 
@@ -120,7 +77,6 @@ export const DEFAULT_RESOURCE_GANTT_OPTIONS: ResourceGanttReportOptions = {
   showAssignmentColumns: true,
 };
 
-/** Grenzen van de numerieke opties (de UI en de loader delen ze). */
 export const TABLE_REPORT_LIMITS = {
   nearCriticalDays: { min: 0, max: 60 },
   thresholdDays: { min: 1, max: 365 },
@@ -130,23 +86,14 @@ export const TABLE_REPORT_LIMITS = {
 export type ReportPaperSize = 'A4' | 'A3' | 'A2' | 'A1';
 export type ReportOrientation = 'landscape' | 'portrait';
 
-/**
- * De kolommen van de Gantt-afdruk (issue #817 deel B), als id's uit het kolomregister van het
- * taakraster (`taskColumnRegistry.ts`), in volgorde. De standaard is de vaste tabel van vóór #817:
- * WBS, Taaknaam, Duur, Start, Einde en Voltooiing.
- */
 export const REPORT_DEFAULT_COLUMNS: readonly string[] = [
   'task.wbsCode', 'task.name', 'task.time.scheduleDuration', 'task.time.start', 'task.time.finish', 'task.time.completion',
 ];
-/** De verplichte kolom: zonder taaknaam is een rij op papier niet te lezen. */
 export const REPORT_REQUIRED_COLUMN = 'task.name';
-/** Bovengrens van de kolomlijst; meer past nooit op een blad naast een tijdlijn. */
 export const REPORT_MAX_COLUMNS = 24;
 
-/** Stand van de zijbalk van het Rapport-tabblad: open, of ingeklapt tot een rand met pictogrammen. */
 export type ReportSidebarMode = 'open' | 'rail';
 
-/** De stappen van het Rapport-tabblad, in de volgorde van het papier. */
 export const REPORT_STUDIO_STEPS = ['tasks', 'columns', 'bars', 'page', 'headerFooter'] as const;
 export type ReportStudioStep = typeof REPORT_STUDIO_STEPS[number];
 
@@ -156,78 +103,38 @@ export interface ReportSettings {
   showFloat: boolean;
   showDeps: boolean;
   showWeekends: boolean;
-  /** Werkdagen-as alleen in het rapport; los van de scherm-Gantt-instelling. */
   compressNonWorkdays: boolean;
   showLegend: boolean;
   showTaskNames: boolean;
   showCompletion: boolean;
-  /** Begin- en einddatum naast de balken (#868); los van de scherminstelling, standaard uit. */
   showBarDates: boolean;
-  /** Taaknamen in de tabel afkappen op `taskNameColumnWidth` (aan), of de kolom aan de langste
-   *  naam laten aanpassen (uit). */
   truncateTaskNames: boolean;
-  /** Breedte van de naamkolom (ongeschaalde px) wanneer `truncateTaskNames` aanstaat. */
   taskNameColumnWidth: number;
   showBaselineOverlay: boolean;
   autoFit: boolean;
-  /** Breedte per dag bij "Vaste schaal" (logische px). Mag een breuk zijn en onder 1 liggen (Rapport-tabblad). */
   customZoom: number;
   paperSize: ReportPaperSize;
   orientation: ReportOrientation;
   repeatHeader: boolean;
-  /** Voet (projectnaam, afdrukdatum, legenda) op elke pagina — anders alleen op de laatste. */
   repeatFooter: boolean;
   timelineColumns: number;
   reportFontScale: number;
-  /** Lettertype van alle rapporttekst (issue #770): een id uit het vaste setje in `reportFont.ts`, of
-   *  `custom` voor het eigen lettertype hieronder. Alleen deze voorkeur op het apparaat; het IFC-bestand weet
-   *  er niets van. */
   reportFontFamily: ReportFontChoice;
-  /** Het eigen lettertype (besluit Ethan, 14 november 2026): de naam voor de keuzelijst en de versie van de
-   *  kopie in `customFontStore.ts`. De bytes staan daar, niet hier. `null`: geen eigen lettertype gekozen. */
   customReportFont: CustomReportFontRef | null;
-  /** Statuslijn in de export: drie opties. */
   statusLine: 'none' | 'statusDate' | 'progress';
-  /** Export volgt de schermweergave — filter, groepering, sortering én inklapstatus. */
   followView: boolean;
-  /**
-   * De layout waarvan het Rapport-tabblad de rijen neemt (issue #861), op id; `''` = geen layout
-   * ("Alle taken" of "Zoals de weergave", via `followView`). Ook de meegeleverde layout Resourcediagram staat
-   * hier, los van het geopende rapporttype (review Sol #847, ronde 4). Een oude opslag met
-   * `reportType: 'resourceGantt'` opent als die layout. Zie `reportTaskSource`.
-   */
   layoutId: string;
   period: ReportingPeriod;
   legacyResourcePeriod?: ReportingPeriod;
   tableReports: TableReportOptions;
   resourceGantt: ResourceGanttReportOptions;
-  /**
-   * Kolommen van de Gantt-afdruk (registerkolom-id's, in volgorde, met de taaknaam erin). Het
-   * Rapport-tabblad leest en schrijft dit veld.
-   */
   columns: string[];
-  /**
-   * De balkkleuren van de Gantt-afdruk (keuze Ethan, 10 november 2026: eigen balkkleuren, net als de
-   * kolommen). Het Rapport-tabblad leest en schrijft dit veld; het verandert de Gantt op het
-   * scherm nooit. Standaard het kritieke pad, net als een vers scherm. Bij *Zoals de weergave* telt dit veld
-   * niet (`reportBarColors`).
-   */
   barColors: BarColorSelection;
-  /** Zijbalk van het Rapport-tabblad. */
   sidebar: ReportSidebarMode;
-  /**
-   * De open stap van het Rapport-tabblad, of `'none'` als alle stappen dicht zijn. Bij het eerste
-   * bezoek stap 1 (Taken), daarna de laatst gebruikte.
-   */
   studioStep: ReportStudioStep | 'none';
-  /** De aanwijzing "klik op het papier" is gezien (de gebruiker klikte op het papier of sloot hem). */
   paperHintSeen: boolean;
 }
 
-/**
- * De defaults van een verse installatie (of een gewiste sleutel); persistentie mag geen stille
- * gedragswijziging zijn.
- */
 export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   reportType: 'gantt',
   showCritical: true,
@@ -247,11 +154,9 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   paperSize: 'A3',
   orientation: 'landscape',
   repeatHeader: true,
-  // Standaard aan, net als de kop: een uitdeelvel zonder legenda is onleesbaar.
   repeatFooter: true,
   timelineColumns: 1,
   reportFontScale: 100,
-  // De letter van vóór de keuzelijst: een verse installatie en een oude opslag drukken ongewijzigd af.
   reportFontFamily: DEFAULT_REPORT_FONT_ID,
   customReportFont: null,
   statusLine: 'none',
@@ -267,21 +172,10 @@ export const DEFAULT_REPORT_SETTINGS: ReportSettings = {
   paperHintSeen: false,
 };
 
-/**
- * De standaardkolommen bij een gegeven *Voltooiing tonen*: zo ziet een oude opgeslagen instelling
- * zonder kolomlijst (Voltooiing uit) na de overstap precies dezelfde tabel als voorheen.
- */
 export function defaultReportColumns(showCompletion: boolean): string[] {
   return REPORT_DEFAULT_COLUMNS.filter(id => showCompletion || id !== 'task.time.completion');
 }
 
-/**
- * Een opgeslagen kolomlijst: alleen niet-lege tekst-id's zonder stuurtekens, zonder dubbele, hoogstens
- * {@link REPORT_MAX_COLUMNS}, en altijd met de taaknaam (vooraan als hij ontbrak). Geen bruikbare lijst ⇒
- * `undefined`, zodat de aanroeper op de standaard terugvalt. Een id die in dit project niet bestaat
- * blijft staan: in een ander project (met dat eigen veld) is hij weer geldig, en het paneel slaat hem
- * bij het tekenen over.
- */
 export function parseReportColumns(raw: unknown): string[] | undefined {
   if (!Array.isArray(raw)) return undefined;
   const ids: string[] = [];
@@ -297,7 +191,6 @@ export function parseReportColumns(raw: unknown): string[] | undefined {
   return ids.slice(0, REPORT_MAX_COLUMNS);
 }
 
-/** Een opgeslagen layout-id: tekst zonder stuurtekens, hoogstens 200 tekens; anders geen layout. */
 export function parseReportLayoutId(raw: unknown): string | undefined {
   if (typeof raw !== 'string' || raw.length > 200) return undefined;
   // eslint-disable-next-line no-control-regex
@@ -305,32 +198,18 @@ export function parseReportLayoutId(raw: unknown): string | undefined {
   return raw;
 }
 
-/** Toegestane waarden voor de keuzelijsten. */
 const REPORT_TYPES: readonly ReportType[] = ['gantt', 'resourceGantt', 'milestones', 'variance', ...TABLE_REPORT_TYPES];
 const PAPER_SIZES: readonly ReportPaperSize[] = ['A4', 'A3', 'A2', 'A1'];
 const ORIENTATIONS: readonly ReportOrientation[] = ['landscape', 'portrait'];
 const STATUS_LINES: readonly ReportSettings['statusLine'][] = ['none', 'statusDate', 'progress'];
 const SIDEBAR_MODES: readonly ReportSidebarMode[] = ['open', 'rail'];
 const STUDIO_STEPS: readonly ReportSettings['studioStep'][] = [...REPORT_STUDIO_STEPS, 'none'];
-/** De vaste trap uit `printPreview` — bewust GEEN eigen kopie: de Select in het paneel, de klem in
- *  `makeMetrics` en deze parser moeten per definitie dezelfde waarden kennen, anders accepteert de
- *  ene laag iets wat de andere niet kan tonen of tekenen. */
 const FONT_SCALES: readonly number[] = REPORT_FONT_SCALES;
-/** Grenzen van de breedte per dag (mag onder 1 px per dag) en van de tijdlijnkolommen. */
 const ZOOM_MIN = REPORT_MIN_DAY_WIDTH;
 const ZOOM_MAX = REPORT_MAX_ZOOM;
 const TIMELINE_COLUMNS_MIN = 1;
 const TIMELINE_COLUMNS_MAX = 8;
 
-// --- Parsers -----------------------------------------------------------------------------------
-// De veldparsers (`settingParsers.ts`) geven `undefined` terug bij een waarde die ze niet vertrouwen;
-// de aanroeper valt dan PER VELD terug op de default. Dat is bewust: een handmatig geprutste of
-// half-gemigreerde sleutel mag hooguit dát ene veld resetten, nooit de rest van de voorkeuren wegvagen.
-
-/**
- * Een opgeslagen rapportageperiode: een geldige preset, bij `custom` met twee geordende ISO-dagen.
- * Een `custom` zonder bruikbare datums valt terug op de default (niet op een halve periode).
- */
 export function parseReportingPeriod(raw: unknown, fallback: ReportingPeriod): ReportingPeriod {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return { ...fallback };
   const s = raw as Record<string, unknown>;
@@ -341,11 +220,6 @@ export function parseReportingPeriod(raw: unknown, fallback: ReportingPeriod): R
   return { ...fallback };
 }
 
-/**
- * Migratie van de oude "N weken"-getallen naar een preset: de kleinste preset
- * die N dekt (3 weken ⇒ 4 weken), 0 toewijzingsweken ⇒ hele project. Alleen gebruikt wanneer het
- * nieuwe periodeveld ontbreekt; de oude sleutel wordt daarna niet meer teruggeschreven.
- */
 function legacyWeeksPeriod(raw: unknown, direction: 'next' | 'last', zeroIsProject: boolean): ReportingPeriod | undefined {
   if (typeof raw !== 'number' || !Number.isFinite(raw)) return undefined;
   const n = Math.round(raw);
@@ -413,12 +287,6 @@ function parseResourceGanttOptions(raw: unknown): ResourceGanttReportOptions {
   };
 }
 
-/**
- * Laad de rapportinstellingen. Tolerant op alle drie de manieren waarop de sleutel "fout" kan staan:
- * hij ontbreekt (verse installatie), hij mist velden (opgeslagen door een oudere versie), of een
- * veld bevat rommel (handmatig geprutst). In alle gevallen wint de default voor precies dat veld.
- */
-/** Het eigen lettertype in de rapportinstellingen: alleen naam en versie; de bytes staan in `customFontStore.ts`. */
 export interface CustomReportFontRef {
   name: string;
   rev: number;
@@ -430,13 +298,11 @@ function parseCustomReportFont(raw: unknown): CustomReportFontRef | null {
   return typeof name === 'string' && name.trim() !== '' && typeof rev === 'number' && Number.isFinite(rev) ? { name, rev } : null;
 }
 
-/** De gekozen letter: een id uit het vaste setje, `custom` alleen als er een eigen lettertype is, anders Inter. */
 export function parseReportFontChoice(raw: unknown, custom: CustomReportFontRef | null): ReportFontChoice {
   if (raw === 'custom') return custom ? 'custom' : DEFAULT_REPORT_FONT_ID;
   return parseEnum(REPORT_FONT_IDS, raw) ?? DEFAULT_REPORT_FONT_ID;
 }
 
-/** Een sleutel die verandert als de letter verandert, ook bij een ander eigen lettertype (een nieuwe versie). */
 export function reportFontKey(settings: Pick<ReportSettings, 'reportFontFamily' | 'customReportFont'>): string {
   return settings.reportFontFamily === 'custom' ? `custom:${settings.customReportFont?.rev ?? 0}` : settings.reportFontFamily;
 }
@@ -445,12 +311,10 @@ export async function loadReportSettings(): Promise<ReportSettings> {
   return readReportSettings();
 }
 
-/** `loadReportSettings`, maar synchroon: voor de gedeelde stand hieronder, die lezen en schrijven niet mag scheiden. */
 function readReportSettings(): ReportSettings {
   return readStoredReportSettings() ?? { ...DEFAULT_REPORT_SETTINGS };
 }
 
-/** De opgeslagen stand, of `null` als de opslag nu niet te lezen is (geblokkeerd). Een ontbrekende sleutel geeft de standaard. */
 function readStoredReportSettings(): ReportSettings | null {
   const json = tryReadLocal(LOCAL_KEY);
   if (json === false) return null;
@@ -486,22 +350,16 @@ function parseReportSettings(raw: unknown): ReportSettings {
     repeatHeader: parseBoolean(s.repeatHeader) ?? d.repeatHeader,
     repeatFooter: parseBoolean(s.repeatFooter) ?? d.repeatFooter,
     timelineColumns: parseClampedInt(s.timelineColumns, TIMELINE_COLUMNS_MIN, TIMELINE_COLUMNS_MAX) ?? d.timelineColumns,
-    // `snapToChoice`: dezelfde "getal buiten de keuzelijst"-semantiek als de settings-loader.
     reportFontScale: snapToChoice(FONT_SCALES, s.reportFontScale) ?? d.reportFontScale,
-    // Een onbekende id (een letter die een latere versie toevoegde, of geprutst) ⇒ Inter.
     reportFontFamily: parseReportFontChoice(s.reportFontFamily, parseCustomReportFont(s.customReportFont)),
     customReportFont: parseCustomReportFont(s.customReportFont),
     statusLine: parseEnum(STATUS_LINES, s.statusLine) ?? d.statusLine,
     followView: parseBoolean(s.followView) ?? d.followView,
     layoutId: parseReportLayoutId(s.layoutId) ?? d.layoutId,
     ...parseGanttPeriod(s),
-    // `previewZoom` en `previewQuality` van de oude rasterpreview (vóór #817) lezen we niet meer; bij het
-    // volgende opslaan vallen ze weg.
     tableReports: parseTableReportOptions(s.tableReports),
     resourceGantt: parseResourceGanttOptions(s.resourceGantt),
-    // Oude sleutel zonder kolomlijst ⇒ de vaste tabel van toen, inclusief de keuze Voltooiing.
     columns: parseReportColumns(s.columns) ?? defaultReportColumns(parseBoolean(s.showCompletion) ?? d.showCompletion),
-    // De structuur telt hier; een veld dat dit project niet heeft, vangt `effectiveBarColorSelection` op.
     barColors: parseBarColorSelection(s.barColors) ?? d.barColors,
     sidebar: parseEnum(SIDEBAR_MODES, s.sidebar) ?? d.sidebar,
     studioStep: parseEnum(STUDIO_STEPS, s.studioStep) ?? d.studioStep,
@@ -509,27 +367,14 @@ function parseReportSettings(raw: unknown): ReportSettings {
   };
 }
 
-/** De twee optiegroepen die per optie samengaan: elke optie is een eigen keuze. */
 type OptionGroup = 'tableReports' | 'resourceGantt';
 
-/** Een wijziging van de rapportinstellingen: hele velden, en binnen de optiegroepen losse opties. */
 export type ReportSettingsPatch = Partial<Omit<ReportSettings, OptionGroup>> & {
   tableReports?: Partial<TableReportOptions>;
   resourceGantt?: Partial<ResourceGanttReportOptions>;
 };
 
-// ---- De gedeelde stand --------------------------------------------------------------------------------
-// Het Rapport-tabblad, het paneel van de tabelrapporten en de werkruimte lezen allemaal deze ene stand
-// (`useReportSettings`), en schrijven allemaal via `patchReportSettings`. Niemand houdt een eigen kopie bij, dus
-// in één venster kan een schrijfactie nooit een oudere kopie over een nieuwere stand zetten (review Terra #893;
-// eerder had elk scherm een kopie, en elke schrijfroute moest daar omheen werken). Een ander venster of de host
-// (#818) meldt een wijziging met een `StorageEvent`; dan leest de stand de opslag opnieuw.
-
 let current: ReportSettings | null = null;
-/**
- * Keuzes uit deze sessie die nog niet in de opslag staan (vol, geblokkeerd, of de host hield de schrijfactie
- * tegen). Ze gaan over elke stand die de opslag later geeft, en de volgende schrijfactie bewaart ze mee.
- */
 let pending: ReportSettingsPatch | null = null;
 const listeners = new Set<() => void>();
 
@@ -551,12 +396,6 @@ function combinePatches(first: ReportSettingsPatch, next: ReportSettingsPatch): 
   };
 }
 
-/**
- * De nieuwste stand: wat er nu opgeslagen staat, met de nog niet bewaarde keuzes erover. Is de opslag nu niet
- * te lezen, dan de gedeelde stand: een leesfout is geen lege opslag (review Sol #893), anders zou de volgende
- * schrijfactie standaardwaarden over de bewaarde keuzes zetten. Ook voor een herstelpunt (Standaard, een
- * overname uit een layout) en een terugval die van de opslag afhangt.
- */
 export function latestReportSettings(): ReportSettings {
   const stored = readStoredReportSettings();
   if (stored === null) return current ?? { ...DEFAULT_REPORT_SETTINGS };
@@ -573,14 +412,12 @@ function onStorage(event: StorageEvent): void {
   notify();
 }
 
-/** De gedeelde stand (voor `useSyncExternalStore`): dezelfde waarde tot er iets verandert. */
 export function reportSettingsSnapshot(): ReportSettings {
   return current ??= latestReportSettings();
 }
 
 export function subscribeReportSettings(listener: () => void): () => void {
   if (listeners.size === 0 && typeof window !== 'undefined') {
-    // Zonder lezers luistert niemand naar `storage`: wat een ander venster intussen schreef, staat er nu pas in.
     current = latestReportSettings();
     window.addEventListener('storage', onStorage);
   }
@@ -591,11 +428,6 @@ export function subscribeReportSettings(listener: () => void): () => void {
   };
 }
 
-/**
- * De enige schrijfroute voor `ops-reportSettings`: lees de opgeslagen stand, zet de nog niet bewaarde keuzes en
- * deze wijziging erover (in de optiegroepen per optie) en schrijf het geheel terug in één synchrone stap. Is de
- * opslag niet te lezen, dan schrijft hij niets en blijft de keuze in de sessie. Geeft de nieuwe gedeelde stand terug.
- */
 export function patchReportSettings(patch: ReportSettingsPatch): ReportSettings {
   const chosen = pending ? combinePatches(pending, patch) : patch;
   const stored = readStoredReportSettings();

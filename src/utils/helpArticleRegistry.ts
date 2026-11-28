@@ -1,25 +1,5 @@
-// Register van Help-artikelen die NIET uit `public/docs` komen. Ontwerpbesluit van de eigenaar
-// (2026-09-28): de tutorials (tekst, screenshots, projectbestanden) worden uitgeleverd als een
-// installeerbare extensie uit de catalogus, niet in de app zelf. De Help-viewer toont ze in de sectie
-// Tutorials naast de artikelen uit het manifest; hij weet niet (en hoeft niet te weten) welke bron ze
-// aanleverde.
-//
-// Dit is de interne naad; de extensie-API (`api.help.registerArticles`, contract 1.4.0,
-// `src/extensions/helpApi.ts`) roept hem aan met het extensie-id als bron. Eén
-// module-globale lijst met abonnees (zelfde soort UI-coördinatie als `backstageLeaveGuard.ts`), geen
-// store-state: het is geen documentdata, gaat niet mee in undo of opslaan, en een bron registreert
-// en deregistreert zelf.
-//
-//   const res = registerHelpArticles('open-planner-tutorials', articles, { resolveImage });
-//   if (res.ok) … res.unregister() bij uitschakelen/verwijderen van de extensie.
-//
-// Regels (afgedwongen bij registratie, zodat een fout in een extensie de viewer niet breekt):
-//   - alleen `kind: 'tutorial'`; `order` is een positief geheel getal (de leerroute);
-//   - titel en tekst in nl én en, niet leeg (de docs kennen alleen die twee talen, §6.2);
-//   - een id is uniek over alle bronnen; een bron die opnieuw registreert vervangt haar vorige set.
 import type { HelpArticleMeta } from '@/utils/helpManifest';
 
-/** Een artikel zoals een bron het aanlevert: metadata plus de Markdown-tekst per docstaal. */
 export interface RegisteredHelpArticleInput {
   id: string;
   kind: 'tutorial';
@@ -29,26 +9,15 @@ export interface RegisteredHelpArticleInput {
 }
 
 export interface RegisterHelpArticlesOptions {
-  /**
-   * Zet een afbeeldingspad uit de artikeltekst om naar een URL. Per bron, zodat een extensie haar
-   * eigen assets kan leveren; `{lang}` is dan al vervangen door `nl` of `en`. Weglaten = het pad
-   * wordt als `public/docs`-pad opgelost (zoals een manifestartikel).
-   */
   resolveImage?: (path: string) => string;
-  /**
-   * Opent een meegeleverd projectbestand (`project://<naam>`-link in de tekst) als nieuw document.
-   * Weglaten = zo'n link is gewone tekst.
-   */
   openProject?: (assetName: string) => void;
 }
 
-/** Een geregistreerd artikel zoals de viewer het ziet. */
 export interface RegisteredHelpArticle extends HelpArticleMeta {
   kind: 'tutorial';
   order: number;
   title: { nl: string; en: string };
   body: { nl: string; en: string };
-  /** De bron die het aanleverde (bijv. het extensie-id). */
   source: string;
   resolveImage?: (path: string) => string;
   openProject?: (assetName: string) => void;
@@ -69,7 +38,6 @@ function rebuild(): void {
   for (const listener of listeners) listener();
 }
 
-/** Controleer een aangeleverde set zonder iets te registreren. `taken` = id's van andere bronnen. */
 export function validateHelpArticles(
   source: string,
   articles: readonly RegisteredHelpArticleInput[],
@@ -94,10 +62,6 @@ export function validateHelpArticles(
   return errors;
 }
 
-/**
- * Registreer (of vervang) de artikelen van één bron. Ongeldige invoer registreert niets en geeft de
- * fouten terug; de viewer blijft dan zoals hij was.
- */
 export function registerHelpArticles(
   source: string,
   articles: readonly RegisteredHelpArticleInput[],
@@ -124,7 +88,7 @@ export function registerHelpArticles(
   return {
     ok: true,
     unregister: () => {
-      if (bySource.get(source) !== registered) return; // al vervangen door een nieuwere set
+      if (bySource.get(source) !== registered) return;
       bySource = new Map(bySource);
       bySource.delete(source);
       rebuild();
@@ -132,18 +96,15 @@ export function registerHelpArticles(
   };
 }
 
-/** Huidige artikelen van alle bronnen (stabiele referentie tot de volgende wijziging). */
 export function getRegisteredHelpArticles(): readonly RegisteredHelpArticle[] {
   return snapshot;
 }
 
-/** Abonneer op wijzigingen (voor `useSyncExternalStore`). Geeft een opzegfunctie. */
 export function subscribeRegisteredHelpArticles(listener: () => void): () => void {
   listeners.add(listener);
   return () => { listeners.delete(listener); };
 }
 
-/** Alleen voor tests: alles leeg. */
 export function resetRegisteredHelpArticles(): void {
   bySource = new Map();
   rebuild();

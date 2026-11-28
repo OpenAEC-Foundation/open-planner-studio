@@ -40,10 +40,6 @@ import type {
 } from './ganttCoordinatorTypes';
 import { shownFinish, shownStart } from '@/utils/taskDates';
 
-/** Verticale schuifhoogte van de Gantt: dezelfde als die van de takenlijst (rijen, spookregel en
- * eindstrook, zie `scrollExtent.ts`). Anders kan de takenlijst verder schuiven dan de Gantt en
- * lopen de rijen onderaan uit elkaar. */
-/** Breedte van het pane waar een zwevende horizontale balk in ligt (zijn ouder), = de kaartbreedte. */
 function hScrollViewportWidth(element: HTMLElement): number {
   return element.parentElement?.clientWidth ?? element.clientWidth;
 }
@@ -54,10 +50,6 @@ function ganttScrollContentHeight(
   return taskListScrollContentHeight(current.rows.length, current.rowHeight, hasGhostRow(current.view));
 }
 
-/**
- * Bezit de volledige Gantt-viewport: afleidingen, DOM-scrollsync, wheel/zoom, fit/focus, minimaps
- * en de histogram-/ratio-splitters. De DOM-grid en zijn workspace-splitter vallen erbuiten.
- */
 export function useGanttViewportCoordinator(
   input: GanttViewportCoordinatorInput,
 ): GanttViewportCoordinatorOutput {
@@ -73,8 +65,6 @@ export function useGanttViewportCoordinator(
   const latest = useRef(input);
   latest.current = input;
 
-  // Een lege Gantt verbreedt zijn inhoud tot de laatste feestdag, zodat de gebruiker ernaar kan
-  // pannen. De oorsprong blijft `viewStartDate` (zie `computeEffectiveViewStart`).
   const emptyReachDates = useMemo(
     () => input.tasks.length > 0 ? [] : input.calendar.holidays.map(h => h.endDate || h.startDate),
     [input.calendar.holidays, input.tasks.length],
@@ -86,7 +76,6 @@ export function useGanttViewportCoordinator(
     () => computeEffectiveViewStart(input.tasks, input.view.viewStartDate, baselineEarliest),
     [input.tasks, input.view.viewStartDate, baselineEarliest],
   );
-  // Het scrollbereik loopt tot het einde van de laatste getoonde baseline (issue #391).
   const navigationEndDates = useMemo(
     () => baselineLatest ? [...emptyReachDates, baselineLatest] : emptyReachDates,
     [emptyReachDates, baselineLatest],
@@ -106,8 +95,6 @@ export function useGanttViewportCoordinator(
     }),
     [input.calendar, input.compressNonWorkdays, effectiveView],
   );
-  // De histogramplot begint waar de kiezer ophoudt: na de kiezer in ltr, op 0 in ar/fa (kiezer rechts).
-  // Dezelfde indeling als de HistogramRenderer zelf tekent en hit-test (`histogramPlotInsets`).
   const histogramAxis = useMemo(
     () => buildSharedAxis({
       calendar: input.calendar,
@@ -119,9 +106,6 @@ export function useGanttViewportCoordinator(
     }),
     [input.calendar, input.compressNonWorkdays, effectiveView, input.histogramPickerWidth, input.histogramPickerSide],
   );
-  // De contentspan gebruikt alleen `daySpan`, en die hangt niet af van zoom of scroll. Met de
-  // gedeelde (scroll-afhankelijke) as als dependency liep hij bij elke scroll opnieuw over alle
-  // taken (8000 taken: het grootste deel van een scrollframe). Eigen as zonder scroll/zoom.
   const spanAxis = useMemo(
     () => buildSharedAxis({
       calendar: input.calendar,
@@ -172,25 +156,17 @@ export function useGanttViewportCoordinator(
     ));
   }, [primaryContentWidth]);
 
-  // Gaat de Gantt uit beeld (bv. naar de Tabel-weergave), dan gelden zijn grenzen niet meer.
   useEffect(() => clearGanttScrollBounds, []);
 
   const onSecondarySize = useCallback((width: number) => {
     setSecondaryChartWidth(previous => Math.abs(previous - width) > 1 ? width : previous);
   }, []);
 
-  /** De Gantt-as-afstand (werkdagen-as indien actief) voor de Ctrl+0-fit, zie `axisDayDistance`. */
   const dayDistance = useMemo(
     () => axisDayDistance(input.calendar, input.compressNonWorkdays),
     [input.calendar, input.compressNonWorkdays],
   );
 
-  /**
-   * Registreer de scrollgrenzen voor een NIEUWE zoom vóór de bijbehorende `setScroll` — dezelfde
-   * vooruitrekening als "spring naar taak" (issue #65). Anders klemt `setScroll` tegen de grens van
-   * de vorige render (de oude zoom): na uitzoomen-en-weer-inzoomen of Ctrl+0 vanaf een lage zoom
-   * sprong het beeld dan weg van het anker.
-   */
   const registerBoundsForZoom = useCallback((zoom: number) => {
     const current = latest.current;
     const container = primaryContainerRef.current;
@@ -255,7 +231,6 @@ export function useGanttViewportCoordinator(
     fitToProject,
   });
 
-  // Open-fit wist het signaal één keer. Een leeg project houdt de huidige viewport.
   useEffect(() => {
     const current = latest.current;
     if (!current.view.pendingFit) return;
@@ -292,7 +267,6 @@ export function useGanttViewportCoordinator(
       current.clearPendingFocusTask();
       return;
     }
-    // Dezelfde datums als de balk (`GanttRenderer.barGeometry`).
     const startString = shownStart(task);
     const finishString = shownFinish(task);
     if (!startString || !finishString) {
@@ -308,12 +282,7 @@ export function useGanttViewportCoordinator(
     }
     const hourMode = startString.includes('T') || finishString.includes('T');
     const start = hourMode ? parseInstant(startString) : parseDate(startString);
-    // Zelfde eindregel als `GanttRenderer.barGeometry` (einde zonder tijd in een uur-balk = einde van die dag).
     const finish = hourMode ? finishInstant(finishString) : parseDate(finishString);
-    // `sharedAxis` bevat de actuele scrollX. Tel hem eerst terug op om contentcoördinaten te
-    // krijgen; de resulterende eenheden zijn kalenderdagen op de gewone as en werkdagen onder
-    // "Show only working days". Zo rekent de focusroute exact in dezelfde eenheden als de
-    // renderer én de horizontale scrollgrens.
     const startContentX = sharedAxis.dateToX(start) + current.view.scrollX;
     const finishContentX = sharedAxis.dateToX(finish) + current.view.scrollX
       + (hourMode ? 0 : current.view.zoom);
@@ -345,12 +314,6 @@ export function useGanttViewportCoordinator(
     current.setScroll(horizontal.scrollX, scrollY);
   }, [input.view.pendingFocusTaskId, input.view.scrollY, input.tasks, input.rows, input.rowHeight, input.headerHeight, input.clearPendingFocusTask, input.setZoom, input.setScroll, sharedAxis, contentWidthFor]);
 
-  // Scrollbalk ↔ scrollX via `scrollbarRangeRatio` (1 zolang de inhoud onder de elementgrens blijft):
-  // de spacer is `inhoud × scrollbarScale` breed, de omrekening beeldt de scrollbare bereiken op
-  // elkaar af zodat de duim precies tot het einde loopt.
-  // De balk kan smaller zijn dan zijn pane (hij begint pas na de splittergrijpzone, zie GanttCanvas)
-  // en zijn spacer is dan even veel smaller. Het venster in de omrekening is daarom de pane-breedte
-  // (de ouder van de balk), niet `clientWidth` van de balk zelf.
   const primaryScrollbarScale = scrollbarScale(primaryContentWidth);
   const secondaryScrollbarScale = scrollbarScale(secondaryContentWidth);
   const contentWidthsRef = useRef({ primary: primaryContentWidth, secondary: secondaryContentWidth });
@@ -376,8 +339,6 @@ export function useGanttViewportCoordinator(
     const el = event.currentTarget;
     const ratio = scrollbarRangeRatio(contentWidthsRef.current.primary, hScrollViewportWidth(el));
     const scrollX = el.scrollLeft / ratio;
-    // Geschaald: een scroll-event dat alleen onze eigen (afgeronde) terugschrijving weerkaatst, mag
-    // de exacte scrollX niet overschrijven.
     if (ratio !== 1 && Math.abs(scrollX - current.view.scrollX) * ratio <= 1) return;
     current.setScroll(scrollX, current.view.scrollY);
   }, []);
@@ -390,8 +351,6 @@ export function useGanttViewportCoordinator(
     if (!currentSplit || Math.abs(currentSplit.secondaryScrollX - scrollX) * ratio <= 1) return;
     current.setSplitView({ ...currentSplit, secondaryScrollX: Math.max(0, scrollX) });
   }, []);
-  // Secondary gebruikt dezelfde wheelbeslissing en dezelfde ankerformule als primary, maar schrijft
-  // horizontaal en zoom uitsluitend in zijn eigen splitview.
   useEffect(() => {
     if (!splitEnabled) return;
     const container = secondaryContainerRef.current;
