@@ -1,23 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// "Taak bewerken" → Opslaan, headless tegen de ECHTE store. Opslaan loopt via `createTaskDialogSave`,
-// net als in `TaskDialog.tsx`. Percentage-invoer gebruikt `planTaskDialogProgress`.
-//
-// Bevinding 4 (taakmutaties-audit): de dialoog schreef completion/actualStart/actualFinish kaal via
-// `updateTask` weg, zonder de voortgangsregels (`applyProgressInvariants`) die het paneel, het raster
-// en MCP wél toepassen. Gevolg: de status bleef NOT_STARTED (ook op 100%), een werkelijk einde maakte
-// de taak niet voltooid, en een eerder (via paneel/raster/MCP/import) gezette resterende duur bleef
-// staan, zodat de taak in de planning te laat eindigde. Hier: paneel en dialoog naast elkaar, zelfde
-// uitgangspositie, zelfde handeling ⇒ zelfde voortgangsvelden en zelfde einddatum.
-//
-// Bevinding 10: één keer Opslaan gaf 2–3 undo-stappen (gewijzigde ouder, eerste gebruik van een
-// persoonlijk taaktype), en één Ctrl+Z draaide maar een deel terug. Hier: één Opslaan = één stap.
-//
-// Nasleep: mijlpaal aanzetten in dezelfde sessie als voortgang of een nieuwe startdatum. De
-// mijlpaaltransitie levert een VOLLEDIGE tijd (`...task.time` uit de store) en werd ná de
-// sessiebewerkingen toegepast, dus die overschreef de voortgang (en de start) uit de concepttaak.
-//
-// De browserkant (dubbelklik, schuif, Opslaan, Ctrl+Z) staat in tests/browser/task-dialog-save.spec.ts.
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
 import {
@@ -44,12 +24,10 @@ interface Fixture {
   S: () => ReturnType<AppStoreContext['store']['getState']>;
   task: (id: string) => Task;
   save: (input: TaskDialogSaveInput) => void;
-  /** Wat de dialoog bij openen vastlegt (TaskDialog.tsx, init-effect). */
   open: (id: string) => TaskDialogSaveInput;
   undoDepth: () => number;
 }
 
-/** Eigen storecontext met taken van 10 werkdagen vanaf ma 2 maart 2026, statusdatum vr 6 maart. */
 function fixture(names: string[]): Fixture & { ids: string[] } {
   const ctx = createAppStoreContext();
   const S = () => ctx.store.getState();
@@ -142,7 +120,6 @@ for (const durationFirst of [true, false]) {
   eq(`#998 lopende taak inkorten en afmelden (duur eerst: ${durationFirst}): dezelfde feiten na IFC-heropening`, facts(), expected);
 }
 
-// Een later opgegeven werkelijke start begrenst het voorlopige einde in beide invoervolgordes.
 for (const completionFirst of [true, false]) {
   const f = fixture(['Montage']);
   const [id] = f.ids;
@@ -167,7 +144,6 @@ for (const completionFirst of [true, false]) {
     [reopened.time.actualStart, reopened.time.actualFinish], ['2026-11-04T07:00', '2026-11-04T07:00']);
 }
 
-// Een expliciete beperking wint, en een bestaande beperking kan de getypte start tegenhouden.
 for (const explicit of [true, false]) {
   const f = fixture(['A', 'B']);
   const [a, b] = f.ids;
@@ -213,7 +189,6 @@ for (const explicit of [true, false]) {
     ['2026-03-04T07:00', '2026-03-23T07:00', '2026-03-23T07:00']);
 }
 
-// ── 1. Voortgang na eerdere paneelvoortgang (het r5-scenario): 20% in week 1, dan 60% en 100% ─────
 {
   const f = fixture(['Paneel', 'Dialoog']);
   const [panel, dialog] = f.ids;
@@ -235,7 +210,6 @@ for (const explicit of [true, false]) {
   }, { status: 'COMPLETED', actualFinish: "2026-03-13T16:00", remainingTime: 0 });
 }
 
-// ── 2. Voortgang alleen via de dialoog: de status volgt (gestart, voltooid) ─────────────────────────
 {
   const f = fixture(['Paneel', 'Dialoog']);
   const [panel, dialog] = f.ids;
@@ -252,7 +226,6 @@ for (const explicit of [true, false]) {
   eq('2.x dialoog op 100%: voltooid', f.task(dialog).status, 'COMPLETED');
 }
 
-// ── 3. Werkelijke datums via de dialoogvelden = de paneelsetters ────────────────────────────────────
 {
   const f = fixture(['Paneel', 'Dialoog']);
   const [panel, dialog] = f.ids;
@@ -265,28 +238,24 @@ for (const explicit of [true, false]) {
     f.S().runCPM();
   };
 
-  // 3a. Werkelijke start op een onbegonnen taak ⇒ gestart.
   f.S().setActualStart(panel, '2026-03-04');
   viaDialog('actualStart', '2026-03-04');
   f.S().runCPM();
   eq('3a werkelijke start: dialoog = paneel', progressOf(f.task(dialog)), progressOf(f.task(panel)));
   eq('3a werkelijke start ⇒ gestart', f.task(dialog).status, 'STARTED');
 
-  // 3b. Werkelijk einde ⇒ voltooid (100%, resterend 0).
   f.S().setActualFinish(panel, '2026-03-05');
   viaDialog('actualFinish', '2026-03-05');
   f.S().runCPM();
   eq('3b werkelijk einde: dialoog = paneel', progressOf(f.task(dialog)), progressOf(f.task(panel)));
   eq('3b werkelijk einde ⇒ voltooid', { completion: f.task(dialog).time.completion, status: f.task(dialog).status }, { completion: 1, status: 'COMPLETED' });
 
-  // 3c. Werkelijk einde wissen op een voltooide taak ⇒ terug naar gestart, resterend weer vol.
   f.S().setActualFinish(panel, undefined);
   viaDialog('actualFinish');
   f.S().runCPM();
   eq('3c einde wissen: dialoog = paneel', progressOf(f.task(dialog)), progressOf(f.task(panel)));
   eq('3c einde wissen ⇒ gestart', f.task(dialog).status, 'STARTED');
 
-  // 3d. Een datum ná de statusdatum wordt (net als in het paneel) geweigerd.
   const input = f.open(dialog);
   for (const field of ['actualStart', 'actualFinish'] as const) {
     eq(`3d ${field} ná statusdatum geweigerd`, planTaskDialogProgress(f.S(), input.draft, undefined,
@@ -294,9 +263,6 @@ for (const explicit of [true, false]) {
   }
 }
 
-// ── 4. Geen voortgangswijziging ⇒ de voortgangsvelden blijven ongemoeid ─────────────────────────────
-// Een geïmporteerde resterende duur (MSP/P6/raster) die niet op de afronding van completion valt,
-// mag niet stil worden herberekend door alleen de naam te wijzigen.
 {
   const f = fixture(['Geïmporteerd']);
   const [id] = f.ids;
@@ -309,9 +275,7 @@ for (const explicit of [true, false]) {
   }, { name: 'Geïmporteerd (hernoemd)', remainingTime: 3, completion: 0.5, status: 'STARTED' });
 }
 
-// ── 5. Eén Opslaan = één undo-stap ──────────────────────────────────────────────────────────────────
 {
-  // 5a. Naam + ouder + voortgang.
   const f = fixture(['Fase', 'Taak']);
   const [phase, id] = f.ids;
   const before = { name: f.task(id).name, parentId: f.task(id).parentId, ...progressOf(f.task(id)) };
@@ -328,7 +292,6 @@ for (const explicit of [true, false]) {
   eq('5a undo-diepte terug op de uitgangswaarde', f.undoDepth(), depth0);
 }
 {
-  // 5b. Eerste gebruik van een persoonlijk taaktype (materialiseert pas bij Opslaan) + naam.
   const f = fixture(['Taak']);
   const [id] = f.ids;
   const type = addPersonalTaskType('Keuring');
@@ -346,14 +309,11 @@ for (const explicit of [true, false]) {
   }, { types: 0, typeId: null, name: 'Taak' });
 }
 
-// ── 6. Mijlpaal aanzetten + voortgang/start in dezelfde sessie ──────────────────────────────────────
-// De dialoog zet de mijlpaalvlag via `TaskMilestoneFields`: onChange(taskMilestoneTransition(draft, true)).
 {
   const f = fixture(['Paneel', 'Dialoog', 'Eerst voortgang', 'Nieuwe start']);
   const [panel, dialog, progressFirst, newStart] = f.ids;
   const milestoneOn = (d: Task): Task => ({ ...d, ...taskMilestoneTransition(d, true) });
 
-  // 6a. Eerst mijlpaal, dan de werkelijke datum; paneel als referentie.
   f.S().updateTask(panel, taskMilestoneTransition(f.task(panel), true));
   f.S().setActualFinish(panel, '2026-03-04');
   {
@@ -370,7 +330,6 @@ for (const explicit of [true, false]) {
   }, { isMilestone: true, duration: 0, completion: 1, actualFinish: "2026-03-04T07:00", status: 'COMPLETED' });
   eq('6a mijlpaal + werkelijke datum: dialoog = paneel', progressOf(f.task(dialog)), progressOf(f.task(panel)));
 
-  // 6b. Eerst voortgang, dan mijlpaal (de transitie op de draft neemt de voortgang mee).
   {
     const input = f.open(progressFirst);
     f.save({ ...input, draft: milestoneOn(draftWithPercentage(f, input.draft, 1)) });
@@ -379,7 +338,6 @@ for (const explicit of [true, false]) {
     isMilestone: f.task(progressFirst).isMilestone, completion: f.task(progressFirst).time.completion, status: f.task(progressFirst).status,
   }, { isMilestone: true, completion: 1, status: 'COMPLETED' });
 
-  // 6c. Mijlpaal + een andere startdatum: de nieuwe start (het geplande anker) blijft.
   {
     const input = f.open(newStart);
     f.save({ ...input, draft: milestoneOn(input.draft), startDate: '2026-03-09' });
@@ -389,10 +347,6 @@ for (const explicit of [true, false]) {
   }, { isMilestone: true, scheduleStart: "2026-03-09T07:00" });
 }
 
-// ── 7. Verzameltaak (#201 × #203): Opslaan schrijft geen verouderde fasevoortgang terug ─────────────
-// De voortgang van een fase is sinds #203 afgeleid uit de bladtaken en in de dialoog uitgeschakeld.
-// De draft is een momentopname van bij het openen; rekent de planning tussendoor opnieuw (blad naar
-// 100%), dan mag Opslaan van alleen een naamswijziging de fase niet terugzetten naar 0%.
 {
   const f = fixture(['Fase']);
   const [phase] = f.ids;

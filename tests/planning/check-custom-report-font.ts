@@ -1,22 +1,3 @@
-/**
- * Eigen lettertype in rapporten (issue #770, besluit Ethan 14 november 2026) — de kern zonder scherm.
- *
- * Een planner kiest een lettertype van de computer of een lettertypebestand. Deze check bewaakt wat de app
- * met de bytes doet, met de meegeleverde letters als echte bestanden en gemuteerde kopieën voor de randen:
- *   A. lezen: familie, stijl, PostScript-naam, gewicht, cursief, uit `.ttf` en uit een collectie (`.ttc`),
- *      ook met een lezer die alleen stukken leest (zo leest de desktopapp de lettertypemappen);
- *   B. weigeren met reden: inbedden verboden (OS/2 fsType), variabel lettertype (fvar), geen contouren,
- *      PostScript-contouren (CFF, die pdf-lib 1.17 niet goed inbedt);
- *      geen lettertypebestand ⇒ een fout;
- *   C. kiezen per familie: gewoon en vet, cursief telt niet mee, zonder vet ⇒ geen vet (besluit 3a),
- *      een geweigerde vette variant valt weg, een geweigerde gewone variant weigert de familie;
- *   D. één face uit een collectie halen: een los bestand dat fontkit leest, met dezelfde letter;
- *   E. de vector-PDF met een eigen letter zonder vet: vet tekent in de gewone letter, de PDF blijft vector;
- *   F. de rapportinstelling: 'custom' alleen met een opgeslagen eigen lettertype, anders Inter;
- *   G. GSUB-vervangingen (issue #1050): echt Noto Sans Coptic (een regel van type 8) en Carlito ("ti") geven een
- *      vector-PDF waarin de vervangen glyphs hun eigen breedte hebben en de tekst trouw uit te lezen is.
- *   H. een vertraagde lettertypelezing respecteert een nieuwere keuze of revisie.
- */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,7 +28,6 @@ const MONO = font('LiberationMono-Regular.ttf');
 const INTER = { regular: font('Inter-Regular.ttf'), bold: font('Inter-Bold.ttf') };
 const ARABIC = { regular: font('NotoSansArabic-Regular.ttf'), bold: font('NotoSansArabic-Bold.ttf') };
 
-// ── Hulp om bytes te muteren: tabellen vinden en aanpassen ────────────────────────────────────────
 const view = (b: Uint8Array) => new DataView(b.buffer, b.byteOffset, b.byteLength);
 function tableOffset(b: Uint8Array, tag: string, dirOffset = 0): number {
   const v = view(b);
@@ -63,7 +43,6 @@ function withFsType(src: Uint8Array, fsType: number): Uint8Array {
   view(b).setUint16(tableOffset(b, 'OS/2') + 8, fsType);
   return b;
 }
-/** Hernoem een tabel in de directory (de inhoud blijft): zo krijgt een letter een `fvar` of verliest hij `glyf`. */
 function renameTable(src: Uint8Array, from: string, to: string): Uint8Array {
   const b = src.slice();
   const n = view(b).getUint16(4);
@@ -73,7 +52,6 @@ function renameTable(src: Uint8Array, from: string, to: string): Uint8Array {
   }
   return b;
 }
-/** Een collectie (`ttcf`) uit losse bestanden, met hun tabellen ongewijzigd erachter. */
 function buildCollection(files: Uint8Array[]): Uint8Array {
   const headerLen = 12 + 4 * files.length;
   const dirLens = files.map(f => 12 + 16 * view(f).getUint16(4));
@@ -91,7 +69,7 @@ function buildCollection(files: Uint8Array[]): Uint8Array {
   });
   const out = new Uint8Array(pos);
   const ov = view(out);
-  out.set([0x74, 0x74, 0x63, 0x66]); // 'ttcf'
+  out.set([0x74, 0x74, 0x63, 0x66]);
   ov.setUint32(4, 0x00010000);
   ov.setUint32(8, files.length);
   let dirAt = headerLen;
@@ -108,14 +86,12 @@ function buildCollection(files: Uint8Array[]): Uint8Array {
   });
   return out;
 }
-/** Een lezer die telt hoeveel bytes er gelezen zijn, zoals de desktopapp met een bestandshandle leest. */
 function countingReader(b: Uint8Array): { read: ByteReader; bytesRead: () => number } {
   let total = 0;
   const inner = bytesReader(b);
   return { read: async (off, len) => { total += len; return inner(off, len); }, bytesRead: () => total };
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 console.log('── A. lezen');
 const [sans] = await readFontFaces(bytesReader(SANS));
 ok(sans?.family === 'Liberation Sans' && sans.subfamily === 'Regular' && sans.postscriptName === 'LiberationSans',
@@ -133,7 +109,6 @@ ok(counting.bytesRead() < ttc.length / 10, `A4 de lezer las ${counting.bytesRead
 ok(await rejects(readFontFaces(bytesReader(new TextEncoder().encode('geen lettertype, wel tekst')))), 'A5 tekst gaf geen fout');
 ok(await rejects(readFontFaces(bytesReader(SANS.subarray(0, 40)))), 'A5 een afgekapt bestand gaf geen fout');
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 console.log('── B. weigeren met reden');
 const faceOf = async (b: Uint8Array) => (await readFontFaces(bytesReader(b)))[0];
 ok(faceRefusal(sans) === null, 'B1 Liberation Sans geweigerd');
@@ -143,11 +118,8 @@ ok(faceRefusal(await faceOf(withFsType(SANS, 0x0004))) === null, 'B4 fsType 4 (a
 ok(faceRefusal(await faceOf(withFsType(SANS, 0x0008))) === null, 'B4 fsType 8 (bewerkbaar) geweigerd');
 ok(faceRefusal(await faceOf(renameTable(SANS, 'kern', 'fvar'))) === 'variable', 'B5 variabel lettertype niet geweigerd');
 ok(faceRefusal(await faceOf(renameTable(SANS, 'glyf', 'xxxx'))) === 'noOutlines', 'B6 lettertype zonder contouren niet geweigerd');
-// PostScript-contouren (CFF, veel `.otf`): met @pdf-lib/fontkit schreef pdf-lib 1.17 ze als TrueType-letter in; Poppler
-// meldde dan "Mismatch between font type and embedded font file". Met fontkit 3 niet getoetst (knownbug 1942).
 ok(faceRefusal(await faceOf(renameTable(SANS, 'glyf', 'CFF '))) === 'postscriptOutlines', 'B7 lettertype met CFF-contouren niet geweigerd');
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 console.log('── C. kiezen per familie');
 const italic: FontFaceInfo = { ...sans, postscriptName: 'LiberationSans-Italic', subfamily: 'Italic', italic: true };
 const black: FontFaceInfo = { ...sans, postscriptName: 'LiberationSans-Black', subfamily: 'Black', weight: 900 };
@@ -187,7 +159,6 @@ const pick = (faces: FontFaceInfo[]) => groupFontFamilies(faces);
   ok(groups.length === 2 && groups[0].family === 'Liberation Mono', `C6 twee families op naam gesorteerd: ${groups.map(g => g.family).join(', ')}`);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 console.log('── D. één face uit een collectie');
 {
   const bold = await extractFace(bytesReader(ttc), ttcFaces[1]);
@@ -202,10 +173,8 @@ console.log('── D. één face uit een collectie');
   ok(single.length === MONO.length && single.every((x, i) => x === MONO[i]), 'D3 een los bestand komt ongewijzigd terug');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 console.log('── E. vector-PDF met een eigen letter zonder vet');
 {
-  // Zonder vet krijgt de pagineerder de gewone letter ook als vet (besluit 3a): de kopjes staan in de gewone letter.
   const spec = {
     title: 'Planning ✓ Фундамент', subtitle: 'Eigen lettertype', notes: [], summary: [], kpis: [],
     sections: [{ heading: 'Taken', columns: [
@@ -232,7 +201,6 @@ console.log('── E. vector-PDF met een eigen letter zonder vet');
   ok(reportFontStack('custom').startsWith('"OpsReportCustom", InterPDF'), `E2 stack van het eigen lettertype: ${reportFontStack('custom')}`);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 console.log('── F. de rapportinstelling');
 {
   const custom = { name: 'Arial', rev: 3 };
@@ -242,15 +210,8 @@ console.log('── F. de rapportinstelling');
   ok(parseReportFontChoice('Arial', custom) === 'inter', 'F4 onbekende waarde ⇒ Inter');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 console.log('── G. GSUB en GPOS in de PDF: Koptisch met een regel van type 8, Carlito "ti" (issue #1050)');
 {
-  // `@pdf-lib/fontkit` 1.1.1 liep stuk op een GSUB-regel van type 8 (reverse chaining), zoals in Noto Sans Coptic:
-  // dan viel elke PDF met dat eigen lettertype terug op raster. fontkit 3 voert die regel uit. pdf-lib gaf een glyph
-  // die GSUB koos geen breedte en geen tekst (een gat, `bouwlogis ek` bij uitlezen), ook bij het meegeleverde Carlito,
-  // en één `Tj` per tekst liet de GPOS-verschuiving van de bovenstreep weg. Deze proef leest tekst, breedtes en de
-  // plaats van elke glyph terug uit de PDF. Noto Sans Coptic heeft geen cijfers: het paginanummer moet toch leesbaar
-  // terugkomen.
   const COPTIC = new Uint8Array(readFileSync(join(ROOT, 'tests/planning/fixtures/fonts/NotoSansCoptic-Regular.ttf')));
   const CARLITO = font('Carlito-Regular.ttf');
   const ABBREVIATION = 'Ⲁ̅ⲁ̅';
@@ -269,7 +230,6 @@ console.log('── G. GSUB en GPOS in de PDF: Koptisch met een regel van type 8
     subsetFont: async (ttf: Uint8Array) => ttf, fallbackFonts: [{ id: 'inter', bytes: INTER }] };
 
   for (const [name, bytes, row] of [['Koptisch', COPTIC, ABBREVIATION], ['Carlito', CARLITO, 'bouwlogistiek']] as const) {
-    // De glyphs die GSUB koos en die niet rechtstreeks in de cmap staan (Koptisch 196 en 199, Carlito de ligatuur "ti").
     const fk = fontkit.create(bytes);
     const direct = new Set([...row].map(c => fk.glyphForCodePoint(c.codePointAt(0)!).id));
     const run = fk.layout(row);
@@ -285,7 +245,6 @@ console.log('── G. GSUB en GPOS in de PDF: Koptisch met een regel van type 8
     ok(read.images === 0, `G2 ${name}: de PDF bevat ${read.images} beeld(en); verwacht vector`);
     ok(read.text.includes(row), `G2 ${name}: "${row}" is niet als tekst uit te lezen; gelezen: ${JSON.stringify(read.text.slice(0, 200))}`);
     ok(read.text.endsWith('1 / 1'), `G5 ${name}: het paginanummer komt niet leesbaar terug; gelezen: ${JSON.stringify(read.text.slice(-40))}`);
-    // Het nummer blijft in de rapportletter als die cijfers, spatie en '/' heeft (Carlito); anders Helvetica (Koptisch).
     const numberFont = name === 'Koptisch' ? /^\/Helvetica$/ : /^\/Carlito-Regular-\d+$/;
     ok(numberFont.test(read.lastTextFont), `G5 ${name}: het paginanummer staat in ${read.lastTextFont}, verwacht ${numberFont}`);
     const fontWidths = [...read.widths.values()].find(w => glyphs.every(id => w.has(id)));
@@ -293,8 +252,6 @@ console.log('── G. GSUB en GPOS in de PDF: Koptisch met een regel van type 8
       && glyphs.every(id => Math.abs(fontWidths.get(id)! - fk.getGlyph(id).advanceWidth * 1000 / fk.unitsPerEm) < 0.01),
       `G3 ${name}: de vervangen glyph(s) ${glyphs.join(',')} missen hun eigen breedte in /W (dan staat er een gat)`);
 
-    // G6: elke glyph op zijn plaats. In de PDF staat de pen van de tekst op de breedtes uit /W; een glyph met een
-    // GPOS-verschuiving (de bovenstreep: −319 en −291 eenheden) staat op die pen plus zijn verschuiving.
     const start = read.draws.findIndex((_, i) => run.glyphs.every((g, j) => read.draws[i + j]?.gid === g.id));
     const scale = (start >= 0 ? read.draws[start].size : 0) / fk.unitsPerEm;
     let pen = 0;
@@ -307,7 +264,6 @@ console.log('── G. GSUB en GPOS in de PDF: Koptisch met een regel van type 8
     ok(misplaced.length === 0, `G6 ${name}: de glyphs van "${row}" staan niet op hun plaats: ${misplaced.join('; ')}`);
   }
 
-  // De meting van papier en paneel leest dezelfde letter, ook met de shaping van rechts naar links.
   const create = (b: Uint8Array) => fontkit.create(b) as unknown as ReportFontkitFont;
   let width = NaN;
   try {
@@ -317,16 +273,9 @@ console.log('── G. GSUB en GPOS in de PDF: Koptisch met een regel van type 8
   ok(width > 0, `G4 de meting geeft ${width}`);
 }
 
-/**
- * Een PDF zoals een lezer hem ziet: de tekst van alle pagina's (ToUnicode bij een CID-letter, WinAnsi bij een
- * standaardletter; `Tj` in volgorde), de breedtetabel (`/W`) per CID-letter, het aantal beelden, en per getekende
- * glyph zijn x in tekstruimte: de x van de tekstmatrix plus de `/W`-breedtes van de glyphs ervoor in dezelfde `Tj`,
- * zoals een PDF-lezer hem neerzet.
- */
 async function readPdf(pdf: Uint8Array): Promise<{
   text: string; widths: Map<string, Map<number, number>>; images: number;
   draws: { gid: number; x: number; size: number }[];
-  /** De letter (BaseFont) van de laatste tekst in de PDF: het paginanummer. */
   lastTextFont: string;
 }> {
   const doc = await PDFDocument.load(pdf);
@@ -381,7 +330,7 @@ async function readPdf(pdf: Uint8Array): Promise<{
             let pen = x;
             for (const gid of chunks(m[4], 4).map(h => parseInt(h, 16))) {
               draws.push({ gid, x: pen, size });
-              pen += (w.get(gid) ?? 1000) / 1000 * size; // zonder /W-regel de standaardbreedte (/DW 1000)
+              pen += (w.get(gid) ?? 1000) / 1000 * size;
             }
           }
         }
@@ -391,7 +340,6 @@ async function readPdf(pdf: Uint8Array): Promise<{
   return { text, widths, images, draws, lastTextFont };
 }
 
-// Een vertraagde opslaglezing mag een nieuwe keuze of revisie niet terugdraaien.
 console.log('── H. late lettertypelezing');
 {
   type Stand = { reportFontFamily: ReportFontChoice; customReportFont: { rev: number } | null };

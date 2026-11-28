@@ -1,20 +1,3 @@
-// Bak 4 — differentiële mutatietest (critreview op ded4d8c3, bevinding 7).
-//
-// "Datums zoals opgeslagen" leest in vier lezers (P6 XML, MSPDI, `.mpp`, CSV) de rekenuitvoer van
-// het bronpakket naar een APART kanaal (`ImportResult.recordedTimes`). De regel is dat die
-// vastlegging nooit solverinvoer wordt: `task.time` — en de rest van het importresultaat — moet
-// byte-identiek zijn aan wat de lezer zonder die vastlegging zou opleveren.
-//
-// Dat bewijzen we hier door de vier lezers TWEE keer te bundelen met esbuild: één keer zoals ze zijn
-// (AAN) en één keer met de vastlegging bronmatig uitgeschakeld (UIT): het vastleggingsblok in
-// MSPDI/P6 XML/`.mpp` wordt `if (false) { … }`, en in CSV wordt `buildRecordedTime(…)` kortgesloten
-// (de voorafgaande `get()`-lezingen zijn zuivere reads). Daarna vergelijken we per bestand het
-// VOLLEDIGE `ImportResult` zonder `recordedTimes`/`recordedTimesOrigin`, met gegenereerde id's en
-// aanmaaktijdstempels genormaliseerd. Elke vervanging moet precies één keer raken; anders faalt de
-// check (een lezer die verbouwd is, mag deze test niet stil vacuüm maken).
-//
-// Fixtures draaien altijd; het publieke corpus (dezelfde standaardwortel als `check-mpp-fidelity.ts`,
-// `OPS_MPP_CRAWL`) alleen als het aanwezig is.
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -34,7 +17,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 const truthy = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
 
-// ── Wortels: de gebundelde check staat in tests/planning/, de repo twee niveaus hoger ─────────────
 const here = fileURLToPath(new URL('.', import.meta.url));
 const rootCandidates = [resolve(here, '..', '..'), process.cwd()];
 const ROOT = rootCandidates.find((p) => existsSync(join(p, 'src', 'services', 'csv', 'csvReader.ts')));
@@ -43,7 +25,6 @@ if (!ROOT) {
   process.exit(1);
 }
 
-/** De UIT-mutaties: [bestand (relatief aan src/), zoektekst, vervanging]. Elk moet exact 1× raken. */
 const OFF_MUTATIONS: Array<[string, string, string]> = [
   ['services/msproject/mspdiReader.ts',
     '    {\n      const slackDays = (raw: string): number | undefined => {',
@@ -68,7 +49,6 @@ type Readers = {
   installDOMParser: () => void;
 };
 
-// esbuild staat in node_modules; een niet-letterlijke specifier houdt hem buiten de checkbundel.
 const esbuildName = 'esbuild';
 const esbuild = await import(esbuildName) as {
   build(opts: Record<string, unknown>): Promise<{ outputFiles?: unknown[] }>;
@@ -126,7 +106,6 @@ const on = await bundle('on');
 const off = await bundle('off');
 on.installDOMParser();
 
-/** Gegenereerde id's (`prefix-<ts36><rand4><teller>`) en aanmaak-/wijzigtijden gelijktrekken. */
 function normalize(result: Record<string, unknown>): string {
   const { recordedTimes: _r, recordedTimesOrigin: _o, ...rest } = result;
   void _r; void _o;
@@ -151,7 +130,6 @@ function runBoth(read: (r: Readers) => Record<string, unknown>): { on: Outcome; 
   return { on: once(on), off: once(off) };
 }
 
-// ── (1) Fixtures — altijd ──────────────────────────────────────────────────────────────────────
 const fixtures: Array<[string, (r: Readers) => Record<string, unknown>]> = [
   ['P6 XML-fixture', (r) => r.readP6XML(P6XML_FIXTURE)],
   ['MSPDI-fixture', (r) => r.readMSPDI(MSPDI_FIXTURE)],
@@ -172,9 +150,6 @@ for (const [label, read] of fixtures) {
   }
 }
 
-// Knownbug 128: onherkende gevulde CSV-datums zijn een BEWUSTE weigering, geen positieve fixture.
-// Beide bundels moeten hun eigen datumfout met exact dezelfde verwachte context geven: twee
-// willekeurige fouten (bijvoorbeeld een kapotte bundel of import) mogen deze check niet laten slagen.
 for (const [variant, readers] of [['AAN', on], ['UIT', off]] as const) {
   let error: unknown;
   try { readers.readCSV(CSV_FIXTURE_UNREADABLE_DATES); } catch (e) { error = e; }
@@ -191,7 +166,6 @@ for (const [variant, readers] of [['AAN', on], ['UIT', off]] as const) {
   }
 }
 
-// ── (2) Corpus — optioneel ─────────────────────────────────────────────────────────────────────
 const crawl = process.env.OPS_MPP_CRAWL ?? '/home/nozzit/open-aec/voor claude/testdata-crawl';
 if (!existsSync(crawl)) {
   console.log('.   recorded-bak4-differential: crawl (OPS_MPP_CRAWL) niet aanwezig — corpuslaag overgeslagen');

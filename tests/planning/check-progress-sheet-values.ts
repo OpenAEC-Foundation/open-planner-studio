@@ -1,13 +1,3 @@
-// De waardelaag van het voortgangsblad: de id-kolom in de CSV-writer van taken, de ruime maar
-// strenge datumherkenning (A5.1), de dag/maand-detectie per bestand (A5.2), dat Start/Finish
-// uitsluitend detectiemateriaal zijn (A5.4), de percentage-semantiek (E6/A5.6) en de
-// bestandsgrenzen (hardening-checklist: limits vóór allocaties, weigering i.p.v. afkapping). Een cel
-// in Excel kan tekst zijn, dus al deze notaties komen ook via een `.xlsx` binnen.
-//
-// Draait standalone via esbuild (zie het commando in het plan, T2); geregistreerd in run.sh doet
-// T11. Exit 0 = alles groen — de tail van dit script kan "alles groen" tonen bij een gefaalde
-// BUNDEL; alleen de exitcode telt.
-
 import { writeCSV } from '@/services/csv/csvWriter';
 import { readCSV } from '@/services/csv/csvReader';
 import { detectDateOrder, finalizeProgressRows, parseSheetDate, parseSheetPercent } from '@/services/progressImport/sheetValues';
@@ -34,7 +24,6 @@ function ok(label: string, condition: boolean): void {
   if (!condition) diffs.push(label);
 }
 
-// ── Task-fabriek — puur zodat detectDateOrder z'n ijkpuntregel tegen echte taakdatums kan draaien.
 let taskSeq = 0;
 function baseTask(id: string, start: string, durationDays: number): Task {
   taskSeq++;
@@ -53,8 +42,6 @@ function baseTask(id: string, start: string, durationDays: number): Task {
     resourceIds: [],
   };
 }
-/** Een taak met EXACT de gewenste geplande start/finish (los van de duur-afleiding hierboven) —
- *  de ijkpuntregel vergelijkt tegen `earlyStart`/`earlyFinish`. */
 function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Task {
   const task = baseTask(id, earlyStart, 1);
   task.time.earlyStart = earlyStart;
@@ -64,9 +51,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   return task;
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 1 — writer: de id-kolom
-// ══════════════════════════════════════════════════════════════════════════════════════════════
 {
   const task = baseTask('task-abc-123', '2026-06-01', 5);
   const csvText = writeCSV({} as Project, {} as WorkCalendar, [task], [], [], []);
@@ -81,9 +65,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   ok('vervang-import mint een eigen id', readCSV(csvText).tasks[0].id !== task.id);
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 2 — datumformaten (A5.1)
-// ══════════════════════════════════════════════════════════════════════════════════════════════
 {
   function d(raw: string, order: DateOrder = 'dmy') {
     return parseSheetDate(raw, order);
@@ -116,8 +97,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('tekst is onleesbaar', kindOf(d('volgende week')), 'unreadable');
   eq('…en NIET vandaag', rawOf(d('volgende week')), 'volgende week');
 
-  // Besluit 2026-09-05 (gebruikstest): tweecijferig jaar (`YY`) ⇒ `20YY`, in alle drie de
-  // scheiders en beide ordes — de gebruikstest-casus was letterlijk "03-01-27" (MM-DD-YY).
   eq('MM-DD-YY (mdy): 03-01-27 ⇒ 1 mrt 2027 (maand-eerst)', iso(d('03-01-27', 'mdy')), '2027-03-01');
   eq('DD-MM-YY (dmy): dezelfde cel anders gelezen ⇒ 3 jan 2027', iso(d('03-01-27', 'dmy')), '2027-01-03');
   eq('D/M/YY met slash', iso(d('3/1/27', 'dmy')), '2027-01-03');
@@ -126,9 +105,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('YY blijft geldigheid controleren: 31-2-27 bestaat niet', kindOf(d('31-2-27', 'dmy')), 'unreadable');
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 3 — datumvolgorde-detectie (A5.2)
-// ══════════════════════════════════════════════════════════════════════════════════════════════
 {
   function det(cells: readonly RawDateCell[], tasks: readonly Task[] = []): DateOrderDetection {
     return detectDateOrder(cells, tasks);
@@ -158,15 +134,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   const hasMonth25: RawDateCell[] = [{ rowNumber: 2, field: 'actualStart', raw: '6-25-2026' }];
   eq('…en andersom mdy', det(hasMonth25).order, 'mdy');
 
-  // Fixronde-bevinding 4b: `25-6-2026` stemt dmy (a=25>12), `6-25-2026` stemt mdy (b=25>12) — dat
-  // is tegenstrijdig bewijs, maar GEEN van beide cellen is zelf een eerlijk voorbeeld: onder de
-  // "verkeerde" lezing levert elke cel een ONGELDIGE datum op (maand 25 bestaat niet — vóór de fix
-  // rolde dat via `Date.UTC` stil door naar januari 2028, een onmogelijke "keuze"). Zonder een
-  // derde, wél eerlijke cel is er dus NIETS dubbelzinnigs te tónen. Opus-hercheck N-D/N-E: dat
-  // betekent NIET dat het bestand `noAmbiguity` is — het IS tegenstrijdig gebleken, alleen zonder
-  // tónbaar voorbeeld. `noAmbiguity` zou dat verzwijgen (een écht mdy-bestand met één dmy-vormige
-  // typefout krijgt dan een muur van `unreadableDate`-weigeringen zonder diagnose); het eerlijke
-  // label is `contradictoryNoSample`. De orde blijft `dmy` (een kant moet gekozen worden).
   const contradictoryNoGenuineCell: RawDateCell[] = [
     { rowNumber: 2, field: 'actualStart', raw: '25-6-2026' },
     { rowNumber: 3, field: 'actualFinish', raw: '6-25-2026' },
@@ -178,8 +145,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
     'contradictoryNoSample',
   );
 
-  // Dezelfde tegenstrijdigheid, nu MET een derde cel die wél onder beide ordes een geldige,
-  // verschillende datum oplevert — dat blijft `ambiguous`, met die derde cel als sample.
   const contradictoryWithGenuineCell: RawDateCell[] = [
     { rowNumber: 2, field: 'actualStart', raw: '25-6-2026' },
     { rowNumber: 3, field: 'actualFinish', raw: '6-25-2026' },
@@ -193,22 +158,18 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
     ['2026-06-09', '2026-09-06'],
   );
 
-  // Fixronde-bevinding 4a: dag === maand (`12-12-2026`) levert onder BEIDE lezingen dezelfde datum
-  // op — dat is geen dubbelzinnigheid, dus zo'n bestand hoort al bij regel 1 als `noAmbiguity` te
-  // eindigen, vóór er ook maar een vraag in beeld komt.
   const equalDayMonthOnly: RawDateCell[] = [
     { rowNumber: 2, field: 'actualStart', raw: '12-12-2026' },
     { rowNumber: 3, field: 'actualFinish', raw: '5-5-2026' },
   ];
   eq('dag===maand is nooit dubbelzinnig', evidenceOf(det(equalDayMonthOnly)), 'noAmbiguity');
 
-  // Ijkpuntkalibratie: alleen id-matches, alleen start/finish, alleen a≠b (A5.2 regel 3).
   const calibTask1 = taskWithDates('t-calib-1', '2026-06-09', '2026-06-09');
   const calibTask2 = taskWithDates('t-calib-2', '2026-05-08', '2026-05-08');
   const calibTask3 = taskWithDates('t-calib-3', '2026-04-07', '2026-04-07');
 
   const calib2: RawDateCell[] = [
-    { rowNumber: 2, field: 'actualStart', raw: '12-6-2026' }, // geen taskId: geen ijkpunt, wél sample-kandidaat
+    { rowNumber: 2, field: 'actualStart', raw: '12-6-2026' },
     { rowNumber: 3, field: 'start', raw: '9-6-2026', taskId: 't-calib-1' },
     { rowNumber: 4, field: 'finish', raw: '8-5-2026', taskId: 't-calib-2' },
   ];
@@ -223,11 +184,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('ijkpunt met 3 treffers beslist', det(calib3, calib3Tasks).order, 'dmy');
   eq('…met bewijssoort calibration', evidenceOf(det(calib3, calib3Tasks)), 'calibration');
 
-  // Opus-hercheck N-C: het a!==b-filter in regel 1 is DRAGEND voor de kalibratie zelf, niet alleen
-  // voor de sample-keuze. Een dag==maand-cel (bv. `3-3-2026`) levert onder BEIDE lezingen dezelfde
-  // datum op — zonder het filter zou zo'n cel, bij een id-match op een taak met precies die
-  // geplande datum, VOOR BEIDE tellers (dmyHits ÉN mdyHits) meetellen en zo de 3×-ratio breken.
-  // Vóór deze fixture liet het filter weghalen de suite ongewijzigd groen.
   const ddTask1 = taskWithDates('t-calib-dd-1', '2026-03-03', '2026-03-03');
   const ddTask2 = taskWithDates('t-calib-dd-2', '2026-06-06', '2026-06-06');
   const ddTask3 = taskWithDates('t-calib-dd-3', '2026-10-10', '2026-10-10');
@@ -257,7 +213,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
     ['2026-06-12', '2026-12-06'],
   );
 
-  // Gelijkspel: 3 cellen stemmen dmy, 3 andere stemmen mdy — geen van beide wint (CALIBRATION_RATIO).
   const tieDmy1 = taskWithDates('t-tie-dmy-1', '2026-06-09', '2026-06-09');
   const tieDmy2 = taskWithDates('t-tie-dmy-2', '2026-05-08', '2026-05-08');
   const tieDmy3 = taskWithDates('t-tie-dmy-3', '2026-04-07', '2026-04-07');
@@ -275,7 +230,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   const calibTieTasks = [tieDmy1, tieDmy2, tieDmy3, tieMdy1, tieMdy2, tieMdy3];
   eq('gelijkspel beslist niet', det(calibTie, calibTieTasks).order, 'ambiguous');
 
-  // WBS-matches zijn te zwak: dezelfde ijkpuntcellen zonder taskId tellen niet mee.
   const calibWbsOnly: RawDateCell[] = [
     { rowNumber: 2, field: 'start', raw: '9-6-2026' },
     { rowNumber: 3, field: 'finish', raw: '8-5-2026' },
@@ -283,11 +237,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   ];
   eq('WBS-rijen tellen niet als ijkpunt', det(calibWbsOnly, calib3Tasks).order, 'ambiguous');
 
-  // Besluit 2026-09-05 (gebruikstest): tweecijferig jaar moet door dezelfde kalibratie/ambiguous-
-  // machinerie heen werken als een viercijferig jaar — het is precies de MM-DD-YY-vorm uit het
-  // teruggestuurde blad. Mutatiebewijs: haal `toFullYear`/de YY-tak van `NUMERIC_DATE` weg en deze
-  // twee cases vallen om (de calibratietaken bestaan dan niet meer als geldige datums, resp. de
-  // ambiguous-sample wordt niet meer herkend).
   const yyCalibTask1 = taskWithDates('t-yy-calib-1', '2027-01-03', '2027-01-03');
   const yyCalibTask2 = taskWithDates('t-yy-calib-2', '2027-02-04', '2027-02-04');
   const yyCalibTask3 = taskWithDates('t-yy-calib-3', '2027-03-05', '2027-03-05');
@@ -311,9 +260,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 4 — Start/Finish zijn detectie-only (A5.4)
-// ══════════════════════════════════════════════════════════════════════════════════════════════
 {
   const sfSheet = sheetFromText('OPS Task ID;Start;Finish;Completion (%)\r\ntask-1;9-6-2026;20-6-2026;50');
   eq(
@@ -322,12 +268,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
     false,
   );
 
-  // Structurele garantie (geen conventie): `ProgressRow` heeft geen veld dat een Start-waarde zou
-  // kunnen dragen, dus twee bladen die ALLEEN in hun Start-kolom verschillen finaliseren naar
-  // byte-identieke rijen — bewezen op het niveau dat T4 bezit. De volledige eind-tot-eind-proof
-  // (een `ProgressImportPlan` met ongewijzigde `appliedCount`) hoort in T3's `buildPlan`-batterij
-  // (baan A, `check-progress-import.ts`), niet hier: `buildProgressImportPlan` is geen bestand van
-  // deze baan.
   const startBaseline = sheetFromText('OPS Task ID;Start;Completion (%)\r\ntask-1;9-6-2026;50');
   const startChanged = sheetFromText('OPS Task ID;Start;Completion (%)\r\ntask-1;25-12-2099;50');
   eq(
@@ -337,9 +277,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   );
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 5 — percentages (E6/A5.6)
-// ══════════════════════════════════════════════════════════════════════════════════════════════
 {
   function pct(raw: string): number {
     const value = parseSheetPercent(raw);
@@ -359,19 +296,12 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('1 ⇒ 0.01', pct('1'), 0.01);
   eq('0,5 ⇒ 0.005', pct('0,5'), 0.005);
   eq('100% ⇒ 1.0', pct('100%'), 1);
-  // Besluit 2026-09-05 (gebruikstest): een numeriek leesbare waarde buiten [0, 100] krijgt zijn
-  // EIGEN uitkomst (`outOfRange`), apart van `unreadable` (tekst/geen match) — de valkuil is
-  // typisch een decimaalteken dat een spreadsheet met een andere landinstelling als
-  // duizendtalscheider las ("8,38" ⇒ 838).
   eq('150 ⇒ buiten bereik (niet onleesbaar)', percentKind('150'), 'outOfRange');
   eq('-1 ⇒ buiten bereik (niet onleesbaar)', percentKind('-1'), 'outOfRange');
   eq('838 ⇒ buiten bereik (de gebruikstest-casus)', percentKind('838'), 'outOfRange');
   eq('tekst ⇒ onleesbaar', percentKind('bijna klaar'), 'unreadable');
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 6 — bestandsgrenzen (hardening-checklist)
-// ══════════════════════════════════════════════════════════════════════════════════════════════
 {
   eq('blad zonder sleutelkolom', sheetFromText('Name;Completion (%)\r\nFoo;50').fileIssue, 'noKeyColumn');
   eq('blad zonder voortgangskolommen', sheetFromText('OPS Task ID;Name\r\ntask-1;Foo').fileIssue, 'noProgressColumns');
@@ -392,17 +322,7 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('rowNumber telt de kopregel mee', rows11[0].rowNumber, 2);
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-// Lezer — invulinstructies in de kolomkoppen (punt D, besluit 2026-09-05, letterlijke gebruikerswens:
-// "er moet ook in de headers van de kolommen komen te staan wat je in mag voeren en waar je af moet
-// blijven"). De lezer moet de sleutel VÓÓR de instructiemarker (` — `, ` - ` of `(`) blijven
-// herkennen, in élke taal — de sleutel zelf is altijd het letterlijke Engelse kolomwoord, alleen de
-// instructie erachter varieert.
-// ══════════════════════════════════════════════════════════════════════════════════════════════
 {
-  // Fixture: een kop met NEDERLANDSE instructies en één met "DUITSE" (verzonnen tekst) — alle acht
-  // kolommen moeten in beide gevallen herkend worden. Mutatiebewijs: haal de prefix-match-terugval
-  // in `matchColumnKey` weg en dit blok kleurt rood (`fileIssue` zou `noProgressColumns` worden).
   const nlHeader = 'OPS Task ID — niet wijzigen;WBS — niet wijzigen;Name — niet wijzigen;'
     + 'Start — gepland, niet wijzigen;Finish — gepland, niet wijzigen;'
     + 'Completion (%) — invullen: 0 t/m 100, hele getallen;'
@@ -425,18 +345,12 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('…taskId gevonden', deSheet.rawRows[0]?.taskId, 'task-d');
   eq('…completion gevonden', deSheet.rawRows[0]?.rawCompletion, '40');
 
-  // Losse kop-string ⇒ completion-kolom, expliciet genoemd in de opdracht.
   const completionOnlySheet = sheetFromText(
     'OPS Task ID;Completion (%) — invullen: 0 t/m 100, hele getallen\r\ntask-d;40',
   );
   eq('…gevonden als completion-kolom', completionOnlySheet.rawRows[0]?.rawCompletion, '40');
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-// Deel 8 — reason `percentOutOfRange` (besluit 2026-09-05, gebruikstest): een numeriek leesbare
-// waarde buiten [0, 100] ("838", "-5") krijgt zijn eigen reden, apart van `unreadableNumber`
-// (tekst zoals "abc").
-// ══════════════════════════════════════════════════════════════════════════════════════════════
 {
   function stubPlanEdits2(
     task: Task,
@@ -471,16 +385,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('abc blijft reason unreadableNumber', rowFor(taskZ.id)?.reason, 'unreadableNumber');
 }
 
-// ══════════════════════════════════════════════════════════════════════════════════════════════
-// Lezer — verzameltaken dragen hun eigen markering IN het blad (gebruikstest 2026-09-11,
-// fix 1). Letterlijke wens van de eigenaar: "hij zegt dat summary tasks geen progress kunnen
-// krijgen uit een spreadsheet, waarom staat dat ook niet gewoon in dat veld in de spreadsheet?".
-// De drie INVULcellen van een verzameltaak (`childIds.length > 0`) krijgen een gelokaliseerde
-// markeertekst die met een em-dash (U+2014) begint; de lezer telt een cel die met `—` begint als
-// AFWEZIG (niet als onleesbaar), zodat een ongewijzigd teruggestuurd blad nul weigeringen geeft.
-// Mutatiebewijs: haal de em-dash-terugval in `finalizeProgressRows` weg ⇒ de round-trip hieronder
-// levert `refusedCount > 0` (onleesbare datum/percentage) en dit blok kleurt rood.
-// ══════════════════════════════════════════════════════════════════════════════════════════════
 {
   function stubPlanEditsS(
     task: Task,
@@ -510,7 +414,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
 
   const SUMMARY_NOTE = '— verzameltaak: niet invullen';
 
-  // Het blad ongewijzigd terug ⇒ niets toegepast, niets geweigerd.
   const sheetS = sheetFromText([
     'OPS Task ID;WBS;Completion (%);Actual Start;Actual Finish',
     `${parent.id};1;${SUMMARY_NOTE};${SUMMARY_NOTE};${SUMMARY_NOTE}`,
@@ -523,7 +426,6 @@ function taskWithDates(id: string, earlyStart: string, earlyFinish: string): Tas
   eq('…de verzameltaakrij is gewoon ongewijzigd', planS.rows[0]?.outcome, 'noop');
   eq('…net als de bladtaakrij', planS.rows[1]?.outcome, 'noop');
 
-  // De lezer zelf: een cel die met een em-dash begint is AFWEZIG, niet onleesbaar.
   const markedSheet = sheetFromText(
     'OPS Task ID;Completion (%);Actual Start\r\n'
     + `task-child;${SUMMARY_NOTE};${SUMMARY_NOTE}`,

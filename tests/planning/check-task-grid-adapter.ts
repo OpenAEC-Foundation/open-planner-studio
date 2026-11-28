@@ -143,9 +143,6 @@ eq('Plannerafgeleide relatiekolom meldt stale buiten de computed-categorie', (()
   return { stale: cell?.stale, statusText: cell?.statusText, text: cell?.text };
 })(), { stale: true, statusText: 'taskGrid.status.stale', text: '← 1.0: 0d' });
 
-// De volledige adapterroute krijgt een CPMResult, dus de reconstructievlag en een fout mogen
-// niet verloren gaan bij het versmallen naar relatieanalyse. Persoonlijke datumnotatie staat
-// ook aan: die productroute moet voor scherm én klembord dezelfde analysestatus opleveren.
 const drivingCases: readonly [string, CPMResult | null, string, boolean | undefined][] = [
   ['nog niet berekend', null, 'Onbekend', undefined],
   ['opgeslagen datums', { ...cpmResult, drivingUnknown: true, drivingSequenceIds: [] }, 'Onbekend', undefined],
@@ -240,10 +237,6 @@ eq('Read-only descriptor weigert editplanning vóór een storemutatie',
 eq('Onbekende occurrence wordt gericht geweigerd',
   gantt.planEdit('verdwenen', taskColumnId('task.name'), 'x').ok, false);
 
-// Namen die de gebruiker zelf gaf (G10): een activity code, eigen veld of baseline heet in de
-// kolomkiezer en de kolomkop precies zoals hij is ingetikt. Deze `labelForColumn` doet wat de oude
-// terugval met een onbekende sleutel deed (alleen het stuk na de laatste punt houden). Een naam mag
-// er dus niet in terechtkomen: dan werd "Fase 1.2" "2" en "Blok v.o." leeg.
 const userNames = ['Locatie 2.1', 'Fase 1.2', 'Blok v.o.', 'Basis 1.2'];
 const translatedKeys: string[] = [];
 const userNamed = createTaskGridAdapter({
@@ -285,7 +278,6 @@ for (const source of componentSources) {
     !text.includes('ResourcePanel') && !text.includes('ResourcePanelCompact'));
 }
 
-// Kalendernamen horen in de cel en de keuzelijst; ids blijven de canonieke schrijf-/klembordwaarde.
 {
   const options = [
     { value: '', label: 'Projectkalender: Basis' },

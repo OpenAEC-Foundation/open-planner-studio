@@ -55,8 +55,6 @@ for (const scrollTop of [0, 18, 36 * 20_000 + 17, ROWS * ROW_HEIGHT - VIEWPORT])
 }
 
 {
-  // Eindstrook onder de zwevende horizontale balk (review #362): de laatste rij eindigt boven de
-  // strook, dus Ctrl+End komt op het echte schuifmaximum (inhoud + strook - viewport).
   const INSET = 8;
   const target = ROWS - 1;
   const expected = ROWS * ROW_HEIGHT + INSET - VIEWPORT;
@@ -87,7 +85,6 @@ for (const scrollTop of [0, 18, 36 * 20_000 + 17, ROWS * ROW_HEIGHT - VIEWPORT])
   eq('Nul rijen heeft nul spacers', [empty.topSpacerHeight, empty.bottomSpacerHeight], [0, 0]);
 }
 
-// De pure gridkern mag niet stil een store-, React- of DOM-module worden.
 {
   let root = process.cwd();
   if (!existsSync(join(root, 'package.json'))) {
