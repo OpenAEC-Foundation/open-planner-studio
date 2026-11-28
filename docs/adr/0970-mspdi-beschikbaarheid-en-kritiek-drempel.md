@@ -6,8 +6,7 @@ geldt vóór de eerste stap de vlakke `maxUnits`, in MS Project is een resource 
 Daarom schrijft `availabilityPeriodsOf` de periodes sluitend van het open begin tot het open einde, met de vlakke
 waarde in de eerste periode, en maakt `availabilityFromPeriods` van elk stuk buiten een periode (vóór de eerste, in een
 gat en na een echte einddatum) een stap naar 0. MS Project gebruikt 1984-01-01 en 2049-12-31 als "NA", het open begin
-en einde van de tabel; 2149-12-31 is de uiterste datum (volgens het weggehaalde commentaar, niet nagegaan, was 2049 die
-grens tot Project 2010).
+en einde van de tabel; 2149-12-31 is de uiterste datum.
 
 ## Gevolgen
 
