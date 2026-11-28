@@ -13,8 +13,9 @@ lezing zou de hele planning onbereikbaar maken om één onleesbaar veld. `extrac
   `WorkRule` (`WORK_RULES`) en de P6-typen in `OPS_P6Progress`. `LevelingDelay` en `LevelingDelayMinutes` worden bij het
   lezen afgerond.
 - Een JSON-property die niet parseert, laat haar veld leeg (blok 13 van `check-ifc-roundtrip.ts` voor `Splits`).
-  Koppelingen gaan door `storedExternalLinks`: volgens het weggehaalde commentaar liet een kapotte koppeling het
-  laden, het rekenen en de relatiecel vastlopen. Notities neemt de lezer over als elke niet-lege lijst (knownbug 2363).
+  Koppelingen gaan door `storedExternalLinks`: een kapotte koppeling liet het laden, het rekenen en de relatiecel
+  vastlopen (commit "IFC: lees externe koppelingen alleen in een vorm die de app aankan", toets
+  `check-ifc-external-links.ts`). Notities neemt de lezer over als elke niet-lege lijst (knownbug 2363).
   `Splits` en `Contours` gelden alleen als elk element de vorm heeft; anders valt de hele lijst weg. Een `source`
   buiten `leveling` en `user` valt weg en het gat blijft (blok 17a van `check-ifc-roundtrip.ts`). In een contour mag
   `resourceId` ontbreken, voor oudere bestanden.

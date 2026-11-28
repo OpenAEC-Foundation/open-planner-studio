@@ -3,8 +3,7 @@
 Elke uitzondering wordt per dag uitgeschreven, en een klein bestand kan veel dagen vragen: één record over het
 hele datumbereik, een herhaling op elke dag, duizenden records, of veel kalenders die van één volle basis erven. De
 kern zet daarom vaste grenzen op elke lus en allocatie die het bestand stuurt, en neemt bij een grens minder dagen
-dan het bestand vraagt in plaats van te falen. We kozen ruime vaste getallen boven wat een echte planning vraagt; dat
-die getallen ruim zijn, komt uit het weggehaalde commentaar, met de corpustellingen hieronder als enige metingen.
+dan het bestand vraagt in plaats van te falen. We kozen ruime vaste getallen boven wat een echte planning vraagt.
 
 ## De grenzen
 
@@ -16,8 +15,7 @@ die getallen ruim zijn, komt uit het weggehaalde commentaar, met de corpustellin
 - `MAX_HOLIDAY_RANGE_DAYS` (366): het aantal dagen van één niet-herhalend bereik, inclusief begin en einde
   (`buildContributions`: vanaf een verschil van 366 dagen wordt het einde begin plus 365). T6-hostile extreem bereik
   toetst een bereik over het hele `.mpp`-datumbereik (dag 0 tot 65534) op precies 366 dagen. Ook de rekenmotor zet een
-  feestdag per dag in zijn verzameling (`buildHolidaySet` in `CalendarEngine.ts`). Een meerdaagse sluiting als de
-  bouwvak blijft volgens het weggehaalde commentaar ruim onder de grens. Per kalender geeft dat hoogstens
+  feestdag per dag in zijn verzameling (`buildHolidaySet` in `CalendarEngine.ts`). Per kalender geeft dat hoogstens
   2000 maal 366 dagen, voordat het budget hieronder telt. Een bereik met het einde
   vóór het begin wordt één dag; een niet-herhalend record zonder einde levert niets.
 - `MAX_RECURRENCE_DATES` (3660): het aantal datums dat één herhaling oplevert, in de lusvoorwaarde van elke generator.
@@ -30,7 +28,7 @@ die getallen ruim zijn, komt uit het weggehaalde commentaar, met de corpustellin
   datumgrens eerst. `getMonthlyRelativeDates` stopt daarnaast zodra de maandcursor niet vooruitgaat (een eigen
   controle, los van deze grens). Een record dat niets oplevert, kost geen budget, dus het aantal doorlopen telt per
   kalender op tot `MAX_CALENDAR_EXCEPTIONS` maal deze grens, en over de kalenders van een bestand verder; met een
-  grens van 100.000 kostte dat 46,3 s volgens het weggehaalde commentaar. HOOG-1b in
+  grens van 100.000 kostte dat 46,3 s voor 2000 zulke records (commit c0221dc98). HOOG-1b in
   `check-mpp-calendars.ts` toetst dat de wekelijkse herhaling 0 datums geeft binnen 200 ms; HOOG-1a toetst hetzelfde
   voor een maandelijkse relatieve herhaling met een stilstaande cursor, en MIDDEN-A 2000 zulke maandelijkse records
   op 0 datums binnen 5 s (beide blijven groen zonder deze grens in die tak, door de cursorcontrole), en MIDDEN-A-regressie een wekelijkse herhaling op alle dagen van 2020
@@ -47,8 +45,7 @@ die getallen ruim zijn, komt uit het weggehaalde commentaar, met de corpustellin
   op is (het record dat loopt wordt afgekapt, de rest overgeslagen), zodat ook de piek in het geheugen begrensd is;
   het verlaagt het gedeelde budget zelf niet. `resolveContributions` verlaagt het met één per dag die het in de kaart
   zet. `mergeInherited` schrijft de dagen van de basis alleen uit zolang het budget ruimte heeft. Zonder die stappen
-  kostte 2000 wekelijkse records ongeveer 5,2 s en 1 GB, en gaf een MSPDI-bestand met veel afgeleide kalenders een
-  geheugenfout (review #335); beide komen uit het weggehaalde commentaar. MIDDEN-1 in `check-mpp-calendars.ts` toetst
+  gaf een MSPDI-bestand met veel afgeleide kalenders een geheugenfout (PR #335). MIDDEN-1 in `check-mpp-calendars.ts` toetst
   dat `buildContributions` met budget 100 hoogstens 100 dagen oplevert; `check-mspdi-feestdagen.ts` 12 toetst het
   budget over overerving en 12 zwaar 1023 afgeleide kalenders op een basis van ongeveer 100.000 vrije dagen binnen 3 s.
   Waar het budget een uitzondering met hoge voorrang laat wegvallen, staat in knownbug 2319.
@@ -57,5 +54,5 @@ die getallen ruim zijn, komt uit het weggehaalde commentaar, met de corpustellin
 - `MAX_BASE_CHAIN_DEPTH` (32) begrenst het volgen van basiskalenders, omdat een bestand een kalender naar zichzelf of
   in een kring kan laten verwijzen. De `.mpp`-lezer doet hoogstens zoveel rondes (`mppCalendars.ts`); in de MSPDI-lezer
   erft een kalender met een langere keten of een kring niets (ADR 0254). Een `.mpp`-kalender die na die rondes nog
-  niet erft, krijgt haar eigen gegevens zonder basis (`materializeDerived` met `null`). Dat MPXJ geen kringen herkent, komt uit het
-  weggehaalde commentaar en is niet nagegaan.
+  niet erft, krijgt haar eigen gegevens zonder basis (`materializeDerived` met `null`). MPXJ herkent een kring
+  in MSPDI (`MSPDIReader.childIsNotParent`), maar in een `.mpp` niet (`AbstractCalendarFactory.updateBaseCalendarNames`).

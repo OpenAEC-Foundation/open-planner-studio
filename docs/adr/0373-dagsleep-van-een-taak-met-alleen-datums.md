@@ -12,9 +12,7 @@ na de volgende berekening anders staat dan de planner losliet.
   gebruikt de dagtak van `writeDerivedSpan` (`duration.ts`) voor een afgeleide duur.
 - De sleep schrijft een werkdag als anker en niet de rauwe kalenderdag onder de muis: de rechterrand schrijft
   `addWorkDays(start, duur)`, de linkerrand `subtractWorkDays(einde, duur)`, met de taakkalender. Zo landt
-  `earlyStart`/`earlyFinish` niet op een weekend of feestdag. Volgens het weggehaalde commentaar verschoof een
-  anker op een vrije dag bij de eerstvolgende `runCPM` (ook bij het openen van het bestand); dat is niet apart
-  nagespeeld.
+  `earlyStart`/`earlyFinish` niet op een weekend of feestdag.
 - `handleMouseMove` slaat een beweging alleen over als het aantal kolommen niet veranderde sinds de vorige
   schrijfactie (`lastAppliedDeltaRef`, begint op 0), en niet zodra het 0 is. Een toets op 0 zou de beginduur
   onbereikbaar maken: na een beweging terug naar 0 werd niets geschreven en bleef de balk op de buurwaarde staan.

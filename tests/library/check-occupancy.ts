@@ -1,16 +1,3 @@
-// B1b-bezettingskern (spec 2026-08-14-b1b-bezettingsoverzicht-design.md §4/§6/§10). Headless
-// batterij over de pure `computeLibraryOccupancy`: handgebouwde `OccupancyDocInput`-fixtures +
-// een minimale `CompanyPool`. Exitcode is de poort (XX-regels tonen afwijkingen). Cases 1–13 dekken
-// het VANGNETpad (§4.3): hun stale-fixtures dragen bewust géén `solveInput`, dus de default-solve
-// geeft `null` terug en het document blijft zichtbaar-ongeteld. Cases 14–16 dekken de efemere solve
-// van §4.3b (doorrekenen i.p.v. uitsluiten). Case 10 dekt daarnaast de
-// `OccupancyDocBooking.dailyLoad`-uitbreiding (histogramvoeding, som-invariant). Case 23 dekt de
-// perf-poort `skipEphemeralSolve` (het actieve document wordt niet in de render doorgerekend).
-//
-// Cases 17–20 zijn de enige die de ECHTE Zustand-store aanraken (patroon: check-library-slice.ts /
-// tests/planning/check-move-assignment.ts): het TERUGSCHRIJFBESLUIT van §4.3b woont in een
-// store-actie (`recalculateStaleSleepingDocuments` in `documentSlice`) en die is alleen zinvol te
-// testen tegen echte payloads in de documentregistry. Cases 1–16 blijven puur.
 import { computeLibraryOccupancy, ephemeralSolve, occupancySolveInputFor } from '@/services/library/occupancy';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -39,9 +26,6 @@ function assert(cond: boolean, msg: string): void {
   if (!cond) { fails++; console.log(`   XX ${msg}`); }
 }
 
-// ── Fixture-bouwstenen ───────────────────────────────────────────────────────────────────────────
-// Ma–vr-kalender; alle taken vallen in de week van ma 2026-08-03 t/m vr 2026-08-07.
-
 function cal(id = 'cal-1'): WorkCalendar {
   return {
     id, name: 'Standaard', description: '', workDays: [1, 2, 3, 4, 5],
@@ -53,7 +37,6 @@ function poolRes(id: string, name: string, maxUnits: number, extra?: Partial<Res
   return { id, name, type: 'LABOR', description: '', maxUnits, ...extra };
 }
 
-/** Projectkopie met herkomststempel naar `libraryItemId` in bibliotheek `companyId`. */
 function stamped(id: string, libraryItemId: string, companyId = 'c1', extra?: Partial<Resource>): Resource {
   return {
     id, name: `kopie ${libraryItemId}`, type: 'LABOR', description: '', maxUnits: 99,
@@ -62,7 +45,6 @@ function stamped(id: string, libraryItemId: string, companyId = 'c1', extra?: Pa
   };
 }
 
-/** Leaf-taak met doorgerekende datums (earlyStart/earlyFinish sturen de dag-mapping). */
 function task(id: string, earlyStart: string, earlyFinish: string, durationDays: number): Task {
   return {
     id, name: id, description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -80,8 +62,6 @@ function assign(id: string, taskId: string, resourceId: string, unitsPerDay: num
   return { id, taskId, resourceId, unitsPerDay, curve };
 }
 
-/** Taak met een ANKER (scheduleStart) dat afwijkt van de opgeslagen — verouderde — early-datums:
- *  de efemere solve moet de early-datums op het anker herrekenen (§4.3b, case 14/16). */
 function staleTask(id: string, anchor: string, staleStart: string, staleFinish: string, durationDays: number): Task {
   const t = task(id, staleStart, staleFinish, durationDays);
   t.time.scheduleStart = anchor;
@@ -95,12 +75,8 @@ interface DocOpts {
   resources?: Resource[];
   assignments?: ResourceAssignment[];
   tasks?: Task[];
-  /** Zetten ⇒ het document draagt `solveInput` (§4.3b, de VOLLEDIGE takenlijst). Afwezig ⇒ géén
-   *  solve-invoer, dus het vangnetpad van §4.3 — zo dekken cases 1–13 bewust het vangnetgedrag. */
   solveTasks?: Task[];
   solveSequences?: Sequence[];
-  /** Zetten ⇒ `skipEphemeralSolve` (perf-poort): dit document heeft een eigen rekenpad en mag hier
-   *  niet efemeer worden doorgerekend — het telt mee met zijn taken zoals ze er staan. */
   skipSolve?: boolean;
 }
 
@@ -129,7 +105,6 @@ function pool(resources: Resource[]): CompanyPool {
   };
 }
 
-// ── Case 1 (§10.1): twee documenten, overlappende dagen, som > maxUnits ──────────────────────────
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const mkDoc = (id: string) => doc(id, {
@@ -156,7 +131,6 @@ function pool(resources: Resource[]): CompanyPool {
   assert(anyStale === false, 'case 1: geen stale documenten ⇒ anyStale false');
 }
 
-// ── Case 1b (#815): een kostenresource heeft geen bezetting, ook niet over twee documenten ─────────
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2), poolRes('lib-cost', 'Leges', 1, { type: 'COST' })]);
   const mkDoc = (id: string) => doc(id, {
@@ -169,13 +143,12 @@ function pool(resources: Resource[]): CompanyPool {
   assert(rows.some(r => r.libraryItemId === 'lib-1'), 'case 1b: de werkresource staat er wel');
 }
 
-// ── Case 2 (§10.2): zelfde overlap maar som ≤ capaciteit; grens som == capaciteit is GEEN conflict ─
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const mkDoc = (id: string) => doc(id, {
     resources: [stamped(`${id}-r1`, 'lib-1')],
     tasks: [task(`${id}-t1`, '2026-08-03', '2026-08-05', 3)],
-    assignments: [assign(`${id}-a1`, `${id}-t1`, `${id}-r1`, 1)], // som = 2 == capaciteit
+    assignments: [assign(`${id}-a1`, `${id}-t1`, `${id}-r1`, 1)],
   });
   const { rows } = computeLibraryOccupancy('c1', p, [mkDoc('d1'), mkDoc('d2')]);
 
@@ -183,12 +156,9 @@ function pool(resources: Resource[]): CompanyPool {
   assert(rows[0].conflictDays.length === 0, `case 2: som == capaciteit ⇒ géén conflict (>, niet ≥; kreeg ${JSON.stringify(rows[0].conflictDays)})`);
 }
 
-// ── Case 3 (§10.3): availabilitySteps op het POOLitem — conflict alléén ná de capaciteitsdaling ──
 {
-  // Poolcapaciteit: 3 t/m 2026-08-04, daarna 1 (stap per 2026-08-05). Som over twee docs = 2/dag.
   const p = pool([poolRes('lib-1', 'Kraan', 3, { availabilitySteps: [{ from: '2026-08-05', maxUnits: 1 }] })]);
   const mkDoc = (id: string) => doc(id, {
-    // Projectkopieën hebben bewust ruime eigen maxUnits (99): de capaciteit MOET van het poolitem komen.
     resources: [stamped(`${id}-r1`, 'lib-1')],
     tasks: [task(`${id}-t1`, '2026-08-03', '2026-08-07', 5)],
     assignments: [assign(`${id}-a1`, `${id}-t1`, `${id}-r1`, 1)],
@@ -202,17 +172,14 @@ function pool(resources: Resource[]): CompanyPool {
   assert(rows[0]?.totalPeak === 2, 'case 3: totalPeak 2 over de hele spanne');
 }
 
-// ── Case 4 (§10.4): vreemde stempel en companyId:null dragen niets bij ───────────────────────────
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const vreemdeStempel = doc('d1', {
-    // Document hangt aan c1, maar de resource is uit bibliotheek c2 gestempeld ⇒ telt niet.
     resources: [stamped('d1-r1', 'lib-1', 'c2')],
     tasks: [task('d1-t1', '2026-08-03', '2026-08-05', 3)],
     assignments: [assign('d1-a1', 'd1-t1', 'd1-r1', 5)],
   });
   const losDocument = doc('d2', {
-    // Document zonder bibliotheek (companyId null) ⇒ telt niet, óók niet via een geldige c1-stempel.
     companyId: null,
     resources: [stamped('d2-r1', 'lib-1', 'c1')],
     tasks: [task('d2-t1', '2026-08-03', '2026-08-05', 3)],
@@ -224,9 +191,8 @@ function pool(resources: Resource[]): CompanyPool {
   assert(anyStale === false, 'case 4: niets telt mee ⇒ anyStale false');
 }
 
-// ── Case 5 (§10.5): wees (stempel naar verwijderd poolitem) ⇒ geen rij ───────────────────────────
 {
-  const p = pool([poolRes('lib-1', 'Kraan', 2)]); // 'lib-verwijderd' zit NIET (meer) in de pool
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const d1 = doc('d1', {
     resources: [stamped('d1-r1', 'lib-verwijderd')],
     tasks: [task('d1-t1', '2026-08-03', '2026-08-05', 3)],
@@ -237,7 +203,6 @@ function pool(resources: Resource[]): CompanyPool {
   assert(rows.length === 0, `case 5: wees-stempel hoort bij geen enkel poolitem ⇒ geen rij (kreeg ${rows.length})`);
 }
 
-// ── Case 6 (§10.6): identieke naam, verschillende id's ⇒ twee losse rijen (id-matching) ──────────
 {
   const p = pool([poolRes('lib-a', 'Timmerman', 2), poolRes('lib-b', 'Timmerman', 2)]);
   const d1 = doc('d1', {
@@ -256,7 +221,6 @@ function pool(resources: Resource[]): CompanyPool {
   assert(a?.totalPeak === 1 && b?.totalPeak === 2, 'case 6: boekingen NIET samengevoegd op naam — elk poolitem houdt zijn eigen belasting');
 }
 
-// ── Case 7 (§10.7 herzien): stale telt NIET mee, maar de booking blijft zichtbaar ────────────────
 {
   const p = pool([poolRes('lib-1', 'Kraan', 5)]);
   const vers = doc('d1', {
@@ -285,13 +249,12 @@ function pool(resources: Resource[]): CompanyPool {
   assert(anyStale === true, 'case 7: anyStale staat door de ongetelde booking');
 }
 
-// ── Case 8 (§10.8): binnen-document-overbezetting verschijnt óók als conflict (§6 punt 2) ────────
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const d1 = doc('d1', {
     resources: [stamped('d1-r1', 'lib-1')],
     tasks: [task('d1-t1', '2026-08-03', '2026-08-05', 3)],
-    assignments: [assign('d1-a1', 'd1-t1', 'd1-r1', 3)], // één document boekt in z'n eentje 3 > 2
+    assignments: [assign('d1-a1', 'd1-t1', 'd1-r1', 3)],
   });
   const { rows } = computeLibraryOccupancy('c1', p, [d1]);
 
@@ -303,7 +266,6 @@ function pool(resources: Resource[]): CompanyPool {
   assert(rows[0].totalPeak === 3 && rows[0].capacityAtPeak === 2, 'case 8: totalPeak 3 vs capaciteit 2');
 }
 
-// ── Case 9 (§10.9): curve-consistentie — FRONT_LOADED spiegelt computeResourceLoad exact ─────────
 {
   const poolItem = poolRes('lib-1', 'Kraan', 2);
   const p = pool([poolItem]);
@@ -314,7 +276,6 @@ function pool(resources: Resource[]): CompanyPool {
   });
   const { rows } = computeLibraryOccupancy('c1', p, [d1]);
 
-  // Referentie: exact dezelfde engine-aanroep als de kern per document hoort te doen.
   const ref = computeResourceLoad(d1.resources, d1.assignments, d1.tasks, d1.calendar, d1.calendars, d1.loadOptions);
   const refDaily = ref.load['d1-r1'];
   const refDays = Object.keys(refDaily).sort();
@@ -334,11 +295,9 @@ function pool(resources: Resource[]): CompanyPool {
     JSON.stringify(row.conflictDays) === JSON.stringify(refConflicts),
     `case 9: conflictDays == dagen waar de curve boven de poolcapaciteit komt (${JSON.stringify(refConflicts)}; kreeg ${JSON.stringify(row.conflictDays)})`,
   );
-  // Sanity: de FRONT_LOADED-curve moet daadwerkelijk vooraan pieken (anders test dit niets).
   assert(refConflicts.length > 0 && refConflicts[0] === '2026-08-03', 'case 9 sanity: FRONT_LOADED piekt op de eerste dag boven capaciteit');
 }
 
-// ── Case 10: dailyLoad — som over documenten per dag == de kern-som; dagen binnen first..last ───
 {
   const poolItem = poolRes('lib-1', 'Kraan', 2);
   const p = pool([poolItem]);
@@ -355,7 +314,6 @@ function pool(resources: Resource[]): CompanyPool {
   const { rows } = computeLibraryOccupancy('c1', p, [d1, d2]);
   const row = rows[0];
 
-  // Referentie per document — dezelfde som-invariant als case 9, nu per dag over twee documenten.
   const refSum = new Map<string, number>();
   for (const d of [d1, d2]) {
     const ref = computeResourceLoad(d.resources, d.assignments, d.tasks, d.calendar, d.calendars, d.loadOptions);
@@ -365,7 +323,6 @@ function pool(resources: Resource[]): CompanyPool {
     }
   }
 
-  // 10a: som van dailyLoad over documenten per dag == de referentiesom van computeResourceLoad.
   const gotSum = new Map<string, number>();
   for (const booking of row.docs) {
     for (const [iso, units] of Object.entries(booking.dailyLoad)) {
@@ -378,7 +335,6 @@ function pool(resources: Resource[]): CompanyPool {
     `case 10: Σ dailyLoad over documenten per dag == computeResourceLoad-som (${toSorted(refSum)}; kreeg ${toSorted(gotSum)})`,
   );
 
-  // 10b: dezelfde som draagt ook totalPeak/conflictDays (interne consistentie van de rij).
   const refPeak = Math.max(...refSum.values());
   const refConflicts = [...refSum.keys()].sort().filter(iso => refSum.get(iso)! > maxUnitsOn(poolItem, iso));
   assert(row.totalPeak === refPeak, `case 10: totalPeak == piek van de dailyLoad-som (${refPeak}; kreeg ${row.totalPeak})`);
@@ -387,7 +343,6 @@ function pool(resources: Resource[]): CompanyPool {
     `case 10: conflictDays consistent met de dailyLoad-som (${JSON.stringify(refConflicts)}; kreeg ${JSON.stringify(row.conflictDays)})`,
   );
 
-  // 10c: elke dailyLoad-dag valt binnen firstDay..lastDay van zijn eigen booking, en is > 0.
   for (const booking of row.docs) {
     const days = Object.keys(booking.dailyLoad).sort();
     assert(days.length > 0, `case 10: booking ${booking.docId} heeft dailyLoad-dagen`);
@@ -405,15 +360,12 @@ function pool(resources: Resource[]): CompanyPool {
   }
 }
 
-// ── Case 11 (§10.11): stale-uitsluiting maskeert geen conflict verkeerd-groen ────────────────────
 {
-  // 11a: een echt conflict (het niet-stale document boekt in z'n eentje boven capaciteit) blijft
-  // staan, óók met een stale document ernaast.
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const overboekt = doc('d1', {
     resources: [stamped('d1-r1', 'lib-1')],
     tasks: [task('d1-t1', '2026-08-03', '2026-08-05', 3)],
-    assignments: [assign('d1-a1', 'd1-t1', 'd1-r1', 3)], // 3 > 2, zonder hulp van het stale document
+    assignments: [assign('d1-a1', 'd1-t1', 'd1-r1', 3)],
   });
   const staleDoc = doc('d2', {
     scheduleStale: true,
@@ -429,9 +381,6 @@ function pool(resources: Resource[]): CompanyPool {
   assert(a.rows[0]?.totalPeak === 3, 'case 11a: totalPeak = alleen het getelde document (3)');
   assert(a.anyStale === true, 'case 11a: anyStale staat (ongetelde booking aanwezig)');
 
-  // 11b: de som zou alléén mét het stale document boven capaciteit komen (1,5 + 1,5 > 2) ⇒ géén
-  // conflictdag (geen verzonnen cijfers), wél anyStale + de ongetelde booking (de banner draagt
-  // de waarschuwing).
   const binnenCapaciteit = doc('d3', {
     resources: [stamped('d3-r1', 'lib-1')],
     tasks: [task('d3-t1', '2026-08-03', '2026-08-05', 3)],
@@ -456,11 +405,9 @@ function pool(resources: Resource[]): CompanyPool {
   );
 }
 
-// ── Case 12 (§10.12): fantoomrij-triggers — 0 eenheden en ontbrekende datums (niet-stale) ───────
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
 
-  // 12a: niet-stale toewijzing met unitsPerDay 0 ⇒ geen booking, geen rij.
   const nulEenheden = doc('d1', {
     resources: [stamped('d1-r1', 'lib-1')],
     tasks: [task('d1-t1', '2026-08-03', '2026-08-05', 3)],
@@ -470,9 +417,6 @@ function pool(resources: Resource[]): CompanyPool {
   assert(a.rows.length === 0, `case 12a: unitsPerDay 0 (niet-stale) ⇒ geen booking en geen rij (kreeg ${a.rows.length})`);
   assert(a.anyStale === false, 'case 12a: geen ongetelde booking ⇒ anyStale false');
 
-  // 12b: niet-stale document zonder doorgerekende datums (earlyStart '') ⇒ idem. Dit is precies
-  // de val uit de critreview: ResourceLoad maakt de load-emmer al vóór de daglus aan, dus een
-  // truthy leeg object mag geen boeking opleveren.
   const zonderDatums = doc('d2', {
     resources: [stamped('d2-r1', 'lib-1')],
     tasks: [task('d2-t1', '', '', 3)],
@@ -483,13 +427,12 @@ function pool(resources: Resource[]): CompanyPool {
   assert(b.anyStale === false, 'case 12b: geen ongetelde booking ⇒ anyStale false');
 }
 
-// ── Case 13 (§10.13): stale zonder bruikbare datums ⇒ tóch zichtbaar als ongetelde booking ──────
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const staleZonderDatums = doc('d1', {
     scheduleStale: true,
     resources: [stamped('d1-r1', 'lib-1')],
-    tasks: [task('d1-t1', '', '', 3)], // geen bruikbare datums — niets verdwijnt stil
+    tasks: [task('d1-t1', '', '', 3)],
     assignments: [assign('d1-a1', 'd1-t1', 'd1-r1', 2)],
   });
   const { rows, anyStale } = computeLibraryOccupancy('c1', p, [staleZonderDatums]);
@@ -506,13 +449,9 @@ function pool(resources: Resource[]): CompanyPool {
   assert(anyStale === true, 'case 13: anyStale staat door de zichtbare ongetelde booking');
 }
 
-// ── Case 14 (§10.14): efemere solve — stale mét solve-invoer telt mee met VERSE cijfers ─────────
 {
   const poolItem = poolRes('lib-1', 'Kraan', 2);
   const p = pool([poolItem]);
-  // Het document is stale: de opgeslagen early-datums (2026-08-10..12) zijn verouderd, het anker
-  // staat op 2026-08-03. Zonder efemere solve zou de belasting in de week van de 10e landen (of
-  // helemaal wegvallen); mét solve hoort ze op 03..05 te staan.
   const staleTasks = [staleTask('t1', '2026-08-03', '2026-08-10', '2026-08-12', 3)];
   const d1 = doc('d1', {
     scheduleStale: true,
@@ -521,12 +460,8 @@ function pool(resources: Resource[]): CompanyPool {
     assignments: [assign('d1-a1', 't1', 'd1-r1', 1.5)],
     solveTasks: staleTasks,
   });
-  // De injectie is hier expliciet de ECHTE kern (dezelfde die de default gebruikt) — dat is precies
-  // het punt van §4.3b: pariteit by construction, geen tweede implementatie.
   const { rows, anyStale } = computeLibraryOccupancy('c1', p, [d1], ephemeralSolve);
 
-  // Referentie: dezelfde invoer vers doorgerekend (solveProject == de kern van runCPM) en dan door
-  // computeResourceLoad — precies wat F5-in-het-document + het projecthistogram zouden opleveren.
   const refTasks = cloneTasksForSolve(staleTasks);
   const refResult = solveProject({ tasks: refTasks, sequences: [], calendar: cal(), calendars: [], ...neutralSolveOptions() });
   const refLoad = computeResourceLoad(d1.resources, d1.assignments, refTasks, cal(), [], d1.loadOptions);
@@ -557,7 +492,6 @@ function pool(resources: Resource[]): CompanyPool {
   );
 }
 
-// ── Case 15 (§10.15): efemere solve faalt (gooit of geeft null) ⇒ vangnetgedrag ─────────────────
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const staleTasks = [staleTask('t1', '2026-08-03', '2026-08-10', '2026-08-12', 3)];
@@ -569,8 +503,6 @@ function pool(resources: Resource[]): CompanyPool {
     solveTasks: staleTasks,
   });
 
-  // 15a: de injectie gooit (staat voor een onverwachte solverfout) — een leesvenster mag daar nooit
-  // op omvallen.
   const throwing: OccupancyEphemeralSolve = () => { throw new Error('cyclus'); };
   const a = computeLibraryOccupancy('c1', p, [mkDoc()], throwing);
   assert(a.rows.length === 1 && a.rows[0].docs.length === 1, `case 15a: de booking blijft zichtbaar (kreeg ${a.rows.length} rijen)`);
@@ -583,15 +515,11 @@ function pool(resources: Resource[]): CompanyPool {
   assert(a.rows[0].totalPeak === 0 && a.rows[0].conflictDays.length === 0, 'case 15a: geen getelde belasting ⇒ geen som, geen conflictdagen');
   assert(a.anyStale === true, 'case 15a: anyStale staat');
 
-  // 15b: de injectie geeft null (de echte `ephemeralSolve` doet dit bij een error-resultaat, bijv.
-  // een relatiecyclus) — zelfde uitkomst.
   const nullSolve: OccupancyEphemeralSolve = () => null;
   const b = computeLibraryOccupancy('c1', p, [mkDoc()], nullSolve);
   assert(b.rows.length === 1 && b.rows[0].docs[0].counted === false && b.anyStale === true,
     'case 15b: null-resultaat ⇒ zelfde vangnetgedrag als een exception');
 
-  // 15c: een ECHTE cyclus door de echte kern — bewijst dat `ephemeralSolve` een error-resultaat als
-  // mislukking behandelt in plaats van halve datums door te laten.
   const cycTasks = [
     staleTask('t1', '2026-08-03', '2026-08-10', '2026-08-12', 3),
     staleTask('t2', '2026-08-03', '2026-08-10', '2026-08-12', 3),
@@ -608,20 +536,17 @@ function pool(resources: Resource[]): CompanyPool {
     solveTasks: cycTasks,
     solveSequences: cycSeqs,
   });
-  const c = computeLibraryOccupancy('c1', p, [cyclisch]); // default = de echte ephemeralSolve
+  const c = computeLibraryOccupancy('c1', p, [cyclisch]);
   assert(
     c.rows.length === 1 && c.rows[0].docs.length === 1 && c.rows[0].docs[0].counted === false && c.anyStale === true,
     'case 15c: een echte relatiecyclus valt via ephemeralSolve op het vangnet terug',
   );
 }
 
-// ── Case 16 (§10.16): de efemere solve muteert zijn invoer niet ─────────────────────────────────
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const staleTasks = [
     staleTask('t1', '2026-08-03', '2026-08-10', '2026-08-12', 3),
-    // Verzameltaak erboven: `applyCpmResult` doet de rollup op de PARENT, dus die moet ook
-    // ongemoeid blijven — precies het veld dat een ondiepe kloon zou laten lekken.
     { ...task('p1', '2026-08-10', '2026-08-12', 3), childIds: ['t1'] },
   ];
   staleTasks[0].parentId = 'p1';
@@ -637,22 +562,14 @@ function pool(resources: Resource[]): CompanyPool {
   const after = JSON.stringify(staleTasks);
 
   assert(before === after, 'case 16: de payload-taken zijn ná de aanroep byte-gelijk aan ervoor');
-  // Sanity: er is daadwerkelijk gerekend (anders bewijst de gelijkheid niets).
   assert(
     rows.length === 1 && rows[0].docs[0].counted === true && rows[0].docs[0].firstDay === '2026-08-03',
     `case 16 sanity: de solve is écht gedraaid (kreeg counted ${rows[0]?.docs[0]?.counted}, firstDay ${rows[0]?.docs[0]?.firstDay})`,
   );
 }
 
-// ── Case 23 (perf-poort): `skipEphemeralSolve` — een eigen rekenpad wordt hier NIET gesolved ────
-// De weergavelaag zet dit voor het ACTIEVE document, omdat elke bewerking daarin de zware memo
-// invalideert en er anders per toetsaanslag een volledige CPM-solve in de render draait. De poort
-// is een TELLENDE solve-injectie: nul aanroepen voor het overgeslagen document, wél een aanroep
-// voor het slapende stale document ernaast.
 {
   const p = pool([poolRes('lib-1', 'Kraan', 4)]);
-  // Anker 08-03, opgeslagen (verouderde) early-datums 08-10..08-12 — zo is aan de dagen te ZIEN of
-  // er gesolved is (08-03..) of dat de opgeslagen toestand gebruikt is (08-10..).
   const actiefTasks = [staleTask('a1', '2026-08-03', '2026-08-10', '2026-08-12', 3)];
   const slapendTasks = [staleTask('s1', '2026-08-03', '2026-08-10', '2026-08-12', 3)];
 
@@ -662,7 +579,7 @@ function pool(resources: Resource[]): CompanyPool {
     resources: [stamped('d-actief-r1', 'lib-1')],
     tasks: actiefTasks,
     assignments: [assign('d-actief-a1', 'a1', 'd-actief-r1', 1)],
-    solveTasks: actiefTasks, // bewust WÉL aangeleverd: de skip moet zwaarder wegen dan de invoer
+    solveTasks: actiefTasks,
   });
   const slapend = doc('d-slapend', {
     scheduleStale: true,
@@ -688,7 +605,6 @@ function pool(resources: Resource[]): CompanyPool {
   const slapendBooking = rows[0]?.docs.find(d => d.docId === 'd-slapend');
   assert(rows.length === 1 && rows[0].docs.length === 2, `case 23: één rij met twee boekingen (kreeg ${rows.length} rijen)`);
 
-  // Het overgeslagen document telt gewoon mee — met zijn OPGESLAGEN datums, niet met een solve.
   assert(actiefBooking?.counted === true, 'case 23: het overgeslagen document telt mee (geen vangnet)');
   assert(actiefBooking?.ephemeralComputed === false, 'case 23: ephemeralComputed false — de cijfers komen niet uit een solve');
   assert(actiefBooking?.scheduleStale === true, 'case 23: scheduleStale blijft staan als markering');
@@ -701,19 +617,15 @@ function pool(resources: Resource[]): CompanyPool {
   );
   assert(actiefBooking?.firstDay === '2026-08-10', `case 23: het overgeslagen document blijft op zijn opgeslagen datums staan (kreeg ${actiefBooking?.firstDay})`);
 
-  // Het slapende document ernaast is wél efemeer doorgerekend en landt op het anker.
   assert(slapendBooking?.counted === true && slapendBooking?.ephemeralComputed === true,
     'case 23: het slapende stale document is wél efemeer doorgerekend');
   assert(slapendBooking?.firstDay === '2026-08-03',
     `case 23: het slapende document landt op de verse datums (kreeg ${slapendBooking?.firstDay})`);
   assert(anyStale === true, 'case 23: anyStale staat — er zitten stale documenten in het overzicht');
 
-  // De payload-taken van het overgeslagen document zijn onaangeraakt (er is niets gekloond/gesolved).
   assert(JSON.stringify(actiefTasks[0].time.earlyStart) === JSON.stringify('2026-08-10'),
     'case 23: de taken van het overgeslagen document zijn niet gemuteerd');
 
-  // 23b: een NIET-stale document krijgt eveneens `ephemeralComputed: false` — de vlag onderscheidt
-  // "uit een efemere solve" van "uit de taken zelf", niet stale van niet-stale.
   const rustig = doc('d-rustig', {
     resources: [stamped('d-rustig-r1', 'lib-1')],
     tasks: [task('r1', '2026-08-03', '2026-08-05', 3)],
@@ -724,7 +636,6 @@ function pool(resources: Resource[]): CompanyPool {
     'case 23b: een niet-stale document telt mee met ephemeralComputed false');
   assert(b.anyStale === false, 'case 23b: geen stale document ⇒ anyStale false');
 
-  // 23c: skip + geen bruikbare datums ⇒ geen booking (fantoomrij-guard blijft gelden), géén vangnet.
   const leeg = doc('d-leeg', {
     scheduleStale: true,
     skipSolve: true,
@@ -736,22 +647,12 @@ function pool(resources: Resource[]): CompanyPool {
   assert(c.rows.length === 0, `case 23c: overgeslagen document zonder datums levert geen fantoomrij (kreeg ${c.rows.length})`);
 }
 
-// ══ Terugschrijven mét "Automatisch berekenen" (§4.3b, tweede ronde) ════════════════════════════
-// `recalculateStaleSleepingDocuments()` in `documentSlice`: elk NIET-actief document met een
-// verouderde planning wordt écht doorgerekend en teruggeschreven (taken/`cpmResult`/
-// `scheduleStale: false`/`resourceLoadResult: null`), zónder undo-snapshot en zónder `isDirty` te
-// raken. Tegen de echte store, want het gaat precies om de payloads in de documentregistry.
-
 const S = () => useAppStore.getState();
-/** De (slapende) payload van document `id` uit de registry. */
 const sleeping = (id: string): DocumentPayload | null => S().documents.find(d => d.id === id)?.payload ?? null;
 
-// ── Case 17: een stale SLAPENDE payload wordt echt bijgewerkt (en de actie meldt er precies één) ──
 let parkedId = '';
 let afterPayload: DocumentPayload | null = null;
 {
-  // Bouw het document met ECHTE store-acties, zodat de payload ook een echte undo-historie krijgt en
-  // de stale-vlag op de gewone manier gezet is (addTask/addSequence ⇒ finishMutation({stale: true})).
   const t1 = S().addTask({ name: 'A1' });
   const t2 = S().addTask({ name: 'A2' });
   const seqId = S().addSequence({ predecessorId: t1, successorId: t2, type: 'FINISH_START', lagDays: 0 });
@@ -759,7 +660,7 @@ let afterPayload: DocumentPayload | null = null;
   assert(S().scheduleStale === true, 'case 17 setup: de bewerkingen zetten scheduleStale');
 
   parkedId = S().activeDocumentId;
-  S().newDocument(); // parkeert het bewerkte document als slapende payload en maakt een leeg tabblad actief.
+  S().newDocument();
 
   const before = sleeping(parkedId);
   assert(before !== null && before.scheduleStale === true, 'case 17 setup: de geparkeerde payload is stale');
@@ -790,25 +691,19 @@ let afterPayload: DocumentPayload | null = null;
     !!a1 && !!a2 && a2.time.earlyStart > a1.time.earlyFinish,
     `case 17: de FS-relatie is écht doorgerekend (A2 start ná A1 klaar; kreeg ${a1?.time.earlyFinish} → ${a2?.time.earlyStart})`,
   );
-  // Semantiek spiegelt runCPM: geen undo-snapshot, isDirty ongemoeid.
   assert(JSON.stringify(S().historyEvents.filter(event =>
     event.deltas.some(delta => delta.kind !== 'grid-preference' && delta.documentId === parkedId))) === historyBefore,
   'case 17: de sessiehistorie van het slapende document is ongewijzigd');
   assert(afterPayload?.isDirty === dirtyBefore, 'case 17: isDirty is ongemoeid');
 }
 
-// ── Case 18: no-op voor niet-stale payloads (zelfs de payload-REFERENTIE blijft staan) ───────────
 {
   const n = S().recalculateStaleSleepingDocuments();
   assert(n === 0, `case 18: niets stale ⇒ 0 bijgewerkte documenten (kreeg ${n})`);
   assert(sleeping(parkedId) === afterPayload, 'case 18: de payload-referentie is niet vervangen (geen store-mutatie)');
 }
 
-// ── Cases 19/20: een relatiecyclus blijft onaangeraakt, de rest wordt gewoon bijgewerkt ─────────
 {
-  // `restoreDocuments` is het enige pad dat een SLAPENDE payload met een cyclische relatiegraaf kan
-  // opleveren (addSequence weigert dat via relationRules): precies het crashherstel-geval, waar elke
-  // niet-actieve payload per definitie `scheduleStale: true` draagt.
   const recoveryDoc = (id: string, tasks: Task[], sequences: Sequence[]): RecoveryDocInput => ({
     id, filePath: null, isDirty: false, datesAsRecorded: false, timeModel: 'MINUTES-1',
     project: { ...createDefaultProject(), name: id },
@@ -838,13 +733,11 @@ let afterPayload: DocumentPayload | null = null;
   const n = S().recalculateStaleSleepingDocuments();
   assert(n === 1, `case 19: alleen het gezonde document telt mee in de uitkomst (kreeg ${n})`);
 
-  // 19: de cyclus-payload is volledig onaangeraakt — zelfde referentie én byte-gelijk.
   assert(sleeping('doc-cyclus') === cycBefore, 'case 19: de payload-referentie van het cyclische document is niet vervangen');
   assert(JSON.stringify(sleeping('doc-cyclus')) === cycBeforeJson, 'case 19: de cyclus-payload is byte-gelijk aan ervoor');
   assert(sleeping('doc-cyclus')?.scheduleStale === true, 'case 19: het cyclische document blijft stale (vangnet §4.3 blijft gelden)');
   assert(sleeping('doc-cyclus')?.cpmResult === null, 'case 19: er is geen (fout-)cpmResult in de cyclus-payload geschreven');
 
-  // 20: het gezonde document ernaast is wél doorgerekend — één falend document blokkeert de rest niet.
   const okAfter = sleeping('doc-gezond');
   assert(okAfter?.scheduleStale === false, 'case 20: het gezonde document is bijgewerkt');
   assert(okAfter?.cpmResult?.error === undefined, 'case 20: foutloos cpmResult');
@@ -856,10 +749,6 @@ let afterPayload: DocumentPayload | null = null;
   'case 20: geen history-event, isDirty ongemoeid');
 }
 
-// ── Case 21: de viewslicecache isoleert company en pool expliciet ──────────────────────────
-// Dezelfde payload-referentie wordt bewust in drie contexten aangeboden. Een cache die alleen op
-// payload is gesleuteld zou bij de company- of poolwissel de eerste snit hergebruiken en daarmee
-// boekingen uit de vorige bibliotheek tonen.
 {
   const base = capturePayload(S());
   const sharedPayload: DocumentPayload = {
@@ -905,11 +794,6 @@ let afterPayload: DocumentPayload | null = null;
     'case 21: een nieuwe poolreferentie kan geen slice uit de vorige pool hergebruiken');
 }
 
-// ── Case 22 (B1c-W0.1): splitGaps — dailyLoad bevat de pauzedagen NIET, de werkdagen wél ─────────
-// Zelfde referentiegaten als `check-split-walk.ts`/`check-resource-load-splits.ts`: taak van 3
-// werkdagen met twee gaten van 1 werkdag na resp. dag 1 en aspositie 1440 ⇒ de taak werkt op de
-// 1e/3e/5e kalenderdag van de spanne, niet op de 2e/4e (pauzedagen). Dit dekt dat de bezettingskern
-// (via `computeResourceLoad`) de W0.1-fix meekrijgt, niet alleen de directe aanroepers.
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const splitTask: Task = {
@@ -943,15 +827,9 @@ let afterPayload: DocumentPayload | null = null;
   );
 }
 
-// ── Case 24: de projectstart-vloer geldt óók in de efemere en de slapende doorrekening ──────────
-// `runCPM` geeft de solver `projectStartDate` mee; de slapende-documentsolve en de bibliotheek-solves
-// lieten hem weg, zodat een taak die via een lead vóór het projectbegin uitkomt daar een ándere
-// planning kreeg dan F5 in dat document.
-// Opzet: A (anker = projectstart 08-03, 1 dag) → B met FS-lag −3 dagen, plus een losse wortel C met
-// een verouderd anker (07-20) vóór de projectstart. Zonder vloer start B op 07-30, mét op 08-03.
 {
   const start = '2026-08-03';
-  const startInstant = `${start}T07:00`; // D1: de projectvloer krijgt nu een moment.
+  const startInstant = `${start}T07:00`;
   const a = task('ps-a', start, start, 1);
   const b = task('ps-b', '2026-07-20', '2026-07-21', 2);
   const c = task('ps-c', '2026-07-20', '2026-07-21', 2);
@@ -964,7 +842,6 @@ let afterPayload: DocumentPayload | null = null;
   const bStart = solved?.find(t => t.id === 'ps-b')?.time.earlyStart;
   assert(bStart === startInstant, `case 24a: de efemere solve respecteert de projectstart-vloer (kreeg ${bStart})`);
 
-  // Dezelfde planning als slapend document in de echte store.
   S().newProject();
   S().setProject({ startDate: start });
   const sa = S().addTask({ name: 'A' });
@@ -977,7 +854,7 @@ let afterPayload: DocumentPayload | null = null;
   S().addSequence({ predecessorId: sa, successorId: sb, type: 'FINISH_START', lagDays: -3 });
   S().runCPM();
   assert(timeOf(sb).earlyStart === startInstant, `case 24b setup: runCPM zet B op de projectstart (kreeg ${timeOf(sb).earlyStart})`);
-  S().updateTask(sb, { name: 'B (stale)' }); // weer stale, zonder de planning inhoudelijk te wijzigen
+  S().updateTask(sb, { name: 'B (stale)' });
   const slaperId = S().activeDocumentId;
   S().newDocument();
   S().recalculateStaleSleepingDocuments();
@@ -985,10 +862,6 @@ let afterPayload: DocumentPayload | null = null;
   assert(herrekend === startInstant,
     `case 24b: de slapende doorrekening geeft dezelfde B-start als runCPM (kreeg ${herrekend}, verwacht ${start})`);
 
-  // 24c/d: het bezettingsoverzicht bouwt de efemere invoer uit de payload. Die liet
-  // `projectStartDate` weg (alleen statusDate/progressMode/schedulingOptions), waardoor 24a in de
-  // echte weergave nooit gold. De invoer komt nu uit `occupancySolveInputFor`, en de weergave moet
-  // die ook gebruiken.
   const project = { ...createDefaultProject(), startDate: start };
   const viaPayload: OccupancyDocInput = {
     ...doc('ps-doc2', { scheduleStale: true, tasks: [a, b, c] }),

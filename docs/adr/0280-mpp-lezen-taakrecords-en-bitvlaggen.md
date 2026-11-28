@@ -3,8 +3,8 @@
 `readMPP` (`mppReader.ts`) leest het binaire `.mpp` van MS Project 2010 tot en met 2021 (MPP14, de map `"   114"`).
 Microsoft beschrijft dat formaat niet; de structuur komt uit MPXJ (`github.com/joniles/mpxj`, LGPL-2.1), zoals de
 regel `mpp` zegt. De veld-id's en offsets staan in de veldkaart `fieldMap14.ts`, de recordgroottes als constanten in
-`mppReader.ts` en `mppEntities.ts`. Het weggehaalde commentaar noemde als bronnen `MPP14Reader.java`,
-`FieldMap14.java`, `PropsKey.java` en `TaskField.java`; die bronnen zijn niet in de repo nagegaan.
+`mppReader.ts` en `mppEntities.ts`. De bronnen in MPXJ zijn `MPP14Reader.java`, `FieldMap14.java`,
+`PropsKey.java` en `TaskField.java`.
 
 ## Gevolgen
 
@@ -19,12 +19,12 @@ regel `mpp` zegt. De veld-id's en offsets staan in de veldkaart `fieldMap14.ts`,
 - `Fixed2Meta` en `Fixed2Data` mogen ontbreken, net als `TBkndRsc/Fixed2Meta` in `mppEntities.ts`, en een fout bij het
   ontleden van hun bytes vangt `readTasks`; een fout van de container bij het ophalen van de stroom vangt hij niet.
   Ontbreekt een van de twee of mislukt het ontleden, dan is de taak `AUTO_SCHEDULED` en blijven het handmatige anker
-  en de handmatige duur leeg. De itemgrootte van `Fixed2Meta` kiest `FixedMeta.withHeuristicItemSize` uit 92 tot en met 96, die van `FixedMeta` is 47; volgens het
-  weggehaalde commentaar de getallen van `MPP14Reader.java`.
+  en de handmatige duur leeg. De itemgrootte van `Fixed2Meta` kiest `FixedMeta.withHeuristicItemSize` uit 92 tot en met 96, die van `FixedMeta` is 47: de getallen van
+  `MPP14Reader.java`.
 - De bit voor mijlpaal, manier van plannen en `EFFORT_DRIVEN` hangt af van de versie uit `detectApplicationVersion`
   (`isLegacyBitFlagVersion`): tot en met 14 (Project 2010) en een onbekende versie de tabel van 2010, daarboven die
-  van 2013 en 2016. Dat een onbekende versie als 0 telt zoals MPXJ `NumberHelper.getInt(null)`, en dat 2013 en 2016
-  voor deze bits dezelfde offset en hetzelfde masker hebben, komt uit het weggehaalde commentaar. Mijlpaal en
+  van 2013 en 2016. Een onbekende versie telt als 0, zoals MPXJ `NumberHelper.getInt(null)`, en 2013 en 2016 hebben
+  voor deze bits dezelfde offset en hetzelfde masker (`MPP14Reader.java`). Mijlpaal en
   `EFFORT_DRIVEN` staan in `FixedMeta`, de manier van plannen in `Fixed2Meta`.
 - De projecteigenschappen komen uit `"   114"/Props`. Uit de `Props14`-stroom in de wortel leest de poort
   (`readPasswordProtection`, `mppContainer.ts`) de wachtwoordvlag en of de wachtwoordhash aanwezig is. `TBkndCons` is in het MPP-jargon de tabel met relaties, geen
@@ -32,16 +32,16 @@ regel `mpp` zegt. De veld-id's en offsets staan in de veldkaart `fieldMap14.ts`,
 - Een percentage voltooid buiten 0 tot en met 100 wordt 0 (`readPercentComplete`).
 - `mspTaskTypeFromRaw`: 0, 1 en 2 worden Vaste eenheden, Vaste duur en Vast werk, een andere waarde Vast werk, en
   `null` geen taaktype. `check-mpp-import.ts` (`[Z14b type]`) toetst twee helpers: een veldkaart zonder `TYPE` geeft
-  bij `fixedOffsetOf` `null`, en `mspTaskTypeFromRaw(null)` geeft `undefined`. Dat Vast werk de terugval van MPXJ
-  `TaskTypeHelper` is en dat waarde 3 in een `.mpp` niet voorkomt, komt uit het weggehaalde commentaar.
+  bij `fixedOffsetOf` `null`, en `mspTaskTypeFromRaw(null)` geeft `undefined`. Vast werk is de terugval van MPXJ
+  `TaskTypeHelper`.
 - De `.mpp.xml`-bestanden die in het corpus als ground truth dienen, zijn een andere revisie van het document dan de
   `.mpp`-bestanden (ook genoemd in de kop van `check-mpp-relations.ts`); `check-mpp-import.ts` houdt daarom per
   veldsoort een budget voor afwijkingen.
 
 ## Overwogen
 
-Volgens het weggehaalde commentaar heeft MPXJ `createTaskMap` twee filters die hier niet zijn overgenomen: een
-niet-leeg `Fixed2Data`-record eisen, en een `FixedData`-record van minstens 75 % van `fieldMap.getMaxFixedDataSize(0)`.
+MPXJ `createTaskMap` (`MPP14Reader.java`) heeft twee filters die hier niet zijn overgenomen: een
+aanwezig `Fixed2Data`-record eisen, en een `FixedData`-record waarvan de grootte, als geheel percentage van `fieldMap.getMaxFixedDataSize(0)`,
+groter is dan 75 (een record op precies 75 % valt af).
 Dat maximum gaat over alle taakvelden van MPXJ en is met de veldenlijst van deze lezer niet betrouwbaar te berekenen.
-Ook volgens dat commentaar gaf `collectValidTaskIndices` op alle ground-truthbestanden van het corpus hetzelfde aantal
-taken. Wijkt een telling ooit af, dan zijn deze filters de eerste kandidaat.
+Wijkt een telling ooit af, dan zijn deze filters de eerste kandidaat.

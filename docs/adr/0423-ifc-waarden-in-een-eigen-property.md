@@ -14,12 +14,12 @@ document. Hier staan de grenzen die daar niet staan.
   `0099-12-31T08:00` kwam in een proef met `writeIFC` en `readIFC` ongewijzigd terug.
   `IfcDate` kent geen tijd en een `IfcDateTime` zonder seconden is een schemafout, dus elke andere vorm gaat als tekst.
 - `readIfcDate` geeft bij `IFCDATETIME` de uitkomst van `importStatusDate`; elke andere waarde leest het veld zoals het
-  dat altijd deed (het argument `legacy`). Volgens het weggehaalde commentaar schreef geen
-  OPS-versie `IFCDATETIME` bij `ConstraintDate`, `Deadline` of een eigen veld, zodat geen oud eigen bestand daardoor
-  anders leest; dat is niet tegen de releasetags nagegaan.
+  dat altijd deed (het argument `legacy`). Geen OPS-versie vóór `readIfcDate` schreef `IFCDATETIME` bij
+  `ConstraintDate`, `Deadline` of een eigen veld, zodat geen oud eigen bestand daardoor anders leest: geen releasetag
+  vóór v2026.10.0, de eerste met `readIfcDate`, heeft `IFCDATETIME` ergens in `src/`.
 - `stepReal` schrijft de kortste exacte vorm (`String`) met een verplichte punt, zodat `parseFloat` hetzelfde getal
-  teruggeeft (`check-ifc-real-values.ts`). Volgens het weggehaalde commentaar vond de IfcOpenShell-validatie van
-  2026-10-13 zonder die punt 158 fouten in de voorbeelden. Een niet-eindig getal heeft geen STEP-vorm:
+  teruggeeft (`check-ifc-real-values.ts`). De IfcOpenShell-validatie van 2026-10-13 vond zonder die punt schemafouten
+  in de voorbeelden (commit "fix(ifc): schemageldige IFC 4.3 — REAL met punt, …"). Een niet-eindig getal heeft geen STEP-vorm:
   `ifcTypedReal` geeft dan `$`, en mag daarom alleen op een OPTIONAL plek staan, zoals `NominalValue`; de lezer leest
   `$` als geen waarde (`check-ifc-real-values.ts`: een niet-eindig tarief ontbreekt na heropenen). Oudere versies
   schreven op die plek `IFCREAL(NaN)`. `parseTypedValue` in `ifcReader.ts` geeft voor een getal dat niet eindig is

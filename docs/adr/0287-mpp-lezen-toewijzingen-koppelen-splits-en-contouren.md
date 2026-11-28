@@ -11,15 +11,16 @@ van de toewijzing naar de taak, met `CalendarEngine.workMinutesBetween`) staat i
 - De koppeling van een `TBkndAssn`-record aan een taak maakt `buildAssignmentUidLinks` met een eigen lus over
   `TBkndAssn/FixedMeta` (itemgrootte 34) en `FixedData` (110), en niet via `readAssignments`: die laat een record
   zonder echte resource weg (resource-id -65535, MPXJ `ASSIGNMENT_NULL_RESOURCE_ID`), en zo'n onbemande toewijzing kan
-  juist splits dragen (volgens het weggehaalde commentaar heeft `mpp14splittask.mpp` alleen zulke records). Een record
+  juist splits dragen: in `mpp14splittask.mpp` hebben beide actieve records resource-id -65535, en de lezer levert
+  twee taken met splits en nul resourcetoewijzingen (commit 46a599c5d). Een record
   met een byte 0 die niet 0 is, is verwijderd en valt weg, zoals in `readAssignmentsUnsafe`. Zonder offset voor de
   unique-id of de taak-uid in de veldkaart is de koppeling leeg; een record dat te kort is voor die twee, of waarvan de
   taak niet gelezen is, valt weg. Voor `START`, `RESUME`, `FINISH`, de resource-uid en de inzet telt een offset per
   veld alleen als hij 0 of groter is en het veld binnen het record valt, zodat een corrupte veldkaart alleen dat veld
   kost; elke andere fout geeft een lege koppeling. De lus toetst `varMeta.containsKey` niet: de aanroepers
   vragen alleen uid's op die uit `readAssignmentTimephasedRaw` komen, en die komen al uit VarMeta.
-- Alleen bladtaken met een start krijgen splits en contouren; een samenvattingstaak niet (volgens het weggehaalde
-  commentaar ook in MPXJ `Task.calculateWorkSplits`).
+- Alleen bladtaken met een start krijgen splits en contouren; een samenvattingstaak niet (zoals MPXJ
+  `Task.calculateWorkSplits`).
 - De periodes van een toewijzing beginnen bij haar eigen `START`. `computeShiftedAssignmentPeriods` schuift ze op met
   de werkminuten van taakstart tot `START` (niet negatief; zonder `START` 0), gerekend door een `CalendarEngine` op de
   effectieve taakkalender. Die engine leidt voor een kalender zonder opgeslagen `workTime` de werkblokken af uit de
@@ -28,8 +29,11 @@ van de toewijzing naar de taak, met `CalendarEngine.workMinutesBetween`) staat i
   09:00 een verschuiving van 60 minuten, net als met opgeslagen blokken.
 - Het restwerk schuift mee met de verschuiving van de toewijzing zolang de decoder geen werkelijke periode oplevert.
   Levert hij er minstens één, dan schuift het naar haar `RESUME`, en zonder `RESUME` (of zonder werktijd op de
-  kalender, als hierboven) naar het einde van haar laatste verschoven werkelijke periode (knownbug 2312). Volgens het weggehaalde commentaar ankeren de decoders
-  van MPXJ (`getCompleteWork`, `getPlannedWork`) ook op `START` en bij verricht werk op `RESUME`.
+  kalender, als hierboven) naar het einde van haar laatste verschoven werkelijke periode (knownbug 2312). De decoders van MPXJ
+  ankeren verricht werk op `START` (`getCompleteWork`). Restwerk (`getPlannedWork`) begint op MPXJ 63cdc4e8dd op
+  `RESUME`; alleen bij het samenvattende record (`blockCount` 0) valt het terug op `START` als `RESUME` na het einde
+  ligt. MPXJ 2b43a48417 (de versie van ADR 0411) kiest in beide vormen `START` als er geen gedecodeerd verricht werk
+  is, en anders `RESUME`.
 - Splits en contouren decoderen zonder `referenceFinish`: een vlak samenvattend record (`blockCount` 0) kan geen gat
   tonen, en met een lengte in klokminuten op de as van werkminuten zou het een echt gat kunnen overbruggen.
 - Splits: per toewijzing met periodes een lijst gaten (`deriveSplitGapsFromPeriods`), samengevoegd per taak

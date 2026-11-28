@@ -24,7 +24,6 @@ hetzelfde lijkt te doen maar een fout gaf. Die staan hier; de rest staat in de c
   het paneel opent (het contextmenu van de Gantt) het niet meteen weer sluit. De callback blijft actueel via een ref
   en niet via de afhankelijkheden van het effect: een aanroeper geeft bij elke render een nieuwe closure mee, en die
   zou de `defer`-timer bij elke render opnieuw starten.
-- `useZoomShortcuts` herkent Ctrl+0 ook aan `e.code` (`Digit0`, `Numpad0`). Uit het weggehaalde commentaar, niet
-  nagegaan: sommige combinaties van browser en toetsenbord leveren bij Ctrl+0 niet steeds dezelfde `key`.
+- `useZoomShortcuts` herkent Ctrl+0 ook aan `e.code` (`Digit0`, `Numpad0`).
 - `useSystemColorSchemeSync` (`useResolvedUITheme.ts`) volgt het kleurschema van het systeem altijd, ook als de
   gebruiker een vast thema koos. Zo staat de stand van het systeem al in de store als hij naar "Systeem" schakelt.

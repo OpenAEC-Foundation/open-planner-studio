@@ -47,3 +47,6 @@ herkennen maar veldwaarden letterlijk vergelijken (0343).
 
 **Besluiten in `ResourceOccupancyView.tsx`**: het actieve document niet efemeer doorrekenen, de documentkleuren en
 het eigen histogram (`docs/adr/0690-bezettingsoverzicht-actief-document-en-histogram.md`).
+
+Keuzes in de toetsen van `check-showcase-occupancy.ts` (de exacte rode set, de grens op de verschuiving, de
+toets van Onderbrekingen toestaan): `docs/adr/1260-bibliotheek-en-releasetests-keuzes-die-verrassen.md`.

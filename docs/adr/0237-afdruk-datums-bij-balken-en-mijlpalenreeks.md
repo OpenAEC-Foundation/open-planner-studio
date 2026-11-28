@@ -4,7 +4,7 @@ Issue #868 bracht twee keuzes voor de Gantt-afdruk. Datums bij de balken zijn ee
 (`PrintOptions.showBarDates`, standaard uit), los van de knop op het scherm (besluit Ethan 14-11-2026). Het gedrag staat
 in de gids `ref-rapporttypes.md` en in `check-print-bar-dates.ts`; de datumtekst is die van de kolommen Start en Einde
 (`taskOwnCellTexts`). Een ingeklapte mijlpalenreeks (`ViewRow` met `kind: 'milestones'`) staat op papier uitgeklapt,
-elke mijlpaal op een eigen rij (`buildPrintRows`; besluit 14-11-2026 punt 10, bron: het weggehaalde commentaar). Voor
+elke mijlpaal op een eigen rij (`buildPrintRows`). Voor
 dat laatste vond ik geen toets.
 
 ## Gevolgen

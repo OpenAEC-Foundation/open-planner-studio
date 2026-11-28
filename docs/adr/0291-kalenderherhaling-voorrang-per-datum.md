@@ -7,9 +7,9 @@ laatste wint. We kozen een kaart per dag in plaats van per begindatum, zodat elk
 en dus in hoogstens één van de twee lijsten van `ParsedExceptions` staat, zoals `WorkCalendar.workingExceptions`
 vraagt. De rekenmotor heeft voor een datum in beide lijsten een eigen volgorde (ADR 0221) die de werkende uitzondering
 laat winnen, en houdt bij twee werkende uitzonderingen op één datum de blokken van de laatste met eigen blokken
-(knownbug 2004); met de kaart beslist de voorrang van het bestand, ook als die een vrije dag laat winnen. Dat MPXJ
-alleen op de begindatum sleutelt en twee overlappende bereiken met een andere begindatum dus niet als botsing ziet,
-komt uit het weggehaalde commentaar en is niet nagegaan. `check-mpp-calendars.ts` toetst de botsing met twee
+(knownbug 2004); met de kaart beslist de voorrang van het bestand, ook als die een vrije dag laat winnen. MPXJ
+sleutelt alleen op de begindatum en ziet twee overlappende bereiken met een andere begindatum dus niet als botsing
+(`ProjectCalendar.populateExpandedExceptions`). `check-mpp-calendars.ts` toetst de botsing met twee
 verschillende begindatums (T3 invariant: de dag is werkend, het vrije bereik is in twee losse dagen gesplitst).
 
 ## Gevolgen
@@ -22,8 +22,8 @@ verschillende begindatums (T3 invariant: de dag is werkend, het vrije bereik is 
   dagelijkse één datum op, en in T4 precedentie in `check-adapters-hours.ts` levert de jaarlijkse herhaling één datum
   op, zodat daar de volgorde in het bestand tussen twee niet-herhalende beslist.
 - Een herhaling die tot precies één datum uitrekent, telt als niet-herhalend, wat haar type ook is, en komt op haar
-  plaats in het bestand tussen de niet-herhalende uitzonderingen. Dat dit `populateExpandedExceptions()` van MPXJ
-  volgt (dat op het aantal uitgerekende datums kijkt), komt uit het weggehaalde commentaar en is niet nagegaan.
+  plaats in het bestand tussen de niet-herhalende uitzonderingen. Dit volgt `populateExpandedExceptions()` van MPXJ,
+  dat op het aantal uitgerekende datums kijkt.
   LAAG-1 in `check-mpp-calendars.ts` toetst een jaarlijkse herhaling van één datum, later in het bestand, die wint van
   een dagelijkse.
 - De kaart bewaart de index van de bijdrage, niet haar waarde. Twee bijdragen met dezelfde waarde op dezelfde dag
