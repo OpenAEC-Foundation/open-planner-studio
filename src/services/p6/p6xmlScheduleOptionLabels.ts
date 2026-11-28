@@ -1,15 +1,8 @@
-/**
- * De labels en velden die de P6 XML-schrijver voor de rekenopties gebruikt (issue #775). Een bladmodule: de
- * schrijver importeert hem zonder de XER-afleiding, zodat er geen importcyclus ontstaat
- * (`xerScheduleOptions` → `xerResources` → `p6xmlWriter`). De lezer staat in `p6xmlScheduleOptions.ts`.
- */
 import type { EffectiveSchedulingOptions, Project } from '@/types/project';
 
-/** De labels die de schrijver gebruikt (en de lezer terugleest). */
 export const P6XML_LAG_CALENDAR = {
   predecessor: 'Predecessor Activity Calendar',
   successor: 'Successor Activity Calendar',
-  // Het P6-schema staat `24 Hour Calendar` toe, zonder koppelteken (review Sol #781, punt 3); de lezer kent beide.
   '24hour': '24 Hour Calendar',
   projectDefault: 'Project Default Calendar',
 } as const;
@@ -21,7 +14,6 @@ export const P6XML_FLOAT_TYPE = {
 export const P6XML_CRITICAL_PATH = { totalFloat: 'Critical Float', longestPath: 'Longest Path' } as const;
 export const P6XML_OUT_OF_SEQUENCE = { RETAINED_LOGIC: 'Retained Logic', PROGRESS_OVERRIDE: 'Progress Override' } as const;
 
-/** De rekenopties zoals de P6 XML-schrijver ze schrijft: de projectvelden en de kinderen van `<ScheduleOptions>`. */
 export function p6XmlScheduleOptionFields(
   project: Pick<Project, 'progressMode' | 'endDate'>,
   options: EffectiveSchedulingOptions,
