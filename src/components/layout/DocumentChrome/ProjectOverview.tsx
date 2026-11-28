@@ -6,11 +6,6 @@ import { useDocumentCards, useDocumentActions, type DocumentCard } from './useDo
 import { projectOverviewCloseButtonId, projectOverviewCloseFocusTarget } from './projectOverviewFocus';
 import './DocumentChrome.css';
 
-/**
- * Gedeeld projectoverzicht (overlay) — alle drie de chrome-stijlen openen dit.
- * Raster van projectkaarten met mini-Gantt; klik wisselt en sluit, × sluit het
- * document, "Project openen" start de open-bestand-flow. Esc/backdrop sluit.
- */
 export function ProjectOverview() {
   const { t } = useTranslation('common');
   const open = useAppStore((s) => s.ui.showProjectOverview);
@@ -67,7 +62,6 @@ export function ProjectOverview() {
       }}
     >
       <div onClick={(e) => e.stopPropagation()} style={{ width: 760, maxWidth: '92%' }}>
-        {/* Header */}
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
           <div style={{ display: 'flex', alignItems: 'baseline', gap: 10 }}>
             <span className="!text-title" style={{ fontFamily: "var(--font-heading)", fontWeight: 700, color: '#fff' }}>
@@ -92,7 +86,6 @@ export function ProjectOverview() {
           </button>
         </div>
 
-        {/* Kaartraster */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {cards.map((card) => (
             <div
@@ -151,7 +144,6 @@ export function ProjectOverview() {
                 </button>
               </div>
 
-              {/* Mini-Gantt-thumbnail */}
               <div style={{
                 position: 'relative', height: 104, background: 'var(--theme-bg)',
                 border: '1px solid var(--theme-border-light)', borderRadius: 'var(--radius-md)',

@@ -12,46 +12,20 @@ import {
   type DayClock, type InstantSide,
 } from '@/engine/calendar/workdayRules';
 
-/**
- * De migratie naar het minutenmodel (spec `docs/superpowers/specs/2026-10-20-alleen-uren-design.md`, §5.2):
- * één zuivere functie op de laadgrens. Ze heeft twee delen.
- *
- *  1. **Normalisatie** (altijd, technische keuze T17): elke datum zonder tijd in een startachtig of
- *     eindachtig taakveld wordt een moment, met de regels D1–D7 (§4.2). Een moment blijft een moment.
- *  2. **Schemamigratie** (alleen een oud bestand, zonder `TimeModel = 'MINUTES-1'`): kalenderherstel T1
- *     (§3.1) en de vlag "omzetting open" voor de B5-overgang (in het rapport; F2 zet hem in
- *     `DOCUMENT_FIELDS`). De profielregel T12 hoort bij de conventie dagenmaat en komt in F3.
- *
- * Projectdatums (`project.startDate`, `statusDate`, `endDate`) blijven zoals ingevoerd (§3.6); de motor
- * leest ze vanaf F2 met D1, D5 en D2. De vastlegging van "datums zoals opgeslagen" zit niet in de payload;
- * F2 normaliseert die bij `captureAllowed` met {@link normalizeTaskDate}.
- *
- * F0 leverde deze zuivere bouwsteen. Sinds F2 roept `payloadFromImport` hem vóór elke laadberekening
- * aan; de invoerroutes delen {@link normalizeTaskDates}.
- */
-
-/** De markering `OPS_Project.TimeModel` van een bestand dat met het minutenmodel berekend is. */
 export { MINUTE_MODEL_TIME_MODEL };
 
-/** Een startachtig of eindachtig datumveld van een taak (§4.2), met de varianten die een eigen regel
- *  hebben: de kant van een beperking of extern anker, en het baseline-einde naar de voortgang. */
 export type TaskDateField =
   | 'scheduleStart' | 'earlyStart' | 'lateStart' | 'actualStart' | 'resume'
   | 'scheduleFinish' | 'earlyFinish' | 'lateFinish' | 'actualFinish' | 'stop'
   | 'deadline' | 'constraintStart' | 'constraintFinish'
   | 'externalAnchorStart' | 'externalAnchorFinish'
   | 'baselineStart'
-  /** Baseline-einde van een taak die bij het openen niet voltooid is (of niet meer bestaat). */
   | 'baselineFinish'
-  /** Baseline-einde van een taak die bij het openen voltooid is (`isPinnedComplete`). */
   | 'baselineFinishCompleted';
 
 interface FieldRule {
   side: InstantSide;
-  /** D3: het einde van een kalendertijd-taak in dit veld. `exclusive` = 00:00 van de datum (de motor
-   *  schreef start + n kalenderdagen); `inclusive` = 24:00 (de planner of de motor bedoelde de hele dag). */
   elapsedEnd?: 'exclusive' | 'inclusive';
-  /** D7: een eigen start- of eindveld van de mijlpaal (niet een beperking, deadline of anker). */
   milestoneOwn: boolean;
 }
 
@@ -76,20 +50,15 @@ const FIELD_RULES: Record<TaskDateField, FieldRule> = {
   baselineFinishCompleted: { side: 'end', elapsedEnd: 'inclusive', milestoneOwn: true },
 };
 
-/** Startkant of eindkant van een veld, voor de werkdag van een moment. */
 export function taskDateFieldSide(field: TaskDateField): InstantSide {
   return FIELD_RULES[field].side;
 }
 
-/** Hoe een datum van één taak wordt omgezet: haar klok en, bij een nulduur-mijlpaal, haar soort (D7). */
 export interface TaskDateContext {
-  /** Kalendertijd voor een kalendertijd-taak (D3), anders de werkblokken van de taakkalender. */
   clock: DayClock;
-  /** Alleen bij een nulduur-mijlpaal: de soort die D7 gebruikt (zonder soort en zonder hint: START). */
   milestoneKind: MilestoneKind | null;
 }
 
-/** Zoekt per kalender één klok, zodat een document niet per taak een engine bouwt. */
 export class DayClockCache {
   private readonly byCalendar = new Map<WorkCalendar, DayClock>();
 
@@ -98,7 +67,6 @@ export class DayClockCache {
     readonly calendars: readonly WorkCalendar[],
   ) {}
 
-  /** Werkblokkenklok van de effectieve kalender van een taak (eigen `calendarId`, anders het project). */
   calendarClock(calendarId: string | undefined): DayClock {
     const cal = resolveCalendar(calendarId, this.calendars as WorkCalendar[], this.projectCalendar);
     let clock = this.byCalendar.get(cal);
@@ -110,10 +78,6 @@ export class DayClockCache {
   }
 }
 
-/**
- * De context voor de datums van één taak. `milestonesAtDayEnd`: de taken waarvoor het bestand de hint
- * `AtDayEnd` in `OPS_Milestone` draagt (D7, vanaf F2 door de IFC-lezer gevuld).
- */
 export function taskDateContext(
   task: Task,
   clocks: DayClockCache,
@@ -126,17 +90,6 @@ export function taskDateContext(
   return { clock, milestoneKind };
 }
 
-/**
- * Zet één datum van een taak om naar een moment, met de regel van het veld (§4.2):
- *  - D7: een eigen start- of eindveld van een nulduur-mijlpaal krijgt één moment: D2 bij FINISH, D1 bij
- *    START;
- *  - D3: op kalendertijd wordt een startachtige datum 00:00, en een eindachtige 00:00 (exclusief veld) of
- *    24:00 (inclusief veld);
- *  - anders D1 voor een startachtig en D2 voor een eindachtig veld, met D4 voor een datum zonder werkblok.
- *
- * Een moment, een lege waarde en elke andere tekst komen ongewijzigd terug. `null`: een datum zonder tijd
- * waarvoor de kalender geen moment geeft (geen werkblokken en geen geldige begin- of eindtijd).
- */
 export function normalizeTaskDate(value: string, field: TaskDateField, ctx: TaskDateContext): string | null {
   if (!isDateOnly(value)) return value;
   const rule = FIELD_RULES[field];
@@ -148,17 +101,6 @@ export function normalizeTaskDate(value: string, field: TaskDateField, ctx: Task
   return dayEndInstant(ctx.clock, value);
 }
 
-/**
- * De regel voor een datum zonder tijd die een planner in de tabel typt of plakt. Hij leest de datum zoals
- * de tabel haar toont (B4): een eindachtig veld is het einde van die dag, ook bij een kalendertijd-taak.
- * Daar is dat 24:00, dus 00:00 van de dag erna. Een kalendertijd-taak van 1 d vanaf ma 00:00 toont
- * "einde ma 1 jun"; wie "ma 1 jun" typt, krijgt dus weer di 00:00 en niet ma 00:00.
- *
- * De exclusieve lezing van D3 ({@link normalizeTaskDate}: `scheduleFinish` en `earlyFinish` op 00:00 van
- * de datum) blijft de regel voor de laadgrens. Die past bij een oud bestand, waar de motor start + n
- * kalenderdagen schreef; een getypte datum komt van het scherm (aanval a08 na #600). Startachtige velden
- * en de eigen velden van een mijlpaal (D7) volgen hier dezelfde regel als bij het laden.
- */
 export function normalizeTaskDateInput(value: string, field: TaskDateField, ctx: TaskDateContext): string | null {
   if (!isDateOnly(value)) return value;
   const rule = FIELD_RULES[field];
@@ -167,37 +109,27 @@ export function normalizeTaskDateInput(value: string, field: TaskDateField, ctx:
   return normalizeTaskDate(value, field, ctx);
 }
 
-/** De kant van een beperkingsdatum: SNET/SNLT/MSO startachtig, FNET/FNLT/MFO eindachtig. */
 export function constraintDateField(type: string): TaskDateField | null {
   if (type === 'SNET' || type === 'SNLT' || type === 'MSO') return 'constraintStart';
   if (type === 'FNET' || type === 'FNLT' || type === 'MFO') return 'constraintFinish';
   return null;
 }
 
-/** De kant van het anker van een externe link (§4.2): bij een externe voorganger de eerste letter van
- *  het relatietype, bij een externe opvolger de tweede; F ⇒ eindachtig. */
 export function externalAnchorField(direction: 'predecessor' | 'successor', relType: string): TaskDateField {
   const letter = direction === 'predecessor' ? relType.charAt(0) : relType.charAt(1);
   return letter === 'F' ? 'externalAnchorFinish' : 'externalAnchorStart';
 }
 
-// ── Rapport ──────────────────────────────────────────────────────────────────────────────────
-
-/** Kalenderherstel T1 (§3.1), alleen bij een oud bestand. */
 export interface CalendarRepair {
   calendarId: string;
   calendarName: string;
-  /** `dropBreak`: een ongeldige pauze vervalt. `extendEnd`: uren per dag groter dan de spanne; het einde
-   *  wordt begin + uren per dag. */
   kind: 'dropBreak' | 'extendEnd';
   before: Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'hoursPerDay' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
   after: Pick<WorkCalendar, 'workStartHour' | 'workEndHour' | 'hoursPerDay' | 'simpleBreakStartMinute' | 'simpleBreakDurationMinutes'>;
 }
 
-/** Een waarde die de normalisatie niet kon omzetten; ze blijft ongewijzigd staan. */
 export interface UnresolvedDate {
   where: 'task' | 'baseline' | 'calendar';
-  /** Taak-id, baseline-id of kalender-id. */
   id: string;
   field: TaskDateField | 'projectEnd' | 'workEndHour';
   value: string;
@@ -205,24 +137,17 @@ export interface UnresolvedDate {
 }
 
 export interface MinuteModelReport {
-  /** Geen `TimeModel = 'MINUTES-1'`: de schemamigratie liep. */
   legacyFile: boolean;
-  /** De beginwaarde van de documentvlag "omzetting open" (B5, §5.2). F2 zet hem in `DOCUMENT_FIELDS`. */
   conversionPending: boolean;
-  /** Aantal waarden dat van datum zonder tijd een moment werd. */
   normalizedCount: number;
   normalizedByField: Partial<Record<TaskDateField | 'projectEnd', number>>;
   calendarRepairs: CalendarRepair[];
   unresolved: UnresolvedDate[];
-  /** B1a (§3.2): taken onder vast werk (eigen of geërfde regel) die van de dagenmaat naar de urenmaat
-   *  gingen. Niet leeg ⇒ ook de vlag "omzetting open", zodat een verschuiving via B5 loopt. */
   fixedWorkToHours: string[];
 }
 
 export interface MinuteModelOptions {
-  /** De waarde van `OPS_Project.TimeModel` uit het bestand; ontbreekt hij, dan is het een oud bestand. */
   timeModel?: string | null;
-  /** Taken met de hint `AtDayEnd` in `OPS_Milestone` (D7). */
   milestonesAtDayEnd?: ReadonlySet<string>;
 }
 
@@ -232,8 +157,6 @@ export interface MinuteModelMigration<P extends MinuteModelPayload = DocumentPay
   payload: P;
   report: MinuteModelReport;
 }
-
-// ── Kalenderherstel T1 ───────────────────────────────────────────────────────────────────────
 
 type ScalarFields = CalendarRepair['before'];
 
@@ -247,8 +170,6 @@ function scalarFields(cal: WorkCalendar): ScalarFields {
   };
 }
 
-/** T1 op één scalaire kalender: een ongeldige pauze vervalt; uren per dag groter dan de spanne verlengt
- *  het einde tot begin + uren per dag. Een kalender met eigen werkblokken blijft zoals hij is. */
 function repairCalendar(cal: WorkCalendar, repairs: CalendarRepair[], unresolved: UnresolvedDate[]): WorkCalendar {
   if (cal.workTime) return cal;
   let next = cal;
@@ -269,8 +190,6 @@ function repairCalendar(cal: WorkCalendar, repairs: CalendarRepair[], unresolved
     if (newEnd <= 1440) {
       const workEndHour = newEnd / 60;
       const extended: WorkCalendar = { ...next, workEndHour,
-        // De bronklok blijft staan; de koppeling volgt het automatische herstel vóór opened.
-        // Een volgende plannerbewerking wijkt hier weer van af en schrijft dan zijn nieuwe klok.
         ...(next.ifcTimePeriods ? { ifcTimePeriods: next.ifcTimePeriods.map(period =>
           period.binding === 'scalar' && period.scalarEnd === next.workEndHour
             ? { ...period, scalarEnd: workEndHour } : period) } : {}),
@@ -284,8 +203,6 @@ function repairCalendar(cal: WorkCalendar, repairs: CalendarRepair[], unresolved
   return next;
 }
 
-// ── De migratie ──────────────────────────────────────────────────────────────────────────────
-
 export const TIME_FIELDS = [
   'scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish',
   'actualStart', 'actualFinish', 'resume', 'stop',
@@ -298,7 +215,6 @@ class Normalizer {
     this.report = report;
   }
 
-  /** Zet één waarde om; telt en meldt. Geeft de nieuwe waarde (of de oude als er niets verandert). */
   value(value: string, field: TaskDateField, ctx: TaskDateContext, where: UnresolvedDate['where'], id: string): string {
     if (value === '' || isInstant(value)) return value;
     if (!isDateOnly(value)) {
@@ -366,9 +282,6 @@ function migrateTask(task: Task, ctx: TaskDateContext, n: Normalizer): Task {
   return mapTaskDates(task, (value, field) => n.value(value, field, ctx, 'task', task.id));
 }
 
-/** Dezelfde D1–D7 bij invoer, zonder schemamigratie of wijziging aan duur/werk. Een werkelijke datum
- *  van een mijlpaal komt hier bij de voortgangsroutes al als moment langs: die zetten hem eerst om met
- *  de klokketijd uit de planning (`normalizeActualDate`, besluit 2026-10-29). */
 export function normalizeTaskDates(task: Task, calendars: Pick<DocumentPayload, 'calendar' | 'calendars'>): Task {
   let ctx: TaskDateContext | undefined;
   return mapTaskDates(task, (value, field) => {
@@ -378,19 +291,6 @@ export function normalizeTaskDates(task: Task, calendars: Pick<DocumentPayload, 
   });
 }
 
-/**
- * De patch van een invoerroute met de momenten uit `next`: de genormaliseerde taak die de patch
- * achterlaat (`normalizeTaskDates(merge(taak, patch))`). Zo gebruikt een route één genormaliseerde
- * wijziging voor de no-op-toets, voor de gevolgregels (`taskTriggerChanges`) en voor het schrijven.
- * Zonder deze stap zag de gevolgregel een opnieuw ingevoerde SNET "2026-06-01" als een andere waarde dan
- * het opgeslagen "2026-06-01T07:00", en wiste hij de nivelleerpauze (review ronde 1 van PR #559, deel B,
- * punt 1).
- *
- * Alleen waarden die de normalisatie veranderde, worden vervangen. Een top-level veld verandert alleen
- * van referentie als `mapTaskDates` het omzette (de merge deelt de referentie). Een `time`-sleutel alleen
- * als de patch er een tekst in had; een lege of `undefined`-waarde blijft precies zoals de aanroeper hem
- * meegaf, zodat `mergeTaskTime` hem op dezelfde manier leest.
- */
 export function normalizeTaskPatch(updates: Partial<Task>, next: Task): Partial<Task> {
   let out: Partial<Task> | null = null;
   for (const key of Object.keys(updates) as (keyof Task)[]) {
@@ -400,7 +300,6 @@ export function normalizeTaskPatch(updates: Partial<Task>, next: Task): Partial<
   }
   const time = updates.time;
   if (time) {
-    // Getypeerd als de patch zelf (`Partial<Task>['time']`); in de praktijk een deel van de tak.
     let normalizedTime: TaskTime | null = null;
     for (const field of TIME_FIELDS) {
       const raw = time[field];
@@ -424,9 +323,7 @@ function migrateBaseline(
   let changed = false;
   const tasks = baseline.tasks.map((bt): BaselineTask => {
     const task = taskById.get(bt.taskId);
-    // De kalender van de taak; bestaat de taak niet meer, dan de projectkalender (§3.6).
     const clock = task ? taskDateContext(task, clocks, milestonesAtDayEnd).clock : projectClock;
-    // D7 volgt de mijlpaal zoals de baseline hem vastlegde.
     const milestoneKind: MilestoneKind | null = bt.isMilestone && bt.duration === 0
       ? (bt.milestoneKind ?? (milestonesAtDayEnd?.has(bt.taskId) ? 'FINISH' : 'START'))
       : null;
@@ -453,11 +350,6 @@ function migrateBaseline(
   return { ...baseline, tasks, projectEnd };
 }
 
-/**
- * De migratie op de laadgrens (§5.2). Zuiver en deterministisch: de invoer verandert niet (ook een
- * bevroren payload mag), onveranderde taken en baselines houden hun identiteit, en twee keer draaien geeft
- * hetzelfde (een moment blijft een moment; een herstelde kalender heeft niets meer te herstellen).
- */
 export function migrateToMinuteModel<P extends MinuteModelPayload>(payload: P, options: MinuteModelOptions = {}): MinuteModelMigration<P> {
   const legacyFile = options.timeModel !== MINUTE_MODEL_TIME_MODEL;
   const report: MinuteModelReport = {
@@ -470,7 +362,6 @@ export function migrateToMinuteModel<P extends MinuteModelPayload>(payload: P, o
     fixedWorkToHours: [],
   };
 
-  // 1. Schemamigratie (oud bestand): eerst de kalenders, want de normalisatie leest hun werkblokken.
   let calendar = payload.calendar;
   let calendars = payload.calendars;
   if (legacyFile) {
@@ -479,7 +370,6 @@ export function migrateToMinuteModel<P extends MinuteModelPayload>(payload: P, o
       const repairs: CalendarRepair[] = [];
       const unresolved: UnresolvedDate[] = [];
       const out = repairCalendar(cal, repairs, unresolved);
-      // De projectkalender staat twee keer in de payload (cache en bibliotheek-entry): één melding per id.
       if (!seen.has(cal.id)) {
         seen.add(cal.id);
         report.calendarRepairs.push(...repairs);
@@ -492,19 +382,12 @@ export function migrateToMinuteModel<P extends MinuteModelPayload>(payload: P, o
     if (mapped.some((c, i) => c !== calendars[i])) calendars = mapped;
   }
 
-  // 2. Normalisatie (altijd).
   const clocks = new DayClockCache(calendar, calendars);
   const n = new Normalizer(report);
   const normalized = payload.tasks.map((t) => migrateTask(t, taskDateContext(t, clocks, options.milestonesAtDayEnd), n));
 
-  // 3. B1a (altijd): vast werk is urenmaat. Een bestand van vóór B1a kan een gewone taak onder vast werk
-  //    (eigen regel of de projectstandaard) in de dagenmaat hebben. Die wordt hier urenmaat, met dezelfde
-  //    omzetting als een typewissel; rest en verricht werk blijven. Een verschuiving van datums loopt
-  //    via B5: de vlag "omzetting open" gaat aan, ook in een bestand mét `TimeModel`.
   const deps: WorkRuleDeps = { calendar, calendars, project: payload.project, resources: payload.resources };
   const tasks = normalized.map((t) => {
-    // Een beschadigde hersteldsnapshot (geen kinderlijst) komt als gewone payload binnen en valt pas
-    // bij het doorrekenen om (`check-recovery-integrity.ts` 8n): de laadgrens mag er niet op stuklopen.
     if (!Array.isArray(t.childIds)) return t;
     const copy: Task = { ...t, time: { ...t.time } };
     if (!settleFixedWorkMeasure(copy, deps)) return t;
@@ -523,7 +406,6 @@ export function migrateToMinuteModel<P extends MinuteModelPayload>(payload: P, o
   };
 }
 
-/** Ontwikkelcontrole op de laadinvariant; projectdatums vallen bewust buiten deze regel. */
 export function assertMinuteModelTaskDates(tasks: readonly Task[]): void {
   for (const task of tasks) mapTaskDates(task, (value, field) => {
     if (isDateOnly(value)) throw new Error(`Taak ${task.id}: ${field} mist een tijd na normalisatie`);

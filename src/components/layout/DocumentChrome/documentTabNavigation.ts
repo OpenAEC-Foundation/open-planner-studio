@@ -1,19 +1,12 @@
-/** Toetsen die de actieve documenttab in de zichtbare tabstrip verplaatsen. */
 export type DocumentTabNavigationKey = 'ArrowLeft' | 'ArrowRight' | 'Home' | 'End';
 export type DocumentTabDirection = 'ltr' | 'rtl';
 
-/** Eén stabiele relatie tussen de documenttablist en de actieve documentwerkruimte. */
 export const DOCUMENT_TABPANEL_ID = 'ops-document-tabpanel';
 
-/** Stabiele DOM-id voor een documenttab; document-id's zijn uniek binnen de sessie. */
 export function documentTabId(documentId: string): string {
   return `ops-document-tab-${documentId}`;
 }
 
-/**
- * Bepaal de volgende documenttab zonder een verborgen limiet van negen documenten.
- * `null` betekent dat de toets geen tabnavigatie is, of dat de huidige tab niet meer bestaat.
- */
 export function documentTabKeyDestination(
   documentIds: readonly string[],
   activeDocumentId: string,
@@ -50,7 +43,6 @@ export interface DocumentTabKeyActions {
   focusTab(documentId: string): void;
 }
 
-/** Volledige key-eventbeslissing die de tabcomponent zonder eigen indexguard gebruikt. */
 export function handleDocumentTabKeyDown(
   event: DocumentTabKeyEvent,
   documentIds: readonly string[],
@@ -72,13 +64,6 @@ export interface DocumentTabFocusState {
   isActive: boolean;
 }
 
-/**
- * Bepaal het close-focusdoel uit twee gecommitteerde kaartenlijsten.
- *
- * Een bestaande document-id in de nieuwe lijst betekent dat de closebevestiging is geannuleerd
- * of dat de sluitactie nog niet effectief is; in beide gevallen mag focus niet verschuiven. Alleen
- * het verdwijnen van het aangevraagde document levert het nieuwe actieve document op.
- */
 export function documentTabCloseFocusTarget(
   previousDocumentIds: readonly string[],
   currentDocuments: readonly DocumentTabFocusState[],
@@ -89,7 +74,6 @@ export function documentTabCloseFocusTarget(
   return currentDocuments.find(document => document.isActive)?.id ?? null;
 }
 
-/** Klein DOM-contract zodat de navigatie ook zonder DOM-testframework gericht toetsbaar blijft. */
 export interface RevealableDocumentTab {
   scrollIntoView(options?: ScrollIntoViewOptions): void;
 }
@@ -98,7 +82,6 @@ export interface FocusableDocumentTab extends RevealableDocumentTab {
   focus(options?: FocusOptions): void;
 }
 
-/** Focus en zichtbaarheid gebeuren in dezelfde key-eventtick op de al bestaande DOM-ref. */
 export function focusDocumentTab(
   tabs: ReadonlyMap<string, FocusableDocumentTab>,
   documentId: string,
@@ -110,7 +93,6 @@ export function focusDocumentTab(
   return true;
 }
 
-/** Houd de geactiveerde tab zichtbaar, zonder de verticale pagina-positie te verplaatsen. */
 export function revealDocumentTab(tab: RevealableDocumentTab): void {
   tab.scrollIntoView({ block: 'nearest', inline: 'nearest', behavior: 'instant' });
 }
