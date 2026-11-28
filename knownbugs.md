@@ -6608,6 +6608,12 @@ en noem het in je rapport of PR-tekst.
      eist dat `src/services/ifc/ifcReader.ts` het enige gewijzigde bestand in `src/` is. Zo ging het op #1407; daarom
      bleven die drie bestanden daar buiten de opruiming. Voorstel: de meting alleen starten als `ifcReader.ts` wijzigt. — B
 
+2811. **Een logisch kapotte herstelkopie van een document dat bij herstel niet actief is, komt als slapend document terug
+     en valt pas om bij een latere documentwissel.** Bij herstel rekent `restoreDocuments` alleen het actieve document
+     door (ADR 0475); een slapend document waarvan de payload wel opgebouwd kan worden, wordt niet op zijn inhoud
+     getoetst. Gelezen in het commentaar bij geval 8n van `check-recovery-integrity.ts` (weggehaald in de opruiming
+     van de opslagtests); niet nagespeeld. — S
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
