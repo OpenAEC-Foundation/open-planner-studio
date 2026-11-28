@@ -17,7 +17,6 @@ interface DocumentTabListProps {
   closeWithGuard: (card: Pick<DocumentCard, 'id' | 'isDirty'>) => void;
 }
 
-/** De werkelijk gebruikte, prop-gedreven eventroute voor alle zichtbare documenttabs. */
 export function DocumentTabList({
   cards,
   direction,

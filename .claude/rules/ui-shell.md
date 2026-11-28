@@ -84,3 +84,6 @@ afbreken staat een dialoog er nog met zijn invoer.
 
 **Keuzes in de dialogen** (`src/components/dialogs/`: stapelen, Escape, focus, en een paar dialoogspecifieke afwegingen):
 `docs/adr/0820-dialogen-keuzes-die-verrassen.md`.
+
+**Keuzes in de schil** (`src/components/layout/`: modus- en weigeringsstroken, de documenttabs, de rechterrail en de
+sleeplaag): `docs/adr/0950-schil-stroken-tabstrip-en-rail-keuzes-die-verrassen.md`.
