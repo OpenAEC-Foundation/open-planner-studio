@@ -15,15 +15,12 @@ toets (5) controleert de volgorde binnen een `<Activity>`. De lengtegrenzen kome
   kalenders krijgen de nummering van `exportCalendarLayout`, met de projectkalender op 1 (ADR 0326). Het project heeft
   `ObjectId` 1. Een WBS, activiteit, toewijzing, notitie en `<ScheduleOptions>` verwijzen ernaar met
   `ProjectObjectId` 1, een relatie met `PredecessorProjectObjectId` en `SuccessorProjectObjectId` 1. Een
-  `<ActivityNote>` staat binnen het project en verwijst naar het globale `<NotebookTopic>`. Dat een `ObjectId` in
-  P6 XML per soort uniek moet zijn en niet over het hele bestand, komt uit het weggehaalde commentaar en is niet
-  nagegaan.
+  `<ActivityNote>` staat binnen het project en verwijst naar het globale `<NotebookTopic>`.
 - De writer zet de taken eerst in boomvolgorde (`flattenOrder`): een ouder vóór zijn kinderen, broers in de volgorde
   van de weergave, omdat de volgorde in de store niets zegt over de weergave. `SequenceNumber` van een WBS is zijn
   plaats in die hele afgevlakte lijst, bladtaken meegeteld. De lezer sorteert zijn WBS-lijst op `SequenceNumber` waar
   twee WBS-taken allebei een nummer hebben; `childIds` volgt bij het koppelen de volgorde in het XML (ADR 0261,
-  knownbug 2305). Dat P6 WBS-broers op `SequenceNumber` sorteert, komt uit het weggehaalde commentaar en is niet
-  nagegaan.
+  knownbug 2305). MPXJ sorteert WBS-broers ook op `SequenceNumber` (`WbsRowComparatorPMXML`).
 - Een taak waarvoor `isSummaryTask` waar is, wordt een `<WBS>`: een taak met kinderen, of een taak met `isSummary`
   zonder kinderen. Die vlag zet de XER-lezer op elke WBS-rij (`xerReader.ts`); de P6 XML-lezer zet haar niet, dus een
   lege WBS uit P6 XML komt bij de volgende export als `<Activity>` terug (knownbug 2344). Alleen een taak waarvoor
@@ -35,6 +32,6 @@ toets (5) controleert de volgorde binnen een `<Activity>`. De lengtegrenzen kome
   (knownbug 2341).
 - De beschrijving van een activiteit gaat als `<ActivityNote>` onder een eigen `<NotebookTopic>` met de naam
   `OPS_DESCRIPTION_TOPIC_NAME`, en niet als `<Description>` op de activiteit (`check-p6xml-writer-p6.ts` 4e en 6g; de
-  lezer: ADR 0260). Het onderwerp staat er alleen als minstens één activiteit een beschrijving heeft. Dat P6 geen
-  beschrijvingsveld op een activiteit kent, komt uit het weggehaalde commentaar en is niet nagegaan. De beschrijving
+  lezer: ADR 0260). Het onderwerp staat er alleen als minstens één activiteit een beschrijving heeft. Het P6
+  XML-schema kent geen beschrijvingsveld op een activiteit (`ActivityType`). De beschrijving
   van een samenvattingstaak gaat niet mee (ADR 0367).
