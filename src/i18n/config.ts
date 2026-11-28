@@ -4,15 +4,11 @@ import { readLocal, syncSettingToLocalStorage } from '@/utils/settingsStore';
 import { runsEmbedded, siteLanguageHints } from '@/services/fileAccess/siteHost';
 import { LOCALES, RTL_LOCALES, localeDirection, type Locale } from './locales';
 
-// --- Alleen de fallback-taal (en) wordt eager geïmporteerd. De overige 27 talen
-// laden lazy via loadLocale() (Vite splitst per taal een eigen async chunk). ---
 import enCommon from './locales/en/common.json';
 import enTask from './locales/en/task.json';
 import enReport from './locales/en/report.json';
 import enMenu from './locales/en/menu.json';
 
-// De talenlijst zelf staat in `./locales.ts` (contract C4, zonder i18next); hier opnieuw
-// geëxporteerd zodat bestaande imports uit `@/i18n/config` blijven werken.
 export { LOCALES, RTL_LOCALES, localeDirection, type Locale };
 
 export const LANGUAGE_LABELS: Record<Locale, [string, string]> = {
@@ -35,8 +31,6 @@ export const LANGUAGE_LABELS: Record<Locale, [string, string]> = {
   uk: ['UK', 'Українська'],
   cs: ['CS', 'Čeština'],
   sk: ['SK', 'Slovenčina'],
-  // Servisch in Cyrillisch schrift (besluit B1). Een overstap naar Latijns schrift (`sr-Latn`)
-  // raakt `load: 'languageOnly'` en de taalsplitsing hieronder; houd sr-werk op deze plek.
   sr: ['SR', 'Српски'],
   hr: ['HR', 'Hrvatski'],
   bg: ['BG', 'Български'],
@@ -48,11 +42,8 @@ export const LANGUAGE_LABELS: Record<Locale, [string, string]> = {
   fi: ['FI', 'Suomi'],
 };
 
-/** Browsertalen die geen eigen locale hebben maar wel een vaste keuze: Noors (`no`) en
- *  Nynorsk (`nn`) krijgen Bokmål (`nb`). */
 const BROWSER_LANGUAGE_ALIASES: Record<string, Locale> = { no: 'nb', nn: 'nb' };
 
-/** Kies de locale voor een browser/OS-taalcode (`nb-NO`, `no`, `ru-RU`, …), of `null`. */
 export function localeFromBrowserLanguage(tag: string | undefined): Locale | null {
   const base = tag?.split('-')[0]?.toLowerCase();
   if (!base) return null;
@@ -70,7 +61,7 @@ void i18n
   .use(initReactI18next)
   .init({
     resources,
-    lng: 'en', // default, overridden by initLocale()
+    lng: 'en',
     fallbackLng: 'en',
     supportedLngs: supportedLanguages,
     load: 'languageOnly',
@@ -80,8 +71,6 @@ void i18n
     react: { useSuspense: false },
   });
 
-// Set document direction + lang on language change (RTL support; <html lang> volgt de
-// taalkeuze i.p.v. de hardcoded "nl" uit index.html — TODO-quick-win)
 function updateDirection(lng: string) {
   document.documentElement.dir = localeDirection(lng);
   document.documentElement.lang = lng;
@@ -91,8 +80,6 @@ i18n.on('languageChanged', updateDirection);
 
 const loadedLocales = new Set<Locale>(['en']);
 
-/** Laad de 4 namespaces van een taal lazy (Vite splitst per taal een eigen chunk) en
- *  registreer ze bij i18next. Idempotent; 'en' is al eager geladen. */
 export async function loadLocale(lng: Locale): Promise<void> {
   if (loadedLocales.has(lng)) return;
   const [common, task, report, menu] = await Promise.all([
@@ -108,14 +95,11 @@ export async function loadLocale(lng: Locale): Promise<void> {
   loadedLocales.add(lng);
 }
 
-/** Wissel van taal: eerst de resources laden (geen kale keys), dan pas wisselen. */
 export async function setLocale(lng: Locale): Promise<void> {
   await loadLocale(lng);
   await i18n.changeLanguage(lng);
 }
 
-/** Ingebed onder een host (#716): de eerste taal van de host die de app kent, anders `null`. De
- *  volgorde van de bronnen staat in `siteLanguageHints` (`siteHost.ts`). */
 export function embeddedLocale(): Locale | null {
   if (!runsEmbedded()) return null;
   for (const hint of siteLanguageHints()) {
@@ -125,20 +109,12 @@ export function embeddedLocale(): Locale | null {
   return null;
 }
 
-/**
- * Detect the best locale at startup:
- * 0. Embedded under a host (#716): the host's language, not saved
- * 1. Saved preference in Tauri Store / localStorage
- * 2. OS locale via Tauri OS plugin
- * 3. Fallback to 'en'
- */
 export async function initLocale(): Promise<void> {
   const hostLang = embeddedLocale();
   if (hostLang) {
     if (hostLang !== i18n.language) await setLocale(hostLang);
     return;
   }
-  // Try saved preference first
   await syncSettingToLocalStorage('locale', 'ops-locale');
   const saved = readLocal('ops-locale');
   if (saved && supportedLanguages.includes(saved as Locale)) {
@@ -149,7 +125,6 @@ export async function initLocale(): Promise<void> {
     return;
   }
 
-  // No saved preference — detect from browser/OS
   const browserLang = localeFromBrowserLanguage(navigator.language);
   if (browserLang) {
     await loadLocale(browserLang);
