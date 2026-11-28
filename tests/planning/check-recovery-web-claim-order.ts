@@ -1,10 +1,3 @@
-// Web-crashherstel leest de herstelset pas NA de sessieclaims (review PR #644, ronde 2). Scenario: tab B
-// is een duplicaat van A en erft het sessie-id. B wacht op de sessielock (één retry van 150 ms). Intussen
-// schrijft A een nieuwere snapshot en sluit. B krijgt de lock en moet die nieuwere snapshot herstellen;
-// een read vóór de claim gaf de oude, en het latere `clearRecovery()` wiste dan ook de nieuwe.
-// Eigen proces: de sessie-id wordt per module één keer uitgerekend.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { loadRecovery, RECOVERY_MANIFEST_VERSION } from '@/services/recovery/recoveryStore';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 
@@ -24,7 +17,6 @@ const session = new Map<string, string>([['ops-recovery-session', sid]]);
   removeItem: (k: string) => { session.delete(k); },
 };
 
-// Tab A liet v1 achter (geërfd sessie-id).
 const docRecord = (ifc: string, addedAt: number) => ({
   id: `${sid}::doc::A`, kind: 'doc', sessionId: sid, docId: 'A', ifc, addedAt,
 });
@@ -35,7 +27,6 @@ idb.store('records').set(`${sid}::manifest`, {
   documents: [{ id: 'A', ifc: `${sid}::doc::A`, filePath: null, isDirty: true, datesAsRecorded: false }],
 });
 
-// De eerste claim is nog bezet door A. Tijdens die wachttijd schrijft A v2 en sluit; de retry slaagt.
 let claims = 0;
 const navigatorDescriptor = Object.getOwnPropertyDescriptor(globalThis, 'navigator');
 Object.defineProperty(globalThis, 'navigator', {

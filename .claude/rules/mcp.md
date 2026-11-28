@@ -39,7 +39,8 @@ redo), `0491` (taken toevoegen), `0492` (taken wijzigen), `0493` (verwijderen en
 tempId's), `0661` (`planner_inspect_xer_provenance`: alles dicht tenzij toegestaan), `0662` (documenttools en
 baselinebeheer) en `0663` (relaties wijzigen, de planningsgids). Keuzes in de protocollaag zelf (annotaties,
 contract, `MCP_INSTRUCTIONS`, verzoekafhandeling, bridgestart, backups): `docs/adr/0790`. De vaste Engelse
-terugvaltitel en het bijrekenen van leestools bij pauze en alleen-lezen (`tools/runtime.ts`): `docs/adr/1120`.
+terugvaltitel en het bijrekenen van leestools bij pauze en alleen-lezen (`tools/runtime.ts`): `docs/adr/1120`. De
+MCP-tests van de planningstools (de opwarmstap met undo, fixtures die het verschil maken): `docs/adr/1340`.
 
 Een MCP-backup bewaart planning plus bronkenmerk, nooit gebouwmodelbytes. Bij openen krijgt dat kenmerk alleen met
 `ifcForeignContent` aan `sourceMissing` (1c PR 9d): dezelfde bestaande weigering van alle IFC-opslag als bij herstel

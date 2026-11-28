@@ -1,6 +1,3 @@
-// Store-actie van het rekenprofiel (rekenprofielen, spec v3.1 §6; plan taak D3). Exit 0 = groen.
-// Verwachtingen met de hand afgeleid: onder OPS schuift een niet-gestarte taak naar de statusdatum,
-// onder MS Project (A23 `unstartedIgnoresStatusDate`) niet.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { builtInProfile, defaultOptionsFor } from '@/engine/scheduler/conventions/registry';
@@ -45,29 +42,24 @@ eq('09a …en de datums van vóór de wissel', (S().tasks.find(t => t.id === a)?
 S().redo();
 eq('09b redo zet het profiel terug met de berekende datums', [S().project.schedulingProfile?.id,
   S().tasks.find(t => t.id === a)?.time.earlyStart?.slice(0, 10)], ['msproject', '2026-05-04']);
-ctx.store.setState(s => { s.datesAsRecorded = true; s.scheduleStale = false; }); // fixture: modus aan
+ctx.store.setState(s => { s.datesAsRecorded = true; s.scheduleStale = false; });
 const beforeRecorded = applied();
 S().applySchedulingSettings({ profile: builtInProfile('p6'), options: undefined });
 eq('10 een wissel verlaat "datums zoals opgeslagen"', S().datesAsRecorded, false);
-// Critreview D2: ook in de modus precies één undo-stap (niet een tweede via runCPM's backstop).
 eq('10a …met precies één undo-stap erbij', applied(), beforeRecorded + 1);
 S().applySchedulingSettings({ profile: builtInProfile('ops'), options: {} });
 eq('11 ops-zonder-overrides en lege opties ⇒ afwezig', [S().project.schedulingProfile, S().project.schedulingOptions], [undefined, undefined]);
-// De store houdt een eigen kopie: latere mutatie van het doorgegeven object raakt het project niet.
 const mine: SchedulingProfile = { baseId: 'p6', id: 'prof-x', name: 'X', overrides: { clampNegativeFreeFloat: false } };
 S().applySchedulingSettings({ profile: mine, options: { totalFloatMode: 'finish' } });
-// Zonder kopie zou Immer het object van de aanroeper (de UI-draft) bevriezen.
 eq('12b het object van de aanroeper blijft bewerkbaar', Object.isFrozen(mine.overrides), false);
 if (!Object.isFrozen(mine.overrides)) mine.overrides.clampNegativeFreeFloat = true;
 eq('12 eigen kopie in de store', S().project.schedulingProfile?.overrides, { clampNegativeFreeFloat: false });
 eq('12a opties overgenomen', S().project.schedulingOptions, { totalFloatMode: 'finish' });
-// Geen verschuiving ⇒ geen melding (alleen de gewijzigde opties, datums gelijk).
 const count = () => S().ui.notifications.filter(n => n.messageKey === 'notifications.schedulingProfileShifted').length;
 const n0 = count();
 const r2 = S().applySchedulingSettings({ profile: S().project.schedulingProfile, options: { totalFloatMode: 'start' } });
 eq('13 zonder verschoven taak geen melding', [r2.changed, r2.shifted, count()], [true, 0, n0]);
 
-// Eindreview I4 (e): toepassen weigert een eigen profiel zonder naam en trimt een geldige naam.
 {
   const beforeNameless = [applied(), JSON.stringify(S().project.schedulingProfile)];
   const nameless = S().applySchedulingSettings({ profile: { ...mine, id: 'prof-leeg', name: '   ' }, options: undefined });
@@ -77,10 +69,6 @@ eq('13 zonder verschoven taak geen melding', [r2.changed, r2.shifted, count()], 
   eq('16a geldige naam wordt getrimd opgeslagen', S().project.schedulingProfile?.name, 'Mijn profiel');
 }
 
-// Gebruikstest I5 punt 1: Projectinfo-Toepassen. Een geïmporteerd project mist
-// `defaultTaskDurationUnit` (afwezig ≡ 'days'); het formulier stuurt 'days'. Dat mag geen wijziging
-// zijn. En metadata + profiel samen = ÉÉN undo-stap ("Projectinfo"), die ook "datums zoals
-// opgeslagen" in één keer terugzet.
 {
   const x = createAppStoreContext();
   const X = () => x.store.getState();
@@ -118,8 +106,6 @@ eq('13 zonder verschoven taak geen melding', [r2.changed, r2.shifted, count()], 
     [true, n17 + 2, 'Ik', 'msproject']);
 }
 
-// Eindreview (GO, punt 1): startdatum + profiel SAMEN wijzigen gaat door het gecombineerde pad van
-// applyProjectInfo; ook daar klemt een wortel-anker vóór de nieuwe startdatum mee, met de klemmelding.
 {
   const y = createAppStoreContext();
   const Y = () => y.store.getState();
@@ -137,8 +123,6 @@ eq('13 zonder verschoven taak geen melding', [r2.changed, r2.shifted, count()], 
     Y().project.startDate, Y().project.schedulingProfile?.id], [yApplied + 1, '2026-05-11', 'msproject']);
 }
 
-// Critreview D2 punt 3: de wizard geeft het profiel mee aan createNewProject. Het nieuwe project
-// begint zonder historie, dus Ctrl+Z mag niet terugvallen naar OPS.
 {
   const w = createAppStoreContext();
   const W = () => w.store.getState();
@@ -158,8 +142,6 @@ eq('13 zonder verschoven taak geen melding', [r2.changed, r2.shifted, count()], 
   eq('15c OPS zonder opties ⇒ afwezig', [W().project.schedulingProfile, W().project.schedulingOptions], [undefined, undefined]);
 }
 
-// Sjabloonopslag (M1-open punt, reviewer VERMOED): een browser zonder toegang tot `localStorage`
-// (SecurityError bij het lezen van de global zelf) mag de sjabloon-UI niet laten crashen.
 {
   const g = globalThis as unknown as Record<string, unknown>;
   const original = Object.getOwnPropertyDescriptor(g, 'localStorage');

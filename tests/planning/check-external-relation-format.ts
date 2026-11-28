@@ -21,8 +21,6 @@ function eq(label: string, got: unknown, want: unknown): void {
 }
 function ok(label: string, value: boolean): void { eq(label, value, true); }
 
-// De acht letterlijke contractvectoren uit §8.5.1. Dit zijn bewust geen host-OS-paden:
-// dezelfde pure normalisatie moet in browser, Node, Windows en Linux exact hetzelfde opleveren.
 const pathVectors: readonly [string, string | null][] = [
   ['C:\\A\\.\\X\\..\\B.ifc', 'c:/a/b.ifc'],
   ['c:/a/b.ifc', 'c:/a/b.ifc'],

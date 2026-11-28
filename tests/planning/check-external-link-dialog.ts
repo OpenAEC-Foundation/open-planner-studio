@@ -48,7 +48,6 @@ eq('Onaangeraakte bestandsbron bewaart bronstatus, identiteit en canoniek anker'
   anchorDate: '2026-07-01T08:30',
   sourceRef: existing.sourceRef, sourceMissing: false,
 });
-// De nul-lag uit de solver moet ook na tonen en ongewijzigd opslaan nul blijven.
 const zeroMinutes: ExternalLink = { ...existing, lagMinutes: 0, lagDays: 9 };
 const parsedZero = parseExternalLagInput(formatExternalLagShort(zeroMinutes));
 eq('Nul minuten wordt ook in de dialoog nul lag', parsedZero, { lagDays: 0 });

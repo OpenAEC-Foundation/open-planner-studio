@@ -1,8 +1,3 @@
-// WP2 / taak T3 — draft.addTasks: geneste WBS in één aanroep met temp-id's en positie.
-// Draait headless tegen de ECHTE Zustand-store (via de harness) — geen mock. Bewijst: geneste
-// aanmaak met tempId-parents in husselvolgorde, pre-validatie (dubbele tempId / onbekende parentId /
-// mijlpaal-duur / tempId-cykel) VÓÓR enige mutatie (falende batch ⇒ nul taken, byte-identieke
-// rollback), en positie als insert-index binnen de ouder (childIds-volgorde exact).
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
 import { createSnapshot } from '@/state/snapshot';
@@ -13,18 +8,14 @@ import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
 
 const store = useAppStore;
 
-// Warm-up (zoals cases-draft.ts): projectkalender tot bibliotheek-entry promoten via één undo, zodat
-// het rollback-/restore-pad in de byte-identiteit-test een steady state heeft.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
-// --- 1) Geneste 3-niveau-WBS in één call, tempId-parents in husselvolgorde --------------------------
 test('draft.addTasks bouwt een 3-niveau-boom uit husselvolgorde; map bevat alle tempIds', () => {
   const before = store.getState().historyEvents.filter(event => event.state === 'applied').length;
 
   let map = new Map<string, string>();
   const res = runInMcpTransaction(() => {
-    // Kind vóór ouder, kleinkind vóór kind — bewust door elkaar.
     map = draft.addTasks([
       { tempId: 'c', name: 'niveau3', parentId: 'b' },
       { tempId: 'a', name: 'niveau1' },
@@ -52,7 +43,6 @@ test('draft.addTasks bouwt een 3-niveau-boom uit husselvolgorde; map bevat alle 
   assertEq(tC.childIds, [], 'niveau3 hoort geen kinderen te hebben');
 });
 
-// --- 2) Onbekende parentId ⇒ throw VÓÓR mutatie, byte-identieke rollback ----------------------------
 test('draft.addTasks onbekende parentId ⇒ transactie faalt schoon (store byte-identiek)', () => {
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
   const beforeLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
@@ -71,7 +61,6 @@ test('draft.addTasks onbekende parentId ⇒ transactie faalt schoon (store byte-
   assert(!store.getState().tasks.some((t) => t.name === 'goed'), 'ook de geldige taak mag NIET zijn aangemaakt (pre-check vóór aanmaak)');
 });
 
-// --- 3) Dubbele tempId ⇒ throw; tempId-parent-cykel ⇒ throw -----------------------------------------
 test('draft.addTasks dubbele tempId ⇒ transactie faalt schoon', () => {
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
   const res = runInMcpTransaction(() => {
@@ -98,12 +87,10 @@ test('draft.addTasks tempId-parent-cykel ⇒ transactie faalt schoon', () => {
   assertEq(JSON.stringify(createSnapshot(store.getState())), beforeSnap, 'store onaangeroerd na de cykel-rollback');
 });
 
-// --- 4) Positie: kind op index 0 tussen twee bestaande siblings -------------------------------------
 test('draft.addTasks position=0 plaatst het kind vooraan tussen bestaande siblings (childIds exact)', () => {
   const parentId = store.getState().addTask({ name: 'pos-parent' });
   const sibA = store.getState().addTask({ name: 'pos-a', parentId });
   const sibB = store.getState().addTask({ name: 'pos-b', parentId });
-  // Voorwaarde: parent.childIds == [sibA, sibB]
   assertEq(store.getState().tasks.find((t) => t.id === parentId)!.childIds, [sibA, sibB], 'voorwaarde: twee bestaande siblings');
 
   let map = new Map<string, string>();
@@ -119,7 +106,6 @@ test('draft.addTasks position=0 plaatst het kind vooraan tussen bestaande siblin
 test('draft.addTasks meerdere posities in dezelfde ouder ⇒ toegepast in inputvolgorde', () => {
   const parentId = store.getState().addTask({ name: 'pos2-parent' });
   const sibA = store.getState().addTask({ name: 'pos2-a', parentId });
-  // childIds == [sibA]; twee nieuwe items, beide position 0, in inputvolgorde toegepast.
   let map = new Map<string, string>();
   const res = runInMcpTransaction(() => {
     map = draft.addTasks([
@@ -131,15 +117,9 @@ test('draft.addTasks meerdere posities in dezelfde ouder ⇒ toegepast in inputv
   const idX = map.get('x')!;
   const idY = map.get('y')!;
   const parent = store.getState().tasks.find((t) => t.id === parentId)!;
-  // x op 0 ⇒ [x, sibA]; y op 0 ⇒ [y, x, sibA]
   assertEq(parent.childIds, [idY, idX, sibA], 'posities horen in inputvolgorde toegepast te worden');
 });
 
-// --- 4b) Positie op de RAUWE-ARRAY-as: midden-insert ⇒ WBS-codes kloppen (T3-review-nit) -----------
-// De childIds-as is hierboven gedekt; deze test dekt de rauwe-array-as die de WBS-nummering aandrijft.
-// Na een MIDDEN-insert (tussen twee siblings) horen de afgeleide WBS-codes (flattenOrder ⇒
-// deriveWbsCodes, dezelfde helper die applyWbsNumbering gebruikt) de nieuwe volgorde te weerspiegelen —
-// niet alleen childIds. Voorwaarde: wbsAutoNumber staat aan (default).
 test('draft.addTasks midden-positie ⇒ rauwe-array-WBS-codes weerspiegelen de insert (via de nummerings-helper)', () => {
   assert(store.getState().project.wbsAutoNumber, 'voorwaarde: WBS-auto-nummering staat aan');
   const parentId = store.getState().addTask({ name: 'wbs-parent' });
@@ -148,7 +128,6 @@ test('draft.addTasks midden-positie ⇒ rauwe-array-WBS-codes weerspiegelen de i
   const sibC = store.getState().addTask({ name: 'wbs-c', parentId });
   assertEq(store.getState().tasks.find((t) => t.id === parentId)!.childIds, [sibA, sibB, sibC], 'voorwaarde: drie siblings');
 
-  // Insert x TUSSEN sibA en sibB (position 1).
   let map = new Map<string, string>();
   const res = runInMcpTransaction(() => {
     map = draft.addTasks([{ tempId: 'x', name: 'wbs-x', parentId, position: 1 }]);
@@ -156,7 +135,6 @@ test('draft.addTasks midden-positie ⇒ rauwe-array-WBS-codes weerspiegelen de i
   assert(res.ok, 'transactie hoort te slagen');
   const idX = map.get('x')!;
 
-  // childIds-as (ter controle) + rauwe-array-as via flattenOrder.
   const parent = store.getState().tasks.find((t) => t.id === parentId)!;
   assertEq(parent.childIds, [sibA, idX, sibB, sibC], 'childIds hoort x tussen a en b te zetten');
   const flatIds = flattenOrder(store.getState().tasks).map((t) => t.id);
@@ -164,9 +142,6 @@ test('draft.addTasks midden-positie ⇒ rauwe-array-WBS-codes weerspiegelen de i
   assertEq(flatIds.slice(parentPos, parentPos + 5), [parentId, sibA, idX, sibB, sibC],
     'de rauwe-array-flatten hoort exact [parent, a, x, b, c] te zijn (raw array = WBS-bron)');
 
-  // WBS-codes: elke stored wbsCode hoort exact de deriveWbsCodes-uitkomst van de rauwe array te zijn,
-  // en x hoort de tweede kind-positie (parentcode + ".2") te dragen — hard bewijs dat de raw-array-as
-  // (niet alleen childIds) de midden-insert kreeg.
   const derived = deriveWbsCodes(store.getState().tasks);
   for (const t of store.getState().tasks) {
     assertEq(t.wbsCode, derived.get(t.id), `stored wbsCode van '${t.name}' hoort gelijk aan de deriveWbsCodes-uitkomst`);
@@ -178,7 +153,6 @@ test('draft.addTasks midden-positie ⇒ rauwe-array-WBS-codes weerspiegelen de i
   assertEq(derived.get(sibC), `${parentCode}.4`, 'sibC hoort naar de vierde kind-code te schuiven');
 });
 
-// --- 5) Mijlpaal-duur-validatie --------------------------------------------------------------------
 test('draft.addTasks mijlpaal met expliciete duur > 0 ⇒ transactie faalt schoon', () => {
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
   const res = runInMcpTransaction(() => {
@@ -211,7 +185,6 @@ test('draft.addTasks mijlpaal zonder time ⇒ duur 0', () => {
   assertEq(t?.isMilestone, true, 'de taak hoort een mijlpaal te zijn');
 });
 
-// --- 9) taskType-overerving: geneste batch (net-aangemaakte tempId-ouder telt al mee) --------------
 test('draft.addTasks: taskType erft door de keten van tempId-ouder naar kind naar kleinkind', () => {
   let map = new Map<string, string>();
   const res = runInMcpTransaction(() => {

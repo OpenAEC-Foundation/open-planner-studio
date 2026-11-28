@@ -1,19 +1,3 @@
-// check-duration-change-routes.ts — issue #146-vervolg: een duurwijziging heeft dezelfde GEVOLGEN
-// langs elke schrijfroute. De regels staan sinds deze fix op één plek (`applyDurationChangeRules`
-// in taskDefaults.ts); vóór die tijd stonden ze drie keer uitgeschreven en kreeg alleen
-// `taskSlice.updateTask` de afknipregel voor gebruikersgaten. Een duurkrimp via het taakraster liet
-// een gebruikersgat voorbij het nieuwe werktotaal liggen, waarna de taak voor splits stil
-// ALLEEN-LEZEN was (`canSplitTask` ⇒ 'not-editable').
-//
-// Hier: de store (`updateTask`, zoals het eigenschappenpaneel schrijft) als referentie tegen het
-// taakraster via de ECHTE gridtransactie (`runGridMutation`), in beide invoervormen van de duurcel
-// (het eenheidsobject van `parseTaskDurationInput` en de minutenvorm van samengestelde invoer en
-// plakken) plus de mijlpaalcel. Dag- én uurtaak. De MCP-route (`planner_update_tasks` via de echte
-// dispatch) staat in tests/mcp/cases-splits.ts.
-//
-// Elk scenario krijgt per route een EIGEN verse `createAppStoreContext()`.
-//
-// MOET de eerste import blijven: zie domStub.ts.
 import './domStub';
 import { createAppStoreContext, type AppState } from '@/state/appStore';
 import type { CellEditIntent } from '@/types/taskGrid';
@@ -35,8 +19,7 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   }
 }
 
-// ── Fixtures ─────────────────────────────────────────────────────────────────
-const BANDS = [{ start: 480, end: 960 }]; // 08:00–16:00 ⇒ 8 u/dag
+const BANDS = [{ start: 480, end: 960 }];
 const WEEK: WorkTimeBands = { byWeekday: { 1: BANDS, 2: BANDS, 3: BANDS, 4: BANDS, 5: BANDS, 6: [], 7: [] } };
 const HOUR_CAL: WorkCalendar = {
   id: 'cal-uren', name: 'uren', description: '', workDays: [1, 2, 3, 4, 5],
@@ -51,7 +34,6 @@ type Kind = 'day' | 'hour';
 type Route = 'store' | 'grid-unit' | 'grid-minutes';
 const ROUTES: readonly Route[] = ['store', 'grid-unit', 'grid-minutes'];
 
-/** Contourprofiel met één periode per werkslot, zoals een import het aanlevert (alleen resterend werk). */
 function contourOf(periods: readonly { afterMinutes: number; minutes: number }[]): TaskTimephasedContour[] {
   return [{
     resourceUid: null,
@@ -62,17 +44,13 @@ function contourOf(periods: readonly { afterMinutes: number; minutes: number }[]
 interface Scenario {
   label: string;
   kind: Kind;
-  /** Werkduur vóór de bewerking, in de eenheid van de taak (dagen of uren). */
   from: number;
   pieces: SplitPiece[];
   contour?: TaskTimephasedContour[];
-  /** Werkduur ná de bewerking, in de eenheid van de taak. */
   to: number;
-  /** Verwachte `splitGaps` na de bewerking — onafhankelijk van de store vastgelegd. */
   expected: unknown;
 }
 
-/** Verse context met één gesplitste taak, gesplitst via de ENE schrijfweg `setTaskSplits`. */
 function setup(sc: Scenario): { S: () => AppState; id: string } {
   const ctx = createAppStoreContext();
   const S = () => ctx.store.getState();
@@ -102,7 +80,6 @@ function cell(taskId: string, columnId: string, route: CellEditIntent['route'], 
   return { kind: 'cell-edit', taskId, columnId: columnId as CellEditIntent['columnId'], route, value };
 }
 
-/** Eén duurwijziging langs `route`. De store-vorm spiegelt `TaskDurationField.apply`. */
 function applyDuration(S: () => AppState, id: string, sc: Scenario, route: Route): void {
   const task = S().tasks.find(t => t.id === id)!;
   if (route === 'store') {
@@ -143,7 +120,6 @@ function runScenario(sc: Scenario): void {
     results.set(route, outcome);
     eq(`${sc.label} [${route}] splitGaps`, outcome.splitGaps, sc.expected ?? null);
     eq(`${sc.label} [${route}] de taak blijft splitsbaar (canSplitTask)`, outcome.refusal, null);
-    // Het bewijs dat de taak werkelijk bewerkbaar is: een nieuwe split via de ENE schrijfweg slaagt.
     const again = S().setTaskSplits(id, [work(unitOf(sc)), gap(unitOf(sc)), work((sc.to - 1) * unitOf(sc))]);
     eq(`${sc.label} [${route}] daarna een nieuwe split zetten`, again, null);
   }
@@ -154,9 +130,6 @@ function runScenario(sc: Scenario): void {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Dagtaak
-// ═══════════════════════════════════════════════════════════════════════════
 runScenario({
   label: 'dag: krimp 10 → 5, gat na 7 werkdagen vervalt',
   kind: 'day', from: 10, to: 5,
@@ -176,8 +149,6 @@ runScenario({
   expected: [{ afterMinutes: 7 * DAY, gapMinutes: 2 * DAY, source: 'user' }],
 });
 runScenario({
-  // Mét contour schaalt `rescaleTaskContours` het gat mee (factor ½, gesnapt op hele werkdagen):
-  // na 3,5 → 4 werkdagen, pauze 1 werkdag. Afknippen is dan niet aan de orde.
   label: 'dag: krimp 10 → 5 met contour schaalt het gat mee i.p.v. af te knippen',
   kind: 'day', from: 10, to: 5,
   pieces: [work(7 * DAY), gap(2 * DAY), work(3 * DAY)],
@@ -185,9 +156,6 @@ runScenario({
   expected: [{ afterMinutes: 4 * DAY, gapMinutes: DAY, source: 'user' }],
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Uurtaak (urenkalender, Urenplanning aan)
-// ═══════════════════════════════════════════════════════════════════════════
 runScenario({
   label: 'uur: krimp 16 → 10 u, gat na 12 u vervalt',
   kind: 'hour', from: 16, to: 10,
@@ -207,7 +175,6 @@ runScenario({
   expected: [{ afterMinutes: 12 * HOUR, gapMinutes: 2 * HOUR, source: 'user' }],
 });
 runScenario({
-  // Factor 10/16: na 12 u ⇒ 7,5 → 8 u, pauze 2 u ⇒ 1,25 → 1 u (gesnapt op hele uren).
   label: 'uur: krimp 16 → 10 u met contour schaalt het gat mee i.p.v. af te knippen',
   kind: 'hour', from: 16, to: 10,
   pieces: [work(12 * HOUR), gap(2 * HOUR), work(4 * HOUR)],
@@ -217,10 +184,6 @@ runScenario({
   expected: [{ afterMinutes: 8 * HOUR, gapMinutes: HOUR, source: 'user' }],
 });
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Mijlpaal aanzetten = duur 0: ook dat is een duurwijziging. Store (contextmenu/paneel/dialoog via
-// `taskMilestoneTransition`) tegen de mijlpaalcel van het raster.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- duration-change-routes: mijlpaal aanzetten laat geen gebruikersgat achter --');
 {
   const sc: Scenario = {
@@ -243,22 +206,13 @@ console.log('-- duration-change-routes: mijlpaal aanzetten laat geen gebruikersg
   eq('mijlpaal: raster = store', outcomes[1], outcomes[0]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Restduur bij een duurwijziging van een LOPENDE taak (besluit eigenaar, "zoals MS Project"): het
-// gedane werk blijft gelijk, restduur = nieuwe duur − gedane werk, het percentage past zich aan.
-// Korter dan het gedane werk ⇒ geweigerd; precies het gedane werk ⇒ voltooid. Dezelfde uitkomst
-// langs het paneel/de Gantt (`updateTask`), het raster (beide invoervormen) en "Taak bewerken"
-// (`createTaskDialogSave`). De AI-route staat in tests/mcp/cases-duration-progress.ts.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- duration-change-routes: een lopende taak houdt haar gedane werk --');
 type ProgressRoute = Route | 'dialog';
 const PROGRESS_ROUTES: readonly ProgressRoute[] = [...ROUTES, 'dialog'];
 interface ProgressCase {
   label: string;
   kind: Kind;
-  /** Duur vóór de bewerking, in de eenheid van de taak. */
   from: number;
-  /** Voortgang vóór de bewerking; `started` = werkelijke start zonder percentage. */
   completion: number | 'started';
   to: number;
   expect: { completion: number; remainingTime: number; remainingMinutes?: number; status: string } | 'refused';
@@ -354,8 +308,6 @@ runProgressCase({
   expect: { completion: 0.4 * 10 / 12, remainingTime: 8, status: 'STARTED' },
 });
 runProgressCase({
-  // Gedaan 3,5 d; de restduur is exact 4,5 d (8 − 3,5), het percentage exact 3,5/8.
-  // B1 (spec "alleen uren" §3.5, besluit B3): de rest was in hele werkdagen, round(4,5) = 5.
   label: 'lopend dag: 7 d op 50 % → 8 d',
   kind: 'day', from: 7, completion: 0.5, to: 8,
   expect: { completion: 3.5 / 8, remainingTime: 4.5, status: 'STARTED' },
@@ -394,7 +346,6 @@ runProgressCase({
   expect: { completion: 1, remainingTime: 0, status: 'COMPLETED' },
 });
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) { console.log(`OK  duration-change-routes: alle checks groen (${checks})`); process.exit(0); }
 console.log(`XX  duration-change-routes: ${diffs.length} afwijking(en) van ${checks}`);
 for (const d of diffs) console.log(`   - ${d}`);

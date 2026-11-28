@@ -1,9 +1,3 @@
-// Holiday-generator-checks (fase 2.8a, ontwerp §10.2). Onafhankelijk narekenen van de
-// feestdagen-engine: Pasen-jaartabel, Koningsdag-zondagregel, Bevrijdingsdag-lustrum,
-// UK-substituties, Buß- und Bettag (weekday-before), nth-weekday (last/first Monday),
-// US federale feestdagen (nth-weekday, zaterdag/zondag-substitutie, Juneteenth vanaf 2021).
-//
-// Draait via run.sh (esbuild-bundel, zoals harness.ts). Exit 0 = alles groen.
 import {
   easterSunday, generateHolidays, HOLIDAY_COUNTRIES, HOLIDAY_SETS,
   NL_SET, DE_SET, UK_SET, US_SET, type HolidayCountry,
@@ -17,7 +11,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (got !== want) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-/** Zoek de start-datum van de (eerste) feestdag met exact deze naam, of null. */
 function startOf(list: { name: string; startDate: string }[], name: string): string | null {
   return list.find((h) => h.name === name)?.startDate ?? null;
 }
@@ -25,8 +18,6 @@ function has(list: { name: string }[], name: string): boolean {
   return list.some((h) => h.name === name);
 }
 
-// Bolivia: de landelijke kalender van 2026, inclusief de tijdelijke decreten,
-// en de drie departementen uit #992.
 {
   const bolivia = Object.values(HOLIDAY_SETS).find(set => String(set.country) === 'BO');
   eq('Bolivia beschikbaar in de feestdagengenerator', Boolean(bolivia), true);
@@ -53,7 +44,6 @@ function has(list: { name: string }[], name: string): boolean {
   }
 }
 
-// 1) Pasen-jaartabel (Meeus/Jones/Butcher, bekende Gregoriaanse jaren).
 const easterTable: Record<number, string> = {
   2000: '2000-04-23', 2021: '2021-04-04', 2024: '2024-03-31',
   2025: '2025-04-20', 2026: '2026-04-05', 2027: '2027-03-28',
@@ -62,23 +52,19 @@ for (const [y, want] of Object.entries(easterTable)) {
   eq(`easter ${y}`, formatDate(easterSunday(Number(y))), want);
 }
 
-// 2) NL Koningsdag-zondagregel: 27/4 op zondag → 26/4 (2025), anders 27/4 (2026).
 eq('koningsdag 2025 (27/4=zo→26/4)', startOf(generateHolidays(NL_SET, undefined, 2025, 2025), 'Koningsdag'), '2025-04-26');
 eq('koningsdag 2026 (27/4=ma)', startOf(generateHolidays(NL_SET, undefined, 2026, 2026), 'Koningsdag'), '2026-04-27');
 
-// 3) NL Bevrijdingsdag lustrum-only: aanwezig in 2025 (÷5), afwezig in 2026.
 eq('bevrijdingsdag 2025 aanwezig', has(generateHolidays(NL_SET, undefined, 2025, 2025), 'Bevrijdingsdag'), true);
 eq('bevrijdingsdag 2026 afwezig', has(generateHolidays(NL_SET, undefined, 2026, 2026), 'Bevrijdingsdag'), false);
 eq('bevrijdingsdag 2025 datum', startOf(generateHolidays(NL_SET, undefined, 2025, 2025), 'Bevrijdingsdag'), '2025-05-05');
 
-// 4) NL Kerst (2 dagen) aanwezig — regressie tegen de oude default die Kerst miste.
 {
   const kerst = generateHolidays(NL_SET, undefined, 2026, 2026).find((h) => h.name === 'Kerst');
   eq('kerst 2026 start', kerst?.startDate, '2026-12-25');
   eq('kerst 2026 eind (2-daags)', kerst?.endDate, '2026-12-26');
 }
 
-// 5) UK-substituties: New Year 1/1/2022 (za) → ma 3/1; Christmas/Boxing 25-26/12/2021 (za/zo) → ma 27/di 28.
 {
   const uk2022 = generateHolidays(UK_SET, 'EAW', 2022, 2022);
   eq("new year 2022 (za→ma)", startOf(uk2022, "New Year's Day"), '2022-01-03');
@@ -87,23 +73,18 @@ eq('bevrijdingsdag 2025 datum', startOf(generateHolidays(NL_SET, undefined, 2025
   eq('boxing 2021 (zo→di 28)', startOf(uk2021, 'Boxing Day'), '2021-12-28');
 }
 
-// 6) DE Buß- und Bettag (weekday-before 23/11, wo) in Sachsen: 2026 → 18/11 (23/11=ma).
 eq('buss- und bettag 2026 (SN)', startOf(generateHolidays(DE_SET, 'SN', 2026, 2026), 'Buß- und Bettag'), '2026-11-18');
-// Regionaal: níét landelijk (leeg region → geen Buß- und Bettag).
 eq('buss- und bettag landelijk afwezig', has(generateHolidays(DE_SET, undefined, 2026, 2026), 'Buß- und Bettag'), false);
 
-// 7) UK nth-weekday: Early May = 1e maandag mei (2026-05-04); Spring bank = laatste maandag mei (2026-05-25).
 {
   const uk = generateHolidays(UK_SET, 'EAW', 2026, 2026);
   eq('early may bank 2026 (1e ma)', startOf(uk, 'Early May bank holiday'), '2026-05-04');
   eq('spring bank 2026 (laatste ma)', startOf(uk, 'Spring bank holiday'), '2026-05-25');
 }
 
-// 8) Regio-filter: DE Fronleichnam wél in BY, níét in BE (Berlin).
 eq('fronleichnam BY aanwezig', has(generateHolidays(DE_SET, 'BY', 2026, 2026), 'Fronleichnam'), true);
 eq('fronleichnam BE afwezig', has(generateHolidays(DE_SET, 'BE', 2026, 2026), 'Fronleichnam'), false);
 
-// 9) US federale feestdagen 2026: 11 stuks; nth-weekday-dagen en de vaste dagen met substitutie.
 {
   const us = generateHolidays(US_SET, undefined, 2026, 2026);
   eq('us 2026 aantal', us.length, 11);
@@ -119,8 +100,6 @@ eq('fronleichnam BE afwezig', has(generateHolidays(DE_SET, 'BE', 2026, 2026), 'F
   eq('us christmas 2026 (vr)', startOf(us, 'Christmas Day'), '2026-12-25');
 }
 
-// 10) US substitutie in 2022: 1/1 op zaterdag hoort bij 31/12/2021 (en dus niet in 2022);
-//     Juneteenth 19/6/2022 (zo) → ma 20/6; Christmas 25/12/2022 (zo) → ma 26/12.
 {
   const us2021 = generateHolidays(US_SET, undefined, 2021, 2021);
   const newYears2021 = us2021.filter((h) => h.name === "New Year's Day").map((h) => h.startDate);
@@ -130,12 +109,10 @@ eq('fronleichnam BE afwezig', has(generateHolidays(DE_SET, 'BE', 2026, 2026), 'F
   eq('us juneteenth 2022 (zo→ma)', startOf(us2022, 'Juneteenth'), '2022-06-20');
   eq('us christmas 2022 (zo→ma)', startOf(us2022, 'Christmas Day'), '2022-12-26');
   eq('us 2022 aantal (New Year valt in 2021)', us2022.length, 10);
-  // Meerjaarsspanne 2021–2022 herhaalt niets: 31/12/2021 telt één keer, 2022 voegt geen nieuwjaar toe.
   const span = generateHolidays(US_SET, undefined, 2021, 2022);
   eq('us spanne nieuwjaar-dagen', span.filter((h) => h.name === "New Year's Day").length, 2);
 }
 
-// 11) US Juneteenth bestaat pas vanaf 2021; 1/1 op zondag (2023) → ma 2/1.
 {
   eq('us juneteenth 2020 afwezig', has(generateHolidays(US_SET, undefined, 2020, 2020), 'Juneteenth'), false);
   eq('us juneteenth 2021 (za→vr 18/6)', startOf(generateHolidays(US_SET, undefined, 2021, 2021), 'Juneteenth'), '2021-06-18');

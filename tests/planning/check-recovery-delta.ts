@@ -1,8 +1,3 @@
-// X9 recovery-delta — de pure grens tussen documentinhoud en recovery-opslag.
-//
-// Bewijst dat `isDirty` uitsluitend manifestmetadata blijft: inhoudsdelta's volgen de volledige
-// IFCSaveSource via sameIFCSource. Daardoor kan één bewerking precies één writeIFC/upsert geven,
-// terwijl tab- of metadatawijzigingen geen grote IFC-payload raken.
 import {
   RecoveryDeltaTracker,
   persistedRecoveryState,
@@ -22,8 +17,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   }
 };
 
-// Alle referenties zijn bewust afzonderlijk. De concrete domeinvorm doet hier niet ter zake: de
-// productregel is dat `sameIFCSource` precies deze velden referentieel vergelijkt.
 const source = (label: string): IFCSaveSource => ({
   project: { label }, calendar: { label }, tasks: [{ label }], sequences: [{ label }],
   resources: [{ label }], assignments: [{ label }], activityCodeTypes: [{ label }],
@@ -58,11 +51,6 @@ const activeOnly = planRecoveryDelta('b', afterOneEdit, afterEditPersisted);
 eq('5 actieve-tabwissel heeft nul IFC-upserts', activeOnly.changedDocuments.length, 0);
 eq('6 actieve-tabwissel is manifest-only', activeOnly.manifestChanged, true);
 
-// 6b/6c — "datums zoals opgeslagen" is manifestmetadata (critreview laag 3, bevindingen 2/3):
-// crashherstel leest de vlag terug uit het manifest, dus een wissel van die stand MOET een
-// manifestcommit geven, ook wanneer de IFC-inhoud referentieel gelijk blijft. Zonder deze regel
-// zou de vlag pas op de volgende inhoudswijziging op schijf landen — en dat is precies de ronde
-// waarin een crash hem kwijt zou zijn.
 const modeToggled: RecoverySourceDocument[] = [
   { ...afterOneEdit[0]!, datesAsRecorded: true },
   afterOneEdit[1]!,
@@ -88,9 +76,6 @@ eq('9 isDirty=true is nooit zelfstandig een inhoudsrevisie', stillNoContentDelta
 const noop = planRecoveryDelta('a', afterOneEdit, afterEditPersisted);
 eq('10 identieke bron én metadata doet geen I/O', noop.needsPersist, false);
 
-// De hook gebruikt deze tracker direct. Cruciaal: een serialization-cache is veilig, maar een
-// storagefout mag de persisted basis niet promoten. De retry MOET daarom dezelfde upsert opnieuw
-// aanbieden, ook wanneer hij de reeds gebouwde IFC-string mag hergebruiken.
 const tracker = new RecoveryDeltaTracker();
 let serializations = 0;
 const serialize = (value: IFCSaveSource): string => {
@@ -103,7 +88,6 @@ tracker.commit('a', docs);
 const failedWrite = tracker.prepare('a', afterOneEdit, serialize)!;
 eq('12 na één edit biedt tracker exact één upsert aan', failedWrite.upserts.map((document) => document.id), ['a']);
 eq('13 die edit wordt éénmaal geserialiseerd', serializations, 3);
-// Simuleer de mislukte `saveRecovery`: bewust GEEN commit.
 const retryAfterFailure = tracker.prepare('a', afterOneEdit, serialize)!;
 eq('14 storagefout houdt de gewijzigde bron in de volgende delta', retryAfterFailure.upserts.map((document) => document.id), ['a']);
 eq('15 retry mag de al gebouwde IFC-string hergebruiken', serializations, 3);

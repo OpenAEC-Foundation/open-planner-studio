@@ -1,18 +1,3 @@
-// Kring via een fase (audit taakmutaties, rapport S4/S5) — de AI krijgt dezelfde voorafweigering als
-// de UI in plaats van pas de rollback van de eindberekening.
-//
-// Een relatie op een fase geldt voor elke taak in die fase (`expandSummaryRelations`). Een kring kan
-// dus pas in die uitgevouwen graaf zichtbaar zijn: een taak onder een fase hangen waarvan de relaties
-// via die taak rondlopen (S4, `planner_move_task`), of een relatie naar een fase (S5,
-// `planner_add_dependencies`/`planner_update_dependencies`). `planner_move_task` keek daar helemaal
-// niet naar en de MCP-voorafcontrole (`validate.noCycle`) alleen naar de kale relaties; pas de
-// afsluitende herberekening ving het, met de Engelse solvertekst "Circular dependency detected" en —
-// in `planner_batch` — elke stap als "uitgevoerd", zodat de AI niet zag wélke stap de kring maakte.
-//
-// Gemeten vóór de wijziging (en onveranderd erna): een kring rolt de HELE aanroep terug — ook de
-// geldige items in dezelfde `add_dependencies`, en in een batch alle stappen. Dat is het bestaande,
-// gedocumenteerde contract ("een kringverwijzing is een harde fout die de hele call terugrolt"); deze
-// cases pinnen alleen dat de fout nu VOORAF komt, met de gewone kringtekst, bij de juiste stap.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool, registerAllTools } from '@/services/mcp/toolRegistry';
 import { validate } from '@/state/mcpValidation';
@@ -22,8 +7,6 @@ import type { McpToolResult } from '@/services/mcp/contracts';
 const store = useAppStore;
 registerAllTools();
 
-// Warm-up (zelfde reden als cases-guards.ts): het rollbackpad promoot de projectkalender één keer
-// tot bibliotheek-entry; daarna is een byte-identiek-vergelijking na een rollback zuiver.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
@@ -38,24 +21,19 @@ async function call(name: string, args: unknown): Promise<McpToolResult> {
   return await def.handler(args, ctx());
 }
 const snapshot = () => JSON.stringify(createSnapshot(S()));
-/** Fout met code CYCLE uit de VOORAFcontrole (gewone kringtekst), niet uit de solverrollback. */
 function assertPrecheckedCycle(res: McpToolResult, label: string): string {
   assert(!res.ok, `${label}: hoort geweigerd te worden`);
   if (res.ok) return '';
   assertEq(res.code, 'CYCLE', `${label}: code CYCLE`);
   assert(res.error.includes('circular dependency detected'), `${label}: gewone kringtekst verwacht, kreeg: ${res.error}`);
-  // De solvertekst uit de rollback is "Circular dependency detected: a -> b" (hoofdletter, `->`); de
-  // voorafcontrole schrijft "circular dependency detected: a → b".
   assert(!/Circular dependency detected: .* -> /.test(res.error), `${label}: geen solvertekst uit de rollback, kreeg: ${res.error}`);
   return res.error;
 }
-/** De stapstatussen van een gefaalde batch. */
 function batchStatuses(res: McpToolResult): string[] {
   const steps = res.ok ? undefined : (res.data as { steps?: { status: string }[] } | undefined)?.steps;
   return (steps ?? []).map(step => step.status);
 }
 
-/** S4: A→C en C→B. B onder A hangen maakt van A→C ook B→C. Plus losse X en Y. */
 function s4() {
   S().newProject();
   S().setProject({ startDate: '2026-03-02' });
@@ -71,7 +49,6 @@ function s4() {
   return { a, b, c, x, y };
 }
 
-// ── S4: verhangen (planner_move_task) ────────────────────────────────────────────────────────
 test('move_task: verhangen dat via de nieuwe fase een kring maakt ⇒ vooraf CYCLE', async () => {
   const { a, b, c } = s4();
   const before = snapshot();
@@ -101,14 +78,11 @@ test('batch: de move_task-stap die de kring maakt, faalt zelf — niet pas de ei
     { tool: 'planner_move_task', args: { id: b, newParentId: a } },
   ] });
   const error = assertPrecheckedCycle(res, 'batch met move_task');
-  // Vóór de wijziging: beide stappen "uitgevoerd", daarna liep de eindberekening vast.
   assertEq(batchStatuses(res), ['uitgevoerd', 'gefaald'], 'stap 2 (move_task) is de gefaalde stap');
   assert(error.includes('1. planner_add_dependencies — executed (rolled back)'), `stap 1 is teruggedraaid, kreeg: ${error}`);
   assertEq(snapshot(), before, 'de hele batch is teruggedraaid (bestaand contract)');
 });
 
-// ── S5: een relatie die via een fase rondloopt (add/update_dependencies) ─────────────────────
-/** S5: fase P met P1, en P1→Q. Q→P zou via P1 rondlopen. Plus losse X en Y. */
 function s5() {
   S().newProject();
   S().setProject({ startDate: '2026-03-02' });
@@ -163,7 +137,6 @@ test('batch: de add_dependencies-stap die de kring maakt, faalt zelf', async () 
 
 test('add_dependencies: een bestaande kring elders wordt de nieuwe relatie niet aangerekend', async () => {
   const { x, y } = s5();
-  // Zoals een importer rechtstreeks naar `sequences` schrijft.
   store.setState(state => {
     state.sequences.push(
       { id: 'imp-xy', predecessorId: x, successorId: y, type: 'FINISH_START', lagDays: 0 },

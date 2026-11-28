@@ -1,18 +1,3 @@
-// Stap 1.10 (keuze 11, Ethan 2026-11-03; `docs/relaties-tussen-projecten.md`): de MCP-leestools geven de
-// externe relaties terug, en `planner_refresh_external_links` ververst de ankers uit de bronbestanden.
-//
-// Wat deze cases vastleggen:
-// 1. `planner_get_task`: de eigen koppelingen (`externalLinks`, altijd een lijst) en die van de fase erboven
-//    (`inheritedExternalLinks`, met `fromTaskId`/`fromWbs`).
-// 2. `planner_list_tasks`: het filter `externe_relaties`, het veld `ext` per rij, en `zonder_relaties` telt
-//    een externe relatie als relatie (ook op een fase), net als `buildLogicIndex`.
-// 3. `planner_get_project_info`: `statistics.externalRelations` en `externalSources` per bronproject.
-// 4. `planner_refresh_external_links`: leest de bron één keer via de MCP-bestandsnaad (nep-fs in het geheugen),
-//    zet de ankers in één undo-stap, meldt `changes`, telt een koppeling zonder pad als `manualLinks` (die
-//    wordt alleen ververst als hetzelfde bronproject via een andere koppeling gelezen wordt, zoals in de app), weigert
-//    een bron buiten de thuismap (`outOfScope`), weigert bij pauze en alleen-lezen zonder iets te lezen, en
-//    geeft DOC_DRIFT als het actieve document wisselt terwijl de bron gelezen wordt. Een tweede aanroep op
-//    dezelfde bron verandert niets.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
 import type { McpContext, McpToolResult, McpToolOk, McpToolErr } from '@/services/mcp/contracts';
@@ -28,7 +13,6 @@ import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 const S = () => useAppStore.getState();
 const ctxWith = (over: McpContextOverrides = {}): McpContext => makeMcpContext(appStoreContext, over);
 
-/** Via de echte `tools/call`-route, dus ook de schemapoort. */
 let rpcId = 0;
 async function rpc(name: string, args: unknown = {}, ctx: McpContext = ctxWith()): Promise<McpToolResult> {
   const raw = await handleMcpMessage(JSON.stringify({
@@ -49,13 +33,10 @@ async function err(name: string, args: unknown = {}, ctx?: McpContext): Promise<
   return res as McpToolErr;
 }
 
-// --- Nep-fs in het geheugen ----------------------------------------------------------------------
-
 const HOME = '/home/tester';
 const SOURCE = `${HOME}/projecten/Installateur.ifc`;
 const OUTSIDE = '/elders/Sloper.ifc';
 const files = new Map<string, string>();
-// Wijzigingstijd per bestand: de bronversie die de tool in de koppeling zet (herkomst, #809).
 const mtimes = new Map<string, Date>();
 const reads: string[] = [];
 let onRead: (() => void) | null = null;
@@ -86,9 +67,6 @@ const fs: McpFileFs = {
 };
 fileToolDeps.getFs = async () => fs;
 
-// --- De bron: Installateur, twee taken vanaf maandag 1 maart 2027 --------------------------------
-
-// Eén bronstore voor alle versies: een echt bronbestand houdt zijn project-id en taak-id's bij opslaan.
 const source = createAppStoreContext().store;
 const B = () => source.getState();
 B().newProject();
@@ -97,7 +75,6 @@ const installId = B().addTask({ name: 'Installatie', time: createDefaultTaskTime
 const testId = B().addTask({ name: 'Testen', time: createDefaultTaskTime('2027-03-01', 2, 'days') });
 B().addSequence({ predecessorId: installId, successorId: testId, type: 'FINISH_START', lagDays: 0 });
 
-/** Reken de bron door en schrijf haar als IFC naar de nep-fs. */
 let sourceWrites = 0;
 function writeSource(): void {
   B().runCPM();
@@ -122,13 +99,6 @@ const link = (id: string, taskId: string, anchorDate: string, filePath: string |
   },
   ...over,
 });
-
-// --- Het eigen plan: Aannemer ---------------------------------------------------------------------
-//
-// Fase "Afbouw" (koppeling op de fase, naar Installatie) met daaronder Stucwerk en Schilderwerk.
-// Vloer heeft een eigen koppeling naar Testen, met 1 dag wachttijd. Gevel heeft een koppeling zonder pad
-// (met de hand ingevoerd) naar hetzelfde bronproject. Dak heeft een koppeling naar een bron buiten de
-// thuismap. Los heeft niets.
 
 let ids: Record<string, string> = {};
 function buildPlan(): void {
@@ -165,8 +135,6 @@ const linkOf = (taskId: string, linkId: string) =>
 const anchorOf = (taskId: string, linkId: string) => linkOf(taskId, linkId).anchorDate;
 const appliedSteps = () => S().historyEvents.filter(e => e.state === 'applied').length;
 
-// --- 1. planner_get_task --------------------------------------------------------------------------
-
 test('get_task: eigen koppelingen met richting, type, wachttijd, anker en bron', async () => {
   const data = await ok('planner_get_task', { taskId: ids.vloer });
   assertEq(data.externalLinks.length, 1, 'één eigen koppeling');
@@ -198,8 +166,6 @@ test('get_task: een taak zonder koppeling heeft een lege lijst en geen geërfde'
   assertEq(data.inheritedExternalLinks, undefined, 'geen geërfde');
 });
 
-// --- 2. planner_list_tasks ------------------------------------------------------------------------
-
 const names = (rows: Array<{ id: string }>) =>
   rows.map(r => S().tasks.find(t => t.id === r.id)!.name).sort();
 
@@ -227,8 +193,6 @@ test('list_tasks: externe_relaties moet een boolean zijn', async () => {
   assertEq(e.code, 'VALIDATION', 'VALIDATION');
 });
 
-// --- 3. planner_get_project_info ------------------------------------------------------------------
-
 test('get_project_info: aantal externe relaties en de bronprojecten', async () => {
   const data = await ok('planner_get_project_info');
   assertEq(data.statistics.externalRelations, 4, 'vier koppelingen');
@@ -240,8 +204,6 @@ test('get_project_info: aantal externe relaties en de bronprojecten', async () =
   const manual = sources.find((s: any) => s.projectId === first.projectId && s.filePath === undefined);
   assertEq(manual?.links, 1, 'één koppeling zonder pad');
 });
-
-// --- 4. planner_refresh_external_links ------------------------------------------------------------
 
 test('refresh: weigert bij pauze en bij alleen-lezen, zonder iets te lezen', async () => {
   reads.length = 0;
@@ -275,8 +237,6 @@ test('refresh: DOC_DRIFT als het actieve document wisselt tijdens het lezen; het
 
 test('refresh: zet de ankers uit de bron in één undo-stap en meldt de wijzigingen', async () => {
   reads.length = 0;
-  // Een balk (#811) voor de bron en voor de bron buiten de thuismap: na de verversing is alleen die van de
-  // gelezen bron weg, zoals bij *Alle externe relaties vernieuwen*.
   const bar = (filePath: string) => ({
     documentId: S().activeDocumentId, key: normalizeExternalSourcePath(filePath)!, locator: { kind: 'path' as const, filePath },
     fileName: filePath.split('/').pop()!, version: '2027-02-01T09:00:00.000Z', changedLinks: 1,
@@ -293,14 +253,11 @@ test('refresh: zet de ankers uit de bron in één undo-stap en meldt de wijzigin
   assertEq((bySource.get(SOURCE) as any).projectName, 'Installateur', 'met de projectnaam');
   assertEq((bySource.get(OUTSIDE) as any).status, 'outOfScope', 'bron buiten de thuismap');
   assertEq(data.manualLinks, 1, 'één koppeling zonder pad');
-  // Gevel heeft geen pad, maar wijst naar hetzelfde bronproject: die wordt mee ververst (project-id eerst).
   assertEq(data.refreshed, 3, 'drie koppelingen ververst');
-  // Installatie (5 dagen vanaf ma 1 maart) is klaar op vr 5 maart 16:00; Testen (2 dagen) op di 9 maart 16:00.
   assertEq(anchorOf(ids.afbouw, ids.afbouwLink), '2027-03-05T16:00', 'Afbouw: einde Installatie');
   assertEq(anchorOf(ids.vloer, ids.vloerLink), '2027-03-09T16:00', 'Vloer: einde Testen');
   assertEq(anchorOf(ids.gevel, ids.gevelLink), '2027-03-05T16:00', 'Gevel (zonder pad, zelfde bronproject): mee ververst');
   assertEq(anchorOf(ids.dak, ids.dakLink), '2027-03-01T16:00', 'Dak (buiten de thuismap): onveranderd');
-  // Herkomst (#809): de wijzigingstijd van de bron als versie, en de leestijd; zoals de app.
   const afbouwLink = linkOf(ids.afbouw, ids.afbouwLink);
   assertEq(afbouwLink.sourceVersion, mtimes.get(SOURCE)!.toISOString(), 'Afbouw: bronversie = wijzigingstijd');
   assert(!!afbouwLink.anchorReadAt && !isNaN(Date.parse(afbouwLink.anchorReadAt)), 'Afbouw: leestijd gezet');
@@ -313,7 +270,6 @@ test('refresh: zet de ankers uit de bron in één undo-stap en meldt de wijzigin
     ['Vloer', '2027-03-01T16:00', '2027-03-09T16:00', false],
   ], 'changes');
   assertEq(appliedSteps(), steps + 1, 'één undo-stap');
-  // De transactie rekent door, zoals de app na verversen: Stucwerk (in Afbouw) begint na het nieuwe anker.
   assertEq(S().scheduleStale, false, 'doorgerekend');
   assertEq(S().tasks.find(t => t.id === ids.stuc)!.time.earlyStart, '2027-03-08T07:00', 'Stucwerk begint ma 8 maart');
 });
@@ -338,12 +294,10 @@ test('refresh: een nieuwe versie van de bron schuift het anker; een verdwenen br
   B().updateTask(installId, { time: createDefaultTaskTime('2027-03-01', 7, 'days') });
   writeSource();
   const data = await ok('planner_refresh_external_links');
-  // Installatie 7 werkdagen vanaf ma 1 maart ⇒ klaar op di 9 maart 16:00.
   assertEq(anchorOf(ids.afbouw, ids.afbouwLink), '2027-03-09T16:00', 'Afbouw volgt de nieuwe bron');
   assertEq(linkOf(ids.afbouw, ids.afbouwLink).sourceVersion, mtimes.get(SOURCE)!.toISOString(), 'Afbouw: nieuwe bronversie');
   assert(data.changes.some((c: any) => c.linkId === ids.afbouwLink && c.anchorBefore === '2027-03-05T16:00'), 'change van Afbouw');
 
-  // Een versie zonder Testen: de koppeling van Vloer houdt haar anker en krijgt sourceMissing.
   const vloerBefore = anchorOf(ids.vloer, ids.vloerLink);
   B().deleteTask(testId);
   writeSource();
@@ -354,8 +308,6 @@ test('refresh: een nieuwe versie van de bron schuift het anker; een verdwenen br
   assertEq(after.missing, 1, 'missing telt de ontbrekende brontaak');
 });
 
-// Stap 1.9: een koppeling naar een project op de site (met site-id) leest de tool niet. Ze telt als `siteLinks`,
-// niet als `manualLinks`, en houdt haar anker, ook al heeft een gelezen bron hetzelfde project-id.
 test('refresh: een koppeling op de site houdt haar anker en telt als siteLinks', async () => {
   const { id: _id, ...fields } = link('', installSrc.id, '2027-03-01T16:00', undefined, {
     sourceRef: { projectId: first.projectId, projectName: 'Installateur', taskId: installSrc.id, taskName: 'Installatie', siteFileId: 'site-42' },
@@ -365,7 +317,6 @@ test('refresh: een koppeling op de site houdt haar anker en telt als siteLinks',
   const siteLink = S().addExternalLink(ids.los, fields);
   const data = await ok('planner_refresh_external_links');
   assertEq(data.siteLinks, 1, 'één koppeling op de site');
-  // Gevel kreeg in een eerdere verversing het pad van haar bron; de koppeling op de site telt hier niet mee.
   assertEq(data.manualLinks, 0, 'de koppeling op de site telt niet als met de hand ingevoerd');
   assertEq(anchorOf(ids.los, siteLink), '2027-03-01T16:00', 'koppeling op de site: anker onveranderd');
   assertEq(linkOf(ids.los, siteLink).sourceVersion, '3', 'koppeling op de site: versie onveranderd');
@@ -383,13 +334,6 @@ test('refresh: zonder externe relaties leest de tool niets en verandert niets', 
   assertEq(appliedSteps(), steps, 'geen undo-stap');
 });
 
-// --- 5. Review #813: een geweigerde of onleesbare bron krijgt geen anker van een andere bron --------------
-//
-// Letterlijk: twee IFC-versies met hetzelfde project-id en dezelfde taak-id's. Bron A staat in de
-// gebruikersmap (Installatie klaar vr 5 maart 2027 16:00). Bron B staat erbuiten (anker vr 12 maart 2027
-// 16:00). De tool leest alleen A en meldt B als `outOfScope`. De koppeling naar B moet haar anker en pad
-// houden: de afhankelijke taak begint dan ma 15 maart, niet ma 8 maart. Hetzelfde voor een bron die niet te
-// lezen is (`unreadable`).
 const SOURCE_A = `${HOME}/projecten/Installateur-A.ifc`;
 const sourceA = createAppStoreContext().store;
 sourceA.getState().newProject();
@@ -434,11 +378,6 @@ for (const [label, pathB] of [['outOfScope', '/elders/Installateur-B.ifc'], ['un
   });
 }
 
-// --- 6. Review #813, ronde 3: de koppelingen van NU tellen, niet die van vóór het lezen -----------------
-//
-// Letterlijk: twee koppelingen naar bron A. Terwijl de tool bron A leest, zet de planner de koppeling van
-// Via B naar bron B (zelfde project-id, buiten de gebruikersmap, anker vr 12 maart 2027 16:00). Bron B is
-// niet gelezen; de koppeling houdt haar nieuwe pad en anker, en Via B begint ma 15 maart (niet ma 8 maart).
 test('refresh: een koppeling die tijdens het lezen naar een andere bron gaat, houdt haar nieuwe pad en anker', async () => {
   S().newProject();
   S().setProject({ startDate: '2027-03-01', name: 'Aannemer' });
@@ -477,9 +416,6 @@ test('refresh: een koppeling die tijdens het lezen naar een andere bron gaat, ho
   assertEq(data.changes.map((c: any) => c.linkId), [linkA], 'alleen Via A staat in changes');
 });
 
-// Een geweigerde verversing laat de balk (#811) staan: de transactie rolt de koppelingen terug, en de balk
-// staat buiten de documentsnapshot. Letterlijk: het plan heeft een kringverwijzing, dus het doorrekenen aan
-// het eind van de transactie weigert (CYCLE).
 test('refresh: een geweigerde verversing (kringverwijzing) laat de balk staan', async () => {
   S().newProject();
   S().setProject({ startDate: '2027-03-01', name: 'Aannemer' });
@@ -489,7 +425,6 @@ test('refresh: een geweigerde verversing (kringverwijzing) laat de balk staan', 
     direction: 'predecessor', relType: 'FS', lagDays: 0, anchorDate: '2027-03-01T16:00', sourceMissing: false,
     sourceRef: { projectId: readA.projectId, projectName: 'Installateur', taskId: installAId, taskName: 'Installatie', filePath: SOURCE_A },
   });
-  // De store-route weigert een kring; zet hem rechtstreeks, zoals een ingelezen plan hem kan hebben.
   useAppStore.setState(state => {
     state.sequences.push(
       { id: 'kring-pq', predecessorId: p, successorId: q, type: 'FINISH_START', lagDays: 0 },

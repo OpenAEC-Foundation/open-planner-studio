@@ -23,8 +23,10 @@ korter door verwachtingen af te leiden of de keten over te slaan.
   zonder i18n, en de rondgang mag niet van een vertaalsleutel afhangen.
 - `check-progress-sheet-middernacht.ts` past het teruggelezen blad toe op de taak zonder voortgang (`pasToe`). Tegen
   de al voltooide taak zou de vergelijking een verloren tijdstip als ongewijzigd zien.
-- `check-progress-xlsx-writer.ts` schrijft de verwachte volgorde van de elementen, de minimale aantallen en de
-  waarde van `sheetProtection` letterlijk uit en leest ze niet terug uit `buildProgressXlsxParts`.
+- `check-progress-xlsx-writer.ts` schrijft de verwachte volgorde van de elementen, de minimale aantallen, de
+  polariteit van `sheetProtection` en de `_xHHHH_`-notatie letterlijk uit en leest ze niet terug uit
+  `buildProgressXlsxParts`. Die verwachtingen komen uit ECMA-376 (Office Open XML) en uit wat de invuller op zijn
+  scherm hoort te zien.
 - `check-minute-model-examples.ts` leest de voorbeelden uit `fixtures/minute-model-examples-f0/`, zoals ze vóór het
   minutenmodel waren (zonder `OPS_Project.TimeModel`). Zo toetst hij dat een oud bestand door de migratie op de
   laadgrens gaat. Vervang die bestanden niet door de huidige `public/examples/`. De snapshot werk je alleen bij met

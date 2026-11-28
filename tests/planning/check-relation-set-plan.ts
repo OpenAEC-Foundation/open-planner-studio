@@ -68,7 +68,6 @@ const C = task('C', '1.3');
 const D = task('D', '1.4');
 const baseTasks = [A, B, C, D];
 
-// Eén cel is de volledige gewenste set: A blijft maar krijgt lag, B verdwijnt, C komt erbij.
 {
   const existing = [seq('s-a', 'A', 'D'), seq('s-b', 'B', 'D', 'START_START')];
   const result = planRelationSet({
@@ -88,7 +87,6 @@ const baseTasks = [A, B, C, D];
   }
 }
 
-// Exacte key en editor-idmetadata behouden ids; een eenduidige typewisseling ook.
 {
   const existing = [seq('keep-exact', 'A', 'D'), seq('keep-meta', 'B', 'D'), seq('keep-type', 'C', 'D')];
   const result = planRelationSet({
@@ -110,8 +108,6 @@ const baseTasks = [A, B, C, D];
   }
 }
 
-// Meerdere typen op hetzelfde paar: exacte keys blijven, maar de overige keuze krijgt niet
-// willekeurig het id van "de eerste" oude relatie.
 {
   const existing = [seq('multi-fs', 'A', 'D'), seq('multi-ss', 'A', 'D', 'START_START')];
   const result = planRelationSet({
@@ -126,7 +122,6 @@ const baseTasks = [A, B, C, D];
   }
 }
 
-// Tokenfouten hebben precieze tokenposities en er komt nooit een half plan terug.
 {
   const duplicate = planRelationSet({
     tasks: baseTasks, sequences: [], ownerTaskId: 'D', direction: 'predecessor',
@@ -150,7 +145,6 @@ const baseTasks = [A, B, C, D];
   })), ['invalidLag']);
 }
 
-// Voorouderregel komt uit de centrale relationRules, ook in de setplanner.
 {
   const parent = task('P', '2', { childIds: ['K'] });
   const child = task('K', '2.1', { parentId: 'P' });
@@ -161,8 +155,6 @@ const baseTasks = [A, B, C, D];
   eq('kind naar eigen ouder wordt geweigerd', errorsOf(result), ['ancestor']);
 }
 
-// De planner valideert de finale set, niet "oude + nieuwe". Een reeds corrupte kring mag worden
-// hersteld door de betrokken cel leeg te maken; omgekeerd wordt een nieuwe finale kring geweigerd.
 {
   const cyclicExisting = [seq('ab', 'A', 'B'), seq('bc', 'B', 'C'), seq('ca', 'C', 'A')];
   const repair = planRelationSet({
@@ -176,7 +168,6 @@ const baseTasks = [A, B, C, D];
   eq('cyclus die pas in de finale set ontstaat wordt geweigerd', errorsOf(newCycle), ['cycle']);
 }
 
-// Summarysemantiek: directe eindpunten lijken acyclisch, maar expansie naar bladtaken onthult de kring.
 {
   const summary = task('S', '3', { childIds: ['X', 'Y'] });
   const x = task('X', '3.1', { parentId: 'S' });
@@ -189,9 +180,6 @@ const baseTasks = [A, B, C, D];
   eq('summary-expansie onthult en weigert bladcyclus', errorsOf(result), ['cycle']);
 }
 
-// Alleen fouten die de bewerking zelf TOEVOEGT tellen (audit taakmutaties, bevinding 3). Een bewust
-// bewaarde voorouder-relatie of kring (uit een import, of na verhangen) mag geen ongerelateerde cel
-// blokkeren — de eindgraaf wordt tegen de graaf van vóór de bewerking gelegd.
 {
   const phase = task('P', '5', { childIds: ['K'] });
   const kid = task('K', '5.1', { parentId: 'P' });
@@ -260,7 +248,6 @@ const extLink: ExternalLink = {
   sourceRef: { projectId: 'bron', projectName: 'Bron', taskId: 'BT', taskName: 'Brontaak', filePath: '/bron.ifc' },
 };
 
-// Same-owner behoudt id en technische bron; cross-task maakt bewust een nieuwe link-id.
 {
   const owner = task('D', '1.4', { externalLinks: [extLink] });
   const same = planRelationSet({
@@ -291,7 +278,6 @@ const extLink: ExternalLink = {
   }
 }
 
-// Externe exacte identiteit bevat sourceProjectKey + source task + type; dubbele tokens zijn fout.
 {
   const target = task('C', '1.3');
   const first = externalToken('D', 'C', 'predecessor', extLink);
@@ -302,7 +288,6 @@ const extLink: ExternalLink = {
   eq('dubbele externe technische key wordt per token geweigerd', errorsOf(result), ['duplicate', 'duplicate']);
 }
 
-// De runtimegrens vertrouwt niet op TypeScript wanneer intents uit clipboard/IPC komen.
 {
   const valid = internal('1.1');
   ok('normaal intern token passeert runtimegrens', isParsedRelationTokenArray([valid]));
@@ -322,7 +307,6 @@ const extLink: ExternalLink = {
   }]), false);
 }
 
-// Het applypad genereert ids pas in de geïsoleerde commit en schrijft add/update/remove samen.
 {
   const state = {
     tasks: [task('D', '1.4')],
@@ -341,8 +325,6 @@ const extLink: ExternalLink = {
   }]);
 }
 
-// Grote geïmporteerde planningen mogen de JavaScript-callstack niet als verborgen limiet hebben.
-// Zowel een lange acyclische keten als een kring diep in die keten moet iteratief worden afgehandeld.
 {
   const edges = Array.from({ length: 20_000 }, (_, index) => ({
     predecessorId: `deep-${index}`,

@@ -1,22 +1,3 @@
-// Taak T22 — `planner_batch`: de batch-executor (spec §Compositie (1): `batch`).
-//
-// Draait headless tegen de ECHTE Zustand-store (via de harness) — geen mock van de store, wél EIGEN
-// STUB-TOOLS: de echte mutatietools leven in andere banen en worden pas bij SYNC-2 samengevoegd.
-// De executor is daarom registry-agnostisch: hij kent alleen `getTool()`, `def.batchable`,
-// `def.kind` en de synchrone batch-kern (`batchStep`). De stubs hieronder spiegelen exact wat de
-// echte tools zullen doen (o.a. `add_tasks` met zijn `created`-map).
-//
-// Bewezen contractpunten (spec §Compositie):
-//   - één undo-snapshot over heterogene stappen; herberekening aan het eind;
-//   - tussentijdse herberekening vóór een leesstap / `level_resources`-stap ná mutaties;
-//   - gedeelde temp-id-namespace: `created`-maps herschrijven args van látere stappen (recursief);
-//   - structurele stapfout (onbekende tool, McpStepError) ⇒ volledige rollback + rapport
-//     (uitgevoerd/gefaald/niet bereikt);
-//   - per-item-weigeringen zijn ZACHT: de batch loopt door en verzamelt ze prominent bovenaan;
-//   - uitsluitingen (batch zelf, undo/redo, document-tools, save_baseline, tools zonder synchrone
-//     batch-kern) worden vóór enige mutatie geweigerd;
-//   - max 100 stappen; één backup-trigger met kind 'batch';
-//   - de stappenloop is volledig SYNCHROON (statische assert op de eigen broncode).
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { registerToolModules } from '@/services/mcp/toolRegistry';
 import { readTools } from '@/services/mcp/tools/readTools';
@@ -31,14 +12,8 @@ import { createSnapshot } from '@/state/snapshot';
 
 const store = useAppStore;
 
-// Warm-up (zelfde reden als cases-transaction.ts/cases-runtime.ts): een verse store heeft
-// `calendars: []`; het rollback-/restore-pad promoot de projectkalender-cache tot bibliotheek-entry.
-// Door hier één edit te undo'en staat `cal-default` al in de bibliotheek, zodat een byte-identiek-
-// assert die (benigne) promotie niet als store-verschil waarneemt.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
-
-// ── Ctx-fabriek ──────────────────────────────────────────────────────────────────────────────────
 
 interface BackupCall { docId: string; kind: McpToolDef['kind'] }
 let backupCalls: BackupCall[] = [];
@@ -50,12 +25,8 @@ function makeCtx(over: McpContextOverrides = {}): McpContext {
   });
 }
 
-// ── Stub-tools ───────────────────────────────────────────────────────────────────────────────────
-
 const MUT_ANNOT = { readOnlyHint: false, destructiveHint: false, idempotentHint: false, openWorldHint: false };
 
-/** Stub-mutatietool met een synchrone batch-kern (precies de vorm die de echte tools bij SYNC-2
- *  krijgen: kern los, `handler` = `runMutateTool` om diezelfde kern heen). */
 function stubMutate(
   name: string,
   core: (args: unknown, ctx: McpContext) => MutationOutcome,
@@ -74,8 +45,6 @@ function stubMutate(
   };
 }
 
-/** `add_tasks`-stub: maakt taken aan en levert de VOLLEDIGE tempId→realId-map als `data.created`
- *  (exact het contract van de echte `planner_add_tasks`, waar de temp-id-resolutie op leunt). */
 const stubAddTasks = stubMutate('planner_stub_add_tasks', (args) => {
   const items = ((args as { tasks?: { tempId: string; name: string }[] })?.tasks) ?? [];
   const created: Record<string, string> = {};
@@ -83,26 +52,21 @@ const stubAddTasks = stubMutate('planner_stub_add_tasks', (args) => {
   return { data: { created } };
 });
 
-/** Registreert de (al herschreven) args die de stap ontving — de spiegel voor de temp-id-resolutie. */
 let lastRecordArgs: unknown = null;
 const stubRecord = stubMutate('planner_stub_record', (args) => {
   lastRecordArgs = args;
   return { data: { received: args } };
 });
 
-/** Bulk-stap met één ZACHTE per-item-weigering: de stap slaagt, de weigering moet zichtbaar blijven. */
 const stubReject = stubMutate('planner_stub_reject', () => ({
   data: { applied: 1 },
   itemRejections: [{ id: 'taak-9', reason: 'completion 140 valt buiten 0-100' }],
 }));
 
-/** Structurele stapfout met een expliciete code (spiegelt een kringverwijzing uit een echte tool). */
 const stubCycle = stubMutate('planner_stub_cycle', () => {
   throw new McpStepError('CYCLE', 'kringverwijzing tussen A en B');
 });
 
-/** Legt een ECHTE kring aan (twee relaties over en weer). De solver ziet die pas bij de eerstvolgende
- *  herberekening — zo bewijzen we de `cpmResult.error`-worp uit `recomputeMidBatch`. */
 const stubCycleEdges = stubMutate('planner_stub_cycle_edges', (args) => {
   const { a, b } = args as { a: string; b: string };
   draft.addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
@@ -110,13 +74,10 @@ const stubCycleEdges = stubMutate('planner_stub_cycle_edges', (args) => {
   return { data: { edges: 2 } };
 });
 
-/** Levert een `created`-map met een tempId die NIET aan de gereserveerde `tmp-`-syntax voldoet. */
 const stubBadTempId = stubMutate('planner_stub_bad_tempid', () => ({
   data: { created: { Fundering: draft.addTask({ name: 'slechte-tempid' }) } },
 }));
 
-/** Verlengt een bestaande taak fors — zodat een volgende leesstap alleen mét tussentijdse
- *  herberekening een ANDER projecteinde ziet. */
 const stubExtend = stubMutate('planner_stub_extend', (args) => {
   const { taskId, duration } = args as { taskId: string; duration: number };
   const t = store.getState().tasks.find((x) => x.id === taskId);
@@ -125,7 +86,6 @@ const stubExtend = stubMutate('planner_stub_extend', (args) => {
   return { data: { taskId, duration } };
 });
 
-/** `level_resources`-stub: legt vast wat de planning-staat WAS op het moment dat de stap draaide. */
 let levelSaw: { projectEnd: string | null; scheduleStale: boolean } | null = null;
 const stubLevel = stubMutate('planner_level_resources', () => {
   const s = store.getState();
@@ -133,18 +93,14 @@ const stubLevel = stubMutate('planner_level_resources', () => {
   return { data: { shifts: 0 } };
 });
 
-/** Uitgesloten via `batchable:false` (de echte `save_baseline` doet hetzelfde). */
 const stubSaveBaseline = stubMutate('planner_save_baseline', () => ({ data: null }), { batchable: false });
 
-/** Uitgesloten via `kind:'document'` én `batchable:false`. */
 const stubDocument = stubMutate('planner_switch_document', () => ({ data: null }), {
   kind: 'document', batchable: false,
 });
 
-/** Uitgesloten via de expliciete naam-blocklist — ook al staat `batchable` (foutief) op true. */
 const stubUndo = stubMutate('planner_undo', () => ({ data: null }), { kind: 'other', batchable: true });
 
-/** Batchable, maar ZONDER synchrone batch-kern: alleen een async handler ⇒ niet batch-uitvoerbaar. */
 const stubAsyncOnly: McpToolDef = {
   name: 'planner_stub_async_only',
   description: 'stub zonder synchrone batch-kern',
@@ -155,10 +111,6 @@ const stubAsyncOnly: McpToolDef = {
   handler: async (_args, ctx) => runMutateTool(ctx, 'mutate', () => ({ data: null })),
 };
 
-/** Strikt schema (`additionalProperties:false` + `required`), zodat een stap met ongeldige args
- *  ook echt op `validateToolArgs` struikelt in plaats van door het lakse `{type:'object'}`-schema
- *  van de andere stubs te glippen. Gebruikt door de P2-isDirty-pinningtest hieronder
- *  (reviewbevinding 3, `review-mcp-read.md`). */
 const stubStrict = stubMutate('planner_stub_strict', () => ({ data: null }), {
   inputSchema: {
     type: 'object',
@@ -173,20 +125,16 @@ const stubs: McpToolDef[] = [
   stubSaveBaseline, stubDocument, stubUndo, stubAsyncOnly, stubStrict,
 ];
 
-// De registry krijgt: de ECHTE leestools (de leesstap-tests draaien tegen `planner_get_project_info`),
-// de batch-tool zelf (nodig voor de batch-in-batch-weigering) en de stubs hierboven.
 registerToolModules([readTools, batchTools, stubs]);
 
 const batchDef = batchTools[0];
 
 interface Step { tool: string; args?: unknown }
 
-/** Draai `planner_batch` met een verse ctx en geef het resultaat terug. */
 async function runBatch(steps: Step[], over: McpContextOverrides = {}): Promise<McpToolResult> {
   return batchDef.handler({ steps }, makeCtx(over));
 }
 
-/** Typehulp: de `data` van een geslaagde batch. */
 interface BatchData {
   rejections: { id: string; reason: string }[];
   stepCount: number;
@@ -196,9 +144,6 @@ interface BatchData {
 
 const taskCount = () => store.getState().tasks.length;
 
-// =================================================================================================
-// 1) Eén undo-snapshot over drie heterogene stappen
-// =================================================================================================
 test('batch: 3 heterogene stappen ⇒ precies één undo-snapshot, één undo maakt alles ongedaan', async () => {
   backupCalls = [];
   const beforeTasks = taskCount();
@@ -218,9 +163,6 @@ test('batch: 3 heterogene stappen ⇒ precies één undo-snapshot, één undo ma
   assertEq(taskCount(), beforeTasks, 'één undo hoort de complete batch ongedaan te maken');
 });
 
-// =================================================================================================
-// 2) Gedeelde temp-id-namespace: `created`-map herschrijft args van látere stappen (recursief)
-// =================================================================================================
 test('batch: tempId uit stap 1 wordt in geneste args van stap 2 vervangen door het echte id', async () => {
   backupCalls = [];
   lastRecordArgs = null;
@@ -248,9 +190,6 @@ test('batch: tempId uit stap 1 wordt in geneste args van stap 2 vervangen door h
   assertEq(seen.nest.diep.id, realId, 'ook diep genest hoort de tempId herschreven te zijn');
 });
 
-// =================================================================================================
-// 3) Structurele stapfout: onbekende tool ⇒ volledige rollback + rapport per stap
-// =================================================================================================
 test('batch: onbekende tool ⇒ volledige rollback + rapport uitgevoerd/gefaald/niet bereikt', async () => {
   backupCalls = [];
   store.getState().runCPM();
@@ -273,9 +212,6 @@ test('batch: onbekende tool ⇒ volledige rollback + rapport uitgevoerd/gefaald/
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, beforeUndo, 'een teruggerolde batch mag geen undo-stap achterlaten');
 });
 
-// =================================================================================================
-// 4) Structurele stapfout met expliciete code: McpStepError('CYCLE') ⇒ rollback + die code
-// =================================================================================================
 test('batch: McpStepError(CYCLE) in stap 2 ⇒ code CYCLE, volledige rollback', async () => {
   backupCalls = [];
   store.getState().runCPM();
@@ -293,9 +229,6 @@ test('batch: McpStepError(CYCLE) in stap 2 ⇒ code CYCLE, volledige rollback', 
   assertEq(JSON.stringify(createSnapshot(store.getState())), beforeSnap, 'de store hoort schoon teruggerold te zijn');
 });
 
-// =================================================================================================
-// 5) Per-item-weigering is ZACHT: de batch loopt door, weigeringen prominent bovenaan
-// =================================================================================================
 test('batch: per-item-weigering in stap 2 ⇒ batch slaagt, weigering prominent verzameld', async () => {
   backupCalls = [];
   lastRecordArgs = null;
@@ -318,9 +251,6 @@ test('batch: per-item-weigering in stap 2 ⇒ batch slaagt, weigering prominent 
   assertEq((lastRecordArgs as { na: string }).na, 'de-weigering', 'stap 3 hoort zijn eigen args te hebben ontvangen');
 });
 
-// =================================================================================================
-// 6) Max 100 stappen — geweigerd vóór enige transactie/backup
-// =================================================================================================
 test('batch: 101 stappen ⇒ VALIDATION, geen undo-snapshot en geen backup-trigger', async () => {
   backupCalls = [];
   const beforeUndo = store.getState().historyEvents.filter(event => event.state === 'applied').length;
@@ -338,9 +268,6 @@ test('batch: 101 stappen ⇒ VALIDATION, geen undo-snapshot en geen backup-trigg
   assertEq(backupCalls.length, 0, 'een geweigerde batch mag geen backup triggeren');
 });
 
-// =================================================================================================
-// 7) Uitsluitingen: batch zelf, undo (naam-blocklist), document-tool en save_baseline (batchable:false)
-// =================================================================================================
 test('batch: uitgesloten tools (batch, undo, document, save_baseline) worden geweigerd vóór enige mutatie', async () => {
   const cases: { tool: string; waarom: string }[] = [
     { tool: 'planner_batch', waarom: 'een batch-in-batch' },
@@ -367,9 +294,6 @@ test('batch: uitgesloten tools (batch, undo, document, save_baseline) worden gew
   }
 });
 
-// =================================================================================================
-// 8) Tussentijdse herberekening vóór een LEESSTAP die op mutaties volgt
-// =================================================================================================
 test('batch: leesstap ná mutaties ziet een VERSE planning (tussentijdse herberekening)', async () => {
   backupCalls = [];
   const id = store.getState().addTask({ name: 'verse-datums' });
@@ -391,9 +315,6 @@ test('batch: leesstap ná mutaties ziet een VERSE planning (tussentijdse herbere
   assertEq(info.schedule.scheduleStale, false, 'de leesstap hoort een verse planning te zien');
 });
 
-// =================================================================================================
-// 9) Tussentijdse herberekening vóór een `level_resources`-stap die op mutaties volgt
-// =================================================================================================
 test('batch: level_resources-stap ná mutaties draait op een verse planning', async () => {
   backupCalls = [];
   levelSaw = null;
@@ -412,9 +333,6 @@ test('batch: level_resources-stap ná mutaties draait op een verse planning', as
   assert(levelSaw!.projectEnd !== endBefore, 'voorwaarde: het projecteinde is door de verlenging veranderd');
 });
 
-// =================================================================================================
-// 10) Invariant: de stappenloop is volledig SYNCHROON (statische assert op de eigen broncode)
-// =================================================================================================
 test('batch: geen `await` in de stappenloop (statische assert) en geen async functies', () => {
   const src = [executeSteps, invokeStep, recomputeMidBatch].map((f) => f.toString()).join('\n');
   assert(!/\bawait\b/.test(src), 'de stappenloop (executeSteps/invokeStep/recomputeMidBatch) mag het woord `await` niet bevatten');
@@ -423,9 +341,6 @@ test('batch: geen `await` in de stappenloop (statische assert) en geen async fun
   }
 });
 
-// =================================================================================================
-// 11) Activiteitenlog: substeps per stap met tool/ok/duur + args/resultaat
-// =================================================================================================
 test('batch: respons draagt substeps met per stap tool, ok en duur', async () => {
   backupCalls = [];
   const res = await runBatch([
@@ -447,9 +362,6 @@ test('batch: respons draagt substeps met per stap tool, ok en duur', async () =>
   }
 });
 
-// =================================================================================================
-// 12) Backup-trigger: de batch telt als ÉÉN muterende aanroep (kind 'batch')
-// =================================================================================================
 test('batch: precies één backup-trigger voor de hele batch, met kind batch', async () => {
   backupCalls = [];
   const res = await runBatch([
@@ -463,9 +375,6 @@ test('batch: precies één backup-trigger voor de hele batch, met kind batch', a
   assertEq(backupCalls[0].kind, 'batch', "de backup-trigger hoort kind 'batch' te melden");
 });
 
-// =================================================================================================
-// 13) Args-validatie: geen array / leeg / stap zonder toolnaam
-// =================================================================================================
 test('batch: ongeldige steps-args ⇒ VALIDATION zonder enige mutatie', async () => {
   backupCalls = [];
   const beforeUndo = store.getState().historyEvents.filter(event => event.state === 'applied').length;
@@ -484,16 +393,6 @@ test('batch: ongeldige steps-args ⇒ VALIDATION zonder enige mutatie', async ()
   assertEq(backupCalls.length, 0, 'geen van de weigeringen mag een backup triggeren');
 });
 
-// =================================================================================================
-// 13b) P2 (review-mcp-read.md #3): een schema-VALIDATION op een stap rolt terug ZONDER isDirty aan
-// te raken. Dit is een ALGEMENE batcheigenschap, niet iets dat één tool zelf moet bewaken: de
-// schemapoort draait IN de stappenloop, dus al BINNEN `runInMcpTransaction` (zie het kopcommentaar
-// "SCHEMAPOORT PER STAP" in batchTool.ts) — de transactie is dus al gestart zodra de fout valt.
-// `createMcpTransactions.ts`'s `run()` herstelt op het rollbackpad expliciet `state.isDirty =
-// previousDirty` NA `restoreSnapshot` (die zelf, voor de gewone undo/redo-tegenhanger, altijd naar
-// `true` zou zetten — zie `snapshot.ts`). Deze test pint dat de basis dat al goed doet, zodat een
-// toekomstige regressie in die volgorde hier meteen rood wordt.
-// =================================================================================================
 test('batch: schema-ongeldige stap-args ⇒ VALIDATION zonder dat isDirty verandert', async () => {
   backupCalls = [];
   store.setState((s) => { s.isDirty = false; });
@@ -506,15 +405,9 @@ test('batch: schema-ongeldige stap-args ⇒ VALIDATION zonder dat isDirty verand
 
   assert(!res.ok, 'schema-ongeldige args horen de batch te laten falen');
   if (!res.ok) assertEq(res.code, 'VALIDATION', 'code hoort VALIDATION te zijn');
-  // Backup-trigger is hier bewust GEEN assertie: die loopt via `runMutateTool`'s preBackupGuards
-  // vóórdat de stappenloop de schemafout tegenkomt (spiegelt "precies één backup-trigger voor de
-  // hele batch" hierboven) — dat is een ander, al gedekt contractpunt, niet reviewbevinding 3.
   assertEq(store.getState().isDirty, beforeDirty, 'isDirty hoort exact de waarde van vóór de batch te behouden, niet naar true te kantelen door de rollback');
 });
 
-// =================================================================================================
-// 14) Een batchable tool ZONDER synchrone batch-kern is niet uitvoerbaar in een batch
-// =================================================================================================
 test('batch: tool zonder synchrone batch-kern ⇒ geweigerd vóór enige mutatie', async () => {
   backupCalls = [];
   const beforeTasks = taskCount();
@@ -532,9 +425,6 @@ test('batch: tool zonder synchrone batch-kern ⇒ geweigerd vóór enige mutatie
   assertEq(backupCalls.length, 0, 'er mag geen backup getriggerd zijn');
 });
 
-// =================================================================================================
-// 15) Contract-vorm van de tool-definitie zelf
-// =================================================================================================
 test('planner_batch: definitie is kind batch, niet zelf batchable, met slot-leesstap-uitleg', () => {
   assertEq(batchDef.name, 'planner_batch', 'de tool hoort planner_batch te heten');
   assertEq(batchDef.kind, 'batch', "kind hoort 'batch' te zijn (stuurt de backup-trigger)");
@@ -543,11 +433,6 @@ test('planner_batch: definitie is kind batch, niet zelf batchable, met slot-lees
   assert(/100/.test(batchDef.description), 'de beschrijving hoort de limiet van 100 stappen te noemen');
 });
 
-// =================================================================================================
-// 16) REGRESSIE I1 — vrije tekst blijft vrije tekst (de probe uit de review)
-//     Een tempId die toevallig ook een taaknaam is, mocht die naam stil in een intern id veranderen.
-//     Nu: alleen id-velden worden herschreven, alles onder een vrije-tekst-sleutel blijft letterlijk.
-// =================================================================================================
 test('batch: tempId-herschrijving raakt nooit vrije tekst (name/description/notes)', async () => {
   backupCalls = [];
   lastRecordArgs = null;
@@ -557,16 +442,14 @@ test('batch: tempId-herschrijving raakt nooit vrije tekst (name/description/note
     {
       tool: 'planner_stub_record',
       args: {
-        taskId: 'tmp-fundering',                  // id-veld ⇒ MOET herschreven worden
-        name: 'tmp-fundering',                    // vrije tekst ⇒ moet letterlijk blijven
-        description: 'werk aan tmp-fundering',    // bevat de tempId niet exact ⇒ hoe dan ook letterlijk
+        taskId: 'tmp-fundering',
+        name: 'tmp-fundering',
+        description: 'werk aan tmp-fundering',
         notes: 'tmp-fundering',
         fields: { name: 'tmp-fundering', parentId: 'tmp-fundering' },
         tasks: [{ name: 'tmp-fundering' }],
-        // De deny-list moet over de HELE subboom doorwerken, niet alleen op het eerste niveau.
-        // Twee vormen die tot nu toe ongepind waren (eindintegratie):
-        comment: { detail: 'tmp-fundering' },   // string TWEE niveaus onder een deny-sleutel
-        label: ['tmp-fundering'],               // ARRAY direct onder een deny-sleutel
+        comment: { detail: 'tmp-fundering' },
+        label: ['tmp-fundering'],
       },
     },
   ]);
@@ -591,12 +474,9 @@ test('batch: tempId-herschrijving raakt nooit vrije tekst (name/description/note
   assertEq(seen.label[0], 'tmp-fundering', 'een array-element onder een deny-sleutel blijft letterlijk');
 });
 
-// =================================================================================================
-// 17) REGRESSIE I1c — de temp-id-map werkt niet door naar een VOLGENDE batch (zelfde ctx)
-// =================================================================================================
 test('batch: tempId uit een eerdere batch wordt in een volgende batch NIET herschreven', async () => {
   backupCalls = [];
-  const ctx = makeCtx(); // ÉÉN ctx over twee batches — precies de sessie-situatie uit de review
+  const ctx = makeCtx();
 
   const eerste = await batchDef.handler({
     steps: [{ tool: 'planner_stub_add_tasks', args: { tasks: [{ tempId: 'tmp-cross', name: 'cross-1' }] } }],
@@ -613,9 +493,6 @@ test('batch: tempId uit een eerdere batch wordt in een volgende batch NIET hersc
     'een tempId uit een EERDERE batch mag in een volgende batch niet meer vervangen worden');
 });
 
-// =================================================================================================
-// 18) REGRESSIE I1b — een tempId buiten de gereserveerde syntax faalt LUID (geen stille acceptatie)
-// =================================================================================================
 test('batch: created-map met een niet-conforme tempId ⇒ VALIDATION + volledige rollback', async () => {
   backupCalls = [];
   store.getState().runCPM();
@@ -635,9 +512,6 @@ test('batch: created-map met een niet-conforme tempId ⇒ VALIDATION + volledige
   assertEq(JSON.stringify(createSnapshot(store.getState())), beforeSnap, 'de store hoort schoon teruggerold te zijn');
 });
 
-// =================================================================================================
-// 19) REGRESSIE I2 — een GEFAALDE batch levert rapport én substeps gestructureerd terug
-// =================================================================================================
 test('batch: faalpad draagt steps + substeps in het data-veld van de fout', async () => {
   backupCalls = [];
   const res = await runBatch([
@@ -657,9 +531,6 @@ test('batch: faalpad draagt steps + substeps in het data-veld van de fout', asyn
   assert(res.error.includes('executed (rolled back)'), 'de leesbare samenvatting blijft in `error` staan');
 });
 
-// =================================================================================================
-// 20) De `cpmResult.error`-worp uit de TUSSENTIJDSE herberekening (kring in stap 1, lezing in stap 2)
-// =================================================================================================
 test('batch: kring in stap 1 + leesstap ⇒ CYCLE uit de tussentijdse herberekening, alles terug', async () => {
   backupCalls = [];
   const a = store.getState().addTask({ name: 'kring-A' });

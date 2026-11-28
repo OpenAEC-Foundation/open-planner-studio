@@ -1,24 +1,3 @@
-// Audit resources-kalenders, bevinding 3 (het duidelijke deel): `planner_get_calendars` geeft ook
-// het pauzepatroon (`simpleBreakStartMinute`/`simpleBreakDurationMinutes`), de werkende
-// uitzonderingen (`workingExceptions`) en de bibliotheekstempel (`libraryOrigin`) terug en belooft
-// dat een lezing LETTERLIJK terug te schrijven is — maar `planner_update_calendar` weigerde die
-// velden als "onbekend". Gevolg: een kalender met pauze of een werkende zaterdag was niet over te
-// zetten, en zonder die velden herbouwd lag de pauze op een ander tijdstip.
-//
-// Dit bestand pint vast:
-//   1. get → update (create, ander document) is veld voor veld identiek, voor ELK inhoudsveld van
-//      WorkCalendar (de classificatie hieronder is uitputtend: een nieuw veld is een compileerfout);
-//   2. hetzelfde per veld op het update-pad, met dezelfde afleiding als de kalenderdialoog
-//      (netto uren uit werkdag + pauze, legacy-pauze eerst expliciet) en dezelfde validatie
-//      (`calendarScalarBreakIssue`, `holidayIssue`, bandvorm) — ongeldig ⇒ zachte weigering;
-//   3. `libraryOrigin` mag mee maar wordt genegeerd en gemeld (`ignoredFields`);
-//   4. hetzelfde via `planner_batch` (schemapoort);
-//   5. NETTO UREN OP EEN KALENDER MET PAUZE (resources-kalenders REVIEW §3, ronde 3 / G1): MCP doet
-//      wat de kalenderdialoog doet. Daar is "Standaard werkdag" een niet-bewerkbare afleiding uit
-//      werkdag − pauze (`simpleBreakPatch`/`simpleBreakNetHours`). Een `hoursPerDay` die daar niet mee
-//      klopt wordt zacht geweigerd met de velden die de AI wél moet wijzigen; een gelijke waarde is
-//      een no-op. Een legacy-kalender zonder pauzevelden valt buiten dit besluit: daar blijft
-//      `hoursPerDay` de opgave (de engine leidt zijn impliciete pauze eruit af).
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
@@ -36,7 +15,6 @@ import type { WorkCalendar } from '@/types/calendar';
 const store = useAppStore;
 const S = () => store.getState();
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
@@ -75,11 +53,6 @@ const calById = (id: string): WorkCalendar => {
 
 const engineHoursPerDay = (cal: WorkCalendar): number => new CalendarEngine(calendarForEngine(cal)).hoursPerDay;
 
-/**
- * Uitputtende indeling van de WorkCalendar-sleutels. `Record<keyof WorkCalendar, …>` maakt een
- * nieuw kalenderveld een compileerfout in deze test: dan moet iemand beslissen of de MCP-schrijfkant
- * hem letterlijk overneemt (`content`) of alleen accepteert en meldt (`ignored`).
- */
 const FIELD_ROLE: Record<keyof WorkCalendar, 'id' | 'content' | 'ignored'> = {
   id: 'id',
   name: 'content',
@@ -96,7 +69,6 @@ const FIELD_ROLE: Record<keyof WorkCalendar, 'id' | 'content' | 'ignored'> = {
   shift: 'content',
   libraryOrigin: 'ignored',
   workingExceptions: 'content',
-  // P6-herkomst (rekenprofielen-etappe): alleen de XER-reader zet hem; MCP accepteert en meldt.
   ifcTimePeriods: 'ignored',
   p6Source: 'ignored',
   p6NonWorkPenaltyDates: 'ignored',
@@ -104,7 +76,6 @@ const FIELD_ROLE: Record<keyof WorkCalendar, 'id' | 'content' | 'ignored'> = {
 };
 const CONTENT_FIELDS = (Object.keys(FIELD_ROLE) as (keyof WorkCalendar)[]).filter((k) => FIELD_ROLE[k] === 'content');
 
-/** Een lezing via get → create in een ander document → get: elk inhoudsveld identiek. */
 async function assertLiteralRoundTrip(srcId: string, label: string): Promise<void> {
   const src = await readCalendar(srcId);
   store.getState().newDocument();
@@ -126,9 +97,6 @@ function reset(): void {
   S().newProject();
 }
 
-// =================================================================================================
-// 1) LETTERLIJK — get → update(create) in een ander document, voor elk inhoudsveld
-// =================================================================================================
 test('dagkalender met pauze, werkende uitzondering en bibliotheekstempel: letterlijk overzetbaar', async () => {
   reset();
   const cid = S().addCompany('Bouwbedrijf');
@@ -160,14 +128,10 @@ test('uurkalender met werkende uitzondering mét eigen banden: letterlijk overze
   await assertLiteralRoundTrip(srcId, 'uurkalender');
 });
 
-// =================================================================================================
-// 2) PER VELD op het update-pad, met de afleiding en validatie van de kalenderdialoog
-// =================================================================================================
 test('pauzeduur alleen: de legacy-pauze wordt expliciet (12:00) en de netto uren volgen, zoals de dialoog', async () => {
   reset();
   const projId = S().project.calendarId;
   S().ensureProjectCalendarInLibrary();
-  // Uitgangspunt: legacy 07:00–16:00 / 8 u (impliciete pauze van 60 min rond 12:00).
   const res = await call('planner_update_calendar', { calendars: [{ id: projId, simpleBreakDurationMinutes: 30 }] });
   assertEq(rejections(res), [], 'geaccepteerd');
   const cal = calById(projId);
@@ -230,9 +194,6 @@ test('libraryOrigin op het update-pad: gemeld, niet geschreven', async () => {
   assertEq(calById(projId).name, 'Hernoemd', 'de rest is wel toegepast');
 });
 
-// =================================================================================================
-// 3) VALIDATIE — dezelfde regels als de dialoog; ongeldig ⇒ zachte weigering, kalender onaangeroerd
-// =================================================================================================
 test('ongeldige pauze of werkende uitzondering ⇒ zachte weigering met reden, kalender onaangeroerd', async () => {
   reset();
   const projId = S().project.calendarId;
@@ -256,9 +217,6 @@ test('ongeldige pauze of werkende uitzondering ⇒ zachte weigering met reden, k
   }
 });
 
-// =================================================================================================
-// 4) VIA planner_batch — de schemapoort laat de leesvorm door
-// =================================================================================================
 test('letterlijke lezing met pauze en werkende uitzondering via planner_batch', async () => {
   reset();
   const srcId = S().addCalendar({
@@ -284,10 +242,6 @@ test('letterlijke lezing met pauze en werkende uitzondering via planner_batch', 
     { start: 750, duration: 30, hpd: 8.5, we: src.workingExceptions }, 'pauze en werkende uitzondering overgekomen');
 });
 
-// =================================================================================================
-// 5) NETTO UREN OP EEN KALENDER MET PAUZE — afgeleid, zoals in de kalenderdialoog
-// =================================================================================================
-/** Projectkalender 07:00–16:00 met een expliciete pauze, zoals de dialoog hem opslaat. */
 function projectCalendarWithBreak(breakStart: number, breakMinutes: number): string {
   reset();
   const projId = S().project.calendarId;
@@ -296,7 +250,6 @@ function projectCalendarWithBreak(breakStart: number, breakMinutes: number): str
     simpleBreakStartMinute: breakStart, simpleBreakDurationMinutes: breakMinutes,
     hoursPerDay: (9 * 60 - breakMinutes) / 60,
   });
-  // Verse planning, zoals de kalenderdialoog hem na Toepassen achterlaat.
   S().runCPM();
   return projId;
 }
@@ -321,7 +274,6 @@ test('los hoursPerDay dat niet klopt met werkdag − pauze ⇒ zachte weigering 
 });
 
 test('hoursPerDay op een kalender met een ONGELDIGE opgeslagen pauze ⇒ weigering: eerst de pauze herstellen', async () => {
-  // Oude/externe data: pauze 15:00–17:00 valt buiten 07:00–16:00 (de dialoog laat dit niet toepassen).
   const projId = projectCalendarWithBreak(750, 60);
   S().updateCalendar(projId, { simpleBreakStartMinute: 900, simpleBreakDurationMinutes: 120 });
   const before = JSON.stringify(calById(projId));
@@ -334,11 +286,8 @@ test('hoursPerDay op een kalender met een ONGELDIGE opgeslagen pauze ⇒ weigeri
 });
 
 test('gelijke hoursPerDay (ook op twee decimalen, zoals de dialoog hem toont) ⇒ no-op', async () => {
-  // 07:00–16:00 met 40 min pauze = 500 min = 8,333… u netto.
   const projId = projectCalendarWithBreak(750, 40);
   const before = JSON.stringify(calById(projId));
-  // Geen undo-assertie: elke uitgevoerde MCP-mutatie telt nu een stap, ook een waarde-identieke
-  // (de transactie herberekent en `cpmResult` krijgt een nieuwe referentie) — los van dit besluit.
   for (const hoursPerDay of [500 / 60, 8.33]) {
     const res = await call('planner_update_calendar', { calendars: [{ id: projId, hoursPerDay }] });
     assertEq(rejections(res), [], `hoursPerDay ${hoursPerDay} is gelijk aan werkdag − pauze: geen weigering`);
@@ -350,7 +299,6 @@ test('gelijke hoursPerDay (ook op twee decimalen, zoals de dialoog hem toont) �
 test('werkdag en hoursPerDay samen: afwijkend ⇒ weigering, kloppend ⇒ toegepast', async () => {
   const projId = projectCalendarWithBreak(720, 60);
   const before = JSON.stringify(calById(projId));
-  // Een AI die "tot 17:00" zet en de oude 8 u meestuurt: werkdag − pauze wordt 9 u.
   let res = await call('planner_update_calendar', { calendars: [{ id: projId, workEndHour: 17, hoursPerDay: 8 }] });
   let rej = rejections(res);
   assertEq(rej.length, 1, 'afwijkende opgave geweigerd (anders zegt het veld 8 en rekent de engine 9)');

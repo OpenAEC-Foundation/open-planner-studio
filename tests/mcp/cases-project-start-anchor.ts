@@ -1,11 +1,3 @@
-// T7-review H1 (2026-08-15): `planner_update_project`'s beschrijving beloofde de projectstart-
-// bewerkbescherming (T7b, plan-§9/O2-vervolg) — maar `mcpTransaction.ts`'s `draft.setProject` deed
-// tot nu toe alleen `Object.assign`: headless bewezen geen klem, geen melding. Orkestratorbesluit:
-// de klem hoort óók in het AI-bewerkmoment, met exact dezelfde voorwaarden als de UI-variant
-// (`projectSlice.setProject`) — beide roepen sinds deze fixronde dezelfde gedeelde
-// `clampProjectStartAnchors` (`engine/scheduler/projectStartAnchorClamp.ts`) aan. Deze batterij
-// bewaakt dat vanaf de MCP-kant: de klem zelf, het gerapporteerde aantal, en de twee L-bevindingen
-// (ASAP-dateless-constraint blokkeert niet, L1; een hammock-wortel telt niet mee, L2).
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
@@ -32,7 +24,6 @@ async function callOk(name: string, args: unknown = {}): Promise<any> {
   return (res as McpToolOk).data;
 }
 
-/** Vers project, anker 2026-06-01, ma-vr-kalender zonder feestdagen. */
 function versProject(): void {
   S().newProject();
   S().setProject({ startDate: '2026-06-01' });
@@ -106,7 +97,7 @@ test('L1 — een dateless ASAP-constraint blokkeert de klem NIET', async () => {
 test('L2 — een hammock-wortel telt niet mee (de solver negeert zijn anker toch)', async () => {
   versProject();
   const hamm = S().addTask({ name: 'Hammock', time: createDefaultTaskTime('2026-05-01', 2), isHammock: true });
-  const f = S().addTask({ name: 'F', time: createDefaultTaskTime('2026-05-01', 2) }); // gewone wortel, telt WEL mee
+  const f = S().addTask({ name: 'F', time: createDefaultTaskTime('2026-05-01', 2) });
 
   const data = await callOk('planner_update_project', { startDate: '2026-08-17' });
 
@@ -126,13 +117,6 @@ test('EERDERE startDate klemt niets — geen anchorsClamped in de respons', asyn
 });
 
 test('M4 — een uurtaak later diezelfde kalenderdag (ná de eerste werkband) wordt NIET meegeklemd', async () => {
-  // Bewijst dat de klem op GEPARSEERDE instants vergelijkt (`own.getTime() >= floor.getTime()`),
-  // niet op rauwe strings — geverifieerd via mutatietest (zie het commitbericht): de eindcode bevat
-  // NERGENS meer een rauwe-string-datumvergelijking in het beslispad (alleen nog `Date`-objecten
-  // via `.getTime()`). Deze specifieke case (own-tijdstip 09:00 ná de bandstart 08:00 op de nieuwe
-  // startdatum zelf) discrimineert zelf niet tussen rauw en geparseerd — voor geldig ISO-8601-
-  // geformatteerde strings sorteren beide gelijk — maar bewaakt wél de kern-invariant: een anker
-  // dat al op/ná de nieuwe startdatum ligt (ook binnen dezelfde kalenderdag) klemt niet mee.
   versProject();
   S().setCalendar({
     ...S().calendar,
@@ -149,13 +133,6 @@ test('M4 — een uurtaak later diezelfde kalenderdag (ná de eerste werkband) wo
     'anker ná de eerste werkband van de nieuwe startdatum zelf — niets te klemmen');
 });
 
-// Uurtaak op een SCALAIRE kalender (geen `workTime`, zoals de standaardprojectkalender: 07:00–16:00,
-// 8 u/dag). De solver rekent een urentaak in de EFFECTIEVE uurbanden van zo'n kalender
-// (`engineForTaskCalendar`); de klem bouwde zijn engine tot deze fix op de RUWE kalender (dagmodus)
-// en zette het anker dus op middernacht (`T00:00`) i.p.v. het eerste werkmoment. Sinds de fix kiezen
-// klem en solver de engine via dezelfde functie. Taakvolgorde uur → dag bewijst tegelijk dat de
-// engine-cache van de klem het uur-/dagonderscheid in de sleutel draagt (anders lekt de uur-engine
-// naar de dagtaak).
 test('uurtaak op de scalaire standaardkalender klemt naar het eerste werkmoment (07:00) — dezelfde keuze als de solver', async () => {
   versProject();
   assertEq(S().calendar.workTime, undefined, 'voorwaarde: de standaardprojectkalender is scalair (geen workTime)');

@@ -1,10 +1,3 @@
-// Restwerk bij een duurwijziging via de AI-koppeling (eigenaarsbesluit 2026-10-19, optie 2): geen vraag;
-// de taakregel beslist zoals in P6. Rekent een duurwijziging een BEWAARD restwerk opnieuw uit dat afweek
-// van inzet × restduur (zoals E-1010 uit DCP-03: 320 h bij inzet 1 op 80 h), dan noemt de envelop het
-// (`remainingWorkRecomputed`, uren vóór/ná) zodat de agent het kan rapporteren, en meldt de app het één
-// keer per transactie. De regel zelf staat in tests/planning/check-restwerk-duurwijziging.ts.
-//
-// Alles via de echte JSON-RPC-dispatcher (schema's, stale-guard, transactie), ook binnen planner_batch.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -13,7 +6,6 @@ import type { WorkCalendar } from '@/types/calendar';
 
 const S = () => useAppStore.getState();
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`.
 S().addTask({ name: 'warmup' });
 S().undo();
 registerAllTools();
@@ -32,8 +24,6 @@ async function rpc(name: string, args: unknown): Promise<any> {
 const BAND = [{ start: 480, end: 960 }];
 const H = 60;
 
-/** Uurtaken van 80 h op 8 h per dag, niet gestart, met een expliciete restduur (zoals na een XER-import)
- *  en een toewijzing met inzet 1 en een bewaard restwerk van `workHours`. */
 function setup(workHours: number[]): { taskIds: string[]; assignmentIds: string[]; resourceId: string } {
   S().newProject();
   S().setProject({ startDate: '2024-01-09' });
