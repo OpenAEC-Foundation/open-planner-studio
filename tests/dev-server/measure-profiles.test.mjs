@@ -1,6 +1,3 @@
-// Corpusloze toetsing van `npm run measure:profiles`: het oordeel per profiel (pure functies) en één
-// echte scriptrun die bewijst dat het MS Project-profiel fail-closed is — zonder één gescand `.mpp`-
-// bestand is de uitslag rood, niet groen.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
@@ -30,8 +27,6 @@ test('P6: --strict maakt de nuldoeltoestand rood', () => {
   assert.equal(classifyP6({ exit: 1, lines: [delta(0, 0, 0), CELL_OK, ...GOAL], strict: true }).pass, false);
 });
 
-// Fable-critreview PR #169, bevinding 9: een ongepinde verbetering is ROOD — per cel geldt de pin, dus
-// een verbetering die nooit gepind wordt kan later stil terugvallen. Herkend (eigen status + advies), niet geslaagd.
 test('P6: zuivere verbetering (alleen v2-gelijkheid extra rood, verbeterd>0) ⇒ VERBETERD zonder herpin, ROOD', () => {
   const verdict = classifyP6({ exit: 1, lines: [delta(0, 0, 3), CELL_OK, ...GOAL, V2] });
   assert.equal(verdict.status, VERBETERD_STATUS);
@@ -55,7 +50,6 @@ test('P6: v2-afwijking met een nieuwe of verslechterde cel ⇒ rood', () => {
 });
 
 test('P6: blinder orakel — meetbaarheid/dekking wijkt af, of een onmeetbaar geworden cel ⇒ rood', () => {
-  // Precies de reviewer-mutant: verbeterd=1 en v2 rood, maar de meetbaarheid is gekrompen.
   assert.equal(classifyP6({ exit: 1, lines: [delta(0, 0, 1), CELL_OK, ...GOAL, V2, COVERAGE] }).pass, false);
   assert.equal(classifyP6({ exit: 1, lines: [delta(0, 0, 1, 1), CELL_OK, ...GOAL, V2] }).pass, false);
 });
@@ -162,15 +156,12 @@ test('scriptrun: MS Project-profiel met lege corpuspaden ⇒ ROOD (niet gemeten)
       ...process.env,
       OPS_MPP_CORPUS: '/nonexistent/ops-measure-profiles-test',
       OPS_MPP_CRAWL: '/nonexistent/ops-measure-profiles-test',
-      // Moet genegeerd worden: anders zou de mpp-check in baselinemodus stil exit 0 geven.
       OPS_MPP_FIDELITY_REPORT: 'baseline',
     },
   });
   assert.equal(result.status, 1, result.stdout + result.stderr);
   assert.match(result.stdout, /MS Project\s+\|.*\|\s+ROOD \(niet gemeten\)/);
   assert.match(result.stdout, /UITSLAG \(GERICHTE RUN — niet alle vangrails gedraaid\): ROOD/);
-  // Lees ook de werkelijke batterij-uitvoer: de losse check blijft corpusloos bruikbaar voor
-  // CI, maar mag zijn nulmeting niet verbergen achter alleen "alle checks groen" (#427).
   const match = result.stdout.match(/msp-mpp-fidelity: exit 0 in \d+s — log (.+)/);
   assert.ok(match, result.stdout);
   const log = readFileSync(match[1], 'utf8');

@@ -1,19 +1,3 @@
-// B1c — Bezetting over projecten op de ECHTE showcase-voorbeelden.
-//
-// Waarom deze check bestaat: de drie showcase-IFC's zijn het materiaal waarmee een gebruiker (en
-// een demo) het bezettingsoverzicht leert kennen. De gegevens moeten daarom een zichtbaar én in
-// de verdeelkern OPLOSBAAR kruis-project-conflict bevatten. Dat conflict is een eigenschap van
-// gegenereerde DATA (scripts/showcases.ts → public/examples/*.ifc), niet van code — dus kan het bij
-// elke spec-tweak stilzwijgend verdwijnen zonder dat één unit-test rood wordt.
-// Deze batterij leest daarom de bestanden zoals ze op schijf staan, doet exact wat de app doet bij
-// Backstage → Voorbeelden (`applyDemoLibraryToShowcaseProject`: demo-bibliotheek seeden, project
-// binden, ondubbelzinnige naam-matches koppelen) en toetst de bezetting en verdeelkern headless.
-//
-// Patroon: de ECHTE Zustand-store (zoals check-demo-library.ts / check-library-slice.ts) met drie
-// open documenten, daarna de pure kernen `computeLibraryOccupancy` en `computeDistribution` over
-// dezelfde `OccupancyDocInput`-mapping die `ResourceOccupancyView` opbouwt.
-//
-// Exitcode is de poort; XX-regels tonen de afwijkingen.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { useAppStore } from '@/state/appStore';
@@ -37,24 +21,17 @@ function assert(cond: boolean, msg: string): void {
   if (!cond) { fails++; console.log(`   XX ${msg}`); }
 }
 
-/** De drie showcases, in de volgorde waarin de gebruiker ze redelijkerwijs opent (klein → groot).
- *  De rangorde in de verdeling volgt deze volgorde: 1 = KLEIN wordt het meest ontzien. */
 const SLUGS = [
   'showcase-verbouwing-eengezinswoning',
   'showcase-rijwoningen-de-akkers',
   'showcase-appartementencomplex',
 ];
 
-/** Het schaarse poolitem waar het demo-conflict op moet zitten: bedrijfscapaciteit 1, één ploeg die
- *  in twee projecten tegelijk gevraagd wordt — precies het verhaal van `demoLibraryShowcase.ts`. */
 const CONFLICT_ITEM = 'Masonry crew';
 
 const S = () => useAppStore.getState();
 const EX_DIR = join(process.cwd(), 'public', 'examples');
 
-// ── Opzet: drie documenten, elk geladen + gekoppeld + doorgerekend zoals de app het doet ────────
-// `openExampleFromString` is sinds de XER-etappe async (een eigen IFC kan een XER-archief dragen
-// dat gereconstrueerd wordt); zonder `await` liep de koppeling hieronder vóór de load uit.
 for (const [i, slug] of SLUGS.entries()) {
   if (i > 0) S().newDocument();
   await S().openExampleFromString(readFileSync(join(EX_DIR, `${slug}.ifc`), 'utf8'), slug);
@@ -77,8 +54,6 @@ for (const { payload } of payloads) {
     `"${payload.project.name}" is aan de demo-bibliotheek gebonden`);
 }
 
-/** Zelfde mapping als `ResourceOccupancyView` opbouwt (§4.4). Geen `skipEphemeralSolve`: hier is
- *  geen actief-document-perf-poort, elk document is vers doorgerekend. */
 const inputs: OccupancyDocInput[] = payloads.map(({ docId, payload }) => ({
   docId,
   title: payload.project.name,
@@ -93,39 +68,23 @@ const inputs: OccupancyDocInput[] = payloads.map(({ docId, payload }) => ({
   solveInput: {
     tasks: payload.tasks,
     sequences: payload.sequences,
-    // Rekenprofielen C1: dezelfde invoer als vóór de profielen — projectopties via solveOptionsFor,
-    // bewust ZONDER projectdatums (zo rekende deze check altijd).
     options: { ...solveOptionsFor(payload.project), projectStartDate: undefined, projectEndDate: undefined },
   },
 }));
 
-/** Het TWEEDE bedoelde knelpunt: één stukadoorsploeg die in alle drie de showcases meedoet. Anders
- *  dan `CONFLICT_ITEM` is dit conflict NIET zonder tekort te verdelen — MIDDEL en GROOT hebben elk
- *  hun eigen, in hun spec gedocumenteerde interne stukadoors-overallocatie (GROOT vraagt op één dag
- *  9 van de 3), en geen enkele volgorde van projecten neemt die weg. De eis hieronder is daarom
- *  alleen het KRUIS-deel: er moet een conflict zijn dat uit ≥2 documenten komt. */
 const CROSS_ITEM = 'Plasterers';
 
-/** De EXACTE set poolitems die met de drie showcases open rood mag staan. Waarom exact en niet
- *  "minstens": de demo was een ruïne — bijna élke rij stond rood omdat de demo-bibliotheek kleiner
- *  gedimensioneerd was dan wat de showcases er samen op boeken, waardoor het bedoelde verhaal
- *  (dezelfde metselploeg in twee projecten, de stukadoors in drie) verdronk in ruis. Een "minstens
- *  deze twee"-assert had dat niet gezien. Deze set is dus de poort die een toekomstige regeneratie
- *  van de voorbeelden — of een krappere bibliotheekcapaciteit — dwingt bewust te zijn. */
 const EXPECTED_CONFLICT_ITEMS = [CONFLICT_ITEM, CROSS_ITEM];
 
 const poolItem = pool?.resources.find((r) => r.name === CONFLICT_ITEM);
 assert(!!poolItem, `poolitem "${CONFLICT_ITEM}" aanwezig in de demo-bibliotheek`);
 
-// ═══ (a) Het bezettingsoverzicht toont een conflict op het schaarse poolitem, over ≥2 documenten ══
 const occupancy = computeLibraryOccupancy(DEMO_COMPANY_ID, pool, inputs);
 const row = occupancy.rows.find((r) => r.libraryItemId === poolItem?.id);
 assert(!!row, `"${CONFLICT_ITEM}" heeft een rij in het bezettingsoverzicht (wordt in minstens één showcase geboekt)`);
 if (row) {
   assert(row.conflictDays.length > 0,
     `"${CONFLICT_ITEM}" heeft conflictdagen (heeft: 0) — de showcases boeken de ploeg niet meer tegelijk`);
-  // ≥2 verschillende documenten die op een conflictdag daadwerkelijk belasting hebben: het punt is
-  // KRUIS-project-dubbelbezetting, niet een overallocatie binnen één planning.
   const conflictSet = new Set(row.conflictDays);
   const docsOnConflictDays = row.docs.filter(
     (b) => b.counted && Object.keys(b.dailyLoad).some((iso) => conflictSet.has(iso)),
@@ -135,7 +94,6 @@ if (row) {
   assert(row.capacityAtPeak > 0, `"${CONFLICT_ITEM}" heeft een bedrijfscapaciteit > 0 op de piekdag`);
 }
 
-// ═══ (a2) ALLEEN de bedoelde items staan rood — exacte set ═══════════════════════════════════════
 {
   const rood = occupancy.rows.filter((r) => r.conflictDays.length > 0).map((r) => r.name).sort();
   const verwacht = [...EXPECTED_CONFLICT_ITEMS].sort();
@@ -148,7 +106,6 @@ if (row) {
   );
 }
 
-// ═══ (a3) Het tweede bedoelde knelpunt is ECHT een kruis-project-conflict ════════════════════════
 {
   const crossPoolItem = pool?.resources.find((r) => r.name === CROSS_ITEM);
   const crossRow = occupancy.rows.find((r) => r.libraryItemId === crossPoolItem?.id);
@@ -162,7 +119,6 @@ if (row) {
   }
 }
 
-// ═══ (b) De verdeelkern lost het op: geen blokkade, geen tekort, en er verschuift iets ═════════
 const distInputs: DistributionDocInput[] = inputs.map((input, i) => ({
   ...input,
   rank: i + 1,
@@ -180,19 +136,12 @@ if (poolItem) {
   const moved = proposal.docs.filter((d) => d.endShiftWorkdays > 0);
   assert(moved.length >= 1,
     `geen enkel document schuift op (endShiftWorkdays > 0) — dan valt er niets te demonstreren`);
-  // Bescheiden verschuiving: het voorstel moet iets te kiezen geven (rangorde/pin/plafond), geen
-  // maandenlange uitloop. De grens is ruim — hij bewaakt de ORDE van grootte, geen exact getal.
   for (const d of moved) {
     assert(d.endShiftWorkdays <= 15,
       `"${d.title}" schuift ${d.endShiftWorkdays} werkdagen op — dat is geen bescheiden verschuiving meer`);
   }
 }
 
-// ═══ (b2) Ook het tweede knelpunt is verdeelbaar — zij het niet bescheiden ═══════════════════════
-// Gemeten: geen blokkade, geen tekort, maar GROOT schuift ~27 werkdagen op. Dat is geen fout maar
-// het gevolg van GROOT's eigen, in zijn spec beloofde interne stukadoors-overallocatie (één ploeg
-// van 3 voor drie torens, vraag 9): die moet de verdeling er óók uit werken. De ≤15-werkdagen-eis
-// van (b) geldt hier dus bewust NIET — alleen "oplosbaar zonder tekort".
 {
   const crossPoolItem = pool?.resources.find((r) => r.name === CROSS_ITEM);
   if (crossPoolItem) {
@@ -204,31 +153,9 @@ if (poolItem) {
   }
 }
 
-// ═══ (b3) "Onderbrekingen toestaan" maakt op de showcases ECHT verschil ══════════════════════════
-// De aanleiding (2026-09-14): met de drie showcases open meldde het prijskaartje van de schakelaar
-// in beide standen exact hetzelfde getal — "zou niets besparen". De demo bevatte dus een knop die
-// aantoonbaar niets deed.
-//
-// WAT ER GEMETEN IS, EN WAAROM DE EIS NIET "KLEINERE UITLOOP" IS. `allowSplits` is in
-// `ResourceLeveler.findSlot` geen tweede zoekstrategie maar een TERUGVAL: de aaneengesloten
-// kandidaatscan loopt eerst, en `scatterSlot` (de pauzedagen) komt pas aan bod als díé scan binnen
-// het venster faalt. Twee gevolgen die je moet kennen voor je deze assert "strenger" maakt:
-//  1. Zónder venster — en `computeDistribution` zet `constrainToFloat: false`, dus het venster
-//     bestaat alleen bij een expliciete "maximale uitloop" (`ceilingWorkdays`) — vindt de
-//     aaneengesloten scan ALTIJD een slot en is de schakelaar per constructie een no-op. Gemeten op
-//     deze drie showcases: 10 werkdagen uitloop in beide standen. Dat is engine-gedrag en met geen
-//     enkele spec-tweak aan de voorbeelden te veranderen.
-//  2. Slaat de aaneengesloten scan WEL af (plafond bindt), dan blijft de taak in de uit-stand op
-//     haar PF liggen MET conflictdagen — een TEKORT, geen grotere uitloop. Een eis van de vorm
-//     "kleinere uitloop in beide standen, zonder tekort" is daarom niet alleen niet gehaald maar
-//     onbereikbaar: de twee standen kunnen per definitie alleen verschillen op het punt waar de
-//     uit-stand een tekort heeft.
-// Met een bindend plafond kan de verdeelkern een voorstel met tekorten veranderen in een
-// toepasbaar voorstel binnen hetzelfde plafond. Deze kerncheck bewaakt dat verschil;
-// het huidige bezettingsvenster biedt hiervoor geen Verdelen-bediening.
 {
-  const CEILING = 15;        // werkdagen — het midden van het werkzame bereik 14 t/m 17 (zie hieronder)
-  const AKKERS = 1;          // index van MIDDEL in SLUGS
+  const CEILING = 15;
+  const AKKERS = 1;
   const withCeiling: DistributionDocInput[] = distInputs.map((d, i) => ({
     ...d, ceilingWorkdays: i === AKKERS ? CEILING : null,
   }));
@@ -253,11 +180,6 @@ if (poolItem) {
   }
 }
 
-// ═══ (b4) Het werkzame plafondbereik is breed genoeg om te DEMONSTREREN ══════════════════════════
-// Waarom dit een eigen poort is: vóór de ankerschuif van KLEIN (63 → 66, zie `scripts/showcases.ts`)
-// werkte exact ÉÉN plafondwaarde (14) — wie 13 of 15 intikte zag niets en concludeerde terecht dat
-// de schakelaar niets doet. Het bereik is precies zo breed als het aantal VRIJE werkdagen dat de
-// wijkende taak vóór de blokkade heeft; deze assert is dus de mechanische bewaking op dat aantal.
 {
   if (poolItem) {
     const werkt: number[] = [];
@@ -277,9 +199,6 @@ if (poolItem) {
   }
 }
 
-// ═══ (c) Geen intrinsieke overvraag: geen showcase-taak vraagt op één dag meer dan de poolcapaciteit ══
-// Zou één taak méér vragen dan het bedrijf heeft, dan is het conflict per definitie onoplosbaar en
-// levert de verdeelkern altijd een tekort — hoe de documenten ook geschoven worden.
 for (const { payload } of payloads) {
   const stamped = new Map(
     payload.resources

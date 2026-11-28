@@ -15,12 +15,10 @@ const root = resolve(fileURLToPath(import.meta.url), '..', '..', '..');
 const run = promisify(execFile);
 const TOTAL = 4;
 
-/** De specbestanden (relatief aan tests/browser) die Playwright met deze argumenten vindt. */
 async function playwrightFiles(extraArgs = []) {
   const bin = join(root, 'node_modules', '.bin', process.platform === 'win32' ? 'playwright.cmd' : 'playwright');
   const { stdout } = await run(bin, ['test', '--list', '--reporter=json', ...extraArgs], {
     cwd: root,
-    // Alleen voor de config-check; `--list` start geen webserver.
     env: { ...process.env, OPS_BROWSER_TEST_PORT: '3999' },
     maxBuffer: 64 * 1024 * 1024,
   });
@@ -41,7 +39,6 @@ test('assignShards verdeelt elke spec precies één keer, deterministisch, langs
   const shards = assignShards(files, durations, 3);
   assert.deepEqual(shards.flatMap((s) => s.files).sort(), files, 'samen precies alle specs');
   assert.deepEqual(assignShards([...files].reverse(), durations, 3), shards, 'volgorde van invoer telt niet');
-  // f heeft geen meting en krijgt de mediaan van de bekende (gesorteerd 1,1,8,9,10 ⇒ 8).
   assert.deepEqual(shards.map((s) => s.seconds), [11, 10, 16]);
   assert.deepEqual(shards.map((s) => s.files.length), [2, 2, 2]);
 });
@@ -59,7 +56,6 @@ test('durationsFromJobLog telt per spec de vensters tot de volgende start, de la
 
 test('mergeJobDurations corrigeert per log voor de runnersnelheid en middelt per spec', () => {
   const reference = { 'a.spec.ts': 10, 'b.spec.ts': 20, 'c.spec.ts': 40 };
-  // Log 1 liep op een runner die twee keer zo traag is; log 2 op normale snelheid, met een nieuwe spec d.
   const slow = { 'a.spec.ts': 20, 'b.spec.ts': 40, 'c.spec.ts': 80 };
   const normal = { 'a.spec.ts': 10, 'b.spec.ts': 20, 'd.spec.ts': 6 };
   const merged = mergeJobDurations([slow, normal], reference);
@@ -87,8 +83,6 @@ test('de shards samen zijn exact de specs die Playwright vindt, en elke shardlij
   assert.equal(new Set(union).size, union.length, 'geen spec in twee shards');
   assert.deepEqual(inSpecDir(union), all, 'samen alle specs');
 
-  // `--test-list` met deze paden laat Playwright exact de specs van de shard draaien (paden zijn exact,
-  // geen regex). Zo vangt dit ook een andere uitleg van het pad door een nieuwe Playwright-versie.
   const dir = mkdtempSync(join(tmpdir(), 'ops-shard-test-'));
   try {
     const listed = await Promise.all(shards.map((files, i) => {
@@ -154,7 +148,6 @@ test('verify-parts --check-ci: de browsershards in ci.yml zijn samen precies 1..
     for (const [label, broken] of [
       ['dubbele shard', yaml.replace('shard: 3/4', 'shard: 2/4')],
       ['ontbrekende shard', yaml.replace(/^.*shard: 4\/4.*\n/m, '')],
-      // Review PR #399: het record van shard 4/4 naar een ander deel verhuisd; de shardregels zelf kloppen nog.
       ['shard 4/4 bij een ander deel', (() => {
         const at = yaml.indexOf('shard: 4/4');
         const partAt = yaml.lastIndexOf('part: browser', at);

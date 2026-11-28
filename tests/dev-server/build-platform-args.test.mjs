@@ -1,8 +1,3 @@
-// Argumenten van `scripts/build-platform.mjs` (`npm run build:platform`): het basispad.
-// Draait geen build; alleen de pure functies `parseArgs` en `validateBase`.
-//
-// #818: het SuperCloud-contract bouwt met `--base ./` (één bundel onder elk subpad). Een absoluut
-// subpad blijft werken zoals voor de Frappe-app (#307).
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseArgs, validateBase } from '../../scripts/build-platform.mjs';

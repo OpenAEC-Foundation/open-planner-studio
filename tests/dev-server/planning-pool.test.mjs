@@ -26,7 +26,6 @@ const root = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const script = join(root, 'scripts', 'planning-pool.mjs');
 const SEP = '\x1f';
 
-/** Een plan met kleine scripts in plaats van bundels, zodat niets gebundeld hoeft te worden. */
 function fixture(checks, zones = ['UTC', 'Pacific/Auckland']) {
   const dir = mkdtempSync(join(tmpdir(), 'ops-pool-test-'));
   const lines = [`zones\t${zones.join('\t')}`];
@@ -93,7 +92,6 @@ test('elk proces krijgt zijn eigen TMPDIR, zijn zone en de omgeving van zijn reg
         { env: { ...withoutZone, OPS_PLANNING_JOBS: '4' } },
         (error, stdout) => resolve({ code: error?.code ?? 0, stdout }));
     });
-    // Rood alleen in de zone UTC: zo komt de uitvoer van die zone in de log.
     assert.equal(result.code, 1, result.stdout);
     assert.match(result.stdout, /ZONE=UTC EXTRA=geen/);
     assert.match(result.stdout, /ZONE=geen EXTRA=0/);

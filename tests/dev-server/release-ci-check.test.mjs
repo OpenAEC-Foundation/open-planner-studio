@@ -7,7 +7,6 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { checkBrowserRun, checkPushRun, fridayEvening, gitIsAncestor } from '../../scripts/release-ci-check.mjs';
 
-// De CI-controle van de release: dezelfde regels in de gate van release.yml en in de release-skill.
 const root = resolve(fileURLToPath(import.meta.url), '..', '..', '..');
 const SCRIPT = join(root, 'scripts', 'release-ci-check.mjs');
 const REPO = 'o/r';
@@ -22,7 +21,6 @@ const GREEN_JOBS = [1, 2, 3, 4].map(n => shard(n)).concat(
   { name: 'verify (${{ matrix.name }})', conclusion: 'skipped' },
   { name: 'test', conclusion: 'success' },
 );
-// Een run waarin de browserjobs zijn overgeslagen: GitHub toont dan de ruwe matrixnaam.
 const SKIPPED_JOBS = [
   { name: 'verify (${{ matrix.name }})', conclusion: 'skipped' },
   { name: 'test', conclusion: 'success' },
@@ -31,7 +29,6 @@ const run = (id, over = {}) => ({
   id, event: 'schedule', head_branch: 'main', head_sha: OLDER, status: 'completed', conclusion: 'success', created_at: FRIDAY, ...over,
 });
 
-/** Een nep-`gh api`: runs per event, jobs van poging 1 per run-ID. */
 function fakeApi({ schedule = [], dispatch = [], push = [], jobs = {} }) {
   return (path) => {
     if (path.includes('head_sha=')) return { workflow_runs: push };
@@ -77,7 +74,6 @@ test('browserrun: rood stopt, ook als een oudere run groen was', () => {
 });
 
 test('browserrun: een haperende test blijft rood, ook als de rerun groen is', () => {
-  // De run zelf heet `success` na de rerun; poging 1 bepaalt de uitkomst.
   const firstAttempt = [shard(1), shard(2), shard(3, 'failure'), shard(4), { name: 'test', conclusion: 'failure' }];
   const result = browser({ schedule: [run(1, { conclusion: 'success', run_attempt: 2 })], jobs: { 1: firstAttempt } });
   assert.equal(result.ok, false);
@@ -131,19 +127,15 @@ test('fridayEvening: de laatste vrijdag 22:00 in Europe/Amsterdam, in winter- en
   const iso = text => new Date(fridayEvening(Date.parse(text))).toISOString();
   assert.equal(iso('2026-11-07T10:00:00Z'), '2026-11-06T21:00:00.000Z');
   assert.equal(iso('2027-04-03T10:00:00Z'), '2027-04-02T20:00:00.000Z');
-  // Vrijdag vóór 22:00 is de vrijdag ervoor nog de grens; om 22:00 precies begint de nieuwe.
   assert.equal(iso('2026-11-06T20:59:59Z'), '2026-10-30T21:00:00.000Z');
   assert.equal(iso('2026-11-06T21:00:00Z'), '2026-11-06T21:00:00.000Z');
   assert.equal(iso('2026-11-10T09:00:00Z'), '2026-11-06T21:00:00.000Z');
-  // Vlak na een klokwissel staat de grens nog in de oude tijd.
   assert.equal(iso('2027-03-28T12:00:00Z'), '2027-03-26T21:00:00.000Z');
   assert.equal(iso('2027-11-01T09:00:00Z'), '2027-10-29T20:00:00.000Z');
-  // Een UTC-tijd op zaterdag is in Amsterdam soms al later, nooit een andere vrijdag dan die ervoor.
   assert.equal(iso('2026-11-06T23:30:00Z'), '2026-11-06T21:00:00.000Z');
 });
 
 test('browserrun: elke uitkomst noemt de beoordeelde run, zodat gate, release en reparatie dezelfde lezen', () => {
-  // Vrijdag groen, daarna een handmatige run: rood in poging 1, groen in de rerun.
   const firstAttempt = [shard(1, 'failure'), shard(2), shard(3), shard(4), { name: 'test', conclusion: 'failure' }];
   const state = {
     schedule: [run(1)],
@@ -168,14 +160,12 @@ test('browserrun: overgeslagen browserjobs tellen niet als browserrun', () => {
   const alleen = browser({ schedule: [run(1)], jobs: { 1: SKIPPED_JOBS } });
   assert.equal(alleen.ok, false);
   assert.match(alleen.text, /geen browserrun/);
-  // Na de overgeslagen run blijft een eerdere run binnen het venster de laatste browserrun.
   const eerder = browser({
     schedule: [run(2, { created_at: '2026-11-07T02:00:00Z' }), run(1)],
     jobs: { 2: SKIPPED_JOBS, 1: GREEN_JOBS },
   });
   assert.equal(eerder.ok, true, eerder.text);
   assert.equal(eerder.runId, 1);
-  // Ook een shard die `skipped` meldt onder zijn eigen naam telt niet.
   const opNaam = [1, 2, 3, 4].map(n => shard(n, 'skipped')).concat({ name: 'test', conclusion: 'success' });
   assert.equal(browser({ schedule: [run(1)], jobs: { 1: opNaam } }).ok, false);
 });
@@ -222,7 +212,6 @@ test('git: een onbekende commit is een harde fout, geen "nee"', () => {
   assert.throws(() => gitIsAncestor('0'.repeat(40), 'HEAD'), /merge-base/);
 });
 
-/** Draait het echte script met een nep-`gh` op het PATH. */
 function cli(t, ghBody, args = [SHA]) {
   const dir = mkdtempSync(join(tmpdir(), 'release-ci-check-'));
   t.after(() => rmSync(dir, { recursive: true, force: true }));
@@ -264,7 +253,6 @@ test('commando: --browser doet alleen de browsercontrole en noemt de run', (t) =
 
 test('de release en de reparatie gebruiken dezelfde browsercontrole als de gate', () => {
   assert.match(readFileSync(join(root, '.claude/skills/browsertests-repareren/SKILL.md'), 'utf8'), /node scripts\/release-ci-check\.mjs --browser "\$SHA"/);
-  // Het releasescript roept dezelfde controle aan, met en zonder --browser.
   const script = readFileSync(join(root, 'scripts/release/stappen.mjs'), 'utf8');
   assert.match(script, /'scripts\/release-ci-check\.mjs'\), \.\.\.\(alleenBrowser \? \['--browser'\] : \[\]\), sha\]/);
   const repair = readFileSync(join(root, '.claude/skills/browsertests-repareren/SKILL.md'), 'utf8');

@@ -1,16 +1,3 @@
-// check-apply-distribution.ts — B1c-plan3 taak 6 (spec §5/§9 "Store-niveau"). Toepassen schrijft in
-// het actieve document én in de slapers; "alles terugdraaien" zet alles terug, inclusief de
-// doorrekening. Fixtures via `createAppStore()` + `newDocument()` (echte documenten, echte
-// payloads) — de `DistributionProposal` zelf wordt met de hand gebouwd (de afleiding uit een echte
-// `computeDistribution`-run is al gedekt door `check-distribute.ts`; hier staat uitsluitend het
-// schrijfpad op de proef).
-//
-// AANGEPAST NA MERGE MET MAIN (sessiehistorie, 2026-09-04): undo/redo is niet langer een
-// `undoStack` per document(payload) maar één app-globale sessiechronologie (`historyEvents`). De
-// undo-DIEPTEs hieronder zijn daarom event-tellingen, en de terugdraai-poort is de identiteit van
-// het history-event dat `applyDistribution` per document achterliet.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { createAppStore } from '@/state/appStore';
 import { historyDepthsForActiveScope, selectUndoHistoryEvent } from '@/state/sessionHistory';
 import { subscribeExtensionEvent, HOST_EVENTS } from '@/services/extensionEvents';
@@ -35,10 +22,6 @@ function baseDocResult(docId: string, title: string, extra?: Partial<Distributio
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Opzet: één store, twee documenten. "Slaper" wordt eerst gevuld en gaat daarna slapen (newDocument
-// maakt hem niet-actief); "Actief" blijft het actieve document.
-// ═══════════════════════════════════════════════════════════════════════════
 const store = createAppStore();
 const S = () => store.getState();
 
@@ -65,9 +48,6 @@ function makeProposal(overrides?: Partial<DistributionProposal>): DistributionPr
       }),
     ],
     fixedLoadByDay: {}, residualByDay: {}, hasShortfall: false,
-    // B1c-plan3 taak 11: `bookingByDay`/`afterLoadByDay`/`afterIncomplete` zijn niet relevant voor
-    // dit schrijfpad-fixture (dat toetst `applyDistribution`, niet `computeDistribution` — dat laatste
-    // is al gedekt door check-distribute.ts), maar wel verplicht op het type.
     bookingByDay: {}, afterLoadByDay: {}, afterIncomplete: false,
     ...overrides,
   };
@@ -78,17 +58,11 @@ function sleepPayload() {
   return S().documents.find(d => d.id === sleepDocId)!.payload!;
 }
 
-/** Aantal history-events met een `document-data`-delta voor dít document, in de gevraagde stand.
- *  Dit is de sessiehistorie-vervanger van het oude `payload.undoStack.length`: de chronologie is
- *  app-globaal, dus "de undo-diepte van document X" is een filter, geen array-lengte. */
 function eventsFor(docId: string, state: 'applied' | 'undone'): number {
   return S().historyEvents.filter(e => e.state === state
     && e.deltas.some(d => d.kind === 'document-data' && d.documentId === docId)).length;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 1: geblokkeerd voorstel schrijft NIETS.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-distribution: geval 1, geblokkeerd --');
 {
   const blocked = makeProposal({ blocked: { reason: 'MATERIAL_ITEM', docIds: [] } });
@@ -99,9 +73,6 @@ console.log('-- apply-distribution: geval 1, geblokkeerd --');
   assert(S().tasks.find(t => t.id === idActiveIn)?.levelingDelay === undefined, 'geval 1: ActiefIn heeft nog geen delay');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 2: een tekort blokkeert Toepassen (spec §4 stap 3) — een geldige preview, geen schrijfpad.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-distribution: geval 2, tekort blokkeert --');
 {
   const shortfall = makeProposal({ hasShortfall: true });
@@ -109,13 +80,6 @@ console.log('-- apply-distribution: geval 2, tekort blokkeert --');
   assert(outcome.ok === false && outcome.reason === 'shortfall', 'geval 2: hasShortfall ⇒ ok:false met reden shortfall');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 2b (fixronde B1c-etappe-3, bevinding B5): een SLAPENDE write die vastloopt breekt de hele
-// actie af — mét reden, zonder halve staat en zonder meldingen. Een relatiecyclus in het slapende
-// document laat de `runCPM` binnen de scratch-context een `cpmResult.error` zetten; BESLIST in deze
-// fixronde dat dát óók `ok: false` is (zie `DistributionApplyResult`): de nivelleervertraging zou
-// anders wél geschreven worden en de bijbehorende datums niet.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-distribution: geval 2b, een vastgelopen slapende write --');
 {
   const cycleDocId = S().newDocument();
@@ -124,8 +88,6 @@ console.log('-- apply-distribution: geval 2b, een vastgelopen slapende write --'
   const idC2 = S().addTask({ name: 'C2' });
   assert(S().addSequence({ predecessorId: idC1, successorId: idC2, type: 'FINISH_START', lagDays: 0 }) !== null,
     'geval 2b opzet: relatie C1→C2 aangemaakt');
-  // De store-route weigert een kring vooraf (tests/planning/check-relation-routes.ts); een kring komt
-  // nog wel binnen zoals een importer hem schrijft: rechtstreeks in `sequences`.
   store.setState(s => {
     s.sequences.push({ id: 'seq-kring', predecessorId: idC2, successorId: idC1, type: 'FINISH_START', lagDays: 0 });
   });
@@ -164,9 +126,6 @@ console.log('-- apply-distribution: geval 2b, een vastgelopen slapende write --'
   S().switchDocument(activeDocId);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 3, 4, 5, 6: het echte Toepassen — actief + slapend, scope-behoud, gaten, undo-diepte.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-distribution: geval 3-6, schrijven over actief + slapend --');
 let applyRecord: DistributionApplyRecord | null;
 let sleepCpmBefore: string;
@@ -190,38 +149,25 @@ let sleepCpmBefore: string;
   assert(sleepPayload().cpmResult !== null, 'geval 3: en cpmResult is gepersisteerd');
   assert(sleepPayload().isDirty === true, 'geval 3: het slapende document staat als gewijzigd');
   assert(S().isDirty === true, 'geval 3: het actieve document staat als gewijzigd');
-  // Toepassen schrijft ONVOORWAARDELIJK, ook met "Automatisch berekenen" uit (spec §11.5) — de
-  // store-default is al uit; dit pint dat applyDistribution zelf geen gate op autoCalcCPM heeft.
   assert(S().ui.autoCalcCPM === false, 'geval 3 opzet: automatisch berekenen staat standaard uit');
 
-  // Geval 4: out-of-scope 'Buiten' behoudt zijn delay — scope-behoud over de documentgrens.
   assert(S().tasks.find(t => t.id === idBuiten)?.levelingDelay === 3, 'geval 4: out-of-scope delay overleeft Toepassen');
 
-  // Geval 5: onderbrekingen worden echt geschreven, met herkomst.
   const gapTask = sleepPayload().tasks.find(t => t.id === idS1);
   assert(gapTask?.splitGaps?.some(g => g.source === 'leveling') === true, 'geval 5: splitGaps geschreven met herkomst');
 
-  // Geval 6: per document ÉÉN history-event. Voor het actieve document is dat óók één stap in de
-  // undo-diepte van de actieve scope; voor de slaper telt alleen zijn eigen eventreeks (die staat
-  // buiten de actieve scope en is dus onzichtbaar voor Ctrl+Z zolang hij slaapt).
   assert(historyDepthsForActiveScope(S()).undoDepth === activeDepthBefore + 1, 'geval 6: actief — één stap erbij');
   assert(eventsFor(activeDocId, 'applied') === activeEventsBefore + 1, 'geval 6: actief — één history-event erbij');
   assert(eventsFor(sleepDocId, 'applied') === sleepEventsBefore + 1, 'geval 6: slapend — één history-event erbij');
-  // En het record wijst naar precies dát event, per document.
   const recDocs = applyRecord!.docs;
   assert(recDocs.length === 2, 'geval 6: het record beschrijft beide documenten');
   assert(recDocs.every(d => S().historyEvents.some(e => e.id === d.historyEventId && e.state === 'applied')),
     'geval 6: elk vastgelegd event bestaat en staat op applied');
 
-  // Geval 9 (spec §9 "Store-niveau"): geen extensie-events voor het SLAPENDE document — hooguit één,
-  // van het actieve document dat via het gewone `applyLeveling`-pad draait.
   assert(seen.length <= 1, 'geval 9: extensie-events zijn niet gevuurd voor het slapende document');
   unsub();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 7: "alles terugdraaien" zet beide documenten terug, inclusief de doorrekening.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-distribution: geval 7, alles terugdraaien --');
 {
   const report = S().undoDistribution(applyRecord!);
@@ -233,26 +179,16 @@ console.log('-- apply-distribution: geval 7, alles terugdraaien --');
   assert(sleepPayload().tasks.find(t => t.id === idS1)?.splitGaps === undefined, 'geval 7: en het leveling-gat is weg');
   assert(JSON.stringify(sleepPayload().cpmResult) === sleepCpmBefore, 'geval 7: ook de doorrekening van de slaper is teruggedraaid');
   assert(sleepPayload().isDirty === true, 'geval 7: de slaper blijft als gewijzigd gemarkeerd (spiegelt restoreSnapshot)');
-  // De events staan op `undone` — dat is precies wat een gewone redo straks weer oppakt.
   assert(applyRecord!.docs.every(d => S().historyEvents.some(e => e.id === d.historyEventId && e.state === 'undone')),
     'geval 7: beide events staan op undone');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 8: terugdraaien weigert wat het niet meer herkent — bewerk het slapende document ná het
-// toepassen (extra undo-stap erbovenop); "alles terugdraaien" mag dat document dan niet blind
-// terugpoppen.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-distribution: geval 8, gedeeltelijk terugdraaien --');
 {
   const outcome8 = S().applyDistribution(makeProposal(), scopeTaskIdsByDoc);
   assert(outcome8.ok === true, 'geval 8 opzet: opnieuw toegepast');
   const record2 = outcome8.ok ? outcome8.record : null;
 
-  // Bewerk het slapende document ZELF (activeren, muteren, weer wegschakelen) — dat legt een JONGER
-  // history-event voor dat document vast, bovenop wat applyDistribution er net achterliet. De poort
-  // in `undoDistribution` eist dat het vastgelegde event nog het event is dat een gewone Ctrl+Z in
-  // dat document zou kiezen; dat is het nu niet meer.
   S().switchDocument(sleepDocId);
   S().addTask({ name: 'Extra' });
   S().switchDocument(activeDocId);
@@ -260,21 +196,11 @@ console.log('-- apply-distribution: geval 8, gedeeltelijk terugdraaien --');
   const report2 = S().undoDistribution(record2!);
   assert(report2.skippedDocIds.join(',') === sleepDocId, `geval 8: het slapende document wordt overgeslagen (kreeg ${JSON.stringify(report2)})`);
   assert(report2.undoneDocIds.join(',') === activeDocId, 'geval 8: het actieve document wordt WEL teruggedraaid');
-  // De bewerking op het slapende document staat nog steeds (niet blind teruggepopt).
   assert(sleepPayload().tasks.some(t => t.name === 'Extra'), 'geval 8: de tussentijdse bewerking blijft staan');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 10 (nieuw na de merge met main): per-document-undo/redo via het GEWONE pad. Het event dat
-// `applyDistribution` voor een slapend document achterliet, is precies het event dat Ctrl+Z in dat
-// document kiest zodra je het activeert — en redo werkt daarna gewoon. Dat is de hele reden om het
-// event in de app-globale chronologie te registreren in plaats van in de payload.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-distribution: geval 10, per-document undo/redo na activeren --');
 {
-  // Opzet: geval 8 liet de slaper mét zijn delay achter (het terugdraaien sloeg hem bewust over).
-  // Wis die eerst, anders zou het toepassen hieronder niets veranderen aan S1 en zou een undo
-  // trivialiter "slagen" zonder iets te bewijzen.
   S().switchDocument(sleepDocId);
   S().clearLeveling();
   assert(S().tasks.find(t => t.id === idS1)?.levelingDelay === undefined, 'geval 10 opzet: de slaper begint zonder delay');
@@ -300,16 +226,8 @@ console.log('-- apply-distribution: geval 10, per-document undo/redo na activere
   assert(S().tasks.find(t => t.id === idActiveIn)?.levelingDelay === 2, 'geval 10: het actieve document is ondertussen niet geraakt');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 11 (nieuw na de merge met main): een GESLOTEN document belandt netjes in `skippedDocIds`.
-// `closeDocument` laat `removeSessionHistoryForDocument` de events van dat document opruimen, dus de
-// poort in `undoDistribution` vindt het vastgelegde event simpelweg niet meer terug — precies de
-// bedoeling: er is niets meer om terug te draaien, en de rest van het record moet gewoon door.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- apply-distribution: geval 11, gesloten document --');
 {
-  // Opzet: het actieve document draagt de delay van geval 10 nog. Wis 'm, anders zou het toepassen
-  // hieronder niets aan `ActiefIn` veranderen en bewijst het terugdraaien niets.
   S().clearLeveling();
   assert(S().tasks.find(t => t.id === idActiveIn)?.levelingDelay === undefined, 'geval 11 opzet: het actieve document begint zonder delay');
 
@@ -330,7 +248,6 @@ console.log('-- apply-distribution: geval 11, gesloten document --');
 }
 
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (fails === 0) {
   console.log(`OK  apply-distribution-check: alle checks groen (${checks})`);
   process.exit(0);

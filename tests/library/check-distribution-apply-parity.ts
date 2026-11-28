@@ -1,4 +1,3 @@
-// Review ronde 1: een voorstel moet dezelfde bezetting tonen als het echte schrijfpad oplevert.
 import assert from 'node:assert/strict';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStoreFactory';
 import { capturePayload, type DocumentPayload } from '@/state/documentContract';
@@ -162,8 +161,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
             const beforeTasks = inputs(context).map(doc => JSON.stringify(doc.tasks));
             const before = occupancy(context);
             const total = before.docs.reduce((sum, doc) => sum + (doc.dailyLoad['2026-06-01'] ?? 0), 0);
-            // MS Project bewaart bij retained logic ook het reeds afgewerkte venster. Met
-            // progress override is de resterende halve dag onder alle drie profielen gelijk.
             const expectedLoad = complete || (profile === 'msproject' && progressMode === 'RETAINED_LOGIC') ? 2 : 1.5;
             assert.equal(total, expectedLoad, `de uitgangslast is werkelijk 2 of 1,5 op capaciteit één: ${JSON.stringify({
               time: payload(context, fixed.docId).tasks[0].time, assignments: payload(context, fixed.docId).assignments,
