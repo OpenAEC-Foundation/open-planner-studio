@@ -25,9 +25,7 @@ gelijk aan de kernregel van ADR 0330: een record bevat alleen wat de bron gaf.
   `check-recorded-times-formats.ts` 1c, 2c en 3c (alleen het vroege paar, de andere assen ontbreken).
 - `leafRecordedTimes` laat de records van taken met kinderen (`childIds`) weg. `readMSPDI` en `readMPP` roepen haar
   aan, `captureRecordedDates` niet: de IFC-route houdt de eigen vastlegging van een fase. Een verzameltaak zonder
-  record rolt in de modus op uit haar vastgelegde kinderen (ADR 0332). Volgens het weggehaalde commentaar schrijft
-  MS Project `EarlyStart` ook op samenvattingen, telde zo'n eigen record "N taken" per formaat anders dan bij XER
-  (P6 heeft geen TASK-rij per WBS) en telde een verschoven kind vaak dubbel via de ouder. Toets voor MSPDI:
+  record rolt in de modus op uit haar vastgelegde kinderen (ADR 0332). Toets voor MSPDI:
   `check-recorded-times-formats.ts` 2h (de samenvatting zonder record, het blad met).
 - `recordedFloatDays` rekent werkminuten om naar dagen: de minuten afgerond op hele minuten, gedeeld door
   `minutesPerDay`. Ontbreekt de waarde of is ze niet eindig, of is `minutesPerDay` niet groter dan 0, dan ontbreekt de

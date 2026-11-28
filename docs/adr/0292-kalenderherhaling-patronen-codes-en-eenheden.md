@@ -10,9 +10,9 @@ tabellen delen en niets hoeven te vertalen behalve wat hieronder staat.
 - De codetabel `RECURRENCE_TYPES` heeft als index de ruwe waarde van het type in het bestand (in `.mpp` het veld op
   +72 van een uitzonderingsblok, in MSPDI `<Type>`): 1 DAILY, 2 YEARLY, 3 YEARLY, 4 MONTHLY, 5 MONTHLY, 6 WEEKLY,
   7 DAILY; index 0 is `null` (geen herhaling). `RELATIVE_MAP` is waar op 3 en 5 (relatief) en heeft lengte 6; de lezers
-  nemen voor een index daarbuiten `false` en voor een type buiten de tabel `null`. Dat de tabellen en de MSPDI-codes die
-  van MPXJ zijn, komt uit het weggehaalde commentaar en is niet nagegaan (zie ook ADR 0254). Dat MPXJ op een onbekend
-  type vastloopt, terwijl de lezers hier `null` geven, komt ook uit dat commentaar; wat elke lezer met `null` doet,
+  nemen voor een index daarbuiten `false` en voor een type buiten de tabel `null`. De tabellen en de MSPDI-codes zijn die
+  van MPXJ (`AbstractCalendarAndExceptionFactory` en `MSPDIReader`; zie ook ADR 0254). De `.mpp`-lezer van MPXJ loopt
+  op een onbekend type vast (een `switch` over `null` in `readRecurringData`), terwijl de lezers hier `null` geven; wat elke lezer met `null` doet,
   staat in knownbug 2320.
 - Eenheden van de velden: `weeklyDayMask` heeft bit 0 voor zondag tot bit 6 voor zaterdag (`getWeeklyDates` toetst
   `1 << getUTCDay()`); `dayOfWeekValue` is 1 voor zondag tot 7 voor zaterdag (`mpxjDayValue` is `getUTCDay() + 1`);
@@ -31,7 +31,7 @@ tabellen delen en niets hoeven te vertalen behalve wat hieronder staat.
 - Een jaarlijkse herhaling op een vaste datum met een dag die in de maand niet bestaat (29 februari in een gewoon
   jaar), wordt de laatste dag van de maand. Valt die datum vóór het begin, dan schuift `getYearlyAbsoluteDates` haar
   een jaar op en klemt de al geklemde dag opnieuw, niet de gevraagde dag: met begin 2019-06-01 en dag 29 februari wordt
-  het 28 februari 2020, niet 29 februari. Dat volgt `LocalDate.plusYears` in MPXJ volgens het weggehaalde commentaar;
+  het 28 februari 2020, niet 29 februari. Dat volgt `LocalDate.plusYears` in MPXJ (`RecurringData.getYearlyAbsoluteDates`);
   de repo toetst alleen de uitkomst (LAAG-2 en LAAG-A in `check-mpp-calendars.ts`). Die opschuiving gebeurt na de
   toets op het einde, zodat de laatste datum na het einde kan vallen (knownbug 2318).
 - Een wekelijkse herhaling begint op de zondag van de week van het begin en slaat datums vóór het begin over. Een

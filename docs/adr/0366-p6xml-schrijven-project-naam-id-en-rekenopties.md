@@ -17,8 +17,7 @@ een XER (ADR 0267 en 0181).
   einde alleen uit `MustFinishByDate` (ADR 0261).
 - Naam en `Id` komen uit `p6ProjectIdentity`. `<Name>` is de
   projectnaam zonder witruimte eromheen, en zonder naam dezelfde neutrale terugval als de bestandsnaam
-  (`projectFileBase`), omdat een leeg `<Name>` P6 een naamloos project gaf; dat laatste komt uit het weggehaalde
-  commentaar en is niet nagegaan. `<Id>` is de P6 Project-ID die de aanroeper meegeeft; `exportAs` geeft
+  (`projectFileBase`). `<Id>` is de P6 Project-ID die de aanroeper meegeeft; `exportAs` geeft
   `documentProjectCode` met de XER-metadata mee, zodat ook een XER-document zijn code krijgt, en zonder argument geldt
   de code van het project zelf. Zonder code is het `Id` in P6 XML `OPS:` plus het interne project-id, ingekort tot
   `P6_ID_MAX_LENGTH`: het hangt niet van de naam af, en de lezer bewaart het niet als code (`isOpsInternalProjectId`,

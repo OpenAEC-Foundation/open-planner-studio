@@ -19,8 +19,7 @@ XML-writer.
 - `<DurationType>` is een Engels label. De vier labels horen bij de XER-tokens zoals in `workRuleMapping.ts`
   (`P6_DURATION_TYPE_NAME` en `XER_DURATION_TYPE_TOKEN`); de twee labels met Fixed Duration zijn makkelijk te
   verwisselen en waren eerder verwisseld. De paren zijn nagegaan tegen MPXJ en geteld in het corpus
-  (`docs/superpowers/plans/2026-09-24-e2-p6xml-durationtype.md`); dat de XER-datamap van Oracle dezelfde paren noemt,
-  komt uit het weggehaalde commentaar en is niet nagegaan. `check-xer-p6xml-parity.ts` 4 pint de vier paren.
+  (`docs/superpowers/plans/2026-09-24-e2-p6xml-durationtype.md`). `check-xer-p6xml-parity.ts` 4 pint de vier paren.
 - Bij een leeg of onbekend label (een onbekend label met een waarschuwing in de console) levert de lezer de
   projectstandaard `ActivityDefaultDurationType` als `p6DurationType`, als die een geldig label is
   (`check-xer-p6xml-parity.ts` 5 en 6); zonder geldige projectstandaard ontbreekt het veld. `deriveImportedWorkRules`
@@ -35,7 +34,6 @@ XML-writer.
 - `<PrimaryConstraintType>` en `<SecondaryConstraintType>` lezen als label van P6 of als `CS_*`-token van oudere eigen
   exports (`p6ConstraintFromCodeOrLabel`, alleen eigen sleutels van de tabel); `Mandatory Start` en `Mandatory Finish`
   worden `MSO` en `MFO` met `hard`. Een onbekende waarde geeft geen constraint en een waarschuwing in de console. De
-  lezer zet de secundaire constraint nooit hard (`check-p6xml-constraint-labels.ts` 1); dat P6 een secundaire
-  constraint altijd zacht rekent, komt uit het weggehaalde commentaar en is niet nagegaan.
+  lezer zet de secundaire constraint nooit hard (`check-p6xml-constraint-labels.ts` 1).
 - Een mijlpaal is een `<Type>` met `Milestone`; met `Finish` erin wordt de soort `FINISH`, anders `START`, omdat P6
   beide soorten kent (`check-p6xml-nested.ts` 6f).

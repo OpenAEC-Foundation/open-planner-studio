@@ -5,9 +5,9 @@ MS Project bewaart per toewijzing tijdgefaseerde gegevens in `Var2Data` van `TBk
 die bytes om in periodes, zonder kennis van de container, de veldkaart of een kalender. We lezen vier categorieën, op
 hun var-data-sleutel (`AssignmentFieldId` in `fieldMap14.ts`): 49 `RemainingRegularWork`, 50 `ActualRegularWork`,
 51 `ActualOvertimeWork` en 87 `ActualIrregularWork`. Niet de elf tijdgefaseerde baselinevarianten en niet de
-kostcategorieën: volgens het weggehaalde commentaar dragen die niets bij aan datums. De categorieën delen geen
-byte-indeling: volgens het weggehaalde commentaar stuurt MPXJ (`ResourceAssignmentFactory.process`) 50 en 51 door
-`getCompleteWork` (samen met 87) en 49 door `getPlannedWork` (`TimephasedDataFactory.java`). Daarom heeft elk formaat
+kostcategorieën. De categorieën delen geen byte-indeling: MPXJ (`ResourceAssignmentFactory.process`) stuurt het
+verrichte werk (50) en het verrichte overwerk door `getCompleteWork`, samen met de extra werkuren, en het restwerk (49)
+door `getPlannedWork` (`TimephasedDataFactory.java`; 49 en 50 in `FieldMap14.java`). Daarom heeft elk formaat
 een eigen decoder; één gedeelde lezer zou een van de twee verkeerd lezen.
 
 ## Gevolgen
@@ -49,6 +49,5 @@ een eigen decoder; één gedeelde lezer zou een van de twee verkeerd lezen.
   het samenvattingsblok krijgen daar afwijkende waarden, zodat een decoder die ze niet overslaat een andere eerste
   periode geeft. Die toets houdt de decoder bij deze indeling, niet de indeling bij MS Project. Tegen echte bestanden
   toetsen alleen de corpusdelen (`check-mpp-fidelity.ts` en de corpusdelen van `check-mpp-import.ts`, met
-  `OPS_MPP_CRAWL` of `OPS_MPP_CORPUS`). De indeling zelf komt uit het weggehaalde commentaar en MPXJ en is verder niet
-  in de repo nagegaan. Volgens dat commentaar passen in het corpus 3073 van de 3298 restwerkblokken op het model van
-  28 bytes, typisch 16 + 2 × 28 = 72 bytes.
+  `OPS_MPP_CRAWL` of `OPS_MPP_CORPUS`). De indeling van formaat A en B volgt MPXJ
+  (`TimephasedDataFactory.getCompleteWork` en `getPlannedWork`).
