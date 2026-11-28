@@ -106,7 +106,7 @@ import {
 } from '../openSourceDocument';
 import { expandSummaryRelations } from '@/engine/scheduler/expandSummaryRelations';
 import { detectXerExportLoss, type XerExportLossWarning } from '@/services/xerExportLoss';
-import { claimProjectFileWrite, runProjectFileWrite, whenProjectFilePlacementSettled } from '@/services/fileAccess/writeCoordinator';
+import { claimProjectFileWrite, runProjectFileWrite } from '@/services/fileAccess/writeCoordinator';
 import { IfcSaveWorkerError } from '@/services/ifc/saveWorker/ifcSaveWorkerError';
 import {
   changeSaving, clearChangedOnDisk, documentContentOf, markChangedOnDisk as markChangedOnDiskIn, replaceDocumentContent,
@@ -563,9 +563,8 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
    */
   const withIfcExportPriority = async (run: () => Promise<ExportResult>): Promise<ExportResult> => {
     const requested = snapshotContent(get());
-    const release = claimProjectFileWrite();
+    const { release, placement } = claimProjectFileWrite();
     try {
-      const placement = whenProjectFilePlacementSettled();
       if (placement) {
         await placement;
         const now = get();

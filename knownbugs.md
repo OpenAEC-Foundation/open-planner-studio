@@ -4402,7 +4402,13 @@ en noem het in je rapport of PR-tekst.
      staat zichtbaar: de aanduiding gaat er niet overheen (`SavingBeforeCloseNotice`). De native opslaan-dialoog staat
      als eigen venster bovenop; of `CloseRequested` op Windows, macOS en Linux überhaupt binnenkomt terwijl die open
      is, is niet nagegaan. De updater toont tijdens het wachten "Installatie voorbereiden…" met een draaiend teken en
-     geen eigen aanduiding.
+     geen eigen aanduiding. Sinds knownbug 1939 houdt een schrijftoestemming die blijft hangen (`canWrite`, in de
+     browser `queryPermission`) binnen een open gewone doorgang van Automatisch opslaan ook de rondes met een
+     gebouwmodel tegen; een handmatige actie en het afsluiten niet (wie voorgaat, laat de modelronde wijken, en een
+     geweken modelronde maakt haar beurt af zonder te schrijven; `check-actual-autosave.ts` 22f). Moest die doorgang
+     eerst achter een modelronde op haar plek wachten, dan houdt ze bij haar beurt het slot vast tot haar eerste write
+     (zoals op main de tik die zijn write al had aangevraagd): blijft haar schrijftoestemming dan hangen, dan wachten een
+     latere handmatige actie en het sluiten van een tabblad mee; de laatste fase van afsluiten en de updater niet (22i).
      Richting (besluit nodig): na een vaste tijd een knop "Toch afsluiten" die het herstel laat staan, of een
      tijdgrens per I/O-stap. Gevonden bij #804 stap 3, uit de code. — S
 1814. **Een wachtende Ctrl+S of Opslaan als voor een document dat bij zijn beurt niet meer actief is, slaat stil niet
@@ -6547,8 +6553,22 @@ en noem het in je rapport of PR-tekst.
       geen verlies; het besluit: "Wachttijd tegen stil verlies wint verlies." Volgorde: eerst 1893 en 1957, daarna dit
       punt opnieuw. Uitgangspunt is dan de regel van fixronde 1 van #1093 (een write die al om de rij vroeg houdt zijn
       plek; een handmatige actie gaat alleen voor op wat nog niet begon; geen vastgehouden rij tijdens de
-      schrijftoestemming), met de proeven van alle drie de rondes als bewaking. Of die regel dan houdt, is niet
-      bewezen. — S
+      schrijftoestemming), met de proeven van alle drie de rondes als bewaking.
+      Stand 24 november 2026, nagegaan op main `5b3c1756e` (na #1121, #1168, #1174 en #1194): die regel houdt niet. Twee
+      tabbladen op één bestand ontstaan nog als het eerste tabblad zijn versie niet kent (geopend met de flag uit, uit
+      crashherstel, na een mislukte opslag op de desktop, een bestand boven de grens van de scanner); het tweede openen
+      kent zijn versie wel. Rekent er een model en wacht de tik van het onbekende tabblad, dan schrijft main eerst de tik
+      en weigert de bewaakte opslag (#1174) de Ctrl+S van het andere tabblad met een melding. Met de regel van fixronde 1
+      komt Ctrl+S eerst en zet de tik zijn versie er stil overheen; beide tabbladen staan als opgeslagen. Na het live
+      uitzetten van de flag tijdens het rekenen (de vingerafdrukken vervallen dan) gebeurt dat in beide richtingen. De
+      proef van 16 varianten (desktop en browser, flag aan en live uit, tik in het ene of het andere tabblad, met en
+      zonder een bewerking na de tik): 12 met een stil verlies dat main niet heeft (in 8 verliest main niets, in 4
+      verliest main stil het andere tabblad); in 2 is de regel beter dan main. De head van fixronde 2 heeft er 6, alle
+      met een bewerking na de tik (het geval van ronde 3). De andere drie blokkades (ronde 1 twee keer, de
+      schrijftoestemming van ronde 3) houden met de regel van fixronde 1 de uitkomst van main. Van 1937 en 1938 is op main
+      niets afgevangen: beide nog gemeten. Een vierde regel is aan de technisch eigenaar. Proef en logs:
+      `rapporten/hervat-1093-stap1/` in de sessiemap van #804 op aia09-mp50 (`probe-rand.ts`, `vergelijk-rand.txt`). — B
+      (proef)
 
 2254. **VERVOLG (#804 fase 2, PR 11, testdubbel): de IndexedDB-dubbel draait een afgebroken transactie niet terug.**
      In `tests/planning/fakeRecoveryIndexedDb.ts` past `put` een record meteen toe, en `abort` roept alleen `onabort`
@@ -7650,6 +7670,18 @@ en noem het in je rapport of PR-tekst.
      Met de flag uit blijft het zoals main (besluit T1 van de technisch beslisser); dat verdwijnt als de flag standaard
      aan gaat. De headless MCP-server heeft geen flag, dus daar geldt het ook (knownbug 2042). Grenzen van de toets:
      2029, 2040, 2041, 2048, 2062, 2063. — B (proef, met de flag uit)
+
+1957. **Openen opent hetzelfde bestand een tweede keer, in een nieuw tabblad, zonder melding.** Kiest de planner op de
+     desktop via *Openen* een bestand dat al in een tabblad open staat, dan opent de app het nog eens, in een nieuw
+     tabblad, zonder melding en zonder naar het open tabblad te wisselen. Daarna wijzen twee tabbladen naar hetzelfde
+     pad; slaat de planner het ene op (Ctrl+S of Automatisch opslaan), dan overschrijft dat stil wat het andere opsloeg.
+     Dezelfde familie als 1893. Gezien met een proef voor de bestandskiezer op de desktop (`check-ifc-document-save.ts`,
+     "1939 fixronde 2 … twee keer Openen"). Uit de code: Recent (`openRecentFile`), een bestand op het venster slepen
+     (`openDroppedFiles`) en `planner_import_schedule` lopen door dezelfde route (`openOpenedFile` of direct
+     `openAsDocument`), en die kijkt niet of het doel al in een tabblad open staat. In de browser evenmin: een handle uit
+     de kiezer of van een sleep wordt niet met de open tabbladen vergeleken (`isSameEntry` dient alleen om de lijst van
+     Recent te ontdubbelen, `recentFiles.ts`); niet met een proef nagegaan. Voorstel: het tweede Openen wisselt naar het
+     open tabblad. Een keuze voor de eigenaar, samen met 1893. — B (proef, bestandskiezer op de desktop)
 
 1908. **Opslaan als naar een naam die een ander tabblad nog onthoudt, terwijl het bestand weg is: daarna delen beide tabbladen die naam.**
      Is het bestand van een open tabblad buiten de app verwijderd, dan is die naam vrij voor *Opslaan als* (fixronde 2
