@@ -1,8 +1,3 @@
-// Geweigerde webopslag voor crashherstel, deel "getter" (issue #582): in sommige browsers gooit al het
-// lezen van `window.indexedDB` in een opaque origin. Dat telt als weigering bij de start.
-// Eigen proces, want de sessievlag blijft de sessie lang staan; zie `check-recovery-refused.ts`.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import {
   clearRecovery, fullRecoverySave, holdRecoveryForLater, loadRecovery, saveRecovery,
   recoveryStorageUnavailable, RecoveryStorageUnavailableError,

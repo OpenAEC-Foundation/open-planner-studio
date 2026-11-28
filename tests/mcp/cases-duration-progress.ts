@@ -1,11 +1,3 @@
-// Restduur bij een duurwijziging van een LOPENDE taak via de AI-koppeling (besluit eigenaar, "zoals
-// MS Project"): het gedane werk blijft gelijk, restduur = nieuwe duur − gedane werk, het percentage
-// past zich aan — dezelfde regel als paneel, Gantt, raster en "Taak bewerken"
-// (tests/planning/check-duration-change-routes.ts), want het is de betekenis van een duurwijziging.
-// `planner_update_tasks` meldt de nieuwe restduur en het nieuwe percentage in `progressAdjusted`; een
-// duur korter dan het gedane werk wordt per item zacht geweigerd (de taak blijft ongewijzigd).
-//
-// Alles via de echte JSON-RPC-dispatcher (schema's, stale-guard, transactie), ook binnen planner_batch.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -16,7 +8,6 @@ import type { DurationType, TaskTime } from '@/types/task';
 
 const S = () => useAppStore.getState();
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`.
 S().addTask({ name: 'warmup' });
 S().undo();
 registerAllTools();
@@ -35,7 +26,6 @@ async function rpc(name: string, args: unknown): Promise<any> {
 const BAND = [{ start: 480, end: 960 }];
 const timeOf = (id: string): TaskTime => S().tasks.find((t) => t.id === id)!.time;
 
-/** Eén taak van `days` werkdagen (of `hours` uur), statusdatum 3 juni, voortgang `completion`. */
 function setup(kind: 'dag' | 'uur', size: number, completion: number): string {
   S().newProject();
   S().setProject({ startDate: '2026-06-01', statusDate: '2026-06-03' });
@@ -106,11 +96,6 @@ test('duur én voortgang in één update: de opgegeven voortgang wint', async ()
     '50% van 12 d ⇒ nog 6 d');
 });
 
-// F4b review r4: een LOPENDE kalendertijdtaak. De voortgangsoverdracht telt een dag dan als 24 klokuren
-// (`durationEditProgress`), ook via de AI-koppeling. Met de hand gerekend: 2 d, 25 % ⇒ 12 u verricht
-// (720 klokmin); "24 uur" ⇒ 50 %, rest 720 min = 12 u, einde di 2 juni 07:00 + 12 u = di 19:00;
-// "8 uur" ⇒ korter dan 12 u ⇒ geweigerd. Controle met werktijd (240 werkmin verricht): "24 uur" ⇒
-// 16,67 %, rest 1200 min = 20 u, einde di 480 + wo 480 + do 240 ⇒ do 4 juni 11:00.
 const WEEK_BANDS = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
 function setupRunningType(profile: 'ops' | 'p6' | 'msproject', type: DurationType): string {
   S().newProject();

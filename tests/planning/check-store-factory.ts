@@ -1,11 +1,3 @@
-// De store-context: iedere instantie bezit niet alleen state, maar ook haar uitvoeringsmetadata.
-//
-// `createAppStoreContext()` is de positieve ownershipgrens: store en uitvoeringsmetadata horen bij
-// dezelfde context. `createAppStore()` blijft de kale compatibiliteitsfactory en de gemounte
-// productinterface blijft één app-singleton gebruiken. Deze batterij bewijst documentstate,
-// runtimes, interleaved mutaties, extensiedata/hostbinding en het contextlokale appklembord.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { CUSTOM_TASK_TYPE_COLOR_ORDER } from '@/engine/renderer/resourcePalette';
 import {
@@ -35,7 +27,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   }
 };
 
-// ── 1. Twee contexten zijn state- én runtimegescheiden ────────────────────────
 const contextA = createAppStoreContext();
 const contextB = createAppStoreContext();
 const A = contextA.store;
@@ -58,7 +49,6 @@ eq('2 A start zonder taken', A.getState().tasks.length, 0);
 eq('2a B ook', B.getState().tasks.length, 0);
 eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), false);
 
-// ── 2. Projectdata is per instantie ───────────────────────────────────
 {
   const a1 = A.getState().addTask({ name: 'alleen in A' });
   eq('3 A heeft de taak', A.getState().tasks.length, 1);
@@ -84,7 +74,6 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('7a niet in B', B.getState().resources.length, 0);
 }
 
-// ── 3. Undo/redo is per instantie ────────────────────────────────────
 {
   const diepteA = appliedHistoryDepth(A);
   const diepteB = appliedHistoryDepth(B);
@@ -105,7 +94,6 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('11 undo op A liet de redo-geschiedenis van B staan', undoneHistoryDepth(B), redoB);
 }
 
-// ── 4. Batchruntime is contextgebonden ────────────────────────────────────
 {
   const batchA = createAppStoreContext();
   const batchB = createAppStoreContext();
@@ -146,7 +134,6 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
     appliedHistoryDepth(interleavedB.store), interleavedBUndoVoor + 1);
 }
 
-// ── 5. Klembord blijft app-globaal; paste-undo hoort bij de doelcontext ────────
 {
   const pasteA = createAppStoreContext();
   const pasteB = createAppStoreContext();
@@ -169,7 +156,6 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('14e paste op B laat de app-singleton byte-inhoudelijk gelijk', capturePayload(useAppStore.getState()), appVoor);
 }
 
-// ── 6. Extensiedata volgt document B; appregistraties volgen host A ─────────
 {
   const extensionA = createAppStoreContext();
   const extensionB = createAppStoreContext();
@@ -243,7 +229,6 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('18b data.getTasks leest document B',
     api.data.getTasks().map(task => task.name),
     ['Voorganger B', 'Opvolger B', 'Bulk B 1', 'Bulk B 2']);
-  // Knownbug 45: selectie leest de documentcontext, niet de apphost of singleton.
   A.getState().selectTasks([A.getState().tasks[0].id], false);
   B.getState().selectTasks([opvolger, voorganger], false);
   const historyBeforeSelectionRead = appliedHistoryDepth(B);
@@ -387,7 +372,6 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('23c cleanup verwijdert globale fontprovider', getCjkFontProviders().length, 0);
 }
 
-// ── 7. De singleton blijft de singleton ────────────────────────────────────
 {
   eq('24 useAppStore heeft de bekende Zustandvorm',
     ['getState', 'setState', 'subscribe']
@@ -407,9 +391,6 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   }
 }
 
-// ── 6. Partial<Task>-constructor bewaart expliciete lege-summarysemantiek ─────────────────────
-// Breuk die dit vangt: `addTask` accepteert publiek `Partial<Task>`, maar vergeet `isSummary` in
-// zijn object-literal. De taak lijkt dan opgeslagen, maar belandt als gewone leaf in de solver.
 {
   const E = createAppStore();
   const summaryId = E.getState().addTask({ name: 'Store lege summary', isSummary: true });
@@ -433,7 +414,6 @@ eq('2b maar niet met hetzelfde state-object', A.getState() === B.getState(), fal
   eq('16e de gewone taak blijft een solvertaak', E.getState().cpmResult?.tasks.has(regularId), true);
 }
 
-// ── Uitslag ────────────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: store-factory — ${checks} checks groen`);
 } else {

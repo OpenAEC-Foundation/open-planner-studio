@@ -1,12 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// Bij openen blijft de fallback voor een onvolledig voltooid taakrecord de statusdatum,
-// anders het eigen geplande einde. Zo vervangt de leesdatum een ontbrekend feit nooit.
-// Voortgang invoeren in de app gebruikt sinds #998 het geplande einde, met de statusdatum
-// als bovengrens. Een lopend taakrecord zonder werkelijke start houdt zijn eigen laadregel.
-//
-// Ankerdatum ver in het verleden (2015, zoals check-task-slice.ts): "vandaag" kan daar nooit
-// toevallig mee samenvallen. Draait via run.sh. Exit 0 = alles groen.
-
 import { installDOMParser } from './xmldom-shim';
 import { useAppStore } from '@/state/appStore';
 import { applyProgressInvariants } from '@/engine/taskMutationRules';
@@ -43,12 +34,10 @@ const byName = (tasks: readonly Task[], name: string): Task => {
   if (!t) throw new Error(`taak ${name} ontbreekt`);
   return t;
 };
-/** Open een geparsed bestand zoals Bestand → Openen (zelfde store-actie). */
 function open(parsed: ImportResult, name: string): void {
   S().openAsDocument(parsed, { name, ref: null });
 }
 
-// ── 1. De fallback bij laden en de afleiding bij een voortgangsbewerking ───────────────────────
 {
   const make = (earlyFinish: string): Task => ({
     id: 'x', name: 'X', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -73,7 +62,6 @@ function open(parsed: ImportResult, name: string): void {
   }
 }
 
-// ── 2. CSV (spreadsheet met alleen "100" in Completion (%), geen Actual Finish) ─────────────────
 {
   const csv = [
     'WBS;Name;Duration;Start;Finish;Predecessors;Completion (%);Actual Start;Actual Finish',
@@ -95,7 +83,6 @@ function open(parsed: ImportResult, name: string): void {
     byName(S().tasks, 'A').time.earlyStart, "2015-01-05T07:00");
 }
 
-// ── 3. Eigen IFC (100 % zonder AF, zoals updateTask/extensie-API hem achterlaat) en MSPDI ───────
 {
   S().newProject();
   S().setProject({ startDate: '2015-01-05' });
@@ -106,7 +93,6 @@ function open(parsed: ImportResult, name: string): void {
   S().runCPM();
   const plannedFinish = byName(S().tasks, 'A').time.earlyFinish;
   eq('3 setup: geplande finish van A', plannedFinish, "2015-01-09T16:00");
-  // updateTask draait bewust geen invarianten (extensie-API `data.updateTask`, TaskDialog).
   S().updateTask(idA, { time: { ...byName(S().tasks, 'A').time, completion: 1 } });
   S().runCPM();
   ok('3 setup: A staat op 100 % zonder AF', byName(S().tasks, 'A').time.completion === 1
@@ -116,7 +102,6 @@ function open(parsed: ImportResult, name: string): void {
   const ifc = writeIFC(buildWriteIFCInput(s, 'planOnly'));
   const mspdi = writeMSPDI(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars);
 
-  // Referentie: wat de store zelf zou kiezen voor dezelfde taak (setTaskProgress → applyProgressInvariants).
   S().setTaskProgress(idA, 1);
   const storeAF = byName(S().tasks, 'A').time.actualFinish;
   const storeAS = byName(S().tasks, 'A').time.actualStart;
@@ -129,7 +114,6 @@ function open(parsed: ImportResult, name: string): void {
   eq('3b2 IFC-lezer: AS === store-AS (geplande start)', fromIfc.time.actualStart, '2015-01-05');
 
   const fromMspdi = byName(readMSPDI(mspdi).tasks, 'A');
-  // Sinds F5b (I8) draagt de MSPDI-export de echte tijden en leest de lezer ze terug: precies de store-waarden.
   eq('3c MSPDI-lezer: AF === store-AF (geplande finish)', fromMspdi.time.actualFinish, storeAF);
   ok(`3d MSPDI-lezer: AF is niet "vandaag" (${fromMspdi.time.actualFinish})`, !fromMspdi.time.actualFinish?.startsWith(THIS_YEAR));
   eq('3d2 MSPDI-lezer: AS === store-AS (geplande start)', fromMspdi.time.actualStart, storeAS);
@@ -145,9 +129,6 @@ function open(parsed: ImportResult, name: string): void {
     S().recordedDates?.shifted ?? 0, 0);
 }
 
-// ── 4. Bewuste afwijking blijft: import zet STARTED bij completion > 0 zonder actualStart ────────
-// (solver-vangnet §4.2 tak 2b; de store kan die toestand niet maken — setTaskProgress zet dan zelf
-// een actualStart). De import verzint GEEN actualStart.
 {
   const half: Task = {
     id: 'h', name: 'H', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -160,11 +141,6 @@ function open(parsed: ImportResult, name: string): void {
   eq('4c import: geen actualFinish', half.time.actualFinish, undefined);
 }
 
-// ── 5. 100 % zonder actuals, geplande start ná de statusdatum: AS nooit ná AF ─────────────────────
-// De impliciete start (`defaultActualStart`: geplande start 2015-01-12) en het afgeleide einde
-// (`defaultActualFinish`: statusdatum 2015-01-07) gaven samen AS ná AF, via elke lezer die de
-// statusdatum uit het bestand doorgeeft (IFC, MSPDI, P6, MPP; CSV kent geen statusdatum). Zelfde regel
-// als de store: `orderActualsAfterDerivedFinish` (engine/actualDatesOrder.ts).
 {
   S().newProject();
   S().setProject({ startDate: '2015-01-05', statusDate: '2015-01-07' });
@@ -191,8 +167,6 @@ function open(parsed: ImportResult, name: string): void {
   ok(`5 IFC → Openen: AS niet ná AF (${opened.actualStart} / ${opened.actualFinish})`,
     !!opened.actualStart && !!opened.actualFinish && opened.actualStart <= opened.actualFinish);
 
-  // Zonder statusdatum: een vastgelegde start ná de (verouderde) geplande finish blijft staan; het
-  // afgeleide einde schuift mee.
   const late: Task = {
     id: 'l', name: 'L', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
     isMilestone: false, priority: 500, parentId: null, childIds: [], resourceIds: [],

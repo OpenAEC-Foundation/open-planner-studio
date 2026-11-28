@@ -1,7 +1,3 @@
-// T13 — kalender-generator-pad + meng-semantiek (WP5d). Pure servicelaag: bewijst dat
-// resolveCalendarHolidays de vier gevallen (a alleen-generate / b generate+raw / c raw-op-generatie
-// / d raw-op-letterlijk) correct afhandelt, incl. generation-verval en dedup op datumbereik.
-// Draaien: bash tests/mcp/run.sh cases-calgen.ts
 import { test, assert, assertEq, run } from './harness';
 import { resolveCalendarHolidays } from '@/services/mcp/calendarGenerate';
 import {
@@ -14,7 +10,6 @@ import type { Holiday, WorkCalendar } from '@/types/calendar';
 const SPAN = { projectStart: '2026-01-01', projectEnd: '2026-12-31' };
 const NL: HolidayGenParams = { country: 'NL', region: undefined, bouwvak: 'geen' };
 
-// --- (1) case a: alleen generate ⇒ byte-gelijk aan directe materializeHolidays, generation gezet ---
 test('a — alleen generate: byte-gelijk aan materializeHolidays, generation gezet, becameLiteral=false', () => {
   const { from, to } = computeGenerateSpan(SPAN.projectStart, SPAN.projectEnd);
   const direct = materializeHolidays(NL, from, to);
@@ -25,7 +20,6 @@ test('a — alleen generate: byte-gelijk aan materializeHolidays, generation gez
   assertEq(res.becameLiteral, false, 'becameLiteral moet false zijn zonder rawHolidays');
 });
 
-// --- (2) case b: generate + rawHolidays ⇒ merge, generation weg, becameLiteral=true ----------------
 test('b — generate + raw: samengevoegd, generation weggelaten, becameLiteral=true', () => {
   const { from, to } = computeGenerateSpan(SPAN.projectStart, SPAN.projectEnd);
   const direct = materializeHolidays(NL, from, to);
@@ -40,7 +34,6 @@ test('b — generate + raw: samengevoegd, generation weggelaten, becameLiteral=t
   );
 });
 
-// --- (3) case c: alleen raw op bestaande kalender MÉT generation ⇒ behoud + raw, generation weg -----
 test('c — alleen raw op generatie-kalender: behoud bestaande + raw, generation weg, becameLiteral=true', () => {
   const { from, to } = computeGenerateSpan(SPAN.projectStart, SPAN.projectEnd);
   const base = materializeHolidays(NL, from, to);
@@ -56,7 +49,6 @@ test('c — alleen raw op generatie-kalender: behoud bestaande + raw, generation
   assert(res.holidays.some((h) => h.name === 'Vorstverlet'), 'rauwe dag ontbreekt');
 });
 
-// --- (4) case d: alleen raw op letterlijke kalender (geen generation) ⇒ merge, becameLiteral=false --
 test('d — alleen raw op letterlijke kalender: gewoon mergen, becameLiteral=false', () => {
   const existingLit: Holiday[] = [{ name: 'Bedrijfsuitje', startDate: '2026-06-01', endDate: '2026-06-01' }];
   const existing: Pick<WorkCalendar, 'holidays' | 'generation'> = { holidays: existingLit };
@@ -69,13 +61,11 @@ test('d — alleen raw op letterlijke kalender: gewoon mergen, becameLiteral=fal
   assert(res.holidays.some((h) => h.name === 'Vorstverlet'), 'rauwe dag ontbreekt');
 });
 
-// --- (5) dedup: raw die exact overlapt met een gegenereerde dag ⇒ geen dubbele entry ---------------
 test('dedup — raw met identiek datumbereik als een gegenereerde dag levert geen duplicaat', () => {
   const { from, to } = computeGenerateSpan(SPAN.projectStart, SPAN.projectEnd);
   const gen = materializeHolidays(NL, from, to);
   assert(gen.holidays.length > 0, 'testvoorwaarde: er moeten gegenereerde dagen zijn');
   const target = gen.holidays[0];
-  // Zelfde datumbereik, andere naam — mag NIET als tweede entry verschijnen.
   const overlap: Holiday = { name: 'ANDERE-NAAM-ZELFDE-BEREIK', startDate: target.startDate, endDate: target.endDate };
   const res = resolveCalendarHolidays({ generate: NL, rawHolidays: [overlap] }, SPAN);
   assertEq(res.holidays.length, gen.holidays.length, 'dedup faalde: lengte veranderde t.o.v. pure generatie');
@@ -86,10 +76,6 @@ test('dedup — raw met identiek datumbereik als een gegenereerde dag levert gee
   assertEq(res.becameLiteral, true, 'raw toevoegen maakt de kalender letterlijk, ook bij volledige dedup');
 });
 
-// --- (6) degeneraat: geen generate én geen raw ⇒ no-op (holidays + generation ONGEWIJZIGD) --------
-// Dit is de tak die `update_calendar` (T20) raakt zodra een item alleen scalaire velden (naam,
-// werkdagen, uren) wijzigt: de holiday-resolutie mag dan NIETS weggooien — ook geen bestaande
-// generator-herkomst. Zonder deze case was de vierde meng-tak van WP5d ongedekt.
 test('no-op — geen generate en geen raw: holidays + generation behouden, becameLiteral=false', () => {
   const { from, to } = computeGenerateSpan(SPAN.projectStart, SPAN.projectEnd);
   const base = materializeHolidays(NL, from, to);
@@ -101,7 +87,6 @@ test('no-op — geen generate en geen raw: holidays + generation behouden, becam
   assertEq(res.holidays, base.holidays, 'holidays moeten ONGEWIJZIGD terugkomen');
   assertEq(res.generation, base.generation, 'generation moet behouden blijven (geen stil verval)');
   assertEq(res.becameLiteral, false, 'er is niets letterlijk geworden');
-  // Ook zónder bestaande kalender is het een veilige no-op (lege lijst, geen generation).
   const leeg = resolveCalendarHolidays({}, SPAN);
   assertEq(leeg.holidays, [], 'zonder bestaande kalender: lege holiday-lijst');
   assertEq(leeg.generation, undefined, 'zonder bestaande kalender: geen generation');

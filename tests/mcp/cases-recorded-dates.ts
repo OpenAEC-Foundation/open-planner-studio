@@ -1,13 +1,3 @@
-// Issue #63 — "datums zoals opgeslagen" × de MCP-transactie.
-//
-// De modus verlaten kost per ontwerp ÉÉN undo-stap (`runCPM` pusht dan een snapshot, scheduleSlice).
-// Binnen een MCP-transactie mag dat NIET bovenop de transactie-snapshot komen: de belofte daar is
-// "één bulk = één undo-stap", en de rollback popt precies één entry. Deze batterij bewijst dat de
-// modus die twee eigenschappen niet ondermijnt — het gat waar de review van taak 6 op wees:
-//   K1: de eindherberekening (stap 5) draaide ná het `finally` dat de suppressie uitzette, dus
-//       `beginUndoable` was daar niet meer onderdrukt ⇒ undo-stack 1 → 3.
-//   K2: de rollback popt één entry terwijl er in de modus twee gepusht waren ⇒ fantoom-undo-stap
-//       na een GEWEIGERDE AI-actie.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpToolOk, McpToolResult } from '@/services/mcp/contracts';
@@ -21,7 +11,6 @@ import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 const store = useAppStore;
 const S = () => store.getState();
 
-/** Roep een geregistreerde leestool aan en verwacht ok:true (zelfde vorm als cases-read.ts). */
 function callOk(name: string, args: unknown = {}): any {
   const tool = getTool(name);
   assert(!!tool, `tool ${name} niet geregistreerd`);
@@ -30,12 +19,9 @@ function callOk(name: string, args: unknown = {}): any {
   return (res as McpToolOk).data;
 }
 
-// Warm-up (zoals cases-bulk.ts): projectkalender tot bibliotheek-entry promoten via één undo, zodat
-// het rollback-/restore-pad een steady state heeft.
 S().addTask({ name: 'warmup' });
 S().undo();
 
-/** Zet de store in "datums zoals opgeslagen" met de gedeelde issue-#63-fixture. */
 function enterMode(tag: string): { aId: string; bId: string } {
   S().newProject();
   S().applyLoadedProject(readIFC(externIfc(tag)), { filePath: null, recompute: true });
@@ -45,11 +31,9 @@ function enterMode(tag: string): { aId: string; bId: string } {
   };
 }
 
-// Knownbug 105: onbekende driving is null; lezen houdt modus, datums en historie intact.
 test('get_critical_path: opgeslagen datums geven onbekende driving, F5 herstelt de berekende keten', () => {
   S().newProject();
   const source = readIFC(externIfc('mcp-driving-unknown'));
-  // Het bestand kent wel kritieke taken, maar heeft geen driving-berekening opgeslagen.
   source.recordedFields ??= {};
   for (const task of source.tasks) {
     task.time.totalFloat = 0;
@@ -82,7 +66,7 @@ test('get_critical_path: opgeslagen datums geven onbekende driving, F5 herstelt 
   assertEq([S().datesAsRecorded, S().scheduleStale, S().isDirty], [true, false, before.isDirty],
     'modus, versheid en dirty blijven gelijk');
 
-  S().runCPM(); // Expliciet F5, geen stille berekening door de leestool.
+  S().runCPM();
   const calculated = callOk('planner_get_critical_path');
   assertEq(S().datesAsRecorded, false, 'F5 verlaat de modus');
   assertEq(calculated.drivingRelations.map((rel: { predId: string; succId: string }) => [rel.predId, rel.succId]),
@@ -90,7 +74,6 @@ test('get_critical_path: opgeslagen datums geven onbekende driving, F5 herstelt 
   assertEq(calculated.note, undefined, 'geen onbekend-melding bij bekende driving');
 });
 
-// --- 1) K1: een geslaagde transactie in de modus blijft ÉÉN undo-stap ------------------------------
 test('MCP-transactie in de modus: één undo-stap, niet twee (K1)', () => {
   const { bId } = enterMode('m1');
   assertEq(S().datesAsRecorded, true, 'voorwaarde: de modus hoort aan te staan');
@@ -108,7 +91,6 @@ test('MCP-transactie in de modus: één undo-stap, niet twee (K1)', () => {
     'b hoort op zijn herberekende datum te staan');
 });
 
-// --- 2) Claim (a): die ene undo-stap herstelt modus én datums in één keer --------------------------
 test('MCP-transactie in de modus: één undo herstelt modus, datums én de nieuwe taak (claim a)', () => {
   const { bId } = enterMode('m2');
   const before = S().historyEvents.filter(event => event.state === 'applied').length;
@@ -128,14 +110,11 @@ test('MCP-transactie in de modus: één undo herstelt modus, datums én de nieuw
     'diezelfde ene undo hoort de AI-taak te verwijderen — geen half-uitgevoerde transactie');
 });
 
-// --- 3) K2: een geweigerde transactie in de modus laat GEEN fantoom-undo-stap achter ---------------
 test('MCP-transactie met kringverwijzing in de modus: rollback laat de stacks onaangeroerd (K2)', () => {
   const { aId, bId } = enterMode('m3');
   const before = S().historyEvents.filter(event => event.state === 'applied').length;
   const beforeStart = S().tasks.find((t) => t.id === bId)!.time.earlyStart;
 
-  // a → b bestaat al in de fixture; b → a maakt er een kring van. Die fout komt pas uit de
-  // eindherberekening (stap 5), dus dit raakt precies het pad waar de tweede snapshot ontstond.
   const res = runInMcpTransaction(() => {
     draft.addSequence({ predecessorId: bId, successorId: aId, type: 'FINISH_START', lagDays: 0 });
   });
@@ -148,7 +127,6 @@ test('MCP-transactie met kringverwijzing in de modus: rollback laat de stacks on
     'de rollback hoort de opgeslagen datum terug te zetten');
 });
 
-// --- 4) Buiten de modus verandert er niets aan het bestaande transactiegedrag ----------------------
 test('MCP-transactie buiten de modus: onveranderd één undo-stap', () => {
   S().newProject();
   assertEq(S().datesAsRecorded, false, 'voorwaarde: de modus hoort uit te staan');
@@ -184,18 +162,9 @@ test('contextfactory B verlaat recorded-dates met één B-undo en laat A buiten 
     'A-undo hoort onaangeroerd te blijven');
 });
 
-// --- 5) Bevinding 6 (critreview laag 3): geen verzonnen 0/late datum via de LEESTOOLS -----------
-// In de modus draagt `task.time` de vastlegging van het bronbestand, met de bewuste terugvallen
-// (`lateStart ?? rec.start`, `totalFloat ?? 0`, `isCritical ?? false`) voor assen die het bestand
-// NIET vastlegde. De taaktabel toont daar "Niet vastgelegd"; een AI-client zag tot nu toe een
-// verzonnen nulspeling als feit, zonder de strook die de stand toelicht.
-// MUTATIEBEWIJS: haal de `unrecorded?.includes(...)`-poort uit `getTask`/`getCriticalPath`
-// (readTools.ts) ⇒ deze twee tests slaan rood.
 test('leestools in de modus: niet-vastgelegde assen komen als null naar buiten (bevinding 6)', () => {
   const { bId } = enterMode('mcp-unrecorded');
   assertEq(S().datesAsRecorded, true, 'voorwaarde: de modus hoort aan te staan');
-  // De gedeelde #63-fixture legt uitsluitend het early- en schedule-paar vast; alle vier de
-  // optionele assen (late start/finish, totale/vrije speling) én isCritical ontbreken.
   const detail = callOk('planner_get_task', { taskId: bId });
   const schedule = detail.schedule as Record<string, unknown>;
   assertEq(schedule.earlyStart, '2026-03-16T07:00', 'de VASTGELEGDE vroege start hoort er gewoon te staan');
@@ -211,7 +180,7 @@ test('leestools in de modus: niet-vastgelegde assen komen als null naar buiten (
 
 test('leestools buiten de modus: byte-identiek aan voorheen (geen null, geen extra veld)', () => {
   const { bId } = enterMode('mcp-unrecorded-off');
-  S().runCPM(); // verlaat de modus, zoals F5
+  S().runCPM();
   assertEq(S().datesAsRecorded, false, 'voorwaarde: de modus hoort uit te staan');
   const schedule = callOk('planner_get_task', { taskId: bId }).schedule as Record<string, unknown>;
   assert(typeof schedule.totalFloat === 'number', 'buiten de modus hoort de BEREKENDE speling er te staan');
@@ -220,9 +189,6 @@ test('leestools buiten de modus: byte-identiek aan voorheen (geen null, geen ext
     'buiten de modus hoort de respons geen extra veld te dragen');
 });
 
-// Her-check laag 3, R4 — bevinding 10: de overige leestools poorten `isCritical` in de modus.
-// MUTATIEBEWIJS: zet `if (t.time.isCritical) row.crit = true;` terug zonder de poort, of haal
-// `criticalUnrecordedTasks`/de driewegfilter weg ⇒ deze test slaat rood.
 test('leestools in de modus: kritiek is onbekend, geen verzonnen false (bevinding 10)', () => {
   const { aId, bId } = enterMode('mcp-crit-unknown');
   assertEq(S().datesAsRecorded, true, 'voorwaarde: de modus hoort aan te staan');
@@ -243,7 +209,7 @@ test('leestools in de modus: kritiek is onbekend, geen verzonnen false (bevindin
   assertEq(((crit.tasks ?? crit.items ?? []) as unknown[]).length, 0, 'filter kritiek=true: onbekend hoort bij geen van beide');
   assertEq(((notCrit.tasks ?? notCrit.items ?? []) as unknown[]).length, 0, 'filter kritiek=false: onbekend hoort bij geen van beide');
 
-  S().runCPM(); // verlaat de modus, zoals F5
+  S().runCPM();
   const infoOff = callOk('planner_get_project_info');
   assertEq(infoOff.statistics.criticalUnrecordedTasks, undefined, 'buiten de modus: geen extra veld');
   assert(typeof infoOff.statistics.criticalTasks === 'number' && infoOff.statistics.criticalTasks >= 1,
@@ -252,7 +218,6 @@ test('leestools in de modus: kritiek is onbekend, geen verzonnen false (bevindin
   assertEq(rowsOff.every((row) => row.crit === true || row.crit === undefined), true, 'buiten de modus: crit is true of afwezig, nooit null');
 });
 
-// --- Critreview op ded4d8c3, bevinding 4: een MISLUKTE transactie laat de importvlag staan ---------
 test('mislukte MCP-transactie herstelt "ongewijzigd sinds import" zoals het vóór de transactie was', () => {
   S().newProject();
   S().applyLoadedProject(readIFC(externIfc('m-pristine')), { filePath: null, recompute: true });
@@ -270,9 +235,6 @@ test('mislukte MCP-transactie herstelt "ongewijzigd sinds import" zoals het vó�
 });
 
 
-// Kostenresource (#815, review ronde 1 BLOKKEERT 1): alleen een COST-toewijzing erbij, eraf, verplaatsen
-// of de kostenresource wissen laat de opgeslagen datums staan, via MCP én de store. Een werkresource blijft
-// datumrelevant (contrast).
 {
   const COST = 'cost-leges';
   function costMode(tag: string) {
@@ -340,9 +302,6 @@ test('mislukte MCP-transactie herstelt "ongewijzigd sinds import" zoals het vó�
     assertEq(S().datesAsRecorded, false, 'een werktoewijzing verlaat de modus (ongewijzigd gedrag)');
   });
 
-  // Review ronde 2: het kostenlidmaatschap geldt per stand. Een COST-resource zonder toewijzingen die in
-  // dezelfde batch werk wordt en wordt toegewezen, is een werktoewijzing: de poort gaat af. Een cascade-
-  // verwijdering van een kostenresource in een batch blijft neutraal.
   test('planner_batch: COST naar werk en toewijzen verlaat de modus, kosten wissen met cascade niet', async () => {
     const batch = async (steps: unknown[]) => {
       const res = await getTool('planner_batch')!.handler({ steps }, makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId })) as McpToolResult;

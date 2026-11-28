@@ -1,11 +1,3 @@
-// Audit 2026-09-26 — dubbele id's bij het openen van een bestand.
-//
-// Een kapot of vreemd bestand kan twee taken, relaties, resources, kalenders of toewijzingen met
-// hetzelfde id bevatten. De store sleutelt overal op id; twee taken met één id werden door elkaar
-// gehaald (selectie, berekening, bewerken). `applyLoadedProject` maakt ze nu eerst uniek
-// (`ensureUniqueImportIds`, `-dup-N`) en meldt dat één keer.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -26,12 +18,10 @@ S().addTask({ name: 'Tweede' });
 S().addTask({ name: 'Derde' });
 const clean = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
 
-// 1. Zonder dubbelen: hetzelfde object terug, niets gemeld.
 const same = ensureUniqueImportIds(clean);
 eq('geen dubbelen: zelfde resultaat', same.result === clean, true);
 eq('geen dubbelen: 0 hernoemd', same.renamed, 0);
 
-// 2. Drie taken met hetzelfde id, en een bibliotheekkalender met het id van de projectkalender.
 const dupId = clean.tasks[0].id;
 const broken = {
   ...clean,
@@ -45,7 +35,6 @@ eq('kalender botst niet met de projectkalender', fixed.result.resourceCalendars?
 eq('aantal hernoemd', fixed.renamed, 3);
 eq('invoer niet gemuteerd', broken.tasks.map((t) => t.id), [dupId, dupId, dupId]);
 
-// 2b. Een hernoemde taak blijft kind van haar ouder: de ouder noemt beide exemplaren, elk één keer.
 {
   const parentId = clean.tasks[0].id;
   const kid = clean.tasks[1].id;
@@ -63,7 +52,6 @@ eq('invoer niet gemuteerd', broken.tasks.map((t) => t.id), [dupId, dupId, dupId]
   eq('boom: beide kinderen wijzen naar de ouder', [t[1].parentId, t[2].parentId], [parentId, parentId]);
 }
 
-// 3. Via de echte openroute: de store krijgt unieke taken en één melding.
 S().applyLoadedProject(broken, { filePath: null });
 eq('store: drie taken met unieke id\'s', new Set(S().tasks.map((t) => t.id)).size, 3);
 eq('store: melding gegeven', S().ui.notifications.some((n) => n.messageKey === 'notifications.duplicateIdsRenamed'), true);

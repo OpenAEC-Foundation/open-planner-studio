@@ -1,11 +1,3 @@
-// Issue #146 etappe 5 — `planner_set_task_splits`: het derde oppervlak voor gebruikerssplits (naast
-// Gantt en eigenschappenpaneel). Alles via de ECHTE dispatch-weg (`handleMcpMessage`), zodat de
-// schemapoort, de guards en de transactie meegetest worden — zie `docs/recepten/mcp-tool.md`.
-//
-// Gepind: werk-as-invoer ⇒ exacte `splitGaps` met `source: 'user'`; volgorde van de invoer doet er
-// niet toe; lege lijst heft op; weigeringen (mijlpaal, gemengde eenheden, niet-hele eenheid, twee op
-// dezelfde plek) zijn alles-of-niets; uur-taak; `aiReadOnly`; `planner_batch` (werkt + schemapoort);
-// en de leeskant (`planner_get_task.interruptions`) spreekt precies de schrijfvorm.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -17,8 +9,6 @@ import { taskMilestoneTransition } from '@/engine/taskMilestoneTransition';
 const store = useAppStore;
 const S = () => store.getState();
 
-// Warm-up (zelfde reden als cases-mutate-tasks.ts): de projectkalender-cache promoveert bij de
-// eerste restore tot bibliotheek-entry; één edit + undo zet dat vooraf recht.
 S().addTask({ name: 'warmup' });
 S().undo();
 registerAllTools();
@@ -27,7 +17,6 @@ function makeCtx(overrides: McpContextOverrides = {}): McpContext {
   return makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId, ...overrides });
 }
 
-/** Roep een tool aan via de ECHTE JSON-RPC-weg; geeft `structuredContent` (het tool-resultaat). */
 async function rpc(name: string, args: unknown, overrides: McpContextOverrides = {}): Promise<any> {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
@@ -52,7 +41,6 @@ function expectErr(res: any, code: string, fragment?: string): string {
 
 const gapsOf = (id: string) => S().tasks.find(t => t.id === id)?.splitGaps;
 
-/** Nieuw project met één taak; geeft het echte id terug. */
 async function freshTask(item: Record<string, unknown>, calendar?: WorkCalendar): Promise<string> {
   S().newProject();
   S().setProject({ startDate: '2026-06-01' });
@@ -61,7 +49,7 @@ async function freshTask(item: Record<string, unknown>, calendar?: WorkCalendar)
   return data.created['tmp-t'];
 }
 
-const BANDS = [{ start: 480, end: 960 }]; // 08:00–16:00
+const BANDS = [{ start: 480, end: 960 }];
 const WEEK: WorkTimeBands = { byWeekday: { 1: BANDS, 2: BANDS, 3: BANDS, 4: BANDS, 5: BANDS, 6: [], 7: [] } };
 const HOUR_CAL: WorkCalendar = {
   id: 'cal-uren', name: 'uren', description: '', workDays: [1, 2, 3, 4, 5],
@@ -76,7 +64,6 @@ test('dag-taak 10d: na 5 werkdagen 3 dagen pauze ⇒ één gebruikersgat op de H
   assertEq(data.scheduleDuration, 10, 'de werkduur blijft gelijk');
   assertEq(data.durationUnit, 'days', 'eenheid in het antwoord');
   assert(Array.isArray(data.tasks) && data.tasks[0].id === id, 'verse datums in het antwoord');
-  // 10 werkdagen + 3 pauzedagen vanaf ma 1 juni = 13 werkdagen ⇒ laatste werkdag wo 17 juni.
   assertEq(S().tasks.find(t => t.id === id)?.time.earlyFinish, '2026-06-17T16:00', 'EF groeit met de pauze mee');
 });
 
@@ -202,24 +189,13 @@ test('fields.splitGaps via update_tasks wijst de weg naar de nieuwe tool', async
   assert(reason.includes('planner_set_task_splits'), `de weigering verwijst naar de tool: ${reason}`);
 });
 
-// =================================================================================================
-// Issue #146-vervolg — een duurwijziging via `planner_update_tasks` volgt dezelfde gevolgregels als
-// het eigenschappenpaneel (`updateTask`): `applyDurationChangeRules` in taskDefaults.ts. Vóór de fix
-// liet een duurKRIMP hier een gebruikersgat op of voorbij het nieuwe werktotaal liggen; de taak werd
-// voor splits alleen-lezen, en de weigering zei ten onrechte dat de onderbrekingen "uit een import"
-// kwamen. Referentie per geval: dezelfde fixture, met de duur via `updateTask` zoals
-// `TaskDurationField` hem schrijft. Het taakraster staat in tests/planning/check-duration-change-routes.ts.
-// =================================================================================================
-
 interface DurationCase {
   label: string;
   hour: boolean;
-  /** Werkduur vóór/na, in de eenheid van de taak (dagen of uren). */
   from: number;
   to: number;
   interruptions: Record<string, number>[];
   contour?: TaskTimephasedContour[];
-  /** Verwachte `splitGaps` na de bewerking (`null` = geen) — onafhankelijk van de store vastgelegd. */
   expected: unknown;
 }
 
@@ -259,7 +235,7 @@ async function viaStore(c: DurationCase): Promise<unknown> {
       ? { ...task.time, durationUnit: 'hours', durationMinutes: c.to * HOUR_MIN, scheduleDuration: c.to / 8 }
       : { ...task.time, durationUnit: 'days', scheduleDuration: c.to, durationMinutes: undefined },
   });
-  S().runCPM(); // de MCP-transactie rekent aan het eind ook door
+  S().runCPM();
   return durationOutcome(id);
 }
 
@@ -299,7 +275,6 @@ durationTest({
   expected: [{ afterMinutes: 7 * DAY_MIN, gapMinutes: 2 * DAY_MIN, source: 'user' }],
 });
 durationTest({
-  // Mét contour schaalt `rescaleTaskContours` het gat mee (factor ½, gesnapt op hele werkdagen).
   label: 'dag, krimp 10 → 5 met contour: gat schaalt mee i.p.v. af te knippen',
   hour: false, from: 10, to: 5, interruptions: [{ afterWorkDays: 7, pauseDays: 2 }],
   contour: contourOf([0, 1, 2, 3, 4, 5, 6, 9, 10, 11].map(d => ({ afterMinutes: d * DAY_MIN, minutes: DAY_MIN }))),
@@ -321,7 +296,6 @@ durationTest({
   expected: [{ afterMinutes: 12 * HOUR_MIN, gapMinutes: 2 * HOUR_MIN, source: 'user' }],
 });
 durationTest({
-  // Factor 10/16: na 12 u ⇒ 7,5 → 8 u, pauze 2 u ⇒ 1,25 → 1 u (gesnapt op hele uren).
   label: 'uur, krimp 16 → 10 u met contour: gat schaalt mee i.p.v. af te knippen',
   hour: true, from: 16, to: 10, interruptions: [{ afterWorkHours: 12, pauseHours: 2 }],
   contour: contourOf([
@@ -343,14 +317,6 @@ test('mijlpaal aanzetten via planner_update_tasks (duur 0) laat, net als updateT
   assertEq(task.splitGaps ?? null, reference, 'zelfde uitkomst als updateTask');
 });
 
-// -------------------------------------------------------------------------------------------------
-// Verloren MS Project-sturing in de envelop (`timephasedGuidanceLost`). Een split is een tijdbasis-
-// bewerking (`invalidateForTimeBaseChange`): laag 3/4 gaat eraf. Dat hoort — net als bij een
-// duurwijziging via `planner_update_tasks` (cases-taskfields.ts, sectie D) — op de MCP-lease te
-// landen, zodat de envelop het meldt, los én binnen `planner_batch`. De in-app melding blijft één.
-// -------------------------------------------------------------------------------------------------
-
-/** Laag-3-sturing (het gelezen Z8-venster) rechtstreeks zetten; via de tools is dat read-only. */
 function seedTimephasedWindow(id: string): void {
   store.setState((s) => {
     const t = s.tasks.find((x) => x.id === id)!;
@@ -362,7 +328,6 @@ function seedTimephasedWindow(id: string): void {
 const lostOf = (res: any) => (res && res.ok ? res.envelope.timephasedGuidanceLost : 'n/a');
 const noticeKeys = () => S().ui.notifications.map(n => n.messageKey);
 
-/** `freshTask` + schone meldingenlijst (`newProject` wist al de eenmalige-per-document-gate). */
 async function freshTaskWithoutNotices(item: Record<string, unknown>): Promise<string> {
   const id = await freshTask(item);
   store.setState((s) => { s.ui.notifications = []; });

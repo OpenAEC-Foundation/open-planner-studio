@@ -1,8 +1,3 @@
-// Lezers stellen het bronprofiel voor (rekenprofielen, spec v3.1 §6; plan taak C3). Exit 0 = groen.
-// Alles via parseOpenedFile — dezelfde formatRegistry-naad als Bestand → Openen.
-// Verwachte profielen met de hand uit spec §6 (XER ⇒ P6 — tot 2026-09-24 met A19 uit rem_target_link_flag als
-// afwijking; .mpp ⇒ MS Project; MSPDI/P6-XML/CSV ⇒ OPS in deze etappe). Mutatiebewijs (plan C3
-// step 4): de A19-afwijking in xerReader altijd `{}` ⇒ assertie 04 rood.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseOpenedFile } from '@/services/formatRegistry';
@@ -50,8 +45,6 @@ eq('01 XER ⇒ p6 zonder overrides', x.project.schedulingProfile, builtInProfile
 eq('02 XER suggestedProfileId', x.suggestedProfileId, 'p6');
 eq('03 XER-opties zonder conventie of p6Source', noConventionKeys(x), []);
 const xy = single(await parseOpenedFile({ name: 'p.xer', bytes: xer('Y') }));
-// Sinds 2026-09-24 (eigenaarsbesluit "a") stuurt rem_target_link_flag geen conventie meer: Y en N
-// geven allebei de kale P6-basis (A19 aan). Mutant: de override in xerReader terugzetten ⇒ 04 rood.
 eq('04 rem_target_link_flag=Y ⇒ óók p6 zonder overrides', xy.project.schedulingProfile, builtInProfile('p6'));
 eq('04a A19 aan, ongeacht de vlag', [x, xy].map(r => resolveConventions(r.project.schedulingProfile).p6UseRemainingStartForProgress), [true, true]);
 
@@ -70,7 +63,6 @@ eq('06 P6-XML ⇒ p6, net als XER (#775)', [p6xml.project.schedulingProfile, p6x
 const csv = single(await parseOpenedFile({ name: 'p.csv', text: writeCSV(project, calendar, [task], [], [], []) }));
 eq('07 CSV ⇒ OPS', [csv.project.schedulingProfile, csv.suggestedProfileId], [undefined, 'ops']);
 
-// .mpp: corpus-optioneel (zelfde map als check-mpp-import). Zonder corpus: OK-regel, geen stille groen-claim.
 const CORPUS = process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/test bestanden voor file implementation';
 const mppFile = existsSync(CORPUS) ? readdirSync(CORPUS).find(f => f.toLowerCase().endsWith('.mpp')) : undefined;
 if (mppFile) {

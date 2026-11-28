@@ -1,17 +1,3 @@
-// F3c fixronde 1 (review #581 ronde 1, BLOKKEERT): één betekenis voor de split-as.
-//
-// `Task.splitGaps` (en een contour) liggen op de cumulatieve as van de taak, in de maat van de taak:
-//  - urenmaat (een urentaak, of een dagtaak onder P6/MSP): werkminuten op de kalender;
-//  - dagenmaat (OPS, §3.14): dagslots van `werktijd per dag × 60`; elke werkdag telt 1, hoe lang ook.
-// Zo lezen de solver (`splitTotalSpanDays` + de dagenmaat-lopers), de Gantt (`computeSplitSegments` met
-// `'workdays'`, knownbug 242) en de splitsbewerking (dagslotcontract) de as al. De gedeelde plaatsing
-// (`workPlacement.ts`) liep de gaten van een dagenmaat-taak fysiek: een gat van 480 min op een korte
-// vrijdag (6 u) liep dan door tot ma 09:00, en de belasting stond nog na het einde van de solver.
-//
-// De check meet per geval drie lezers tegen elkaar: het einde van de solver = het einde van de plaatsing,
-// geen belasting na dat einde, en per dag dezelfde werkminuten als de Gantt-stukken.
-// Draait via run.sh. Exit 0 = alles groen.
-
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { taskWorkPlacement, workPlacement } from '@/engine/scheduler/workPlacement';
@@ -36,7 +22,6 @@ function eq(label: string, actual: unknown, expected: unknown): void {
 }
 const r6 = (n: number): number => Math.round(n * 1e6) / 1e6;
 
-// De kalender uit de review: ma–do 07–15 (8 u), vr 07–13 (6 u).
 const long = [{ start: 420, end: 900 }];
 const CAL: WorkCalendar = {
   id: 'kort-vr', name: 'kort-vr', description: '', workDays: [1, 2, 3, 4, 5],
@@ -55,7 +40,6 @@ function task(id: string, start: string, days: number, gaps?: TaskSplitGap[]): T
   };
 }
 
-/** Werkminuten per dag van de Gantt-stukken (`computeSplitSegments`). */
 function segmentMinutesPerDay(eng: CalendarEngine, t: Task, measure: true | 'workdays'): Record<string, number> {
   const es = parseInstant(t.time.earlyStart!);
   const ef = parseInstant(t.time.earlyFinish!);
@@ -97,9 +81,6 @@ function measureCase(label: string, profile: 'ops' | 'p6', t: Task, expected: Ex
     segmentMinutesPerDay(eng, t, profile === 'ops' ? 'workdays' : true));
 }
 
-// ── Geval 1: het geval uit de review. 3 d vanaf do 4 jun 07:00, gat van 480 min na 480 min. ──────
-// Dagenmaat: 480 min = één werkdag, dus de pauze is de hele vrijdag; einde di 9 jun 15:00.
-// Urenmaat (P6): 480 werkminuten pauze = vr 6 u + ma 2 u; einde wo 10 jun 09:00.
 measureCase('gat 480 na 480', 'ops', task('g1', '2026-06-04T07:00', 3, [{ afterMinutes: 480, gapMinutes: 480 }]), {
   finish: '2026-06-09T15:00', days: [['2026-06-04', 1], ['2026-06-08', 1], ['2026-06-09', 1]],
 });
@@ -107,8 +88,6 @@ measureCase('gat 480 na 480', 'p6', task('g1', '2026-06-04T07:00', 3, [{ afterMi
   finish: '2026-06-10T09:00', days: [['2026-06-04', 1], ['2026-06-08', 0.75], ['2026-06-09', 1], ['2026-06-10', 0.25]],
 });
 
-// ── Geval 2: een gat van vier uur (review). Dagenmaat: 240 min = een halve werkdag; op de korte vrijdag
-// is dat 3 u (07–10), daarna 3 u werk (een halve dag). Einde di 11:00 (3,5 werkdagen vanaf do 07:00). ──
 measureCase('gat 240 na 480', 'ops', task('g2', '2026-06-04T07:00', 3, [{ afterMinutes: 480, gapMinutes: 240 }]), {
   finish: '2026-06-09T11:00',
   days: [['2026-06-04', 1], ['2026-06-05', 0.5], ['2026-06-08', 1], ['2026-06-09', 0.5]],
@@ -118,9 +97,6 @@ measureCase('gat 240 na 480', 'p6', task('g2', '2026-06-04T07:00', 3, [{ afterMi
   days: [['2026-06-04', 1], ['2026-06-05', 0.25], ['2026-06-08', 1], ['2026-06-09', 0.75]],
 });
 
-// ── Geval 3: start op de korte vrijdag (probe van de review). 1 d, gat van 240 na 120. Dagenmaat: een
-// kwart dag werk (vr 07:00–08:30), een halve dag pauze (tot 11:30), een kwart dag werk (tot 13:00) en de
-// laatste halve dag op maandag tot 11:00. ──────────────────────────────────────────────────────────
 measureCase('vrijdag: gat 240 na 120', 'ops', task('g3', '2026-06-05T07:00', 1, [{ afterMinutes: 120, gapMinutes: 240 }]), {
   finish: '2026-06-08T11:00', days: [['2026-06-05', 0.5], ['2026-06-08', 0.5]],
 });
@@ -128,18 +104,12 @@ measureCase('vrijdag: gat 240 na 120', 'p6', task('g3', '2026-06-05T07:00', 1, [
   finish: '2026-06-08T13:00', days: [['2026-06-05', 0.25], ['2026-06-08', 0.75]],
 });
 
-// ── Geval 4: twee gaten en een start midden op de dag. 3 d vanaf wo 3 jun 11:00. De as in dagslots:
-// werk 0–240 (wo 11–15, een halve dag), gat 240–960 (heel do en vr 07–10), werk 960–1440 (vr 10–13 en
-// ma 07–11), gat 1440–1680 (ma 11–15), werk 1680–2400 (heel di en wo 07–11). Samen 5 werkdagen vanaf
-// wo 11:00: einde wo 10 jun 11:00. ──────────────────────────────────────────────────────────────────
 measureCase('twee gaten vanaf wo 11:00', 'ops', task('g4', '2026-06-03T11:00', 3,
   [{ afterMinutes: 240, gapMinutes: 720 }, { afterMinutes: 1440, gapMinutes: 240 }]), {
   finish: '2026-06-10T11:00',
   days: [['2026-06-03', 0.5], ['2026-06-05', 0.5], ['2026-06-08', 0.5], ['2026-06-09', 1], ['2026-06-10', 0.5]],
 });
 
-// ── Geval 5: een contour ligt op dezelfde as. Dagenmaat, 2 d vanaf de korte vrijdag, zonder gaten:
-// periode 1 (as 0–480, 240 werkminuten) is de hele vrijdag, periode 2 (as 480–960, 720) de maandag. ──
 {
   const t = task('c1', '2026-06-05T07:00', 2);
   t.timephasedContours = [{ resourceId: 'r', resourceUid: null, periods: [
@@ -154,10 +124,6 @@ measureCase('twee gaten vanaf wo 11:00', 'ops', task('g4', '2026-06-03T11:00', 3
     assignmentLoadOnPlacement(t, a, placed.days, eng, t.timephasedContours[0]).map(r6), [0.5, 1.5]);
 }
 
-// ── Geval 6: de nivelleerder pauzeert een dagenmaat-taak één hele werkdag (één dagslot), ook op de korte
-// vrijdag. Een blokker met hoge prioriteit bezet vr en di (een importsplit slaat maandag over: 1 d werk,
-// 1 d pauze, 1 d werk). B (2 d vanaf do, deadline op haar vroege einde, plafond 3) past nergens
-// aaneengesloten en wordt onderbroken: do werken, vr pauze, ma werken. ────────────────────────────────
 {
   const blocker = task('blk', '2026-06-05T07:00', 2, [{ afterMinutes: 480, gapMinutes: 480 }]);
   blocker.priority = 900;
@@ -189,11 +155,6 @@ measureCase('twee gaten vanaf wo 11:00', 'ops', task('g4', '2026-06-03T11:00', 3
   eq('nivelleren: projecteinde na = einde blokker', leveled.projectEndAfter, '2026-06-09T15:00');
 }
 
-// ── Geval 7: een halve minuut op de laatste dag. Kalender met middagpauze (ma–do 07–12 en 12:30–15:30,
-// vr 07–13). 5,625 d vanaf do 07:33, gat van 589 na 695: op de laatste dag (vr 12 jun) valt het einde op
-// 331,5 werkminuten. De solver rondt daar af op 12:31; de plaatsing neemt het einde van de solver over en
-// boekt niets erna. (Gevonden met een steekproef van 6000 willekeurige gevallen: zonder die regel lag het
-// einde in 55 van de 3000 gevallen met middagpauze een minuut later.) ─────────────────────────────────
 {
   const lunch = [{ start: 420, end: 720 }, { start: 750, end: 930 }];
   const lunchCal: WorkCalendar = { ...CAL, id: 'middagpauze', workTime: {

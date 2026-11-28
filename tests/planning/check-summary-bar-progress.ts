@@ -1,10 +1,3 @@
-// Voortgang op samenvattingsbalken (discussie #175: "an immediate overall picture of project
-// progress"). Net als bij een taakbalk wordt het voltooide deel van een fase grijs
-// (`paintProgressBarPiece` + `doneBarTones`), op het scherm (GanttRenderer) én op de afdruk
-// (printPreview).
-//
-// Draait de ECHTE renderers met een opnemende 2D-context. Exit 0 = alles groen.
-
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -28,7 +21,6 @@ function ok(label: string, cond: boolean): void {
 
 interface Fill { x: number; w: number; style: string }
 
-/** Canvas-stub: elke `fill()` legt de fillStyle en de laatste roundRect vast. */
 function makeCtx(): { ctx: CanvasRenderingContext2D; fills: Fill[] } {
   const fills: Fill[] = [];
   const noop = () => {};
@@ -51,7 +43,6 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; fills: Fill[] } {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, fills };
 }
 
-// ── Scène: één fase (samenvatting) op 40% ────────────────────────────────────
 S().newProject();
 S().addTask({ name: 'Basis' });
 const template = S().tasks[0];
@@ -117,7 +108,6 @@ const GREY = doneBarTones(SUMMARY, false).fill;
     fills.some(f => f.style === GREY) && !fills.some(f => f.style === SUMMARY && f.w > 10));
 }
 
-// ── Afdruk ──────────────────────────────────────────────────────────────────
 function renderPrint(task: Task, showCompletion: boolean): Fill[] {
   const fills: Fill[] = [];
   const noop = () => {};

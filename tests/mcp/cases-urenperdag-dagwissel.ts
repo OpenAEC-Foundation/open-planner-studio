@@ -1,13 +1,3 @@
-// Uren per dag bij `planner_update_calendar` met alleen `workDays` of met `workTime` (review PR #352, punt 1;
-// fixronde PR #354).
-//
-// XER "Late ploeg": blokken 14:00–24:00 (10 klokuren) met `day_hr_cnt` 8. `hoursPerDay` is de omrekening
-// tussen dagen en uren en mag afwijken van de blokken. Eén MCP-call is één sessie, met dezelfde regel als het
-// kalendervenster (`hoursPerDayForBlocks` in `src/services/subdayIo.ts`): een afwijkende waarde blijft staan,
-// een waarde gelijk aan de modale dagsom van de blokken vóór de call volgt de nieuwe blokken. Alleen
-// `workDays` gaat door `workDaysSetPatch` (de dagknoppen); `workTime` volgt het blok Werktijden (`applyBands`).
-// Vóór de fix werd Late ploeg na `workDays` [1..6] of een extra Za-blok stil 10. Kern zonder MCP:
-// `tests/planning/check-urenperdag-dagwissel.ts`.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { readTools } from '@/services/mcp/tools/readTools';
@@ -23,13 +13,11 @@ import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 
 const S = () => useAppStore.getState();
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`.
 S().addTask({ name: 'warmup' });
 S().undo();
 
 registerToolModules([readTools, calendarResourceTools, batchTools]);
 
-/** Via de ECHTE dispatch-weg (`handleMcpMessage`, recept mcp-tool stap 5): schemapoort inbegrepen. */
 let rpcId = 0;
 async function call(name: string, args: unknown): Promise<McpToolResult> {
   const raw = await handleMcpMessage(
@@ -42,14 +30,13 @@ async function call(name: string, args: unknown): Promise<McpToolResult> {
 }
 const rejections = (res: McpToolResult) => (res as McpToolOk).itemRejections ?? [];
 
-const LATE = [{ start: 840, end: 1440 }]; // 14:00–24:00
+const LATE = [{ start: 840, end: 1440 }];
 function lateWeek(days: number[]): WorkTimeBands {
   const byWeekday = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } as WorkTimeBands['byWeekday'];
   for (const d of days) byWeekday[d as 1] = LATE.map((b) => ({ ...b }));
   return { byWeekday };
 }
 
-/** Projectkalender Late ploeg ma–vr, met een eigen `hoursPerDay` of afgeleid uit de blokken (10). */
 async function lateProjectCalendar(hoursPerDay?: number): Promise<string> {
   S().newProject();
   const id = S().project.calendarId;
@@ -58,7 +45,7 @@ async function lateProjectCalendar(hoursPerDay?: number): Promise<string> {
     calendars: [{ id, workTime: lateWeek([1, 2, 3, 4, 5]), ...(hoursPerDay !== undefined ? { hoursPerDay } : {}) }],
   });
   assertEq(rejections(res), [], 'testvoorwaarde: Late ploeg is aangenomen');
-  S().addTask({ name: 'Werk' }); // de IFC-rondgang moet de kalender dragen
+  S().addTask({ name: 'Werk' });
   return id;
 }
 const calById = (id: string): WorkCalendar => S().calendars.find((c) => c.id === id)!;

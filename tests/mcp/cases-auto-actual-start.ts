@@ -1,26 +1,3 @@
-// Een AUTOMATISCH ingevulde werkelijke start valt nooit ná het werkelijke einde — het MCP-pad van
-// critreview claim 9 (raster/store/dialoog: tests/planning/check-auto-actual-start.ts).
-//
-// Vóór de fix: `planner_update_tasks` met `progress: { completion: 100 }` op een taak waarvan de
-// geplande start ná de statusdatum ligt, leidde de werkelijke start af uit de vroege start
-// (bv. 2026-07-08) terwijl de invarianten daarna het werkelijke einde op de statusdatum
-// (2026-06-10) zetten. De begin-/eindvolgordecheck (`isActualFinishBeforeStart`) draaide vóór die
-// invarianten en zag het dus niet: het onmogelijke paar werd gewoon opgeslagen. Met een opgegeven
-// `actualFinish` erbij weigerde dezelfde check juist de hele update — op een start die de AI niet
-// had opgegeven.
-//
-// De regel (gedeeld met raster en store via `fillMissingActualStart`): ligt de in te vullen start
-// later dan het werkelijke einde, dan wordt de werkelijke start gelijk aan het einde — dagtaken op de
-// dag, uurtaken exact op het einde-instant. Een OPGEGEVEN actualStart blijft onaangeroerd.
-//
-// Besluit eigenaar (Z1b, regel 4): de AI-koppeling leidt die start NIET meer af wanneer de geplande
-// start ná de statusdatum ligt — zo'n update wordt per item geweigerd met de uitleg dat de AI
-// `actualStart` moet meegeven (tests/mcp/cases-progress-entry-ai.ts). De klem hierboven blijft het
-// vangnet van store en raster (tests/planning/check-auto-actual-start.ts); hier toetsen we dat de
-// geweigerde varianten niets veranderen en dat een OPGEGEVEN start gewoon werkt.
-//
-// Alles loopt door de echte JSON-RPC-dispatcher (schema's, stale-guard, transactie), niet door de
-// validatiefunctie alleen.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -30,7 +7,6 @@ import type { TaskTime } from '@/types/task';
 
 const S = () => useAppStore.getState();
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`.
 S().addTask({ name: 'warmup' });
 S().undo();
 registerAllTools();
@@ -49,8 +25,6 @@ async function rpc(name: string, args: unknown): Promise<any> {
 type Kind = 'dag' | 'uur';
 const BAND = [{ start: 480, end: 1020 }];
 
-/** Voorganger van 20 werkdagen (160 uur) + opvolger T van 5 werkdagen (40 uur) via FS: T start
- *  ruim ná de statusdatum op 10 juni. */
 function setup(kind: Kind, statusDate: string): string {
   S().newProject();
   S().setProject({ startDate: '2026-06-01', statusDate });
@@ -78,9 +52,6 @@ function assertAccepted(res: any, label: string): void {
   assertEq(res.itemRejections ?? [], [], `${label}: geen per-item-weigering`);
 }
 
-// `applied`: de werkelijke datums zoals de store ze vastlegt. F2 (spec §3.6, invoer; §4.2 D1 en D6): een
-// datum zonder tijd wordt een moment, de start het begin van de werkdag en het einde op de statusdag
-// het einde van die werkdag. Een moment blijft een moment. Fixronde 1 deel B, B1.
 const SCENARIOS: readonly {
   kind: Kind; statusDate: string; finish: string; explicitStart: string; applied: { as: string; af: string };
 }[] = [
@@ -91,7 +62,6 @@ const SCENARIOS: readonly {
 ];
 
 for (const { kind, statusDate, finish, explicitStart, applied } of SCENARIOS) {
-  /** Eén zachte weigering die de AI vertelt de werkelijke start mee te geven; taak ongewijzigd. */
   function assertAskedForActualStart(res: any, t: string, before: string, label: string): void {
     const rejections: { id: string; reason: string }[] = res.itemRejections ?? [];
     assertEq(rejections.length, 1, `${label}: precies één per-item-weigering`);

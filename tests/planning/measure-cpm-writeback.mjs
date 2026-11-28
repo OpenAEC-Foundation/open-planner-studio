@@ -1,5 +1,3 @@
-// Handmatige voor/nameting met de echte oude en nieuwe runCPM, om en om in dezelfde Node-runtime.
-// node tests/planning/measure-cpm-writeback.mjs [baseline-ref] [uitvoer.json]
 import { build } from 'esbuild';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -19,7 +17,6 @@ const temp = mkdtempSync(join(tmpdir(), 'ops-cpm-writeback-'));
 const rows = [];
 try {
   const versions = [];
-  // Alleen scheduleSlice verschilt: dezelfde solver, invoer, Immer-versie en bundelopties.
   for (const [name, source] of [['before', oldSource], ['after', newSource]]) {
     const outfile = join(temp, `${name}.mjs`);
     await build({

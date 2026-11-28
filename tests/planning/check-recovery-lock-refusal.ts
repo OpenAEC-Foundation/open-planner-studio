@@ -1,5 +1,3 @@
-// Knownbug 373: een synchrone Web Locks-fout is geen bewijs dat IndexedDB geweigerd is.
-// Elk scenario heeft een eigen proces omdat de sessieclaim module-lokaal wordt onthouden.
 import { spawnSync } from 'node:child_process';
 import { fullRecoverySave, loadRecovery, recoveryStorageUnavailable, saveRecovery } from '@/services/recovery/recoveryStore';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';

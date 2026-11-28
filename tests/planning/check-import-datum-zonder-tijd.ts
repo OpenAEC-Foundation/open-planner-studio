@@ -1,10 +1,3 @@
-// PR #559, review ronde 2 deel B (BLOKKEERT): een importlezer maakte een datum zonder tijd in uurmodus
-// tot middernacht, nog vóór de laadnormalisatie. MSPDI en P6 XML (`importDateTime`) en XER
-// (`sourceInstant`) gaven voor werkelijk begin "2026-06-01" het moment `2026-06-01T00:00`. De
-// normalisatie (T17, D1–D7, spec §4.2) laat een moment staan, dus de fout bleef na laden, opslaan en
-// heropenen staan. Deze check loopt dezelfde keten als de reviewer: lezen → laadnormalisatie → laden met
-// berekening → IFC opslaan → heropenen. Een expliciet ingevoerde `T00:00` blijft wel een moment.
-// Ronde 3 (onderaan): een werkelijke datum mét tijd telt mee in de uur-modus-beslissing van de lezer.
 import './domStub';
 import { installDOMParser } from './xmldom-shim';
 import { readXerArchiveIFC } from './xerArchiveTestReader';
@@ -31,7 +24,6 @@ function eq(label: string, got: unknown, want: unknown): void {
   }
 }
 
-/** De datums die de review noemt: actuals, beperking (FNLT), deadline en de baseline van de taak. */
 interface DateView {
   actualStart?: string;
   actualFinish?: string;
@@ -62,10 +54,6 @@ function view(source: DateSource, name: string): DateView {
   };
 }
 
-/**
- * Loopt de keten voor één bestand. `read` leest het bronbestand telkens opnieuw, zodat geen stap de
- * uitvoer van een andere stap ziet. `reopen` leest het opgeslagen IFC.
- */
 function chain(
   format: string,
   read: () => ImportResult,
@@ -95,8 +83,6 @@ function chain(
   }
 }
 
-// ── MSPDI: werkblokken 08:00–12:00 en 13:00–17:00 (de probe van de reviewer) ─────────────────────────
-// "Gereed" draagt alleen datums zonder tijd; "Middernacht" draagt overal een expliciete `T00:00:00`.
 const week = '<WeekDays>' + [1, 2, 3, 4, 5, 6, 7].map(d => {
   const working = d !== 1 && d !== 7;
   const times = working
@@ -139,7 +125,6 @@ chain('mspdi', () => readMSPDI(mspdi), ifc => readIFC(ifc), {
   },
   Middernacht: mspdiMidnight,
 }, {
-  // D1 startachtig (08:00), D2 eindachtig (17:00), ook voor FNLT, deadline en het baseline-einde.
   Gereed: {
     actualStart: '2026-06-01T08:00', actualFinish: '2026-06-02T17:00',
     constraint: '2026-06-05T17:00', deadline: '2026-06-05T17:00',
@@ -148,8 +133,6 @@ chain('mspdi', () => readMSPDI(mspdi), ifc => readIFC(ifc), {
   Middernacht: mspdiMidnight,
 });
 
-// ── XER: kalender van 8 u zonder `clndr_data`; een tijd op een andere taak maakt hem een urenkalender ──
-// P6 kent geen deadline. De baseline komt uit het baselineproject P0 (`sum_base_proj_id`).
 const xerTask = (id: string, project: string, code: string, name: string, status: string,
   start: string, finish: string, actual: boolean, fnlt: string): string => [
   '%R', id, project, 'C1', code, name, 'TT_Task', 'DT_FixedDUR', status, '16',
@@ -187,7 +170,6 @@ function readXerMain(): ImportResult {
 const xerParsed = readXerMain();
 eq('xer voorwaarde: de kalender is een urenkalender', xerParsed.calendar.workTime !== undefined, true);
 eq('xer voorwaarde: de baseline komt uit P0', xerParsed.baselines?.length, 1);
-// Projectdatums blijven zoals ingevoerd (spec §3.6); de motor leest de statusdatum met D5.
 eq('xer statusdatum zonder tijd blijft een datum', xerParsed.project.statusDate, '2026-06-05');
 const xerMidnight: DateView = {
   actualStart: '2026-06-03T00:00', actualFinish: '2026-06-04T00:00', constraint: '2026-06-05T00:00',
@@ -200,7 +182,6 @@ chain('xer', readXerMain, ifc => readXerArchiveIFC(ifc), {
   },
   Middernacht: xerMidnight,
 }, {
-  // D1 startachtig (08:00), D2 eindachtig (16:00) op de kalender van 8 u.
   Gereed: {
     actualStart: '2026-06-01T08:00', actualFinish: '2026-06-02T16:00', constraint: '2026-06-05T16:00',
     baselineStart: '2026-06-01T08:00', baselineFinish: '2026-06-02T16:00',
@@ -208,9 +189,6 @@ chain('xer', readXerMain, ifc => readXerArchiveIFC(ifc), {
   Middernacht: xerMidnight,
 });
 
-// ── P6 XML: dezelfde parser als MSPDI (`importDateTimeOrUndefined`) ───────────────────────────────────
-// Een geplande start om 09:00 maakt de projectkalender een urenkalender. Alleen lezer en
-// laadnormalisatie: de rest van de keten deelt P6 XML met de andere formaten.
 function p6Activity(id: number, name: string, start: string, finish: string, fnlt: string): string {
   return `<Activity><ObjectId>${id}</ObjectId><Id>A${id}</Id><Name>${name}</Name><Type>Task Dependent</Type>`
     + '<PlannedDuration>16</PlannedDuration><Status>Completed</Status>'
@@ -247,15 +225,9 @@ eq('p6xml werkdag begint niet om middernacht', [p6Want.actualStart, p6Want.actua
 eq('p6xml laadnormalisatie "Gereed"', view(p6Payload, 'Gereed'), p6Want);
 eq('p6xml laadnormalisatie "Middernacht"', view(p6Payload, 'Middernacht'), p6Midnight);
 
-// ── Ronde 3: een werkelijke datum MET tijd op een scalaire kalender ───────────────────────────────────
-// Review ronde 3 van PR #559, deel B (BLOKKEERT): de uur-modus-beslissing keek alleen naar de geplande
-// datums. Staan die op het anker (08:00) of zonder tijd, dan bleef de kalender scalair en kapte de lezer
-// een werkelijk einde "11:00" (of een expliciete "00:00") af tot de datum; de normalisatie maakte er
-// 16:00 van. Elk bestand hieronder heeft één taak; alleen haar werkelijke datums dragen een tijd.
 const workWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'].map(day =>
   `<StandardWorkHours><DayOfWeek>${day}</DayOfWeek><WorkTime><Start>08:00:00</Start><Finish>16:00:00</Finish>`
   + '</WorkTime></StandardWorkHours>').join('');
-/** De probe van de reviewer: voltooide eindmijlpaal, geplande datums op 1 juni 08:00. */
 function p6Milestone(actualFinish: string): string {
   return '<?xml version="1.0"?><APIBusinessObjects xmlns="http://xmlns.oracle.com/Primavera/P6/V8.3/API/BusinessObjects">'
     + `<Calendar><ObjectId>1</ObjectId><Name>Bouw</Name><Type>Global</Type><HoursPerDay>8</HoursPerDay>`
@@ -273,7 +245,6 @@ function readP6Opened(xml: string): ImportResult {
   const opened = readP6XMLDocuments(xml);
   return 'kind' in opened ? opened.results[opened.activeDocumentIndex] : opened;
 }
-/** MSPDI: één werkblok 08:00–16:00 (scalair), geplande datums op het anker 08:00. */
 function mspdiScalar(actualStart: string, actualFinish: string): string {
   const days = [1, 2, 3, 4, 5, 6, 7].map(d => {
     const working = d !== 1 && d !== 7;
@@ -292,7 +263,6 @@ function mspdiScalar(actualStart: string, actualFinish: string): string {
     + `<ActualStart>${actualStart}</ActualStart><ActualFinish>${actualFinish}</ActualFinish>`
     + '<PercentComplete>100</PercentComplete></Task></Tasks></Project>';
 }
-/** XER: kalender van 8 u zonder `clndr_data`, geplande datums zonder tijd. */
 function xerScalar(actualStart: string, actualFinish: string): string {
   return [
     'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
@@ -315,8 +285,6 @@ function readXerSingle(xer: string): ImportResult {
   return 'documents' in opened ? opened.documents[0].result : opened;
 }
 
-// Voorwaarde: zonder tijd op de werkelijke datums blijft elke kalender scalair. Zo toetst ronde 3 precies
-// het geval van de review, en niet een kalender die al om een andere reden een urenkalender is.
 eq('ronde 3 p6xml voorwaarde: scalair zonder werkelijke tijd',
   readP6Opened(p6Milestone('2026-06-01T08:00:00')).calendar.workTime, undefined);
 eq('ronde 3 mspdi voorwaarde: scalair zonder werkelijke tijd',
@@ -325,7 +293,6 @@ eq('ronde 3 xer voorwaarde: scalair zonder werkelijke tijd',
   readXerSingle(xerScalar('2026-06-01', '2026-06-02')).calendar.workTime, undefined);
 
 for (const clock of ['11:00', '00:00']) {
-  // Eindmijlpaal: het werkelijke begin volgt het werkelijke einde.
   const p6Want: DateView = { actualStart: `2026-06-01T${clock}`, actualFinish: `2026-06-01T${clock}` };
   const p6Xml = p6Milestone(`2026-06-01T${clock}:00`);
   chain(`ronde 3 p6xml ${clock}`, () => readP6Opened(p6Xml), ifc => readIFC(ifc),
