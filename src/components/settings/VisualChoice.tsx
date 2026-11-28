@@ -4,15 +4,9 @@ export interface VisualChoiceOption {
   key: string;
   label: string;
   visual: ReactNode;
-  /** Extra attributen op de kaart (bv. `data-ops-theme-card` voor de tests). */
   cardProps?: Record<string, unknown>;
 }
 
-/**
- * Keuze als rij kaarten met een plaatje en de naam eronder. De gekozen kaart is gemarkeerd
- * (`aria-pressed`); een klik kiest. Gebruikt voor het thema en voor elke instelling met een plaatje,
- * ook voor een aan/uit-instelling (twee kaarten: uit en aan).
- */
 export function VisualChoice({ label, options, selectedKey, onSelect, disabled = false }: {
   label: string;
   options: readonly VisualChoiceOption[];

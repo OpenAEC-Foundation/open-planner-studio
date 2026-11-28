@@ -12,18 +12,10 @@ import {
   type StatsOs,
 } from '@/services/stats/downloadStats';
 
-/** Merknamen, geen vertaalsleutels. */
 const OS_LABEL: Record<StatsOs, string> = { windows: 'Windows', macos: 'macOS', linux: 'Linux' };
 
-/** Zoveel releases staan standaard open; de rest achter "Alle … tonen", zodat de tab in de popup past. */
 const RELEASES_COLLAPSED = 6;
 
-/**
- * Tabblad Statistieken in het gedeelde instellingenpaneel: hoe vaak Open Planner Studio is
- * gedownload, per besturingssysteem en per release. Leest `downloads.json` van de stats-branch
- * (zie `services/stats/downloadStats.ts`); toont bij een fout de laatst bekende stand uit de cache.
- * Draait via `SettingsPanelContent` op alle drie de ingangen (tandwiel, ribbontab, Backstage).
- */
 export function DownloadStatsSection() {
   const { t, i18n } = useTranslation('common');
   const [entry, setEntry] = useState<CachedStats | null>(() => readCachedStats());

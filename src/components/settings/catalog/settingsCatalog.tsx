@@ -1,11 +1,3 @@
-// DE lijst van het instellingenpaneel: per instelling naam, uitleg, groep, zoekwoorden, bediening en
-// eventueel een plaatje. Het paneel, de zoekbalk, de stip "gewijzigd", "standaard terugzetten" en de
-// directe link (`openSettingsAt`) lezen allemaal hieruit. Een nieuwe instelling in het paneel = één
-// entry hier (plus een id in `settingIds.ts`); zie docs/recepten/instelling.md.
-//
-// De LAAD-kant van een instelling staat los hiervan in `src/utils/settingsRegistry.ts`, de opslag in
-// `settingsStore.ts`. Weergavekeuzes die je in het lint of door te slepen instelt, staan hier niet.
-
 import { createDefaultUI } from '@/state/slices/uiSlice';
 import type { UIState, UITheme } from '@/state/slices/types';
 import type { AppState } from '@/state/appStore';
@@ -38,14 +30,10 @@ import {
 import { SETTING_IDS, SETTINGS_GROUP_IDS, type SettingId, type SettingsGroupId } from '@/utils/settingIds';
 import type { ChoiceOption, CommonKey, SettingBinding, SettingEntry } from './types';
 
-// --- Hulp voor een getypeerde binding ------------------------------------------------------------
-
-/** Binding aan een UIState-veld, met het vaste recept: eerst live zetten, dan bewaren. */
 function bind<K extends keyof UIState>(field: K, save: (value: UIState[K]) => unknown): SettingBinding {
   return { field, apply: value => applySetting(field, value as UIState[K], save) };
 }
 
-/** Keuzes met een vertaalsleutel per waarde. */
 function options<T>(entries: readonly (readonly [T, CommonKey])[]): ChoiceOption[] {
   return entries.map(([value, labelKey]) => ({ value, labelKey }));
 }
@@ -62,15 +50,10 @@ const FONT_FAMILY_KEYS = {
   mono: 'settings.fontFamilyMono',
 } as const;
 
-// --- De lijst ------------------------------------------------------------------------------------
-
 const ENTRIES: readonly SettingEntry[] = [
-  // Uiterlijk
   {
     kind: 'custom', id: 'theme', group: 'appearance', labelKey: 'settings.theme', hintKey: 'settings.themeHint',
     keywordsKey: 'settings.keywords.theme', Control: ThemeControl, searchTexts: themeSearchTexts,
-    // `applyTheme` bewaart de keuze en meldt ingebed dat de host bij de volgende start wint. De
-    // standaard is het thema van een eerste start: dat van de host of de dev-link, anders Donker.
     binding: { field: 'uiTheme', apply: value => applyTheme(value as UITheme), defaultValue: startTheme },
   },
   {
@@ -89,13 +72,10 @@ const ENTRIES: readonly SettingEntry[] = [
     options: UI_FONT_SCALES.map(s => ({ value: s, label: `${s}%` })),
   },
 
-  // Notatie
   {
     kind: 'choice', id: 'dateNotation', group: 'notation', labelKey: 'settings.dateNotation', hintKey: 'settings.dateNotationHint',
     keywordsKey: 'settings.keywords.dateNotation', binding: bind('dateNotation', saveDateNotation),
     options: options(DATE_NOTATIONS.map(n => [n, DATE_NOTATION_KEYS[n]] as const)),
-    // De patroonletters zijn taalgebonden (jjjj, yyyy, JJJJ, aaaa); de datum van vandaag ernaast
-    // laat zien wat het patroon betekent.
     example: value => displayDate(localTodayIso(), value as UIState['dateNotation']),
   },
   {
@@ -108,7 +88,6 @@ const ENTRIES: readonly SettingEntry[] = [
     keywordsKey: 'settings.keywords.durationDisplay', binding: bind('durationDisplay', saveDurationDisplay),
     options: options(DURATION_DISPLAYS.map(d => [d, DURATION_KEYS[d]] as const)),
     visual: DurationDisplayVisual,
-    // B9: grijs zolang het profiel de dagenmaat telt (het OPS-profiel); dezelfde regel als de schermen.
     requires: { met: s => !profileCountsWorkdays(s.project), reasonKey: 'settings.durationDisplayOpsHint' },
   },
   {
@@ -118,7 +97,6 @@ const ENTRIES: readonly SettingEntry[] = [
     options: options([['monday', 'settings.weekStartMonday'], ['sunday', 'settings.weekStartSunday']] as const),
   },
 
-  // Tijdlijn
   {
     kind: 'toggle', id: 'compressNonWorkdays', group: 'timeline', labelKey: 'settings.compressNonWorkdays',
     hintKey: 'settings.compressNonWorkdaysHint', keywordsKey: 'settings.keywords.compressNonWorkdays',
@@ -163,7 +141,6 @@ const ENTRIES: readonly SettingEntry[] = [
     requires: { met: s => s.ui.scrollMode === 'modifier', reasonKey: 'settings.requiresScrollModeModifier', hide: 'browse' },
   },
 
-  // Werkruimte
   {
     kind: 'choice', id: 'documentChrome', group: 'workspace', labelKey: 'settings.documentChrome', hintKey: 'settings.documentChromeHint',
     keywordsKey: 'settings.keywords.documentChrome', binding: bind('documentChromeStyle', saveDocumentChromeStyle),
@@ -184,10 +161,7 @@ const ENTRIES: readonly SettingEntry[] = [
     inputProps: { 'data-ops-auto-fit-columns': '' },
   },
 
-  // Planning
   {
-    // De synchrone kalenderfabriek leest de vlag rechtstreeks uit localStorage; de save is daarom
-    // synchroon en staat er vóór een eventuele nieuw-project-actie.
     kind: 'toggle', id: 'constructionMode', group: 'planning', labelKey: 'settings.constructionMode',
     hintKey: 'settings.constructionModeHint', keywordsKey: 'settings.keywords.constructionMode',
     binding: bind('constructionMode', saveConstructionMode),
@@ -213,7 +187,6 @@ const ENTRIES: readonly SettingEntry[] = [
     options: options(DISSOLVE_SUMMARY_MODES.map(m => [m, DISSOLVE_SUMMARY_KEYS[m]] as const)),
   },
 
-  // Meldingen
   {
     kind: 'custom', id: 'formatNotices', group: 'notices', labelKey: 'formatNotice.settingsSection',
     keywordsKey: 'settings.keywords.formatNotices', Control: FormatNoticesControl,
@@ -228,16 +201,12 @@ const ENTRIES: readonly SettingEntry[] = [
     inputProps: { 'data-ops-setting-foreign-changes-question': '' },
   },
 
-  // Geavanceerd
   {
-    // AAN ⇒ tabblad MCP verschijnt; UIT ⇒ tabblad weg + bridge gestopt (`applyAiModeLive`).
-    // Platformbouw (#307): geen AI-modus, dus ook geen automatisch starten.
     kind: 'toggle', id: 'aiMode', group: 'advanced', labelKey: 'settings.aiMode', hintKey: 'settings.aiModeHint',
     keywordsKey: 'settings.keywords.aiMode', available: AI_MODE_AVAILABLE,
     binding: { field: 'aiMode', apply: value => { void applyAiModeLive(value as boolean); } },
   },
   {
-    // Zonder AI-modus is er geen bridge om te starten: uitgegrijsd in plaats van stil niets doen.
     kind: 'toggle', id: 'aiAutostart', group: 'advanced', labelKey: 'settings.aiAutostart', hintKey: 'settings.aiAutostartHint',
     keywordsKey: 'settings.keywords.aiAutostart', available: AI_MODE_AVAILABLE,
     binding: bind('aiAutostart', saveAiAutostart),
@@ -253,7 +222,6 @@ const ENTRIES: readonly SettingEntry[] = [
     binding: bind('showClassicViewControls', saveShowClassicViewControls),
   },
 
-  // Over de app
   {
     kind: 'custom', id: 'version', group: 'about', labelKey: 'settings.version', hintKey: 'settings.versionHint',
     keywordsKey: 'settings.keywords.version', Control: VersionControl, searchTexts: versionSearchTexts,
@@ -279,14 +247,11 @@ const ENTRIES: readonly SettingEntry[] = [
   },
 ];
 
-// Volgorde en volledigheid volgen `settingIds.ts`: één bron voor de volgorde, en een id zonder
-// entry (of andersom) valt bij het laden van deze module meteen op.
 const BY_ID = new Map(ENTRIES.map(entry => [entry.id, entry]));
 if (BY_ID.size !== ENTRIES.length || SETTING_IDS.some(id => !BY_ID.has(id)) || ENTRIES.length !== SETTING_IDS.length) {
   throw new Error('settingsCatalog: de entries volgen settingIds.ts niet precies');
 }
 
-/** Alle instellingen die in deze bouw bestaan, in de vaste volgorde. */
 export const SETTINGS_CATALOG: readonly SettingEntry[] = SETTING_IDS
   .map(id => BY_ID.get(id)!)
   .filter(entry => entry.available !== false);
@@ -306,22 +271,17 @@ export const GROUP_LABEL_KEYS = {
   about: 'settings.groups.about',
 } as const satisfies Record<SettingsGroupId, CommonKey>;
 
-/** De groepen die in deze bouw minstens één instelling hebben. */
 export const SETTINGS_GROUPS: readonly SettingsGroupId[] = SETTINGS_GROUP_IDS
   .filter(group => SETTINGS_CATALOG.some(entry => entry.group === group));
 
-// --- Standaardwaarden ----------------------------------------------------------------------------
-
 let defaults: UIState | null = null;
 
-/** De standaard van een instelling: die van een nieuwe store, dus dezelfde als bij een eerste start. */
 export function defaultSettingValue(binding: SettingBinding): unknown {
   if (binding.defaultValue) return binding.defaultValue();
   defaults ??= createDefaultUI();
   return defaults[binding.field];
 }
 
-/** Gelijk voor de doeleinden van "gewijzigd": waarden, lijsten en platte objecten (de wieltoewijzing). */
 function sameValue(a: unknown, b: unknown): boolean {
   if (Object.is(a, b)) return true;
   if (Array.isArray(a) && Array.isArray(b)) {
@@ -336,7 +296,6 @@ function sameValue(a: unknown, b: unknown): boolean {
   return false;
 }
 
-/** Wijkt de instelling af van de standaard? Instellingen zonder binding (taal, knoppen) tellen niet. */
 export function isSettingChanged(entry: SettingEntry, ui: UIState): boolean {
   const binding = entry.binding;
   if (!binding) return false;

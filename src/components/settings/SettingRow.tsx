@@ -7,13 +7,11 @@ import { defaultSettingValue, isSettingChanged, resetSetting } from './catalog/s
 import type { ChoiceEntry, ChoiceOption, SettingEntry } from './catalog/types';
 import { VisualChoice } from './VisualChoice';
 
-/** De zichtbare naam van een keuze, met het live voorbeeld erachter als de instelling er een heeft. */
 export function choiceOptionLabel(entry: ChoiceEntry, option: ChoiceOption, t: TFunction<'common'>): string {
   const label = option.labelKey ? t(option.labelKey) : option.label ?? String(option.value);
   return entry.example ? `${label} · ${entry.example(option.value)}` : label;
 }
 
-/** De standaardwaarde als tekst voor de knop terugzetten; leeg als er geen korte tekst voor is. */
 function defaultValueLabel(entry: SettingEntry, t: TFunction<'common'>): string {
   if (!entry.binding) return '';
   const value = defaultSettingValue(entry.binding);
@@ -25,12 +23,6 @@ function defaultValueLabel(entry: SettingEntry, t: TFunction<'common'>): string 
   return '';
 }
 
-/**
- * Eén instelling: naam met (bij een schakelaar) het vinkje, eventueel een keuzelijst rechts, de uitleg
- * eronder en daaronder het plaatje of de eigen bediening. Wijkt de waarde af van de standaard, dan
- * staat er een stip voor de naam en een knop om de standaard terug te zetten. Een instelling die nu
- * niets doet (een andere instelling of het profiel staat het niet toe) is uitgegrijsd, met de reden.
- */
 export function SettingRow({ entry, highlighted }: { entry: SettingEntry; highlighted: boolean }) {
   const { t } = useTranslation('common');
   const available = useAppStore(s => entry.requires ? entry.requires.met(s) : true);
@@ -54,7 +46,6 @@ export function SettingRow({ entry, highlighted }: { entry: SettingEntry; highli
       data-ops-setting={entry.id}
       data-ops-setting-changed={changed || undefined}
       data-ops-legacy-settings={entry.legacy || undefined}
-      // Focusbaar voor een directe link naar een instelling die nu uitgegrijsd is (geen bediening).
       tabIndex={-1}
     >
       <div className="settings-item-head">
