@@ -53,7 +53,7 @@ tail -n 2 "$LOG"; grep '^RELEASE-MELDING ' "$LOG" || true
 ```
 Het script wacht zelf op CI en runs (uren mogelijk). Draai het in de voorgrond, of start het losgekoppeld en wacht met een
 `until grep -q '^EXIT:' "$LOG"`-lus; beëindig je beurt niet terwijl het loopt. Een tweede run tegelijk stopt met `al-actief`.
-`--droog` leest alles en stopt vóór de eerste schrijvende stap (`RELEASE-DROOG <stap>`).
+`--droog` leest alles en stopt vóór de eerste schrijvende stap (`RELEASE-DROOG <stap>`). Alleen het ophalen (`haal`) draait ook in de droogloop: het schrijft alleen lokale refs, zodat de browsercontrole en de kandidaatkeuze met de actuele stand werken.
 
 ## De uitkomst
 
