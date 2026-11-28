@@ -23,7 +23,8 @@ Tabbladen (`RibbonTab`): `file`, `start`, `planning`, `resources`, `beeld`, `ins
 
 **Besluiten in `Ribbon/ribbonConfig.tsx`** staan in `docs/adr/`: het lint als data (0480), de indeling per tabblad
 (0481), een lintknop en zijn opdracht (0482), paneelschakelaars (0483), wanneer een lintknop uit staat (0484) en
-relatielijnen en balkdatums op Beeld (0485).
+relatielijnen en balkdatums op Beeld (0485). De keuzes in `Ribbon/ribbonWidgets.tsx` die verrassen (de knop Relatie,
+de wisknop van de statusdatum, het schrijven van de layoutlijst) staan in ADR 1150.
 
 **Besluiten in `src/components/panels/`** staan in `docs/adr/`: het bezettingsoverzicht (0690), de export en
 sleepzone van het rapportpaneel (0691) en de keuzes in het resourcepaneel (1140).

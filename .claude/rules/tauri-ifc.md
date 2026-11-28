@@ -218,8 +218,13 @@ Besluiten van de helpers voor de IFC-, MSPDI-, P6 XML-, XER- en `.mpp`-adapters 
 Besluiten van de writer van P6 XML: `docs/adr/0360-p6xml-schrijven-indeling-objectids-en-volgorde.md`,
 `0361-p6xml-schrijven-eigen-ops-velden.md`, `0362-p6xml-schrijven-kalenders.md`,
 `0363-p6xml-schrijven-duur-rest-en-lag.md`, `0364-p6xml-schrijven-voortgang-type-duursoort-en-datums.md`,
-`0365-p6xml-schrijven-resources-toewijzingen-en-curves.md`, `0366-p6xml-schrijven-project-naam-id-en-rekenopties.md` en
-`0367-p6xml-schrijven-wat-niet-meegaat.md`. De lezer staat in de regel `xer`.
+`0365-p6xml-schrijven-resources-toewijzingen-en-curves.md`, `0366-p6xml-schrijven-project-naam-id-en-rekenopties.md`,
+`0367-p6xml-schrijven-wat-niet-meegaat.md` en `1040-p6xml-schemavolgorde-lengtegrenzen-en-constrainttabel.md`. De lezer staat in de regel `xer`.
+
+### De MSPDI-writer (`msproject/mspdiWriter.ts`)
+
+Besluit: `docs/adr/1080-mspdi-schrijven-wat-niet-meegaat-en-de-boom.md`. De OPS-velden en de maat van duur, rest en
+lag staan bij de lezer (regel `mpp`, ADR 0250 en 0251).
 
 ### Bestandsschema per project
 
@@ -340,7 +345,8 @@ zonder React, de modules uit `STUBBED` als stub). Bewijs: `check-save-worker.ts`
 `check-ifc-document-save.ts` (de routes met een geïnjecteerde worker: typen, tweede Ctrl+S, tabbladwissel, fouten),
 `save-worker-production.spec.ts` (de worker uit de echte productieconfiguratie, met zijn modules, ook dynamisch) en
 `settings-tabs.spec.ts` (de app start de worker zelf bij een echte Ctrl+S, met een model en met een gewoon bestand). De
-opslagstand in de statusbalk staat in `state.md`.
+opslagstand in de statusbalk staat in `state.md`. Waarom een merge na een eerste start niet terugvalt:
+`docs/adr/1070-opslagworker-merge-valt-na-een-start-niet-terug.md`.
 
 **De laatste controle in de schrijflaag** (knownbug 1896, #804 stap 6 en fixronde 1 van #1027): elke documentopslag en
 elke IFC-export geeft `refuseBeforePlace` (`RefuseBeforePlace` in `fileAccess/index.ts`; `refuseChangedDocumentWrite`

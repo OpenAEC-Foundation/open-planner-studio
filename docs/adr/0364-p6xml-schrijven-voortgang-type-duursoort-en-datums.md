@@ -35,7 +35,7 @@ volgen daar dezelfde regels in eigen code.
   regel, met een eigen markering voor een taak die erft (regel `xer`).
 - `<ExpectedFinishDate>` komt uit `p6ExpectedFinish`, omdat de motor het verwachte einde gebruikt bij
   `UseExpectedFinishDates` (review Sol #781 punt 2, R2).
-- De constraints gaan als label van `p6ConstraintLabel` (`p6ConstraintTypes.ts`, met de bron daar), niet als
+- De constraints gaan als label van `p6ConstraintLabel` (`p6ConstraintTypes.ts`, met de bron in ADR 1040), niet als
   `CS_*`-token; ASAP geeft geen element en een datum staat er alleen bij een soort. De secundaire constraint gaat altijd
   als zachte soort (`hard: false`), dus nooit als `Mandatory …`. Dat P6 een secundaire constraint altijd zacht rekent,
   komt uit het weggehaalde commentaar en is niet nagegaan (zoals in ADR 0267).
