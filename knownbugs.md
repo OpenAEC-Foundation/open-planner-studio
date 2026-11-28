@@ -2673,6 +2673,12 @@ en noem het in je rapport of PR-tekst.
      (`tools/fileTools.ts`). Een import die langer dan `MCP_QUEUE_DEADLINE_MS` in de wachtrij stond, wordt overgeslagen
      en opent geen tabblad. Gezien in het weggehaalde commentaar en de review, niet nagespeeld. — S
 
+2800. **De MCP-fout `DIALOG_OPEN` noemt bij de statistiekdialoog en de toestemmingsvraag voor een extensie geen naam, alleen "a dialog".**
+      `BLOCKING_UI_FLAGS` (`dialogGuard`, `src/services/mcp/tools/runtime.ts`) mist `showStatsDialog` en
+      `pendingExtensionConsent`, die `isBlockingDialogOpen` (`src/state/blockingDialogs.ts`) wel als blokkerend telt; de
+      tool weigert dus terecht, maar zonder naam. Gezien door de twee lijsten te vergelijken. Voorstel: één lijst
+      voor beide, of een check die ze gelijk houdt. — B
+
 ## Bestanden en herstel
 
 36. **Herstelvenster na een gewone herlaad** in de browser, ook als alles was opgeslagen. — S
