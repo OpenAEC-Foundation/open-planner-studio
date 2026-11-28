@@ -1,13 +1,3 @@
-/**
- * Vertaalstraat — labelpoort (scripts/translate/ui.ts `buildLabelIndex`/`labelsFor`, gates.ts).
- *
- * Aanleiding: `common:notifications.schedulingProfileApplied` noemt het pad "Bestand → Projectinfo →
- * Rekenprofiel en reken-opties"; in uk/sr/bg/nb stond een verkorte of verbogen titel, en
- * check-conventions-registry eist `applied.includes(title)`. Bewaakt: welke teksten als label tellen
- * (hoofdletter, ≥ 2 woorden of ≥ 10 tekens, geen invulplekken/$t, geen veelvoorkomend los woord), dat
- * alleen het langste label telt, niet aan het begin van een zin, niet de eenheid zelf; dat de doeltekst
- * alleen telt als hij vertaald is; en dat de poort hard is met doeltekst en een waarschuwing zonder.
- */
 import { hashUnit } from '../../scripts/translate/common';
 import { checkUi } from '../../scripts/translate/gates';
 import { buildLabelIndex, buildUiPackages, labelsFor, LABEL_COMMON_WORD_MAX, type NsInput, type UiPackage, type UiSources } from '../../scripts/translate/ui';
@@ -44,7 +34,6 @@ const inputs = (target: Record<string, JsonObject>): NsInput[] => [
 const hashes = (ns: JsonObject, keys: string[]) => Object.fromEntries(keys.map(k => [k, hashUnit(ns[k] as string)]));
 const sources = { common: hashes(nlCommon, ['title', 'profile', 'restore']), menu: hashes(nlMenu, ['projectInfo', 'file']) };
 
-// ── 1. Index ─────────────────────────────────────────────────────────────────────────────────
 {
   const idx = buildLabelIndex(inputs(uk), 'uk', sources);
   const texts = idx.map(l => l.nl);
@@ -55,14 +44,13 @@ const sources = { common: hashes(nlCommon, ['title', 'profile', 'restore']), men
   ok('invulplek is geen label', !texts.some(t => t.includes('{{')));
   eq('doeltekst en sleutel', idx.find(l => l.nl === 'Projectinfo')?.targets, ['Відомості про проєкт']);
   eq('sleutel als ns:pad', idx.find(l => l.nl === 'Projectinfo')?.keys, ['menu:projectInfo']);
-  const fresh = buildLabelIndex(inputs(uk), 'be', {}); // be: nieuwe taal zonder basislijn
+  const fresh = buildLabelIndex(inputs(uk), 'be', {});
   eq('nieuwe taal zonder hash: Engelse vulling telt niet als doeltekst', fresh.find(l => l.nl === 'Projectinfo')?.targets, []);
   const many: JsonObject = { w: 'Instellingen' };
   for (let i = 0; i <= LABEL_COMMON_WORD_MAX; i++) many[`s${i}`] = `Open de instellingen ${i}.`;
   ok('veelvoorkomend los woord is geen label', !buildLabelIndex([{ ns: 'common', nl: many, en: many, target: {} }], 'uk', {}).some(l => l.nl === 'Instellingen'));
 }
 
-// ── 2. labelsFor ─────────────────────────────────────────────────────────────────────────────
 {
   const idx = buildLabelIndex(inputs(uk), 'uk', sources);
   eq('pad: langste label wint, Projectinfo apart', labelsFor('applied', 'common', nlCommon.applied as string, idx).map(l => l.nl).sort(),
@@ -74,7 +62,6 @@ const sources = { common: hashes(nlCommon, ['title', 'profile', 'restore']), men
   eq('hoofdlettergevoelig', labelsFor('x', 'common', 'Zie het rekenprofiel en reken-opties.', idx), []);
 }
 
-// ── 3. Pakket en poort ───────────────────────────────────────────────────────────────────────
 {
   const packs = buildUiPackages({ lang: 'uk', inputs: inputs(uk), mode: 'all', sources, concepts: [] });
   const item = packs[0].items.find(i => i.key === 'applied')!;
@@ -102,7 +89,6 @@ const sources = { common: hashes(nlCommon, ['title', 'profile', 'restore']), men
   eq('meervoud: per vorm, alleen many rood', famErr.map(e => e.split(':')[0]), ['n.many']);
 }
 
-// ── 4. Een hernoemd label mag de oude vertaling niet opleggen aan de verwijzende tekst ──────
 {
   const nl: JsonObject = { title: 'MCP-activiteit', empty: 'Nog geen MCP-activiteit. Aanroepen verschijnen hier.' };
   const fr: JsonObject = { title: 'Activité IA', empty: 'Aucune activité IA.' };
@@ -115,7 +101,6 @@ const sources = { common: hashes(nlCommon, ['title', 'profile', 'restore']), men
     const pkg = { ...packs.find(p => p.items.includes(item))!, items: [item] };
     eq('nieuwe naam mag ook in de verwijzende tekst', checkUi(pkg, { empty: 'Aucune Activité MCP. Les appels apparaissent ici.' }).errors, []);
   }
-  // Na toepassing is de actuele labeltekst opnieuw een harde poort, ook voor een oud bericht.
   const current: NsInput[] = [{ ...input[0], target: { ...fr, title: 'Activité MCP' } }];
   const packs = buildUiPackages({ lang: 'fr', inputs: current, mode: 'stale', sources: { common: { title: hashUnit(nl.title as string) } }, concepts: [] });
   const item = packs.flatMap(p => p.items).find(i => i.key === 'empty')!;
@@ -125,7 +110,6 @@ const sources = { common: hashes(nlCommon, ['title', 'profile', 'restore']), men
   eq('actuele naam in verwijzing blijft groen', checkUi(pkg, { empty: 'Aucune Activité MCP.' }).errors, []);
 }
 
-// ── 5. Doeltekst met een avoid-variant telt niet (anders botst de labelpoort met --avoid) ────
 {
   const concepts = [{ id: 'critical-path', kind: 'term' as const, nl: 'kritiek pad', en: ['critical path'], definition: 'd' }];
   const tb = { _style: { address: 'formal' as const }, 'critical-path': { term: 'kritični put', forms: ['kritični put'], avoid: ['ključni put'], source: 's', status: 'arbitrated' as const } };

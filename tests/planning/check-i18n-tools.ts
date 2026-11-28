@@ -1,13 +1,3 @@
-/**
- * De kern van `npm run i18n:fmt` / `npm run i18n:add` (scripts/i18n-tools.ts).
- *
- * Het belangrijkste contract: opmaken verandert NOOIT de inhoud — alleen volgorde en witruimte. Dat
- * wordt hieronder op alle 56 echte locale-bestanden bewezen (inhoud gelijk, en opmaken is
- * idempotent), zodat de eenmalige herschikking geen vertaling kan wegvagen. Daarnaast: de nl-volgorde
- * wint, meervoudsfamilies blijven bij elkaar in CLDR-volgorde, en `validateTranslations` weigert een
- * foute set vóórdat er iets geschreven wordt. Besluit B5 (2026-10-10): alleen nl + en zijn verplicht;
- * sectie 7 draait `i18n:add` echt, in een tijdelijke map, en toetst wat het met de andere talen doet.
- */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -28,7 +18,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
 
-/** Inhoud zonder volgorde: sorteer sleutels recursief. */
 const canon = (v: Json): Json => {
   if (typeof v !== 'object' || v === null || Array.isArray(v)) return v;
   const out: JsonObject = {};
@@ -36,7 +25,6 @@ const canon = (v: Json): Json => {
   return out;
 };
 
-// ── 1. Volgorde van nl, families bij elkaar, onbekende sleutels achteraan ─────────────────────
 {
   const nl: JsonObject = { b: 'B', a: { y: 'Y', x: 'X' }, n_one: '1', n_other: 'n', z: 'Z' };
   const pl: JsonObject = { extra: 'E', z: 'Z', n_many: 'm', a: { x: 'X', y: 'Y' }, n_other: 'o', n_one: '1', n_few: 'f', b: 'B' };
@@ -47,7 +35,6 @@ const canon = (v: Json): Json => {
   eq('zh zonder one: alleen other op de familieplek', Object.keys(orderLike(zh, nl)), ['b', 'n_other']);
 }
 
-// ── 2. Serialisatie: één sleutel per regel, idempotent ────────────────────────────────────────
 {
   const text = '{"a":{"b":"x","c":"y"},"d":"z"}';
   const once = formatLocale(text, text);
@@ -56,7 +43,6 @@ const canon = (v: Json): Json => {
   ok('eindigt op een regeleinde', once.endsWith('}\n'));
 }
 
-// ── 3. Validatie vóór het schrijven ───────────────────────────────────────────────────────────
 {
   const plain = (text: string): Record<string, Translation> =>
     Object.fromEntries(LOCALES.map(l => [l, `${text} ${l} {{naam}}`]));
@@ -91,8 +77,6 @@ const canon = (v: Json): Json => {
     pl: { one: '{{count}} a', many: '{{count}} c', other: '{{count}} d' },
   }).some(e => e.startsWith('pl: meervoudsvormen')));
 
-  // Per vorm vergelijken (zelfde regel als scripts/translate/gates.ts): `one` met nl `one`, de rest met
-  // nl `other`. Een familie mag per vorm andere invulplekken hebben.
   const perForm = (): Record<string, Translation> => ({
     nl: { one: "'{{task}}' heeft een fout", other: '{{count}} taken hebben een fout' },
     en: { one: "'{{task}}' has an error", other: '{{count}} tasks have an error' },
@@ -111,7 +95,6 @@ const canon = (v: Json): Json => {
     validateTranslations(zhTask).some(e => e.startsWith('zh.other: invulplekken')));
 }
 
-// ── 4. Plaatsen, wijzigen, van soort veranderen ───────────────────────────────────────────────
 {
   const root: JsonObject = { sec: { a: 'A', b: 'B' } };
   setTranslation(root, 'sec.nieuw', 'N');
@@ -135,7 +118,6 @@ const canon = (v: Json): Json => {
   ok('removeTranslation: onbekend pad verandert niets', !removeTranslation(root, 'sec.b') && !removeTranslation(root, 'x.y'));
 }
 
-// ── 5. De echte locale-bestanden: opmaken verandert de inhoud niet, en is idempotent ──────────────
 {
   const dir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'i18n', 'locales');
   for (const ns of NAMESPACES) {
@@ -154,7 +136,6 @@ const canon = (v: Json): Json => {
   eq('serialize is gewone JSON', JSON.parse(serialize({ a: 'é "q"' })), { a: 'é "q"' });
 }
 
-// ── 6. Samenvoegen per sleutel (`npm run i18n:resolve`) ───────────────────────────────────────
 {
   const m = (b: JsonObject, o: JsonObject, t: JsonObject) => mergeLocale(b, o, t);
   const base: JsonObject = { a: 'A', b: 'B', c: 'C' };
@@ -168,7 +149,6 @@ const canon = (v: Json): Json => {
   r = m(base, { ...base, n: 'N1' }, { ...base, n: 'N2' });
   eq('beide voegen anders toe → botsing, voorlopig ours', [r.merged.n, r.conflicts.map(c => c.path)], ['N1', ['n']]);
 
-  // De valkuil van git: ours verwijdert b, theirs herschikt alleen (b staat daar op een andere regel).
   r = m(base, { a: 'A', c: 'C' }, { c: 'C', b: 'B', a: 'A' });
   eq('ours verwijdert, theirs herschikt alleen → blijft weg', [r.merged, r.conflicts.length], [{ a: 'A', c: 'C' }, 0]);
   r = m(base, { a: 'A', b: 'B2', c: 'C' }, { c: 'C', b: 'B', a: 'A' });
@@ -181,7 +161,6 @@ const canon = (v: Json): Json => {
   eq('eerder gekozen waarde wint alleen bij een botsing, die wel gemeld wordt',
     [r.merged.b, r.merged.c, r.conflicts.map(c => c.path)], ['B3', 'C', ['b']]);
 
-  // Meervoudsfix aan de ene kant (#177-vorm), nieuwe sleutel aan de andere.
   const pb: JsonObject = { g: { n: '{{count}} taken', z: 'Z' } };
   r = m(pb, { g: { n: '{{count}} taken', z: 'Z', nieuw: 'N' } }, { g: { n_one: '{{count}} taak', n_other: '{{count}} taken', z: 'Z' } });
   eq('meervoudsfamilie van theirs + nieuwe sleutel van ours', r.merged,
@@ -193,8 +172,6 @@ const canon = (v: Json): Json => {
   r = m({ s: 'S' }, { s: { k: 'K' } }, { s: 'S2' });
   eq('tekst wordt object vs tekst gewijzigd → botsing', r.conflicts.map(c => c.path), ['s']);
 
-  // Op de echte bestanden: een pure herschikking aan de overkant verandert niets, en een verwijdering
-  // of wijziging aan onze kant overleeft haar — voor alle locale-bestanden.
   const dir = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'src', 'i18n', 'locales');
   const reversed = (o: JsonObject): JsonObject => Object.fromEntries(Object.keys(o).reverse()
     .map(k => [k, (typeof o[k] === 'object' && o[k] !== null && !Array.isArray(o[k])) ? reversed(o[k] as JsonObject) : o[k]]));
@@ -220,7 +197,6 @@ const canon = (v: Json): Json => {
   eq('alle 56 echte bestanden overleven een herschikking aan de overkant', bad, 0);
 }
 
-// ── 7. `i18n:add` echt gedraaid (besluit B5): nl + en verplicht, de rest via de vertaalstraat ──────
 {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const work = mkdtempSync(join(tmpdir(), 'ops-i18n-add-'));
@@ -245,7 +221,6 @@ const canon = (v: Json): Json => {
         writeFileSync(locFile(loc, ns), serialize(ns === 'common' ? { a: `A ${loc}`, b: `B ${loc}` } : {}));
       }
     }
-    // fr heeft een basislijn (bestaande taal), ru niet (nieuwe taal, hash alleen via `apply ui`).
     mkdirSync(join(work, 'i18n/ui-sources'), { recursive: true });
     for (const loc of ['en', 'fr', 'ru']) {
       writeFileSync(srcFile(loc), serialize({ common: { a: hashUnit('A nl'), b: hashUnit('B nl') } }));

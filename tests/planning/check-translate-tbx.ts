@@ -1,8 +1,3 @@
-/**
- * Vertaalstraat — termen zoeken (scripts/translate/tbx.ts, ontwerp §4.3) op een eigen mini-TBX
- * (geen echte Microsoft-TBX in de repo, licentie §13), plus de kandidaten voor de conceptenlijst
- * (candidates.ts, §4.2) en het samenvoegen van concepten en termen (termbase.ts).
- */
 import { buildTermsPackages, candidatesFor, indexTbx, parseTbx, uiExamplesFor } from '../../scripts/translate/tbx';
 import { collectCandidates, emphasisOf, normalizeCandidate } from '../../scripts/translate/candidates';
 import { applyTerms, inconsistencyReport, mergeConcepts, type TermsOut } from '../../scripts/translate/termbase';
@@ -21,7 +16,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
 
-// Zelfde vorm als de Microsoft-export: één regel, en-US-langSet met definitie, doeltaal met noten.
 const entry = (id: string, en: string, def: string, target: string, notes = '') =>
   `<termEntry id="${id}"><langSet xml:lang="en-US"><descripGrp><descrip type="definition">${def}</descrip></descripGrp>`
   + `<ntig><termGrp><term id="e${id}">${en}</term><termNote type="partOfSpeech">Noun</termNote><termNote type="grammaticalNumber">NotSelected</termNote></termGrp></ntig></langSet>`
@@ -38,7 +32,6 @@ const TBX = '<?xml version="1.0" encoding="utf-8"?><martif type="TBX" xml:lang="
   + '<termEntry id="8"><langSet xml:lang="en-US"><ntig><termGrp><term>orphan</term></termGrp></ntig></langSet></termEntry>'
   + '</body></text></martif>';
 
-// ── 1. TBX lezen ─────────────────────────────────────────────────────────────────────────────
 const entries = parseTbx(TBX);
 {
   eq('alleen entries met en én doelterm', entries.map(e => e.id), ['1', '2', '3', '4', '5', '6', '7']);
@@ -49,7 +42,6 @@ const entries = parseTbx(TBX);
     ['In typography, the line on which characters sit & align.', 'A floating-point number <IEEE>.', 'plovoucí číslo']);
 }
 
-// ── 2. Kandidaten per concept ────────────────────────────────────────────────────────────────
 const idx = indexTbx(entries);
 const concepts: Concept[] = [
   { id: 'total-float', kind: 'term', nl: 'totale speling', en: ['total float', 'total slack'], definition: 'Slack of a task.' },
@@ -91,7 +83,6 @@ const concepts: Concept[] = [
   eq('max 5 ui-voorbeelden per concept', many[0].concepts[1].ui?.length, 5);
 }
 
-// ── 3. Kandidaten voor de conceptenlijst ─────────────────────────────────────────────────────
 {
   eq('cursief pad wordt in delen geknipt', emphasisOf('Open *Home › Tasks › Link ▾* and press **Calculate** (`F5`).'),
     ['Calculate', 'Home', 'Tasks', 'Link']);
@@ -113,7 +104,6 @@ const concepts: Concept[] = [
   ok('woordgroep uit een langere tekst', all.some(c => c.term.toLowerCase() === 'critical path' && c.ui >= 1));
 }
 
-// ── 4. Concepten samenvoegen ─────────────────────────────────────────────────────────────────
 {
   const a: Concept = { id: 'baseline', kind: 'term', nl: 'basislijn', en: ['baseline'], definition: 'Saved copy.' };
   const b: Concept = { id: 'critical-path', kind: 'term', nl: 'kritiek pad', en: ['critical path'], definition: 'Longest path.' };
@@ -129,7 +119,6 @@ const concepts: Concept[] = [
     ['id', 'kind', 'nl', 'en', 'enBySource', 'definition']);
 }
 
-// ── 5. Termen verwerken + inconsistentierapport ──────────────────────────────────────────────
 {
   const outs: TermsOut[] = [{
     _style: { address: 'informal', note: 'tu' },
@@ -145,7 +134,6 @@ const concepts: Concept[] = [
   ok('rapport: afwijking van de vakterm', md.includes('vakterm (TBX) *marge libre totale*') && md.includes('Afwijking van de vakterm (1)'));
 }
 
-// 102: de echte CLI in een tijdelijke werkmap; geen productie-termbase of Microsoft-TBX nodig.
 {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const work = mkdtempSync(join(tmpdir(), 'ops-term-seals-'));
@@ -204,7 +192,6 @@ const concepts: Concept[] = [
       typeof JSON.parse(trustedSeals)[file] === 'string'));
     write(join(dir, 'terms-check-01.out.json'), { t1: { backTranslation: 'gap', standard: false, suggestion: 'jiný termín' } });
     const appliedBefore = readFileSync(tbPath, 'utf8');
-    // Een gewijzigde uitvoer zou zonder de bronpoort de termbase veranderen: weigering moet vóór die write.
     write(join(dir, 'terms-01.out.json'), { ...output, gap: { ...output.gap, term: 'nová mezera', forms: ['nová mezera'] } });
     for (const [index, file] of sources.entries()) {
       writeFileSync(join(dir, file), trusted[index] + '\n');
@@ -224,7 +211,6 @@ const concepts: Concept[] = [
     const checked = run('apply-terms', 'cs');
     eq(`102 intacte blinde controle maakt rapport (${checked.output})`, checked.status, 0);
     ok('102 rapport koppelt t1 aan gap', readFileSync(join(dir, 'terms-check-report.md'), 'utf8').includes('- gap (en *gap*)'));
-    // 327: één groen en één geweigerd pakket mag nooit een succesvolle CLI-run opleveren.
     write(join(work, 'i18n/termbase/concepts.json'), [
       { id: 'gap', kind: 'term', nl: 'gat', en: ['gap'], definition: 'Onderbreking.' },
       { id: 'pause', kind: 'term', nl: 'pauze', en: ['pause'], definition: 'Pauze.' },
@@ -242,7 +228,6 @@ const concepts: Concept[] = [
     ok('327 weigeringsteller zichtbaar', partial.output.includes('1 rood overgeslagen'));
     eq('327 groen pakket blijft toegepast', JSON.parse(readFileSync(tbPath, 'utf8')).gap.term, 'mezera');
     eq('327 geweigerde term ontbreekt', JSON.parse(readFileSync(tbPath, 'utf8')).pause, undefined);
-    // Ook de vroege return na het rapport van de blinde controle behoudt exit 1.
     write(join(dir, 'terms-check-01.out.json'), { t1: { backTranslation: 'gap', standard: true } });
     eq('327 rapporttak eindigt ook rood', run('apply-terms', 'cs').status, 1);
     ok('327 rapport wordt wel gemaakt', existsSync(join(dir, 'terms-check-report.md')));

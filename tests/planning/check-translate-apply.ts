@@ -1,12 +1,3 @@
-/**
- * Vertaalstraat — samenvoegen (scripts/translate/apply.ts + ui.ts, ontwerp §9), basislijn en status.
- *
- * Bewaakt: alleen groene pakketten gaan erin; de volgorde wordt die van nl; sleutels buiten het
- * pakket blijven onaangeroerd; een nieuwe taal begint bij `{}`; de bron-hash per sleutel wordt
- * bijgewerkt (een familie = één hash), waarna --stale en status hem als actueel zien; in een nieuwe
- * taal (geen basislijn, Engelse vulling) telt tekst zonder hash als ontbrekend, ook bij i18n:add.
- * De CLI-keten voor vaste tekst (172) weigert verkeerde uitvoer én handmatige edits met actuele hash.
- */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -40,7 +31,6 @@ const en: JsonObject = {
   z: 'Last',
 };
 
-// ── 1. Nieuwe taal: alles ontbreekt, apply bouwt het bestand op in nl-volgorde ───────────────
 {
   const packs = buildUiPackages({ lang: 'cs', inputs: [{ ns: 'common', nl, en, target: {} }], mode: 'missing', sources: {}, concepts: [], size: 2 });
   eq('2 pakketten van ≤ 2 items', packs.map(p => p.items.map(i => i.key)), [['a', 'grp.x'], ['grp.n', 'z']]);
@@ -48,7 +38,6 @@ const en: JsonObject = {
     'ui-common-01': { a: 'První', 'grp.x': 'Iks-cs' },
     'ui-common-02': { 'grp.n': { one: '{{count}} úkol', few: '{{count}} úkoly', many: '{{count}} úkolu', other: '{{count}} úkolů' }, z: 'Poslední' },
   };
-  // Omgekeerde volgorde van toepassen: het resultaat volgt toch nl.
   const batch = [...packs].reverse().map(pkg => ({ pkg, out: outs[pkg.id] }));
   const sources: UiSources = {};
   const res = applyUiBatch(batch, () => ({}), { common: nl }, sources, 'cs');
@@ -69,7 +58,6 @@ const en: JsonObject = {
   ok('hashes in nl-volgorde', Object.keys(orderSources(sources, { common: nl }).common).join() === 'a,grp.x,grp.n,z');
 }
 
-// ── 2. Alleen groene pakketten; andere sleutels blijven onaangeroerd ─────────────────────────
 {
   const existing: JsonObject = { a: 'Erste', grp: { x: 'X-de', n_one: '{{count}} Aufgabe', n_other: '{{count}} Aufgaben' }, z: 'Letzte', extra: 'bleibt' };
   const sources: UiSources = { common: { a: hashUnit('Oud'), z: hashUnit('Laatste') } };
@@ -88,7 +76,6 @@ const en: JsonObject = {
   eq('hash van a bijgewerkt, van z niet', [sources.common.a, sources.common.z], [hashUnit('Eerste'), hashUnit('Laatste')]);
   eq('niets toegepast → geen doelobject', applyUiBatch([{ pkg: red, out: {} }], () => ({}), { common: nl }, {}, 'de').targets.size, 0);
 
-  // Het pakket ligt waar de agents schrijven: apply toetst het aan de huidige nl en de taal (review PR 2).
   const forged: UiPackage = { ...green, id: 'ui-common-03', items: [{ key: 'z', nl: 'Laatste', en: 'Last' }, { key: 'weg', nl: 'Weg', en: 'Gone' }] };
   const edited: UiPackage = { ...green, id: 'ui-common-04', items: [{ key: 'a', nl: 'Eerste (oud)', en: 'First' }] };
   const otherLang: UiPackage = { ...green, id: 'ui-common-05', lang: 'fr' };
@@ -106,11 +93,8 @@ const en: JsonObject = {
   ]);
 }
 
-// ── 3. Basislijn en status ───────────────────────────────────────────────────────────────────
 {
-  // ar: zero/one/two/few/many/other; een halve familie is niet compleet → geen hash.
   const ar: JsonObject = { a: 'الأول', grp: { x: 'س', n_one: 'مهمة', n_other: '{{count}} مهمة' } };
-  // Hashes van de complete eenheden (de halve familie grp.n heeft er geen).
   const seeded: UiSources = { common: { a: hashUnit('Eerste'), 'grp.x': hashUnit('Iks') } };
   const st = uiStatus('ar', [{ ns: 'common', nl, en, target: ar }], seeded)[0];
   eq('status: halve familie + ontbrekend = 2 ontbreekt', [st.missing, st.stale, st.current], [2, 0, 2]);
@@ -119,18 +103,15 @@ const en: JsonObject = {
   eq('status: gewijzigde nl = verouderd', [st2.missing, st2.stale, st2.current], [2, 1, 1]);
   const st3 = uiStatus('ar', [{ ns: 'common', nl, en, target: ar }], {})[0];
   eq('status: vertaald zonder hash telt als actueel, apart genoemd', [st3.current, st3.unhashed], [2, 2]);
-  // B5: `i18n:add` haalt de hash weg in een niet-opgegeven taal; `--stale` moet de oude tekst dan oppakken.
   eq('--stale pakt ook vertaald-zonder-hash op, met de oude tekst',
     selectUnits({ ns: 'common', nl, en, target: ar }, 'ar', 'stale', { common: { a: seeded.common.a } })
       .map(s => [s.unit.key, s.previous]), [['grp.x', 'س']]);
-  // De releasepoort (`status --strict`, `npm run verify:translations`): elk gat telt, met plek en soort.
   const gaps = uiReleaseGaps('ar', [{ ns: 'common', nl: changed, en, target: ar }], { common: { a: seeded.common.a } });
   eq('releasepoort: ontbreekt, verouderd en zonder hash, elk met plek', gaps.map(g => `${g.where} ${g.state}`).sort(),
     ['common:a stale', 'common:grp.n missing', 'common:grp.x unhashed', 'common:z missing'].sort());
   eq('releasepoort: alles actueel = geen gaten', uiReleaseGaps('ar', [{ ns: 'common', nl: { a: nl.a }, en, target: ar }], seeded), []);
 }
 
-// ── 4. i18n:add houdt de hash bij ───────────────────────────────────────────────────────────
 {
   const s: UiSources = { task: { b: 'oud' } };
   setSourceHash(s, 'task', 'cols.total', 'Totaal');
@@ -138,11 +119,8 @@ const en: JsonObject = {
   eq('hash per namespace + sleutel', [s.task['cols.total'], s.task.b, s.menu.n], [hashUnit('Totaal'), 'oud', hashUnit({ one: 'één x', other: '{{count}} x' })]);
 }
 
-// ── 5. Nieuwe taal met Engelse vulling (geen basislijn) ─────────────────────────────────────
 {
   ok('ru heeft sinds PR #316 een basislijn', hasUiBaseline('ru') && hasUiBaseline('sv') && !hasUiBaseline('be'));
-  // Een nieuwe taal (hier `be`, niet in UI_BASELINE; meervoud als ru) staat in de app eerst met Engels als
-  // tijdelijke inhoud: tekst zonder hash is geen vertaling.
   const ruFill: JsonObject = { a: 'First', grp: { x: 'X', n_one: '{{count}} task', n_few: '{{count}} tasks', n_many: '{{count}} tasks', n_other: '{{count}} tasks' }, z: 'Last' };
   const inputs = [{ ns: 'common', nl, en, target: ruFill }];
   eq('nieuwe taal, vulling zonder hash: --missing pakt alles op',
@@ -152,12 +130,10 @@ const en: JsonObject = {
   const half: UiSources = { common: { a: hashUnit('Eerste') } };
   eq('nieuwe taal: alleen sleutels met hash gelden als vertaald',
     selectUnits(inputs[0], 'be', 'missing', half).map(s => s.unit.key), ['grp.x', 'grp.n', 'z']);
-  // Een taal met basislijn houdt de oude regel: vertaald zonder hash telt niet als ontbrekend.
   const de: JsonObject = { a: 'Erste', grp: { x: 'X', n_one: '{{count}} Aufgabe', n_other: '{{count}} Aufgaben' }, z: 'Letzte' };
   eq('bestaande taal zonder hash: --missing laat vertaalde tekst staan',
     selectUnits({ ns: 'common', nl, en, target: de }, 'de', 'missing', {}).map(s => s.unit.key), []);
 
-  // i18n:add: een taal met basislijn krijgt de hash; een nieuwe taal verliest hem (tekst komt niet uit de straat).
   const deSrc: UiSources = {};
   eq('i18n:add, bestaande taal: hash gezet', [updateSourceHashForAdd(deSrc, 'de', 'common', 'a', 'Eerste'), deSrc.common?.a], [true, hashUnit('Eerste')]);
   const ruSrc: UiSources = { common: { a: hashUnit('Eerste'), z: 'x' } };
@@ -166,9 +142,6 @@ const en: JsonObject = {
   eq('i18n:add, nieuwe taal zonder bronbestand: niets te schrijven', [updateSourceHashForAdd(none, 'be', 'common', 'a', 'Eerste'), none], [false, {}]);
 }
 
-// ── 6. Echte CLI-keten (172): prepare → check.mjs → apply → status --strict ────────────────────
-// Deze processen draaien alleen wanneer CI de bestaande vertaalbatterij uitvoert. Kleine tijdelijke
-// locale-fixture; de echte CLI/check.ts worden gebundeld. Geen kopie van de vaste-tekstconfiguratie.
 {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const work = mkdtempSync(join(tmpdir(), 'ops-translate-fixed-text-'));
@@ -194,11 +167,9 @@ const en: JsonObject = {
       '--bundle', '--platform=node', '--format=esm', '--target=node22', '--log-level=error', `--outfile=${cli}`],
     { cwd: root, encoding: 'utf8', timeout: 30000 });
     eq(`172 CLI bundelt (${bundle.stderr})`, bundle.status, 0);
-    // prepare bundelt de echte check.ts via deze paden, precies zoals in de repo.
     symlinkSync(join(root, 'scripts'), join(work, 'scripts'), 'dir');
     symlinkSync(join(root, 'node_modules'), join(work, 'node_modules'), 'dir');
     mkdirSync(join(work, 'public/docs'), { recursive: true });
-    // De termbasepoort blijft actief: deze UI-fixture krijgt één geldige term in alle doeltalen.
     writeJson(join(work, 'i18n/termbase/concepts.json'), [{
       id: 'fixture-term', kind: 'term', nl: 'fixtureterm', en: ['fixture term'], definition: 'Term voor de CLI-fixture.',
     }]);
@@ -215,14 +186,12 @@ const en: JsonObject = {
       writeJson(locFile(lang), menu(want));
       if (lang !== 'nl') writeJson(srcFile(lang), { menu: { [key]: hashUnit('{{hours}}u'), otherHours: hashUnit('{{hours}} س') } });
     }
-    // De globale releasepoort vereist elke geregistreerde UI-taal (200), ook in deze kleine fixture.
     for (const lang of LOCALES.filter(lang => !['nl', 'en', 'ar', 'fa'].includes(lang))) {
       const actual = unitMap(readObj(join(root, 'src/i18n/locales', lang, 'menu.json'))).get(key)!.text;
       if (typeof actual !== 'string') throw new Error(`172 ${lang}: uurtekst moet één tekstwaarde zijn`);
       writeJson(locFile(lang), menu(actual));
       writeJson(srcFile(lang), { menu: { [key]: hashUnit('{{hours}}u'), otherHours: hashUnit('{{hours}} س') } });
     }
-    // Alle huidige, goedgekeurde uurteksten in andere talen blijven door de echte pakketpoort komen.
     const realNl = readObj(join(root, 'src/i18n/locales/nl/menu.json'));
     const realEn = readObj(join(root, 'src/i18n/locales/en/menu.json'));
     for (const lang of readdirSync(join(root, 'src/i18n/locales'))) {
@@ -252,7 +221,6 @@ const en: JsonObject = {
         expectExit(`172 ${lang} apply weigert ${wrong}`, run(cli, ['apply', 'ui', lang]), 1);
         eq(`172 ${lang} rode uitvoer verandert locale/hash niet`,
           [readFileSync(locFile(lang), 'utf8'), readFileSync(srcFile(lang), 'utf8')], [beforeLocale, beforeHash]);
-        // Omzeil apply door een handmatige edit: de actuele bron-hash mag de release niet groen maken.
         writeJson(locFile(lang), menu(wrong));
         const strict = run(cli, ['status', '--strict']);
         expectExit(`172 ${lang} release weigert ${wrong} met actuele hash`, strict, 1);

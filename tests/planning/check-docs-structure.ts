@@ -1,10 +1,3 @@
-// Contract C1 van de vertaalstraat (`scripts/lib/docs-structure.ts`): secties, hashes, structuur en
-// de parser-subset. De docs-straat en `verify-docs.ts` lezen exact deze functies; deze check pint het
-// contract vast. Exit 0 = groen.
-//
-// Mutatiebewijs: in `splitSections` een `## ` binnen een codeblok wél als kop zien ⇒ 05 rood;
-// `sectionHash` zonder `trimEnd` ⇒ 11 rood; in `structureOf` het `#anker` meenemen ⇒ 22 rood;
-// de tabelregel uit `subsetErrors` halen ⇒ 41 rood.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -45,7 +38,6 @@ const doc = [
   '',
 ].join('\n');
 
-// 1. Secties.
 const sections = splitSections(doc);
 eq('01 drie secties', sections.length, 3);
 eq('02 sectie 0 heeft geen kop', sections[0].heading, null);
@@ -57,7 +49,6 @@ eq('07 secties samen = de tekst', sections.map(s => s.text).join('\n'), doc);
 eq('08 artikel dat met ## begint: lege sectie 0', splitSections('## A\n\nx').map(s => [s.heading, s.text]), [[null, ''], ['A', '## A\n\nx']]);
 eq('09 CRLF wordt LF', splitSections('# T\r\n\r\n## A\r\nx').map(s => s.text), ['# T\n', '## A\nx']);
 
-// 2. Sectiehash.
 const expected = createHash('sha256').update('## A\nx', 'utf8').digest('hex').slice(0, 16);
 eq('10 sha256, eerste 16 hex', sectionHash('## A\nx'), expected);
 eq('11 witruimte aan het eind telt niet', sectionHash('## A\nx\n\n  \n'), expected);
@@ -65,7 +56,6 @@ eq('12 CRLF telt niet', sectionHash('## A\r\nx'), expected);
 ok('13 andere tekst ⇒ andere hash', sectionHash('## A\ny') !== expected);
 ok('14 16 hex-tekens', /^[0-9a-f]{16}$/.test(sectionHash('')));
 
-// 3. Structuur.
 eq('20 structureOf', structureOf(doc), {
   headings: [1, 2, 3, 2],
   links: ['docs://howto-a', 'examples://demo.ifc'],
@@ -84,7 +74,6 @@ ok('25 ander linkdoel ⇒ andere structuurhash', structureHash(doc.replace('docs
 ok('26 ander beeld ⇒ andere structuurhash', structureHash(doc.replace('x.webp', 'y.webp')) !== structureHash(doc));
 eq('27 structuurhash = 16 hex over de JSON', structureHash(doc), createHash('sha256').update(JSON.stringify(structureOf(doc)), 'utf8').digest('hex').slice(0, 16));
 
-// 4. Parser-subset.
 eq('40 schoon artikel: geen fouten', subsetErrors(doc), []);
 ok('41 tabel', subsetErrors('# T\n\n| a | b |').some(e => e.startsWith('3 tabel-syntax')));
 ok('42 h4', subsetErrors('#### x').some(e => e.startsWith('1 h4+')));
@@ -98,7 +87,6 @@ ok('48 afbeelding zonder alt', subsetErrors('![](img/x.webp)').some(e => e.inclu
 ok('49 onbekende placeholder', subsetErrors('![a](img/{taal}/x.webp)').some(e => e.includes('onbekende placeholder {taal}')));
 ok('50 pad buiten public/docs', subsetErrors('![a](../x.webp)').some(e => e.includes('relatief binnen public/docs')));
 
-// 5. De echte artikelen: geen subsetfouten, en elk artikel heeft sectie 0 met de H1.
 const manifest = JSON.parse(readFileSync(resolve(process.cwd(), 'public/docs/manifest.json'), 'utf8')) as { articles: { id: string }[] };
 let real = 0;
 for (const { id } of manifest.articles) {

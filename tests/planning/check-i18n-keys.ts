@@ -1,6 +1,3 @@
-// Bewijstest voor `scripts/verify-i18n-keys.mjs` (onderdeel van `npm run verify:i18n`): geen cast op
-// een vertaalsleutel. De echte repository moet groen zijn; elke castvorm op t/tX/i18n.t moet rood
-// worden met bestand en regel; `as const`, casts elders en woorden in commentaar of strings niet.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';

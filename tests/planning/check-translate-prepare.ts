@@ -1,11 +1,3 @@
-/**
- * Vertaalstraat — UI-pakketten maken (scripts/translate/ui.ts, ontwerp §5.1 en §9).
- *
- * Bewaakt: eenheden en meervoudsfamilies, voorbeeldgetallen per CLDR-categorie (ook decimalen),
- * --missing (halve familie telt als ontbrekend; een nieuwe taal = alles), --stale (alleen gewijzigde
- * nl-hash, met de oude vertaling als `previous`), de pakketgrenzen (aantal en tekens), en dat alleen
- * de termen en tokens meegaan die in de items voorkomen.
- */
 import {
   containsTerm, hashUnit, pluralExamples, unitsOf, type Concept, type LangTermbase,
 } from '../../scripts/translate/common';
@@ -20,7 +12,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
 };
 const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
 
-// ── 1. Eenheden: meervoudsfamilie = één eenheid ──────────────────────────────────────────────
 {
   const nl: JsonObject = { a: 'A', g: { n_one: '{{count}} taak', n_other: '{{count}} taken', b: 'B' } };
   eq('eenheden in volgorde, familie samengevoegd', unitsOf(nl).map(u => [u.key, u.plural]),
@@ -31,7 +22,6 @@ const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(l
   ok('hash van tekst ≠ hash van familie met dezelfde tekst', hashUnit('x') !== hashUnit({ other: 'x' }));
 }
 
-// ── 2. Voorbeeldgetallen per categorie ───────────────────────────────────────────────────────
 {
   const cs = pluralExamples('cs');
   eq('cs categorieën', Object.keys(cs), ['one', 'few', 'many', 'other']);
@@ -48,11 +38,9 @@ const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(l
   eq('ja alleen other', Object.keys(pluralExamples('ja')), ['other']);
 }
 
-// ── 3. --missing / --stale / nieuwe taal ─────────────────────────────────────────────────────
 {
   const nl: JsonObject = { a: 'Taak', b: 'Oud', f_one: '{{count}} taak', f_other: '{{count}} taken', c: 'Nieuw' };
   const en: JsonObject = { a: 'Task', b: 'Old', f_one: '{{count}} task', f_other: '{{count}} tasks', c: 'New' };
-  // cs heeft one/few/many/other; alleen one + other = halve familie.
   const cs: JsonObject = { a: 'Úkol', b: 'Starý', f_one: '{{count}} úkol', f_other: '{{count}} úkolů' };
   const sources = { common: { a: hashUnit('Taak'), b: hashUnit('Nog ouder') } };
   const missing = selectUnits({ ns: 'common', nl, en, target: cs }, 'cs', 'missing', sources).map(s => s.unit.key);
@@ -67,7 +55,6 @@ const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(l
   ok('geen meervoud in de items → geen plural-veld', packs[0].plural === undefined);
 }
 
-// ── 4. Pakketgrenzen ─────────────────────────────────────────────────────────────────────────
 {
   const nl: JsonObject = {};
   const en: JsonObject = {};
@@ -88,7 +75,6 @@ const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(l
   eq('één item per regel', text.split('\n').filter(l => l.startsWith('    {"key"')).length, 150);
 }
 
-// ── 5. Termen en tokens: alleen wat in de items voorkomt ─────────────────────────────────────
 {
   ok('woordgrens: "baseline" in "Save baseline"', containsTerm('Save baseline', 'baseline'));
   ok('meervoud: "baselines"', containsTerm('Clear baselines', 'baseline'));

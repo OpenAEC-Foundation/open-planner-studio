@@ -1,23 +1,3 @@
-/**
- * i18n-pluralisatie-contract — bewaakt de telsleutels van "Project verplaatsen…".
- *
- * AANLEIDING. De waarschuwingsregels toonden bij één item meervoud ("1 deadlines", "1 taken hebben
- * een harde Mandatory-pin"). Opgelost met i18next-pluralisatie (`_one`/`_other`/…), maar dat brengt
- * een valkuil mee die deze batterij afdekt:
- *
- *   Ontbreekt één plural-categorie in een taal, dan valt i18next NIET terug op de `_other` van
- *   diezelfde taal — hij loopt door naar `fallbackLng` en zet er ENGELSE tekst neer.
- *
- * Empirisch vastgesteld: met een Poolse bundel zonder `_few` levert `t(key, {count: 2})` de Engelse
- * string op. Poolse `few` geldt al bij 2, dus dat is geen theoretisch randgeval maar iets wat een
- * gebruiker met twee items direct ziet. Daarom eist deze check per taal EXACT de categorieën die
- * `Intl.PluralRules` voor die taal opgeeft — niet minder (Engelse lek) en niet meer (dode sleutel
- * die de suggestie wekt dat er iets vertaald is).
- *
- * De detailregel ("Meeverschoven — …") is bewust NIET gepluraliseerd: die propte vijf tellingen in
- * één zin, wat met één sleutel niet correct te krijgen is. Hij is omgebouwd naar "label: aantal",
- * waarin het label niet met het getal congrueert. Deze check bewaakt alleen dat die labels bestaan.
- */
 import i18next from 'i18next';
 
 import ar from '@/i18n/locales/ar/common.json';
@@ -56,29 +36,20 @@ const LOCALES: Record<string, Record<string, unknown>> = {
   hu: hu_, ro: ro_, sv: sv_, nb: nb_, da: da_, fi: fi_, lo: lo_,
 };
 
-/** Sleutels die met een `count` worden aangeroepen en dus per taal alle categorieën nodig hebben. */
 const PLURAL_KEYS = [
   'affectedTasks', 'warnActuals', 'warnHardPins', 'warnExternalKept', 'warnCustomDateFields',
 ] as const;
 
-/** Sleutels van de "label: aantal"-detailregel — geen pluralisatie, wel verplicht aanwezig. */
 const LABEL_KEYS = [
   'affectedDetail', 'detailConstraints', 'detailDeadlines',
   'detailActuals', 'detailSteps',
-  // De kalender-ingreep heeft drie varianten: einde én duur verschoven (durationChanged), alleen
-  // het einde (endShiftedOnly) of alleen de duur (durationOnly). Eén tekst die altijd beide noemt
-  // levert in de laatste twee gevallen een lege mededeling op ("van 177 naar 177 werkdagen").
   'durationChanged', 'endShiftedOnly', 'durationOnly',
 ] as const;
 
-/** Tellingen waarmee elke taal wordt afgevuurd; dekt one/two/few/many/other in ar en pl. */
 const PROBE_COUNTS = [0, 1, 2, 3, 5, 11, 21, 100];
 
 const diffs: string[] = [];
 let checks = 0;
-// Besluit B5 (2026-10-10): een andere taal dan nl/en mag een sleutel of een hele familie nog missen (de app
-// valt terug op en, de vertaalstraat vult hem vóór een release). Wat er wél staat, moet kloppen; een
-// halve familie blijft fout.
 const optional = (loc: string) => loc !== 'nl' && loc !== 'en';
 const familyAbsent = (mp: Record<string, string>, key: string) =>
   !Object.keys(mp).some(k => k === key || k.startsWith(`${key}_`));
@@ -87,9 +58,6 @@ const fail = (msg: string) => diffs.push(msg);
 const moveProjectOf = (loc: string) =>
   (LOCALES[loc].moveProject ?? {}) as Record<string, string>;
 
-// ── 0. Volledigheid: de lijst hierboven dekt exact de UI-talen van src/i18n/locales.ts ──────────
-// De imports zijn statisch (esbuild bundelt geen glob), dus deze lijst is handwerk. Een nieuwe UI-taal
-// die hier ontbreekt, viel voorheen stil buiten de check (`lo`, review C 2026-10-20).
 {
   checks++;
   const missing = UI_LOCALES.filter(l => !(l in LOCALES));
@@ -99,11 +67,8 @@ const moveProjectOf = (loc: string) =>
   }
 }
 
-// ── 1. Structuur: exact de categorieën die de taal volgens CLDR kent ──────────
 for (const loc of Object.keys(LOCALES)) {
   const mp = moveProjectOf(loc);
-  // Expliciet Set<string>: `pluralCategories` is `LDMLPluralRule[]`, maar we vergelijken hem met
-  // vrije sleutel-achtervoegsels uit de vertaalbestanden (gewone strings).
   const expected = new Set<string>(new Intl.PluralRules(loc).resolvedOptions().pluralCategories);
 
   for (const key of PLURAL_KEYS) {
@@ -123,7 +88,6 @@ for (const loc of Object.keys(LOCALES)) {
       fail(`${loc}/${key}: ${parts.join(' · ')} (verwacht precies ${[...expected].sort().join(',')})`);
     }
 
-    // Elke vorm moet het getal ook echt tonen.
     for (const cat of expected) {
       const v = mp[`${key}_${cat}`];
       if (typeof v === 'string' && !v.includes('{{count}}')) {
@@ -139,7 +103,6 @@ for (const loc of Object.keys(LOCALES)) {
     if (typeof v !== 'string' || v.trim() === '') fail(`${loc}/${key}: ontbreekt of leeg`);
   }
 
-  // De detailregel wordt met {{items}} gevoed; de oude vijf-tellingen-vorm mag niet terugkomen.
   checks++;
   const detail = mp.affectedDetail;
   if (typeof detail === 'string' && !detail.includes('{{items}}')) {
@@ -147,23 +110,19 @@ for (const loc of Object.keys(LOCALES)) {
   }
 }
 
-// ── 2. Sleutelpariteit: elke taal dezelfde niet-getelde sleutels als het Nederlands ──
 const baseKeys = (loc: string) =>
   new Set(Object.keys(moveProjectOf(loc)).filter(
     k => !PLURAL_KEYS.some(p => k === p || k.startsWith(`${p}_`)),
   ));
 const nlBase = baseKeys('nl');
 for (const loc of Object.keys(LOCALES)) {
-  if (loc === 'nl' || optional(loc)) continue; // B5: alleen en moet compleet zijn
+  if (loc === 'nl' || optional(loc)) continue;
   checks++;
   const mine = baseKeys(loc);
   const missing = [...nlBase].filter(k => !mine.has(k));
   if (missing.length) fail(`${loc}: mist moveProject-sleutels t.o.v. nl: ${missing.join(', ')}`);
 }
 
-// ── 3. Runtime: los i18next per taal, ZONDER terugval — een gat komt dan als sleutel terug ──
-// fallbackLng:false is hier het hele punt. Met terugval zou een ontbrekende categorie stilletjes
-// Engels opleveren en zou deze check niets bewijzen.
 for (const loc of Object.keys(LOCALES)) {
   const inst = i18next.createInstance();
   await inst.init({
@@ -199,7 +158,6 @@ for (const loc of Object.keys(LOCALES)) {
   }
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  i18n-plurals: alle checks groen (${checks})`);
   process.exit(0);

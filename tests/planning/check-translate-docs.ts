@@ -1,17 +1,3 @@
-/**
- * Vertaalstraat — docs-straat (scripts/translate/docs.ts + checkDocs in gates.ts; ontwerp §5.2, §5.3,
- * §7, §9; contracten C2 en C3).
- *
- * Bewaakt: de labelkaart (a/b/c, pad, dubbelzinnigheid), stam- en woordgrenszoeken, de pakketgrens
- * (een sectie wordt nooit geknipt), --missing/--stale/--ids met koppeling op inhoud, de harde en zachte
- * docs-poort, samenvoegen (alleen wat klopt, oude hash voor een verouderde sectie zonder pakket), C2-
- * opmaak, hernoemen, de releasegaten, en de bronnen: docs-literal.json en _style.docs per taal.
- *
- * Mutatiebewijs: in `linkSections` op positie koppelen ⇒ 07a rood; in `checkDocsSection` de
- * display-uitzondering weghalen ⇒ 09c rood; de NON_ASCII_DIGIT-poort weghalen ⇒ 10f rood;
- * `mergeArticle` een behouden verouderde sectie de nieuwe hash geven ⇒ 11e rood; in `classifyItalic` de
- * tabbladfilter weghalen ⇒ 16b en 16f rood; de tabbladpoort in `checkDocsSection` uitzetten ⇒ 16f rood.
- */
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { spawnSync } from 'node:child_process';
 import { dirname, join, resolve } from 'node:path';
@@ -41,7 +27,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
 const ok = (label: string, cond: boolean) => { checks++; if (!cond) diffs.push(label); };
 const has = (label: string, lines: string[], re: RegExp) => ok(`${label} (kreeg: ${lines.join(' | ') || '(niets)'})`, lines.some(l => re.test(l)));
 
-// ── Gedeelde invoer: een mini-UI in nl/en/cs en een mini-artikel ─────────────────────────────
 const nl: JsonObject = {
   dlg: { relType: 'Type relatie', save: 'Opslaan', link: 'Relatie', linkVerb: 'Koppelen', created: 'Relatie aangemaakt: {{from}} → {{to}}', menu: 'Start', tasks: 'Taken' },
 };
@@ -103,13 +88,11 @@ const CS_OK = [
   '',
 ].join('\n');
 
-// ── 01. Inline-tokens en blokken zoals miniMarkdown ──────────────────────────────────────────
 eq('01a cursief, vet en code gescheiden', [italicsOf('Een **vet** en *cursief* en `code *geen*`.'), codesOf('`a` en `b`')], [['cursief'], ['a', 'b']]);
 eq('01b blokken', blocksOf(ART).map(b => `${b.kind}${b.items || ''}`), ['h1', 'p', 'h2', 'ol2', 'p', 'h2', 'ul1']);
 eq('01c "18. června" aan het begin van een regel wordt een lijst', blocksOf('Začíná\n18. června.').map(b => b.kind), ['p', 'ol']);
 eq('01d titel zonder opmaak', titleOf('# Het *venster* `x`\n\ntekst'), 'Het venster x');
 
-// ── 02. Zoeken op stam en als los woord ──────────────────────────────────────────────────────
 ok('02a stam: successors', hasStem('the successors move', 'successor'));
 ok('02b stam: cs naamval', hasStem('Aplikace přesune následníka.', 'následník'));
 ok('02c stam: geen ander woord', !hasStem('a predecessor', 'successor'));
@@ -124,7 +107,6 @@ eq('02k normLabel: punten middenin blijven staan', normLabel('Versie 1.2: klaar!
 eq('02l normLabel: alleen eindtekens', normLabel(' ... … : . '), '');
 eq('02m normLabel: pijlen en hun witruimte', [normLabel(' A \t▾\n B '), normLabel(' A ▾ ▾ B ')], ['A B', 'A  B']);
 {
-  // Een regressie mag de suite niet laten hangen: voer de echte functie met tijdslimiet uit.
   const probe = spawnSync(process.execPath, ['--input-type=module', '-e', `
     const normalize = (${normLabel.toString()});
     const samples = [
@@ -140,7 +122,6 @@ eq('02m normLabel: pijlen en hun witruimte', [normLabel(' A \t▾\n B '), normLa
     { status: 0, stderr: '' });
 }
 
-// ── 03. Labelkaart a/b/c ─────────────────────────────────────────────────────────────────────
 {
   const kinds = (s: string) => classifyItalic(s, index, literals).map(c => `${c.kind}:${c.en}`);
   eq('03a soort a (genormaliseerd: Save… = Save)', kinds('Save'), ['a:Save']);
@@ -154,9 +135,8 @@ eq('02m normLabel: pijlen en hun witruimte', [normLabel(' A \t▾\n B '), normLa
   eq('03f dubbelzinnig: alle doelteksten met sleutelpad', [link?.targets, link?.keys], [['Závislost', 'Propojit'], ['common:dlg.link', 'common:dlg.linkVerb']]);
   eq('03g eenduidig: geen sleutels in het pakket', r.labels.find(l => l.en === 'Relation type')?.keys, undefined);
   ok('03h sleutels met doeltekst-hash voor C3', r.keys['common:dlg.relType'] === sectionHash('Typ závislosti'));
-  const fresh = buildEnLabelIndex([{ ns: 'common', nl, en, target: cs }], 'be', {}); // be: nieuwe taal, geen basislijn
+  const fresh = buildEnLabelIndex([{ ns: 'common', nl, en, target: cs }], 'be', {});
   eq('03i nieuwe taal zonder bron-hash: geen doeltekst (Engelse vulling)', fresh.exact.get('Relation type')?.[0].target, undefined);
-  // Een invulplek slokt geen menupad op (zh: *Resources › Manage › New resource* werd "{{count}} 个资源").
   const pathIdx = buildEnLabelIndex([{ ns: 'menu',
     nl: { m: { manage: 'Beheren', sel: '{{count}} geselecteerde resources' } },
     en: { m: { manage: 'Manage', sel: '{{count}} selected resources' } },
@@ -164,7 +144,6 @@ eq('02m normLabel: pijlen en hun witruimte', [normLabel(' A \t▾\n B '), normLa
   eq('03j pad dat op een patroon eindigt: per deel, patroon alleen op het laatste deel',
     classifyItalic('Home › Manage › Two selected resources', pathIdx, new Set()).map(c => `${c.kind}:${c.en}`),
     ['a:Manage', 'b:Two selected resources']);
-  // Meervoud: en one/other tegenover ar met zes vormen (en `one` schrijft het getal uit). Elke ar-vorm telt.
   const nlP: JsonObject = { cp: { summary_one: 'Kritiek pad: {{count}} taak, {{duration}} werkdagen', summary_other: 'Kritiek pad: {{count}} taken, {{duration}} werkdagen' } };
   const enP: JsonObject = { cp: { summary_one: 'Critical path: {{count}} task, {{duration}} work days', summary_other: 'Critical path: {{count}} tasks, {{duration}} work days' } };
   const arP: JsonObject = { cp: {
@@ -178,7 +157,6 @@ eq('02m normLabel: pijlen en hun witruimte', [normLabel(' A \t▾\n B '), normLa
   ok('03k meervoud: elke ar-vorm is een kandidaat (ook many/other met {{count}})', plTargets.length === 5 && plTargets.some(t => t.includes('{{count}} مهمة')));
 }
 
-// ── 04. Termen, tokens, keep, display in het pakket ──────────────────────────────────────────
 const art = { id: 'art', md: ART };
 {
   const [p] = buildDocsPackages({ lang: 'cs', articles: [art], mode: 'missing', sources: {}, index, literal, concepts, termbase: tb });
@@ -189,7 +167,6 @@ const art = { id: 'art', md: ART };
   eq('04e style met docs', p.pkg.style?.docs, 'Guides: formal.');
 }
 
-// ── 05. Pakketgrens: hele secties, -01/-02 ───────────────────────────────────────────────────
 {
   const big = ['# T', '', 'intro', '', '## A', '', 'w '.repeat(60), '', '## B', '', 'w '.repeat(60), '', '## C', '', 'w '.repeat(200), ''].join('\n');
   const packs = buildDocsPackages({ lang: 'cs', articles: [{ id: 'big', md: big }], mode: 'missing', sources: {}, index, literal, concepts, maxWords: 100 });
@@ -198,7 +175,6 @@ const art = { id: 'art', md: ART };
   eq('05b part/parts', packs.map(p => `${p.pkg.part}/${p.pkg.parts}`), ['1/3', '2/3', '3/3']);
 }
 
-// ── 06–08. Toestand, koppeling op inhoud, --stale ────────────────────────────────────────────
 const entryFor = (md: string, keysPerSection: Record<string, string>[] = []): DocsSources[string] => ({
   structure: structureHash(md),
   sections: splitSections(md).map((s, i) => ({ hash: sectionHash(s.text), labels: keysPerSection[i] ?? {} })),
@@ -232,7 +208,6 @@ eq('07b verwijderen', linkSections(['a', 'b', 'c'], ['a', 'c']), [0, 2]);
   eq('08f --ids: heel artikel met de huidige vertaling als previous', Object.keys(ids[0].pkg.previous ?? {}), ['0', '1', '2']);
 }
 
-// ── 09–10. De docs-poort ─────────────────────────────────────────────────────────────────────
 const [PKG] = buildDocsPackages({ lang: 'cs', articles: [art], mode: 'missing', sources: {}, index, literal, concepts, termbase: tb });
 const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
 {
@@ -262,7 +237,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   has('10p avoid als los woord is hard, met de term erbij', run(CS_OK.replace('Následník', 'Nástupce')).errors, /vermijd "nástupce" \(successor\) — schrijf de term "následník"/);
 }
 {
-  // Pakket zonder sectie 0: de uitvoer begint met een ##-kop.
   const [p2] = buildDocsPackages({ lang: 'cs', articles: [art], mode: 'missing', sources: {}, index, literal, concepts, maxWords: 25 });
   ok('10q pakket zonder sectie 0 bestaat', p2.pkg.sections[0].index === 0);
   const packs = buildDocsPackages({ lang: 'cs', articles: [art], mode: 'missing', sources: {}, index, literal, concepts, maxWords: 25 });
@@ -272,7 +246,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   has('10s tekst vóór de eerste ## is fout', checkDocs(tail.pkg, tail.src, `Intro\n\n${outTail}`).errors, /tekst vóór de eerste ##-kop/);
 }
 
-// ── 11. Samenvoegen ──────────────────────────────────────────────────────────────────────────
 {
   const labelsOf = (i: number, text: string) => sectionLabels(i, text, index, literals).keys;
   const m = mergeArticle({ enMd: ART, labelHashes: index.hashes, labelsOf, packages: [{ pkg: PKG.pkg, out: CS_OK }] });
@@ -280,7 +253,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   if (!('error' in m)) {
     eq('11b C3: structuur en per sectie hash + sleutels', [m.entry.structure, m.entry.sections.map(s => s.hash)], [structureHash(ART), splitSections(ART).map(s => sectionHash(s.text))]);
     eq('11b\' artikelpoort groen', checkDocsArticle(ART, m.md), []);
-    // Twee secties veranderen in en; er is maar een pakket voor één ervan.
     const next = ART.replace('Goal: link', 'Goal: connect').replace('the four kinds', 'all four kinds');
     const packs = buildDocsPackages({ lang: 'cs', articles: [{ id: 'art', md: next, translated: m.md }], mode: 'stale', sources: { art: m.entry }, index, literal, concepts, maxWords: 1 });
     eq('11c twee verouderde secties, twee pakketten', packs.map(p => p.pkg.sections[0].index), [0, 2]);
@@ -308,7 +280,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   }
 }
 
-// ── 12. C2 en C3 ─────────────────────────────────────────────────────────────────────────────
 {
   const text = serializeDocsIndex({ b: 'Bé', a: 'A "x"', z: 'Wees' }, ['a', 'b']);
   eq('12a C2: één regel per artikel, manifest-volgorde, wees achteraan', text, '{\n"a": {"title": "A \\"x\\""},\n"b": {"title": "Bé"},\n"z": {"title": "Wees"}\n}\n');
@@ -316,7 +287,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   eq('12c C3 in manifest-volgorde', Object.keys(orderDocsSources({ z: entryFor(ART), a: entryFor(ART) }, ['a'])), ['a', 'z']);
 }
 
-// ── 13. Hernoemen ────────────────────────────────────────────────────────────────────────────
 {
   eq('13a links met en zonder anker, niet een langer id', renameDocLinks('[a](docs://x) [b](docs://x#k) [c](docs://xy)', 'x', 'y'), '[a](docs://y) [b](docs://y#k) [c](docs://xy)');
   const after = renameDocLinks(ART, 'uitleg-relaties', 'uitleg-relaties-2');
@@ -324,7 +294,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   eq('13b C3 volgt de hernoeming: alles actueel', articleState('art', after, renameDocLinks(CS_OK, 'uitleg-relaties', 'uitleg-relaties-2'), moved, index.hashes).state, 'current');
 }
 
-// ── 14. Status en releasepoort ───────────────────────────────────────────────────────────────
 {
   const added = ART.replace('## See also', '## Pitfalls\n\nWatch FS.\n\n## See also');
   const states = [
@@ -336,7 +305,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   eq('14b releasegaten', docsReleaseGaps('cs', states).map(g => `${g.where}:${g.state}`), ['docs:a:missing', 'docs:b#2:stale']);
 }
 
-// ── 15. Bronnen: docs-literal.json en _style.docs ────────────────────────────────────────────
 {
   const root = process.cwd();
   const lit = JSON.parse(readFileSync(resolve(root, 'i18n/docs-literal.json'), 'utf8')) as DocsLiteral;
@@ -346,7 +314,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
     for (const f of readdirSync(resolve(root, 'src/i18n/locales/en'))) walk(JSON.parse(readFileSync(resolve(root, `src/i18n/locales/en/${f}`), 'utf8')) as JsonObject);
     return out;
   })();
-  // Het tutorialproject en elk voorbeeldproject: de lijst is precies wat `translate docs-literal` eruit haalt.
   const extracted = (file: string): string[] | undefined => {
     const text = readFileSync(resolve(root, file), 'utf8');
     if (file === 'scripts/tutorial-project.ts') return literalCandidates(tutorialNames(text), enUi);
@@ -373,7 +340,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
     const codes = codesOf(readFileSync(resolve(root, `public/docs/en/${id}.md`), 'utf8'));
     for (const d of list) ok(`15c display \`${d}\` staat als inline code in en/${id}.md`, codes.includes(d));
   }
-  // _style.docs: elke taal, met het eigen UI-label voor Save en Relation type letterlijk in het voorbeeld.
   const keyOf = (text: string): [string, string] | undefined => {
     for (const [ns, o] of Object.entries(enLoc)) {
       const walk = (x: JsonObject, p: string): string | undefined => {
@@ -403,14 +369,11 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   }
 }
 
-// ── 16. Docs-straat v2: termbetekenis, tabbladen, voorbeeldnamen, avoid hard, invulplekken ─────
 {
-  // 16a: elke term krijgt zijn definitie mee (docs en UI).
   const withDef: Concept[] = concepts.map(c => c.id === 'successor' ? { ...c, definition: 'The task that follows another task in a relation.' } : c);
   const [p] = buildDocsPackages({ lang: 'cs', articles: [art], mode: 'missing', sources: {}, index, literal, concepts: withDef, termbase: tb });
   eq('16a docs-term met definition', p.pkg.terms[0]?.definition, 'The task that follows another task in a relation.');
 
-  // 16b–f: tabbladen. "Planning" is in cs zowel het linttabblad (Plán) als een kolomgroep (Plánování).
   const nlM: JsonObject = { ribbon: { planning: 'Planning', start: 'Start' }, columns: { planning: 'Planning' } };
   const enM: JsonObject = { ribbon: { planning: 'Planning', start: 'Home' }, columns: { planning: 'Planning' } };
   const csM: JsonObject = { ribbon: { planning: 'Plán', start: 'Domů' }, columns: { planning: 'Plánování' } };
@@ -438,7 +401,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   has('16f cs-geval fout: *Plánování › Závislosti* (zoals in de proef)', tRun(TAB_OK.replace('*Plán › Závislosti*', '*Plánování › Závislosti*')).errors,
     /label \*Planning\* staat 2× op een tabbladplek.*1× \*Plán\*/);
 
-  // 16g–l: voorbeeldnamen letterlijk, ook tussen aanhalingstekens en als linktekst van een examples://-link.
   const lits = new Set(['House extension', 'Refurbishment & Extension of a Family Home', 'Pour foundation']);
   eq('16g geciteerd en examples-link', quotedNames('In "House extension" and [Refurbishment & Extension of a Family Home](examples://x.ifc); not "other" or `"Pour foundation"`.', lits),
     ['Refurbishment & Extension of a Family Home', 'House extension']);
@@ -458,7 +420,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   eq('16l\' decodeIfcString', decodeIfcString("a''b \\X\\E9"), "a'b é");
   eq('16l" en-UI-tekst valt weg', literalCandidates(['Save', 'House extension', 'x'], new Set(['Save'])), ['House extension']);
 
-  // 16m–r: avoid als los woord is hard; alleen vormen die het woord bevatten worden weggestreept.
   eq('16m "na" maakt van "nakonec" geen los "konec"', avoidWords('úkoly na sobě nakonec závisejí', ['na'], ['konec']), []);
   eq('16m\' eigen langere vorm streept weg', avoidWords('do konec projektu', ['konec projektu'], ['konec']), []);
   const cpTb: LangTermbase = {
@@ -479,13 +440,11 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   const sr = checkDocs(soft.pkg, soft.src, CP_CS.replace('Každý následník', 'Každý nástupce'));
   ok('16r avoidSoft: waarschuwing, geen fout', sr.errors.length === 0 && sr.warnings.some(w => /vermijd "nástupce".*gewoon woord/.test(w)));
 
-  // 16s–t: een {{…}} die de bron niet heeft (de proef: `*عرض كل الإصدارات ({{n}})*`).
   has('16s invulplek in de proza zonder bron: hard', run(CS_OK.replace('*Uložit*', '*Uložit ({{n}})*')).errors, /invulplek \{\{n\}\} staat niet in de bron/);
   const PH = '# P\n\nType `{{name}}` or {{name}} here.\n';
   const [pp] = buildDocsPackages({ lang: 'cs', articles: [{ id: 'p', md: PH }], mode: 'missing', sources: {}, index, literal, concepts });
   eq('16t invulplek die de bron ook heeft: geen fout', checkDocs(pp.pkg, pp.src, '# P\n\nNapište sem `{{name}}` nebo {{ name }}.\n').errors, []);
 
-  // 16u–v: de tabbladsleutels volgen de code.
   const root = process.cwd();
   const types = readFileSync(resolve(root, 'src/state/slices/types.ts'), 'utf8');
   const union = /export type RibbonTab\s*=\s*([^;]+);/.exec(types)?.[1].match(/'([^']+)'/g)?.map(x => x.slice(1, -1));
@@ -497,7 +456,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
     SETTINGS_GROUP_IDS.map(group => `common:settings.groups.${group}`));
 }
 
-// ── 17. Getallen in UI-labels (labelregel gaat voor de cijferregel) ──────────────────────────
 {
   const unitNl: JsonObject = { lib: { updated_one: '1 item bijgewerkt uit de bibliotheek', updated_other: '{{count}} items bijgewerkt uit de bibliotheek' } };
   const unitEn: JsonObject = { lib: { updated_one: '1 item updated from the library', updated_other: '{{count}} items updated from the library' } };
@@ -513,7 +471,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   eq('17b cs "1 položka aktualizována z knihovny": groen', lRun('# L\n\nNa konci uvidíte *1 položka aktualizována z knihovny* po 3 krocích.\n').errors, []);
   has('17c verkeerd label blijft rood', lRun('# L\n\nNa konci uvidíte *něco jiného* po 3 krocích.\n').errors, /moet letterlijk/);
   has('17d een getal buiten het label blijft verplicht', lRun('# L\n\nNa konci uvidíte *1 položka aktualizována z knihovny* po třech krocích.\n').errors, /getal 3 staat 1× in de bron/);
-  // fr "2 dernières semaines" zit in "12 dernières semaines": wegstrepen mag het getal 12 niet halveren.
   const MD2 = '# L\n\nSee *1 item updated from the library* or 11 items updated from the library.\n';
   const [lp2] = buildDocsPackages({ lang: 'cs', articles: [{ id: 'l2', md: MD2 }], mode: 'missing', sources: {}, index: csIdx, literal, concepts });
   eq('17e label als deel van een langer getal: 11 blijft 11', checkDocs(lp2.pkg, lp2.src,
@@ -529,8 +486,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   const [ap] = buildDocsPackages({ lang: 'ar', articles: [{ id: 'a', md: AR_MD }], mode: 'missing', sources: {}, index: arIdx, literal, concepts });
   eq('17e ar-label met uitgeschreven getal: geen cijferfout', checkDocs(ap.pkg, ap.src, '# A\n\nافتح الملف؛ *مهمة واحدة تعرض التأخير*.\n').errors, []);
 
-  // Twee en-labels met dezelfde vertaling (cs ref-meldingen): knop "Out of date — recalculate (F5)" en tooltip
-  // "Schedule out of date — recalculate (F5)". De vertaling van de cursieve tooltip mag niet ook de knoptekst wegstrepen.
   const f5En: JsonObject = { sb: { stale: 'Out of date — recalculate (F5)', staleTip: 'Schedule out of date — recalculate (F5)' } };
   const f5Nl: JsonObject = { sb: { stale: 'Verouderd — herbereken (F5)', staleTip: 'Planning verouderd — herbereken (F5)' } };
   const f5Cs: JsonObject = { sb: { stale: 'Plán je zastaralý — přepočítejte (F5)', staleTip: 'Plán je zastaralý — přepočítejte (F5)' } };
@@ -539,14 +494,12 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   const [fp] = buildDocsPackages({ lang: 'cs', articles: [{ id: 's', md: F5_MD }], mode: 'missing', sources: {}, index: f5Idx, literal, concepts });
   eq('17f twee labels, één vertaling: het getal buiten het label telt aan beide kanten even vaak', checkDocs(fp.pkg, fp.src,
     '# S\n\n**Plán je zastaralý — přepočítejte (F5)** (bublina: *Plán je zastaralý — přepočítejte (F5)*).\n').errors, []);
-  // Tegentest (review PR 2): het label vet in plaats van cursief mag een weggelaten getal elders niet afdekken.
   const F5_MD2 = '# S\n\nClick *Schedule out of date — recalculate (F5)*. Then press F5 again.\n';
   const [fp2] = buildDocsPackages({ lang: 'cs', articles: [{ id: 's2', md: F5_MD2 }], mode: 'missing', sources: {}, index: f5Idx, literal, concepts });
   has('17g label vet in plaats van cursief + getal weggelaten: rood', checkDocs(fp2.pkg, fp2.src,
     '# S\n\nKlikněte na **Plán je zastaralý — přepočítejte (F5)**. Pak stiskněte klávesu znovu.\n').errors, /getal 5 staat 1× in de bron, 0×/);
 }
 
-// ── 18. Randgevallen van de cijfer-, plekhouder- en avoid-regel bij labels ───────────────────
 {
   const e18: JsonObject = { s: {
     critical: 'Critical', status_one: 'Critical path: {{count}} task, {{duration}} work days', status_other: 'Critical path: {{count}} tasks, {{duration}} work days',
@@ -568,31 +521,26 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   const mk = (md: string) => buildDocsPackages({ lang: 'cs', articles: [{ id: 'x', md }], mode: 'missing', sources: {}, index: idx18, literal, concepts: c18, termbase: tb18 })[0];
   const errs = (md: string, out: string) => { const q = mk(md); return checkDocs(q.pkg, q.src, out).errors; };
 
-  // 18a/b: een kort label (*Critical*) valt niet weg binnen een langer label (*Critical path: 21 tasks, 45 work days*).
   const SRC_A = '# T\n\n## Rekenen\n\nThe column *Critical* counts. The status bar says *Critical path: 21 tasks, 45 work days*. All 21 tasks are critical.\n';
   const OUT_A = '# T\n\n## Rekenen\n\nSloupec *Kritický* se počítá. Stavový řádek hlásí *Kritická cesta: 21 úkolů, 45 pracovních dnů*. Všech 21 úkolů je kritických.\n';
   eq('18a kort label binnen lang label: cijfers groen', errs(SRC_A, OUT_A), []);
   has('18b het getal buiten het label blijft verplicht', errs(SRC_A, OUT_A.replace('Všech 21 úkolů je kritických.', 'Všechny úkoly jsou kritické.')), /getal 21 staat 1× in de bron, 0× in de vertaling/);
 
-  // 18c/d: een label met cijfers dat in de bron gewoon staat en in de vertaling cursief (of andersom).
   const SRC_B = '# T\n\n## Kwaliteit\n\nThe report starts with the DCMA 14-point assessment. See *DCMA 14-point assessment* for more.\n';
   eq('18c label met cijfer, plat en cursief: groen', errs(SRC_B, '# T\n\n## Kwaliteit\n\nZpráva začíná *14bodové hodnocení DCMA*. Více viz *14bodové hodnocení DCMA*.\n'), []);
   const OUT_B = '# T\n\n## Kwaliteit\n\nZpráva začíná *14bodové hodnocení DCMA*. Více viz *14bodové hodnocení DCMA*.\n';
   has('18d een ander getal blijft rood', errs(SRC_B + '\nIt has 5 checks.\n', OUT_B + '\nMá pět kontrol.\n'), /getal 5 staat 1× in de bron, 0× in de vertaling/);
 
-  // 18e/f/g: enkele accolade in een label is een plekhouder; avoid-woord binnen een herkend label is geen fout.
   const SRC_C = '# T\n\n## Meldingen\n\nThe relations form a cycle: *Circular dependency between tasks: {path}* appears.\n';
   eq('18e {path} als plekhouder, avoid-woord in het label: groen', errs(SRC_C, '# T\n\n## Meldingen\n\nZávislosti tvoří cyklus: *Cyklická závislost mezi úkoly: {path}* se zobrazí.\n'), []);
   has('18f een ander label voor {path} blijft rood', errs(SRC_C, '# T\n\n## Meldingen\n\nZávislosti tvoří cyklus: *Cyklus vazeb mezi úkoly: {path}* se zobrazí.\n'), /volgens het patroon/);
   has('18g avoid-woord buiten een label blijft rood', errs(SRC_C, '# T\n\n## Meldingen\n\nZávislosti tvoří cyklická závislost: *Cyklická závislost mezi úkoly: {path}* se zobrazí.\n'), /vermijd "cyklická závislost"/);
 
-  // 18h/i: typografische aanhalingstekens rond een plekhouder.
   const SRC_D = "# T\n\n## Valkuilen\n\nThe app can report *Hour task 'name' has no valid working hours in its calendar*.\n";
   eq('18h „naam“ i.p.v. \'naam\' rond de plek: groen', errs(SRC_D, '# T\n\n## Valkuilen\n\nAplikace může hlásit *Hodinový úkol „name“ nemá platné pracovní hodiny ve svém kalendáři*.\n'), []);
   has('18i andere woorden blijven rood', errs(SRC_D, '# T\n\n## Valkuilen\n\nAplikace může hlásit *Hodinový úkol „name“ nemá pracovní dobu*.\n'), /volgens het patroon/);
 }
 
-// ── 19. Mijlpaalmeldingen: echte broncitaten, één pluralcategorie en de UI→docs-keten (#171) ──
 {
   const namedKeys = ['milestoneRefusedAssignments', 'milestoneRefusedSummary', 'milestoneClearedOnPhase'];
   const allKeys = namedKeys.flatMap(key => [key, `${key}Many`]);
@@ -610,8 +558,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
 
   for (const lang of ['zh', 'ja', 'ko', 'lo']) {
     eq(`19 ${lang}: één CLDR-categorie`, new Intl.PluralRules(lang).resolvedOptions().pluralCategories, ['other']);
-    // Migratie-fixture: de bestaande telteksten blijven, de naamvertaling ontbreekt nog (B5).
-    // Alleen in het geheugen vullen we de namen met Engels; dit levert geen localevertalingen op.
     const real = readCommon(lang).notifications as JsonObject;
     let target: JsonObject = { notifications: Object.fromEntries(namedKeys.map(key =>
       [`${key}Many_other`, real[`${key}Many_other`] ?? (en.notifications as JsonObject)[`${key}Many_other`]])) };
@@ -637,7 +583,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
         outputs[item.key] = out[item.key];
       }
       eq(`19 ${lang}: echte UI-poort accepteert de juiste sleutelsoorten`, checkUi(pkg, out).errors, []);
-      // Een teltekst op de naamsleutel mist {{task}}/{{phase}} en blijft hard rood.
       const first = pkg.items[0];
       if (first && !first.plural) {
         ok(`19 ${lang}: teltekst mag de naam niet vervangen`, checkUi(pkg, { ...out, [first.key]: '2 tasks cannot become milestones.' }).errors.length > 0);
@@ -675,7 +620,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   }
 }
 
-// 104: echte CLI-keten voor UI/docs-zegels en check-docs, niet alleen de pure pakketfuncties.
 {
   const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
   const work = mkdtempSync(join(tmpdir(), 'ops-docs-cli-'));
@@ -770,7 +714,6 @@ const run = (out: string) => checkDocs(PKG.pkg, PKG.src, out);
   }
 }
 
-// ── 20. Codeblokken: een promptblok blijft er een, wordt vertaald en houdt zijn technische stukken ──
 {
   const SRC = '# P\n\n## Quick\n\nCopy the prompt.\n\n```prompt\nInstall it from https://example.com/latest. Ask me first.\n\nIf you run in Claude Code:\n1. Read manifest.json: server.mcp_config, ${__dirname}.\n2. Run claude mcp add open-planner-studio --scope user -e OPS_MCP_ROOT=<working folder> -- node <unpacked folder>/server/index.mjs\n- Then /mcp shows it.\n```\n\n```\nclaude mcp add x -- node /path/to/server.mjs\n```\n';
   const OUT = '# P\n\n## Quick\n\nKopiere den Prompt.\n\n```prompt\nInstalliere es von https://example.com/latest. Frag mich zuerst.\n\nWenn du in Claude Code läufst:\n1. Lies manifest.json: server.mcp_config, ${__dirname}.\n2. Führe claude mcp add open-planner-studio --scope user -e OPS_MCP_ROOT=<Arbeitsordner> -- node <entpackter Ordner>/server/index.mjs aus\n- Dann zeigt /mcp es.\n```\n\n```\nclaude mcp add x -- node /pfad/zu/server.mjs\n```\n';

@@ -1,13 +1,3 @@
-/**
- * `npm run i18n:resolve` end-to-end, in een wegwerp-git-repo met alle locale-bestanden.
- *
- * Bootst eerst de valkuil na waarvoor het script bestaat: de ene branch verwijdert een sleutel, de
- * andere verplaatst hem alleen (zoals de eenmalige herschikking) — git voegt dat "zonder conflict"
- * samen en de sleutel staat er weer. Daarna: het script herstelt dat tijdens de merge én achteraf op
- * de merge-commit, laat een echte botsing open (exit 1, bestand niet ge-`git add`), laat achteraf een
- * al gemaakte keuze staan en weigert buiten een merge. De pure samenvoegregels zelf staan in
- * check-i18n-tools.ts.
- */
 import { spawnSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -47,7 +37,6 @@ try {
     '--bundle', '--platform=node', '--format=esm', '--log-level=error', `--outfile=${bundle}`], { encoding: 'utf8' });
   if (esbuild.status !== 0) throw new Error(`bundelen van i18n-resolve.ts mislukt: ${esbuild.stderr}`);
 
-  // Basis: tien sleutels per bestand, één per regel (de vaste opmaak).
   mkdirSync(repo, { recursive: true });
   git('init', '-q', '-b', 'basis');
   const keys = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j'];
@@ -60,7 +49,6 @@ try {
   git('add', '-A');
   git('commit', '-q', '-m', 'basis');
 
-  // "main": verplaatst b in de vertalingen naar achteren (alleen volgorde, geen inhoud).
   git('checkout', '-q', '-b', 'herschik');
   edit((loc, o) => {
     if (loc === 'nl') return o;
@@ -69,19 +57,16 @@ try {
   });
   git('commit', '-q', '-am', 'herschik');
 
-  // "de branch": verwijdert b overal en voegt n toe na c.
   git('checkout', '-q', '-b', 'werk', 'basis');
   edit((loc, o) => Object.fromEntries(Object.entries(o).filter(([k]) => k !== 'b')
     .flatMap(([k, v]) => (k === 'c' ? [[k, v], ['n', `N ${loc}`]] : [[k, v]]))));
   git('commit', '-q', '-am', 'werk');
   const werk = git('rev-parse', 'HEAD').out.trim();
 
-  // 1. De valkuil bestaat echt: git voegt samen zonder conflict en b komt terug in de vertalingen.
   git('merge', '--no-commit', '--no-ff', 'herschik');
   ok('1a git meldt geen conflict', unmerged().length === 0, unmerged().join(', '));
   ok('1b git brengt de verwijderde sleutel stil terug (de valkuil)', 'b' in read('en') && !('b' in read('nl')));
 
-  // 2. Tijdens de merge: het script herstelt, maakt op en zet alles klaar.
   let r = resolveRun();
   ok('2a resolve tijdens merge: exit 0', r.status === 0, r.out);
   ok('2b b is weer weg in alle talen', LOCALES.every(l => !('b' in read(l))));
@@ -89,7 +74,6 @@ try {
     Object.keys(read('en')).join());
   ok('2d alles ge-`git add`, commit lukt', git('commit', '-q', '-m', 'merge').status === 0);
 
-  // 3. Achteraf: git maakte de merge-commit al (fout); het script corrigeert, daarna klopt hij.
   git('checkout', '-q', '-B', 'werk2', werk);
   git('merge', '-q', '--no-edit', 'herschik');
   ok('3a merge-commit bevat de teruggekomen sleutel', 'b' in read('en'));
@@ -101,7 +85,6 @@ try {
   r = resolveRun();
   ok('3e nogmaals: klopt al, niets gewijzigd', r.status === 0 && r.out.includes('klopt per sleutel al'), r.out);
 
-  // 4. Echte botsing: beide kanten wijzigen de-a anders ⇒ exit 1, bestand blijft open, geldige JSON.
   git('checkout', '-q', '-b', 'x1', 'basis');
   write('de', 'common', { ...read('de'), a: 'A1' });
   git('commit', '-q', '-am', 'x1');
@@ -115,7 +98,6 @@ try {
   ok('4b botsend bestand niet ge-`git add`', unmerged().includes('src/i18n/locales/de/common.json'), unmerged().join(', '));
   ok('4c botsend bestand is geldige JSON met de waarde van HEAD', read('de').a === 'A2');
   ok('4d git weigert te committen zolang het open staat', git('commit', '-q', '-m', 'x').status !== 0);
-  // Met de hand gekozen (A1), vastgelegd; nogmaals draaien laat die keuze staan en meldt de sleutel.
   write('de', 'common', { ...read('de'), a: 'A1' });
   git('add', '-A');
   git('commit', '-q', '-m', 'merge x1');
@@ -125,13 +107,11 @@ try {
     && r.out.includes('klopt per sleutel al') && git('status', '--porcelain', '--', 'src').out.trim() === '', r.out);
   git('reset', '-q', '--hard', x2);
 
-  // 5. Buiten een merge (HEAD geen merge-commit): weigeren, niets schrijven.
   const before = readFileSync(file('en', 'common'), 'utf8');
   r = resolveRun();
   ok('5a geen merge ⇒ exit 1 met uitleg', r.status === 1 && r.out.includes('geen `git merge` bezig'), r.out);
   ok('5b geen merge ⇒ niets geschreven', readFileSync(file('en', 'common'), 'utf8') === before);
 
-  // 6. Een nieuwe taal aan één kant (niet in de merge-base): overnemen, niet stoppen.
   git('checkout', '-q', '-b', 'oud', 'basis');
   git('rm', '-q', '-r', 'src/i18n/locales/lo');
   git('commit', '-q', '-m', 'zonder lo');
@@ -148,8 +128,6 @@ try {
   ok('6c de andere kant blijft ook staan', read('nl').z === 'Z nl');
   git('merge', '--abort');
 
-  // 7. Bronhashes (i18n/ui-sources): tijdens de merge valt een botsende hash weg; achteraf blijft de
-  //    hash die de merge-commit koos staan (knownbugs #101).
   const src = join(repo, 'i18n', 'ui-sources', 'de.json');
   const readSrc = () => JSON.parse(readFileSync(src, 'utf8')) as { common: Record<string, string> };
   const writeSrc = (h: string) => writeFileSync(src, serialize({ common: { a: h, c: 'c0' } }));
@@ -174,7 +152,6 @@ try {
   r = resolveRun();
   ok('7b achteraf: de gekozen hash blijft staan', r.status === 0 && readSrc().common.a === 'h1'
     && r.out.includes('keuze in de merge-commit blijft') && git('status', '--porcelain', '--', 'i18n').out.trim() === '', r.out);
-  // Een niet-gecommitte wijziging in ui-sources overschrijft het script niet stil (review #323).
   writeSrc('h3');
   r = resolveRun();
   ok('7c achteraf met een open wijziging in ui-sources: weigeren, niets overschreven',

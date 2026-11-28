@@ -1,17 +1,3 @@
-// `resourceIds` via de extensie-API — `api.data.addTask` en `api.data.updateTask` (audit
-// resources-kalenders R8).
-//
-// AANLEIDING. `fromExtTaskInput`/`fromExtTaskUpdates` gaven `resourceIds` rauw door aan de store.
-// Gemeten: de taak leek toegewezen (`resourceIds: [kraan]`), maar er was geen toewijzing, dus geen
-// belasting in het histogram, en na IFC opslaan + openen was het weg. `resourceIds` is een afgeleide
-// van de toewijzingen (de lezers reconstrueren hem daaruit); MCP weigert het veld ook.
-//
-// WAT HIER VASTLIGT (zelfde vorm als de ouderwijziging, check-ext-parent.ts / #183). Gelijk aan de
-// huidige waarde ⇒ genegeerd (een ongewijzigd `getTasks()`-object mag terug, ook in een andere
-// volgorde; `[]` bij een nieuwe taak); een andere waarde ⇒ een fout naar de extensie vóór er iets
-// gewijzigd is, met de route die wél toewijst. De overige velden blijven werken zoals voorheen.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
 import { capturePayload } from '@/state/documentContract';
@@ -55,7 +41,6 @@ function thrown(fn: () => void): string | null {
   }
 }
 
-// ── 1. updateTask met een ANDERE resourceIds: fout, niets gewijzigd ─────────────────────────────
 {
   const { ctx, api, kraan, heien } = setup();
   const voor = capturePayload(ctx.store.getState());
@@ -67,19 +52,16 @@ function thrown(fn: () => void): string | null {
   eq('1e geen schijntoewijzing op de taak', taskOf(ctx, heien).resourceIds, []);
 }
 
-// ── 2. addTask met resourceIds: fout, geen taak ─────────────────────────────────────────────────
 {
   const { ctx, api, kraan } = setup();
   const voor = capturePayload(ctx.store.getState());
   const err = thrown(() => { api.data.addTask({ name: 'Stort', resourceIds: [kraan] }); });
   eq('2a addTask met resourceIds gooit een fout', err !== null, true);
   eq('2b geen taak toegevoegd', sameDocument(ctx, voor), true);
-  // `[]` (bv. uit de SDK-taakfabriek) mag gewoon mee.
   const id = api.data.addTask({ name: 'Stort', resourceIds: [] });
   eq('2c addTask met resourceIds [] werkt', taskOf(ctx, id).name, 'Stort');
 }
 
-// ── 3. Ongewijzigd terugschrijven is geen wijziging ─────────────────────────────────────────────
 {
   const { ctx, api, kraan, heien } = setup();
   const kraan2 = ctx.store.getState().addResource({ name: 'Kraan 2', type: 'EQUIPMENT', description: '', maxUnits: 1 });
@@ -95,18 +77,15 @@ function thrown(fn: () => void): string | null {
   eq('3c …en laat document en undo-geschiedenis ongemoeid', [sameDocument(ctx, voor), applied(ctx) - undoVoor], [true, 0]);
   eq('3d andere volgorde telt als gelijk', thrown(() => api.data.updateTask(heien, { resourceIds: [kraan2, kraan] })), null);
 
-  // Een heel getTasks()-object terug met een gewijzigde naam: de naam gaat door, resourceIds genegeerd.
   eq('3e ongewijzigd getTasks()-object met nieuwe naam gooit niet', thrown(() => api.data.updateTask(heien, { ...ext, name: 'Heien fase 2' })), null);
   eq('3f de naam is gewijzigd', taskOf(ctx, heien).name, 'Heien fase 2');
   eq('3g de toewijzingen zijn ongemoeid', ctx.store.getState().assignments.filter(a => a.taskId === heien).map(a => a.resourceId), [kraan, kraan2]);
   eq('3h resourceIds blijft de afgeleide', taskOf(ctx, heien).resourceIds, [kraan, kraan2]);
 
-  // Een toewijzing wegschrijven via resourceIds kan ook niet.
   eq('3i een resource weglaten gooit een fout', thrown(() => api.data.updateTask(heien, { resourceIds: [kraan] })) !== null, true);
   eq('3j de toewijzing blijft staan', ctx.store.getState().assignments.filter(a => a.taskId === heien).length, 2);
 }
 
-// ── 4. Overige velden en onbekende id: gedrag als voorheen ──────────────────────────────────────
 {
   const { ctx, api, heien } = setup();
   api.data.updateTask(heien, { name: 'Heien A' });
