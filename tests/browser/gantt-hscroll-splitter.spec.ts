@@ -1,10 +1,3 @@
-// Eigenaarscheck desktopapp 2026-10-20 (PR #362): "de horizontale Gantt-scrollbalk verdwijnt een heel
-// klein beetje onder de tabel". De grijpzone van de werkruimte-splitter (5 px, z 6) ligt over de
-// Gantt-rand aan de kant van de takenlijst; de eerste 5 px van de balk lagen eronder en een klik daar
-// ging naar de splitter. Nu begint de balk precies waar de splitter eindigt: geen overlap en geen gat.
-// In ar/fa staat de takenlijst rechts, dus raakt de splitter het RECHTERuiteinde van de balk; met de
-// splitsing aan is dat de balk van het secundaire pane (de pane-rij is altijd ltr).
-// Handelingen via echte muis-events; de brug zet alleen de planning en de splitsing, en leest state.
 import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 import { box, chooseLocale, LOCALE_CASES, type Box } from './fixtures/locale';
@@ -20,7 +13,6 @@ const CASES = [
   { name: 'ar, gesplitst', locale: AR, split: true, bar: 'gantt-hscroll-secondary' },
 ] as const;
 
-/** Het element op een punt, als testid of klassenaam. */
 function hitAt(page: Page, x: number, y: number): Promise<string> {
   return page.evaluate(([px, py]) => {
     const element = document.elementFromPoint(px, py) as HTMLElement | null;
@@ -36,7 +28,6 @@ async function seedLongPlan(page: Page): Promise<void> {
   ]);
 }
 
-/** Sleep de duim van de balk ver voorbij het einde en lees de eindstand. */
 async function dragThumbToEnd(page: Page, bar: Locator, barBox: Box) {
   const y = (barBox.top + barBox.bottom) / 2;
   const startX = await bar.evaluate((node: HTMLElement) => {
@@ -67,25 +58,20 @@ for (const testCase of CASES) {
     await expect(bar).toBeVisible();
     const rtl = testCase.locale.rtl;
 
-    // 1. Ligging: het splitteruiteinde van de balk valt precies op de rand van de grijpzone.
     const splitBox = await box(splitter);
     const barBox = await box(bar);
     expect(splitBox.right - splitBox.left).toBe(5);
     if (rtl) expect(barBox.right).toBe(splitBox.left);
     else expect(barBox.left).toBe(splitBox.right);
-    // Het andere uiteinde loopt tot de rand van zijn pane (geen inkorting aan die kant).
     const paneBox = await box(bar.locator('xpath=..'));
     if (rtl) expect(barBox.left).toBe(paneBox.left);
     else expect(barBox.right).toBe(paneBox.right);
 
-    // 2. Klikbaar: de eerste pixel naast de splitter is de balk, de grijpzone zelf blijft de splitter.
     const y = (barBox.top + barBox.bottom) / 2;
     const barEdgeX = rtl ? barBox.right - 1 : barBox.left + 1;
     expect(await hitAt(page, barEdgeX, y)).toBe(testCase.bar);
     expect(await hitAt(page, (splitBox.left + splitBox.right) / 2, y)).toBe('gantt-workspace-splitter');
 
-    // 3. Bereik: de duim tot voorbij het einde slepen eindigt op het einde van de balk, en de kaart
-    //    volgt zonder terugsprong (spacer en kaart hebben hetzelfde schuifbereik).
     await dragThumbToEnd(page, bar, barBox);
     await expect.poll(() => bar.evaluate((node: HTMLElement) => node.scrollWidth - node.clientWidth - node.scrollLeft))
       .toBeLessThanOrEqual(1);
@@ -97,7 +83,6 @@ for (const testCase of CASES) {
     if (!testCase.split) expect(Math.abs(storeX - scrollLeft)).toBeLessThanOrEqual(1);
     else expect(storeX).toBeGreaterThan(0);
 
-    // 4. De splitter blijft sleepbaar, ook op de hoogte van de balk: 40 px van de lijst af.
     const listWidth = () => page.evaluate(() => window.__OPS__!.store.getState().ui.leftPanelWidth);
     const before = await listWidth();
     const away = rtl ? -1 : 1;
@@ -108,7 +93,6 @@ for (const testCase of CASES) {
     await page.mouse.move(grabX + away * 40, y, { steps: 3 });
     await page.mouse.up();
     await expect.poll(listWidth).toBeGreaterThanOrEqual(before + 38);
-    // Na het slepen ligt de balk weer strak tegen de splitter.
     const splitAfter = await box(splitter);
     const barAfter = await box(bar);
     if (rtl) expect(barAfter.right).toBe(splitAfter.left);

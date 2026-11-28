@@ -1,8 +1,3 @@
-// Review vader (2026-10-06), punt 3: onder de keuze van het relatietype staat één regel uitleg met
-// de echte taaknamen ("Metselwerk begint pas als Fundering klaar is."), op alle drie de plekken
-// waar je een type kiest: de popover na het slepen in de Gantt, het blok Relaties in het
-// eigenschappenpaneel en de relatiecel in de tabel. Alleen echte muis- en toetsenbordevents; de
-// dev-bridge zet alleen de fixture neer en leest de toestand.
 import type { Page } from '@playwright/test';
 import { barPoint, expect, seedProject, test } from './fixtures/ops';
 
@@ -49,7 +44,6 @@ test('Gantt-popover toont de uitlegzin en volgt de typekeuze', async ({ page, op
   await expect(sentence).toHaveText('Metselwerk can only start once Fundering has finished.');
   await shot(page, 'popover-fs');
 
-  // Zonder muis: de focus staat na het slepen op de typekeuze.
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('ArrowDown');
   await page.keyboard.press('Enter');
@@ -72,8 +66,6 @@ test('eigenschappenpaneel: uitlegzin alleen onder de relatie met focus', async (
   await item.scrollIntoViewIfNeeded();
   await expect(item.locator('[data-ops-relation-sentence]')).toHaveCount(0);
 
-  // Issue #989: de enige relatie (Fundering → Metselwerk) staat in de lijst met voorgangers;
-  // de lijst met opvolgers staat leeg met een kop die dat meldt.
   await expect(page.locator('[data-ops-dependency-col="predecessor"] .dependency-item')).toHaveCount(1);
   await expect(page.locator('[data-ops-dependency-col="predecessor"] [data-ops-dependency-col-head]')).toHaveText('1 predecessor');
   await expect(page.locator('[data-ops-dependency-col="successor"] .dependency-item')).toHaveCount(0);
@@ -88,7 +80,6 @@ test('eigenschappenpaneel: uitlegzin alleen onder de relatie met focus', async (
     .toHaveText('Metselwerk can only finish once Fundering has finished.');
   await shot(page, 'paneel-ff');
 
-  // Focus weg uit de regel: de zin verdwijnt weer.
   await page.locator('[data-ops-dependency-add]').focus();
   await expect(item.locator('[data-ops-relation-sentence]')).toHaveCount(0);
 });
@@ -121,7 +112,6 @@ test('relatiecel in de tabel: uitlegzin met de eigen taak als opvolger', async (
   await type.focus();
   await expect(editor.locator('[data-ops-relation-sentence]'))
     .toHaveText('Metselwerk can only start once Fundering has finished.');
-  // Escape sluit eerst alleen de lijst; de celbewerking blijft open.
   await page.keyboard.press('Enter');
   await page.keyboard.press('Escape');
   await expect(editor).toBeVisible();

@@ -1,20 +1,7 @@
-// Histogram onder de Gantt in een rechts-naar-linkstaal (ar/fa). De shell spiegelt daar: de
-// takenlijst staat RECHTS van de tijdlijn (splitter.spec). De tijdlijn zelf blijft ltr — de tijd loopt
-// links naar rechts, zoals het raster. Het histogram is één canvas over de volle werkruimtebreedte.
-// Eerst tekende het zijn resourcekiezer altijd links en de staven vanaf de kiezerbreedte: in ar lag
-// de kiezer onder de tijdlijn, begon de dagas van het histogram een kiezerbreedte (350 px) later dan
-// die van de tijdlijn, en lag het rechterdeel van de grafiek onder de takenlijst. Nu staat de kiezer
-// onder de takenlijst en valt de dagas van het histogram samen met die van de tijdlijn; tekenen,
-// klikken, wielscroll in de kiezer, tooltip en de verouderd-melding volgen dezelfde geometrie.
-//
-// Dezelfde stappen draaien in ar, fa, nl en en: de ltr-talen bewijzen dat daar niets veranderde.
-// Handelingen via echte muis- en wielevents; de `__OPS__`-brug zet alleen de planning en het
-// instellingenvenster (de taalkeuze zelf is een klik), en leest state en balkposities.
 import type { Page } from '@playwright/test';
 import { barPoint, expect, seedProject, state, test } from './fixtures/ops';
 import { box, centerX, chooseLocale, LOCALE_CASES, type Box, type LocaleCase } from './fixtures/locale';
 
-/** HistogramRenderer bij de standaard tekstschaal. */
 const TOP_PAD = 8;
 const ROW_H = 18;
 
@@ -25,8 +12,6 @@ interface Seeded {
   masonCrewId: string;
 }
 
-/** Twee taken in twee opeenvolgende weken, zodat elke dag in het histogram bij precies één taak
- *  hoort: Grondwerk ma 7 – vr 11 september, Metselwerk ma 14 – vr 18 september. */
 async function seed(page: Page, locale: LocaleCase): Promise<Seeded> {
   const [groundworkId, masonryId] = await seedProject(page, [
     { name: 'Grondwerk', start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
@@ -41,7 +26,6 @@ async function seed(page: Page, locale: LocaleCase): Promise<Seeded> {
     s.assignResource(masonry, groundCrewId, 1);
     s.assignResource(masonry, masonCrewId, 1);
     s.runCPM();
-    // 20 px per dag: beide weken passen dan in de tijdlijn naast een takenlijst van 350 px.
     s.setZoom(20);
     s.setUI({ showHistogram: true });
     return { groundCrewId, masonCrewId };
@@ -50,8 +34,6 @@ async function seed(page: Page, locale: LocaleCase): Promise<Seeded> {
   return { groundworkId, masonryId, ...crews };
 }
 
-/** Eén pixelrij van het histogramcanvas, per CSS-pixel (client-x = `left + index`), vlak boven de
- *  nullijn: daar liggen de staven en, zonder kiezerrijen, alleen de achtergrond van de kiezer. */
 async function histogramRow(page: Page): Promise<{ left: number; colors: string[] }> {
   return page.getByTestId('gantt-histogram-canvas').evaluate((canvas: HTMLCanvasElement) => {
     const rect = canvas.getBoundingClientRect();
@@ -67,7 +49,6 @@ async function histogramRow(page: Page): Promise<{ left: number; colors: string[
   });
 }
 
-/** Het aaneengesloten stuk van de rij met dezelfde kleur als op client-x `x`, in client-x. */
 function runAround(row: { left: number; colors: string[] }, x: number): { left: number; right: number } {
   const at = Math.floor(x - row.left);
   const color = row.colors[at];
@@ -94,22 +75,17 @@ for (const locale of LOCALE_CASES) {
     const timeline = await box(page.locator('.gantt-workspace-timeline'));
     const canvas = page.getByTestId('gantt-histogram-canvas');
     const strip: Box = await box(canvas);
-    // De tijdlijn blijft ltr (hij begint aan de linkerkant van zijn kolom), de takenlijst staat aan
-    // de beginkant: rechts in ar/fa, links in ltr. Het histogram overspant beide.
     if (locale.rtl) expect(timeline.right).toBe(list.left);
     else expect(timeline.left).toBe(list.right);
     expect(strip.left).toBe(Math.min(list.left, timeline.left));
     expect(strip.right).toBe(Math.max(list.right, timeline.right));
     await waitForQuietHistogram(page);
 
-    // 1. Tekenen: de kiezer vult precies de breedte van de takenlijst erboven.
     const row = await histogramRow(page);
     const picker = runAround(row, centerX(list));
     expect(Math.abs(picker.left - list.left)).toBeLessThanOrEqual(1);
     expect(Math.abs(picker.right - list.right)).toBeLessThanOrEqual(1);
 
-    // 2. D1/D2: de staaf vult de kalenderdag; de balk begint om 07:00 en eindigt om 16:00.
-    //    De klokafstand tot de daggrens moet exact met de zoom meeschalen.
     const zoom = (await state(page)).view.zoom;
     for (const taskId of [seeded.groundworkId, seeded.masonryId]) {
       const barLeft = (await barPoint(page, taskId, 'left')).x;
@@ -126,15 +102,12 @@ for (const locale of LOCALE_CASES) {
       expect(dayBefore.right).toBeLessThanOrEqual(firstDay.left);
     }
 
-    // 3. Klikken in de kiezer, onder de takenlijst, kiest de resource van die rij.
     const rowY = (index: number) => strip.top + TOP_PAD + index * ROW_H + ROW_H / 2;
     await page.mouse.click(centerX(list), rowY(2));
     await expect.poll(() => state(page).then(s => s.view.histogramResourceId)).toBe(seeded.masonCrewId);
     await page.mouse.click(list.left + 24, rowY(1));
     await expect.poll(() => state(page).then(s => s.view.histogramResourceId)).toBe(seeded.groundCrewId);
 
-    // 4. De tooltip op een staaf hoort bij de dag eronder: boven de eerste dag van Metselwerk noemt
-    //    hij alleen Metselwerk, boven die van Grondwerk alleen Grondwerk.
     const tooltip = page.locator('.gantt-tooltip');
     const y = strip.top + (strip.bottom - strip.top) * 0.6;
     for (const [taskId, name, other] of [
@@ -166,9 +139,6 @@ for (const locale of LOCALE_CASES) {
     const timeline = await box(page.locator('.gantt-workspace-timeline'));
     const strip = await box(page.getByTestId('gantt-histogram-canvas'));
 
-    // Wielscroll boven de kiezer (onder de takenlijst) scrolt de lijst; daarna pakt een klik op
-    // dezelfde hoogte de laatste resource. Vóór het scrollen is dat de achtste rij: Resource 05, na
-    // de verzamelrij, de twee ploegen en Resource 01–04.
     const y = strip.top + 150;
     await page.mouse.click(list.left + 24, y);
     await expect.poll(() => state(page).then(s => s.view.histogramResourceId)).toBe(extra[4]);
@@ -178,7 +148,6 @@ for (const locale of LOCALE_CASES) {
     await page.mouse.click(list.left + 24, y);
     await expect.poll(() => state(page).then(s => s.view.histogramResourceId)).toBe(extra[extra.length - 1]);
 
-    // De melding "verouderd" hoort bij de grafiek: hij staat boven de tijdlijn, niet over de kiezer.
     await page.evaluate(() => {
       const s = window.__OPS__!.store.getState();
       s.updateTask(s.tasks[0].id, { name: 'Grondwerk (gewijzigd)' });

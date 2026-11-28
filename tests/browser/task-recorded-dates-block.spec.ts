@@ -1,18 +1,7 @@
-// "Datums zoals opgeslagen" in het eigenschappenpaneel als infoblok (eigenaar, 2026-10-17). De oude
-// badge (hoofdletters, `white-space: nowrap`) liep met een hele zin buiten het paneel en stond los in
-// het midden. Nu: een `alert`-blok over de volle breedte, direct boven de datumvelden onder *Tijd*,
-// altijd oranje (`alert--info`). Teksten en het vervallen van de aanbod-stand (dus geen 'wijkt af'
-// meer): eigenaar, 2026-10-17, optie 1. Een taak waarvoor het bestand niet alles bewaarde, krijgt
-// géén grijs blok meer maar hetzelfde oranje blok met de ontbrekende velden als derde regel
-// (eigenaar 2026-10-19, besluit 4, optie 3).
-// Echte gebruikersflow: een .xer via de ribbonknop Openen en de bestandskiezer, en een klik op de
-// taakrij. `window.__OPS__` zet alleen de paneelbreedte (fixture), leest taak-id's en zet het thema
-// voor het schermbewijs.
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 import { LOCALE_CASES, chooseLocale } from './fixtures/locale';
 
-// Schermbewijs (licht en donker, nl en en) alleen als deze map is gezet.
 const SHOTS = process.env.OPS_P6_DATUMS_SHOTS;
 
 const HEADER = [
@@ -22,9 +11,6 @@ const HEADER = [
   'total_float_hr_cnt', 'free_float_hr_cnt',
 ].join('\t');
 
-// Zelfde orakel-fixture als `recorded-dates.spec.ts`: T1 wijkt af van onze herberekening (de modus gaat
-// vanzelf aan), T2 ligt gelijk met de herberekening, T3 legt alleen het vroege paar vast (deels niet
-// vastgelegd).
 const XER = [
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -49,12 +35,10 @@ async function openXer(page: Page): Promise<void> {
   await (await chooser).setFiles({ name: 'infoblok.xer', mimeType: 'application/octet-stream', buffer: Buffer.from(XER) });
 }
 
-// Definitieve teksten (eigenaar, 2026-10-17); nl of en, afhankelijk van de taal van de testbrowser.
 const SHOWN_PRIMAVERA = /^(Je ziet de datums die Primavera opsloeg, niet de berekening van de app\.|You see the dates Primavera saved, not the app's calculation\.)$/;
 const WILL_SHIFT = /^(Bij herberekenen verandert deze taak\.|Recalculating changes this task\.)$/;
 const WILL_STAY = /^(Bij herberekenen blijft deze taak gelijk\.|Recalculating leaves this task the same\.)$/;
 const MISSING_PRIMAVERA = /^(Primavera heeft voor deze taak niet alles opgeslagen\. Ontbreekt: Laatste start, Laatste einde, Totale speling, Vrije speling\.|Primavera did not save everything for this task\. Missing: Late start, Late finish, Total float, Free float\.)$/;
-// A3 legt alleen het vroege paar vast; zijn start valt op zondag 1 maart, dus herberekenen verschuift hem.
 const A3_RECALC = WILL_SHIFT;
 const sentence = (block: Locator, i: number) => block.locator(`[data-ops-task-recorded-dates-sentence="${i}"]`);
 
@@ -67,7 +51,6 @@ async function clickTask(page: Page, taskId: string): Promise<void> {
   ).click();
 }
 
-/** Een CSS-kleur zoals de browser hem uitrekent (zelfde schrijfwijze als `getComputedStyle`). */
 async function resolveColor(page: Page, css: string): Promise<string> {
   return page.evaluate((value) => {
     const probe = document.createElement('div');
@@ -79,8 +62,6 @@ async function resolveColor(page: Page, css: string): Promise<string> {
   }, css);
 }
 
-/** Het blok: boven de datumvelden, binnen de paneelbreedte, gewone letters, oranje themakleur van
- *  `alert--info`. `missing` = de derde regel (ontbrekende velden) hoort er wel/niet bij. */
 async function expectBlock(page: Page, missing: boolean): Promise<Locator> {
   const block = panel(page).locator('[data-ops-task-recorded-dates="active"]');
   await expect(block).toBeVisible();
@@ -91,17 +72,14 @@ async function expectBlock(page: Page, missing: boolean): Promise<Locator> {
   else await expect(block).not.toHaveAttribute('data-ops-task-recorded-dates-missing');
   await block.scrollIntoViewIfNeeded();
 
-  // Plek: onder de kop *Tijd* en direct boven het veld Start.
   const startField = panel(page).getByLabel(/^Start$/).first();
   const timeHeader = panel(page).locator('.ui-card-header').filter({ hasText: /^(Tijd|Time)$/ });
   const [b, start, head] = await Promise.all([block.boundingBox(), startField.boundingBox(), timeHeader.boundingBox()]);
   expect(b && start && head).toBeTruthy();
   expect(b!.y).toBeGreaterThanOrEqual(head!.y + head!.height - 0.5);
   expect(b!.y + b!.height).toBeLessThanOrEqual(start!.y + 0.5);
-  // Niets tussen blok en Start-veld behalve de veldlabel: het blok is de directe voorganger van het raster.
   expect(await block.evaluate(el => el.nextElementSibling?.querySelector('input') != null)).toBe(true);
 
-  // Breedte: het blok en zijn tekst blijven binnen het paneel; het blok vult de paneelbreedte.
   const p = (await panel(page).boundingBox())!;
   expect(b!.x).toBeGreaterThanOrEqual(p.x - 0.5);
   expect(b!.x + b!.width).toBeLessThanOrEqual(p.x + p.width + 0.5);
@@ -116,7 +94,6 @@ async function expectBlock(page: Page, missing: boolean): Promise<Locator> {
   expect(fit.spanLeft).toBeGreaterThanOrEqual(0);
   expect(fit.spanRight).toBeGreaterThanOrEqual(0);
 
-  // Gewone letters, mag over meerdere regels.
   const style = await block.evaluate((el) => {
     const s = getComputedStyle(el);
     return { transform: s.textTransform, whiteSpace: s.whiteSpace, border: s.borderLeftColor, borderWidth: s.borderLeftWidth };
@@ -152,14 +129,12 @@ for (const width of [280, 200] as const) {
   test(`datums zoals opgeslagen: infoblok boven de datumvelden, binnen een paneel van ${width} px, kleur per stand`, async ({ page, ops: _ops }) => {
     await openXer(page);
     await expect(page.locator('[data-ops-recorded-dates-active]')).toBeVisible();
-    // Fixture: de paneelbreedte (de splitter heeft een eigen spec, `right-rail-resize.spec.ts`).
     await page.evaluate(w => window.__OPS__!.store.getState().setUI({ rightPanelWidth: w, showPropertiesPanel: true, rightPanelCollapsed: false }), width);
     const ids = await page.evaluate(() => {
       const s = window.__OPS__!.store.getState();
       return { a1: s.tasks.find(t => t.wbsCode === 'A1')!.id, a2: s.tasks.find(t => t.wbsCode === 'A2')!.id, a3: s.tasks.find(t => t.wbsCode === 'A3')!.id };
     });
 
-    // Oranje, met per taak de tweede zin: A1 verschuift bij herberekenen, A2 niet.
     await clickTask(page, ids.a1);
     const a1 = await expectBlock(page, false);
     await expect(sentence(a1, 0)).toHaveText(SHOWN_PRIMAVERA);
@@ -171,8 +146,6 @@ for (const width of [280, 200] as const) {
     await expect(sentence(a2, 1)).toHaveText(WILL_STAY);
     await expect(sentence(a2, 2)).toHaveCount(0);
 
-    // Ook oranje, met drie regels: herkomst, herberekenen, en de ontbrekende waarden met de
-    // kolomnamen, zonder vaktaal. Eén "Lees meer".
     await clickTask(page, ids.a3);
     const a3 = await expectBlock(page, true);
     await expect(sentence(a3, 0)).toHaveText(SHOWN_PRIMAVERA);
@@ -182,7 +155,6 @@ for (const width of [280, 200] as const) {
     await expect(a3.locator('button')).toHaveCount(1);
     await expect(a3).not.toContainText(/vastlegging|late-\/speling/i);
 
-    // Geen aanbod-stand meer: na herberekenen is er geen blok en geen strook.
     await page.locator('[data-ops-recorded-dates-recalculate]').click();
     await expect(page.locator('[data-ops-recorded-dates-active]')).toHaveCount(0);
     await clickTask(page, ids.a1);

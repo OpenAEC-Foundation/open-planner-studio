@@ -1,22 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, state, test } from './fixtures/ops';
 
-/**
- * Datumvelden op een taak met een uurkalender, en verplichte velden in paneel en dialoog. In het meegeleverde voorbeeld "De Vaart Apartment Complex" draagt taak 3.6 een
- * datum-met-tijd (`2027-05-13T07:00`). Het gedeelde datumveld kende alleen `JJJJ-MM-DD`, toonde dus
- * een leeg veld, en wie er alleen doorheen tabde committe `''` als startanker: daarna rekende het
- * hele project niet meer ("Ongeldige startdatum").
- *
- * Alle geteste handelingen gaan via echte muis-/toetsenbordevents. De dev-brug opent alleen het
- * voorbeeld-resultaat (selectie, paneel zichtbaar, dialoog openen), zet de fixture van
- * `openShowcaseTask` en leest state.
- *
- * Taak 3.6 is in het voorbeeld voltooid. Sinds het eigenaarsbesluit van 2026-10-12 (optie 1, "zoals
- * Primavera") is Start van een gestarte of voltooide taak alleen-lezen: de getoonde start is de
- * werkelijke start. De Start-tests hieronder gaan over een BEWERKBAAR datumveld met tijddeel; daarvoor
- * maakt de fixture de taak eerst niet-gestart (`notStarted`).
- */
-
 const TASK = 'Rebar fixing, basement floor — Tower A';
 
 interface TaskFacts {
@@ -48,12 +32,6 @@ async function cpmError(page: Page): Promise<string | null> {
   return page.evaluate(() => window.__OPS__!.store.getState().cpmResult?.error ?? null);
 }
 
-/** Opent het showcase-voorbeeld via de echte Backstage en selecteert taak 3.6 in het paneel.
- *
- *  `notStarted`: fixture die de voortgang van taak 3.6 wist en de statusdatum weghaalt, en dan
- *  herberekent. Zonder voortgang is Start weer bewerkbaar; zonder statusdatum begint de taak weer op
- *  de berekende start uit haar (voltooide) voorganger, 13-05 07:00 — dezelfde start als met voortgang,
- *  zodat de verwachtingen hieronder voor beide varianten gelden. */
 async function openShowcaseTask(page: Page, opts: { notStarted?: boolean } = {}): Promise<string> {
   await page.locator('.ribbon-tab--file').first().click();
   await page.locator('button.backstage-nav-item[data-tour-anchor="backstage-examples"]').click();
@@ -65,7 +43,6 @@ async function openShowcaseTask(page: Page, opts: { notStarted?: boolean } = {})
     () => page.evaluate(name => window.__OPS__!.store.getState().tasks.some(task => task.name === name), TASK),
     { timeout: 20_000 },
   ).toBe(true);
-  // Openen plus automatische demo-koppeling is geen gebruikersbewerking (knownbug 35).
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(false);
   const id = await page.evaluate((name) => {
     const s = window.__OPS__!.store.getState();
@@ -78,7 +55,6 @@ async function openShowcaseTask(page: Page, opts: { notStarted?: boolean } = {})
     await page.evaluate((taskId) => {
       const s = window.__OPS__!.store.getState();
       const task = s.tasks.find(candidate => candidate.id === taskId)!;
-      // Expliciet `undefined` (sleutel aanwezig) wist het veld, zie `mergeTaskTime`.
       s.updateTask(taskId, { time: {
         ...task.time,
         actualStart: undefined, actualFinish: undefined, actualDuration: undefined,
@@ -90,7 +66,6 @@ async function openShowcaseTask(page: Page, opts: { notStarted?: boolean } = {})
     expect((await taskFacts(page, id)).actualStart).toBeUndefined();
   }
   const facts = await taskFacts(page, id);
-  // De fixture waarom het gaat: een start MET tijd (uurkalender) — anders test deze spec niets.
   expect(facts.earlyStart).toBe('2027-05-13T07:00');
   expect(facts.scheduleStart).toBe('2027-03-01T07:00');
   expect(await cpmError(page)).toBeNull();
@@ -115,7 +90,6 @@ test('paneel: klik-in + Tab op Start van een urentaak laat het anker ongemoeid e
   const id = await openShowcaseTask(page, { notStarted: true });
   const start = railGroup(page, 'Start');
   await start.scrollIntoViewIfNeeded();
-  // Het veld toont het datumdeel van de berekende start, niet een leeg veld.
   await expect.poll(() => segments(start)).toBe('13-05-2027');
   const undoBefore = (await state(page)).undoDepth;
 
@@ -149,8 +123,6 @@ test('paneel: Start met Backspace leegmaken wordt geweigerd en het veld valt ter
   await start.scrollIntoViewIfNeeded();
   await expect.poll(() => segments(start)).toBe('13-05-2027');
 
-  // Jaarsegment aanklikken (selecteert de inhoud) en Backspace ingedrukt houden: leeg segment
-  // springt terug, dus dag, maand en jaar raken alle drie leeg.
   await start.locator('input').nth(2).click();
   for (let i = 0; i < 12; i++) await page.keyboard.press('Backspace');
   await expect.poll(() => segments(start)).toBe('__-__-__');
@@ -231,7 +203,6 @@ test('Taak bewerken: met Tab door Startdatum naar Duur en Opslaan laat de start 
   const startGroup = dialog.getByRole('group', { name: 'Start date', exact: true });
   await expect.poll(() => segments(startGroup)).toBe('13-05-2027');
 
-  // Vanaf Naam met Tab naar het duurveld; het pad loopt door het dag-vakje van Startdatum.
   let passedStart = false;
   for (let i = 0; i < 40; i++) {
     const info = await page.evaluate(() => {

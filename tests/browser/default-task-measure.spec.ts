@@ -1,15 +1,8 @@
-// Standaardmaat voor nieuwe taken (spec "alleen uren" §3.2, besluit B1a) in Projectinstellingen, met
-// echte klikken: in het OPS-profiel kies je Dagenmaat of Urenmaat; onder het P6-profiel staat de keuze
-// vast op Urenmaat, met de uitleg eronder. `window.__OPS__` zet alleen de beginstand (het profiel) en
-// leest de store; de geteste handelingen zijn klikken.
-//
-// OPS_MEASURE_SHOTS=<map> bewaart schermbeelden van het veld, licht en donker, in beide standen.
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
 const SHOTS = process.env.OPS_MEASURE_SHOTS;
 
-/** Alleen voor de schermbeelden: het thema via de store (`ui.uiTheme`), zoals de instelling het zet. */
 async function shots(page: Page, name: string): Promise<void> {
   if (!SHOTS) return;
   const before = await page.evaluate(() => window.__OPS__!.store.getState().ui.uiTheme);
@@ -42,7 +35,6 @@ async function toProjectInfo(page: Page): Promise<void> {
 test('standaardmaat: kiezen in OPS, vast op Urenmaat onder P6', async ({ page, ops }) => {
   void ops;
   await toProjectInfo(page);
-  // OPS-profiel: Dagenmaat staat gekozen en de keuze is vrij.
   await expect(trigger(page)).toHaveText(/^(Day measure|Dagenmaat)$/);
   await expect(trigger(page)).toBeEnabled();
   await shots(page, 'standaardmaat-ops');
@@ -54,7 +46,6 @@ test('standaardmaat: kiezen in OPS, vast op Urenmaat onder P6', async ({ page, o
   await expect.poll(() => activeTab(page)).not.toBe('file');
   await expect.poll(() => storedUnit(page)).toBe('hours');
 
-  // Beginstand voor het tweede deel: het P6-profiel, met de eigen keuze terug op dagen.
   await page.evaluate(() => window.__OPS__!.store.getState().setProject({
     defaultTaskDurationUnit: 'days',
     schedulingProfile: { baseId: 'p6', id: 'p6', name: '', overrides: {} },
@@ -64,6 +55,5 @@ test('standaardmaat: kiezen in OPS, vast op Urenmaat onder P6', async ({ page, o
   await expect(trigger(page)).toBeDisabled();
   await expect(field(page)).toContainText('Primavera P6');
   await shots(page, 'standaardmaat-p6');
-  // De eigen keuze blijft bewaard voor een wissel terug naar OPS.
   expect(await storedUnit(page)).toBe('days');
 });

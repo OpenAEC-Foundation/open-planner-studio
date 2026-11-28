@@ -1,11 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, seedProject, state, test } from './fixtures/ops';
 
-// Taakpaneel: de keuzelijsten voor constraint, secundaire constraint, soort mijlpaal en
-// activiteitcode zijn de eigen `Select` (eigenaarsregel: keuzelijsten nooit native). Fixture via de
-// brug; de geteste handeling is steeds een echte klik op de trigger en daarna op een optie.
-// Asserties op de store en op de undo-stap.
-
 const CODE_NAME = 'Locatie';
 
 async function seedPanelTask(page: Page): Promise<{ taskId: string; codeTypeId: string; noordId: string }> {
@@ -42,7 +37,6 @@ function taskFacts(page: Page, taskId: string, codeTypeId: string): Promise<Task
   }, { id: taskId, typeId: codeTypeId });
 }
 
-/** Open de eigen keuzelijst met een klik op de trigger en klik de optie met deze waarde aan. */
 async function choose(page: Page, label: RegExp, value: string): Promise<void> {
   const trigger = page.locator('[data-ops-rail]').getByRole('button', { name: label });
   await trigger.scrollIntoViewIfNeeded();
@@ -53,8 +47,6 @@ async function choose(page: Page, label: RegExp, value: string): Promise<void> {
   await expect(page.locator('.ops-select__menu')).toHaveCount(0);
 }
 
-/** Undo zoals een gebruiker: eerst klikken op een kop buiten de keuzelijst (de focus verlaat de
- *  trigger), dan Ctrl+Z. De brug doet hier niets. */
 async function undo(page: Page): Promise<void> {
   await page.locator('[data-ops-rail] .ui-card-header').first().click();
   expect(await page.evaluate(() => document.activeElement?.getAttribute('aria-haspopup') ?? null)).toBeNull();
@@ -71,7 +63,6 @@ test('taakpaneel: constraint, secundaire constraint, mijlpaalsoort en code zijn 
     const id = s.selectedTaskIds[0];
     s.updateTask(id, { constraint: { type: 'SNET', date: '2026-09-07' }, isMilestone: true });
   });
-  // Alleen de vier velden van deze PR; andere secties van het paneel vallen hier buiten.
   const rail = page.locator('[data-ops-rail]');
   for (const name of [/^Constraint$/, SECONDARY, MILESTONE_KIND, new RegExp(`^${CODE_NAME}$`)]) {
     const field = rail.getByRole('button', { name });
@@ -89,7 +80,6 @@ test('taakpaneel: ongeldige combinatie geeft rode rand, aria-invalid en verwijst
   await expect(secondary).not.toHaveAttribute('aria-invalid', /.*/);
   await expect(secondary).not.toHaveAttribute('aria-describedby', /.*/);
 
-  // SNET + FNET liggen aan dezelfde kant: ongeldig.
   await choose(page, SECONDARY, 'FNET');
   await expect.poll(() => taskFacts(page, taskId, codeTypeId).then(f => f.constraint2)).toBe('FNET');
   const error = page.locator('[data-ops-constraint2-error]');
@@ -99,7 +89,6 @@ test('taakpaneel: ongeldige combinatie geeft rode rand, aria-invalid en verwijst
   expect(describedBy).toBeTruthy();
   expect(await error.getAttribute('id')).toBe(describedBy);
   await expect(secondary).toHaveAccessibleDescription((await error.textContent())!.trim());
-  // De rand heeft een CSS-overgang (0,15 s): poll tot hij de foutkleur heeft.
   await expect.poll(() => secondary.evaluate(el => {
     const probe = document.createElement('span');
     probe.style.color = 'var(--error)';
@@ -109,7 +98,6 @@ test('taakpaneel: ongeldige combinatie geeft rode rand, aria-invalid en verwijst
     return getComputedStyle(el).borderTopColor === errorColor ? 'foutkleur' : `${getComputedStyle(el).borderTopColor} ≠ ${errorColor}`;
   })).toBe('foutkleur');
 
-  // Weer geldig: alles weg.
   await choose(page, SECONDARY, 'SNLT');
   await expect(error).toHaveCount(0);
   await expect(secondary).not.toHaveAttribute('aria-invalid', /.*/);
@@ -118,7 +106,6 @@ test('taakpaneel: ongeldige combinatie geeft rode rand, aria-invalid en verwijst
 
 test('taakpaneel: een secundair type buiten de lijst (bv. MSO uit IFC) toont zijn naam', async ({ page, ops: _ops }) => {
   const { taskId } = await seedPanelTask(page);
-  // Fixture: zo'n waarde komt alleen via import binnen (ifcPsets leest elk geldig type).
   await page.evaluate(id => window.__OPS__!.store.getState().updateTask(id, {
     constraint: { type: 'SNET', date: '2026-09-07' },
     constraint2: { type: 'MSO', date: '2026-09-10' },
@@ -126,12 +113,9 @@ test('taakpaneel: een secundair type buiten de lijst (bv. MSO uit IFC) toont zij
   const secondary = page.locator('[data-ops-rail]').getByRole('button', { name: SECONDARY });
   await expect(secondary).toHaveAttribute('data-value', 'MSO');
   await expect(secondary).toHaveText(/\(MSO\)$/);
-  // De waarde is echt gezet: gewone opmaak, niet de grijze plaatshouder.
   await expect(secondary.locator('.ops-select__value')).toHaveCount(1);
   await expect(secondary.locator('.ops-select__value.is-placeholder')).toHaveCount(0);
 
-  // Toetsenbord (#370): MSO hoort bij geen optie, dus de lijst opent zonder actieve optie en Enter
-  // kiest niets. Pijl-omlaag maakt de eerste optie ("geen") actief; Enter wist dan de secundaire.
   await secondary.focus();
   await page.keyboard.press('Enter');
   const list = page.locator('.ops-select__menu');
@@ -153,7 +137,6 @@ test('taakpaneel: constraint en secundaire constraint kiezen via de eigen keuzel
   const { taskId, codeTypeId } = await seedPanelTask(page);
   expect((await taskFacts(page, taskId, codeTypeId)).constraint).toBeUndefined();
 
-  // Dezelfde opties in dezelfde volgorde als de native lijst.
   const primary = page.locator('[data-ops-rail]').getByRole('button', { name: /^Constraint$/ });
   await primary.click();
   await expect(page.locator('.ops-select__menu')).toBeVisible();
@@ -161,8 +144,6 @@ test('taakpaneel: constraint en secundaire constraint kiezen via de eigen keuzel
     .toEqual(['ASAP', 'ALAP', 'SNET', 'SNLT', 'FNET', 'FNLT', 'MSO', 'MFO']);
   await page.keyboard.press('Escape');
 
-  // Een herhaalde keuze (ASAP terwijl ASAP al geldt) is geen undo-stap: sinds #370 roept `Select`
-  // dan geen onChange aan (net als de native lijst op main).
   const depth0 = (await state(page)).undoDepth;
   await choose(page, /^Constraint$/, 'ASAP');
   expect((await state(page)).undoDepth).toBe(depth0);
@@ -181,13 +162,10 @@ test('taakpaneel: constraint en secundaire constraint kiezen via de eigen keuzel
   await choose(page, secondaryLabel, 'FNLT');
   await expect.poll(() => taskFacts(page, taskId, codeTypeId).then(f => f.constraint2)).toBe('FNLT');
 
-  // Undo neemt alleen de secundaire keuze terug; de primaire SNET blijft staan. (Het paneel
-  // coalesceert opeenvolgende bewerkingen van HETZELFDE veld tot één undo-stap, net als op main.)
   await undo(page);
   await expect.poll(() => taskFacts(page, taskId, codeTypeId)).toMatchObject({ constraint: 'SNET', constraint2: undefined });
   await expect(secondary).toHaveAttribute('data-value', '');
 
-  // De "geen"-optie wist de secundaire constraint.
   await choose(page, secondaryLabel, 'SNLT');
   await expect.poll(() => taskFacts(page, taskId, codeTypeId).then(f => f.constraint2)).toBe('SNLT');
   await choose(page, secondaryLabel, '');
@@ -203,8 +181,6 @@ test('taakpaneel: soort mijlpaal kiezen via de eigen keuzelijst; undo zet terug'
   const trigger = page.locator('[data-ops-rail]').getByRole('button', { name: label });
   await expect(trigger).toHaveAttribute('data-value', 'AUTO');
 
-  // Enter-Enter op de huidige waarde: de lijst opent met AUTO actief, de tweede Enter kiest AUTO
-  // opnieuw. Sinds #370 roept `Select` dan geen onChange aan: geen undo-stap, geen wijziging.
   const depth0 = (await state(page)).undoDepth;
   await trigger.focus();
   await page.keyboard.press('Enter');
@@ -222,7 +198,6 @@ test('taakpaneel: soort mijlpaal kiezen via de eigen keuzelijst; undo zet terug'
   await expect.poll(() => taskFacts(page, taskId, codeTypeId).then(f => f.milestoneKind)).toBeUndefined();
   await expect(trigger).toHaveAttribute('data-value', 'AUTO');
 
-  // AUTO kiezen na START zet de store terug op "geen soort" (undefined), niet op de tekst 'AUTO'.
   await choose(page, label, 'START');
   await expect.poll(() => taskFacts(page, taskId, codeTypeId).then(f => f.milestoneKind)).toBe('START');
   await choose(page, label, 'AUTO');
@@ -248,8 +223,6 @@ test('taakpaneel: activiteitcode kiezen via de eigen keuzelijst; undo zet terug'
   await expect.poll(() => taskFacts(page, taskId, codeTypeId).then(f => f.code)).toBeUndefined();
   await expect(trigger).toHaveAttribute('data-value', '');
 
-  // N.1 en dan "(geen)": de sleutel van het codetype verdwijnt van de taak, zoals op main
-  // (de store wist alleen bij null; een lege tekst zou als waarde blijven staan).
   const hasKey = () => page.evaluate(({ id, typeId }) => {
     const t = window.__OPS__!.store.getState().tasks.find(x => x.id === id)!;
     return t.activityCodes ? Object.prototype.hasOwnProperty.call(t.activityCodes, typeId) : false;
@@ -263,7 +236,6 @@ test('taakpaneel: activiteitcode kiezen via de eigen keuzelijst; undo zet terug'
 
 test('taakpaneel: een activiteitcode-id dat niet in het codetype staat toont "(geen)" en "(geen)" wist het', async ({ page, ops: _ops }) => {
   const { taskId, codeTypeId } = await seedPanelTask(page);
-  // Fixture: zo'n id kan via de extensie-API binnenkomen (de import levert alleen bekende id's).
   await page.evaluate(({ id, typeId }) => window.__OPS__!.store.getState().updateTask(id, {
     activityCodes: { [typeId]: 'onbekend-id' },
   }), { id: taskId, typeId: codeTypeId });
@@ -276,7 +248,6 @@ test('taakpaneel: een activiteitcode-id dat niet in het codetype staat toont "(g
   }, { id: taskId, typeId: codeTypeId });
   expect(await code()).toBe('onbekend-id');
 
-  // "(geen)" kiezen haalt het onbekende id weg.
   await choose(page, new RegExp(`^${CODE_NAME}$`), '');
   await expect.poll(code).toBe('geen sleutel');
   await expect(trigger).toHaveAttribute('data-value', '');
@@ -284,15 +255,10 @@ test('taakpaneel: een activiteitcode-id dat niet in het codetype staat toont "(g
 });
 
 test('Taak bewerken: Enter op de dichte constraint-keuzelijst opent de lijst en slaat niet op', async ({ page, ops: _ops }) => {
-  // Vastgelegd verschil met de native lijst op main: daar sloeg Enter op een dichte select de
-  // dialoog op. De eigen Select houdt Enter zelf (zoals de andere keuzelijsten in deze dialoog).
   const { taskId } = await seedPanelTask(page);
   await page.evaluate(id => window.__OPS__!.store.getState().setUI({ showTaskDialog: true, editingTaskId: id }), taskId);
   const dialog = page.locator('[data-ops-task-dialog]');
   await expect(dialog).toBeVisible();
-  // De dialoog zet na openen (±30 ms) zelf de focus op het naamveld. Wacht daarop: anders kan die
-  // focussprong tussen `trigger.focus()` en Enter vallen. Enter op het naamveld slaat de dialoog
-  // op en de lijst opent nooit (zo faalde CI-run 39059235118 onder belasting).
   await expect(dialog.locator('[data-ops-task-name]')).toBeFocused();
   const trigger = dialog.getByRole('button', { name: /^(Constraint|Beperking)$/ });
   await trigger.focus();
@@ -300,7 +266,6 @@ test('Taak bewerken: Enter op de dichte constraint-keuzelijst opent de lijst en 
   await page.keyboard.press('Enter');
   await expect(page.locator('.ops-select__menu')).toBeVisible();
   await expect(dialog).toBeVisible();
-  // Escape sluit alleen de lijst, niet de dialoog.
   await page.keyboard.press('Escape');
   await expect(page.locator('.ops-select__menu')).toHaveCount(0);
   await expect(dialog).toBeVisible();

@@ -1,19 +1,3 @@
-// Uren per dag bij een werkdagwissel in het kalendervenster (review PR #352 punt 1, review #354).
-//
-// `hoursPerDay` is de omrekening tussen dagen en uren (P6 `day_hr_cnt`) en mag afwijken van de blokken:
-// XER "Late ploeg" 14:00–24:00 op ma–vr (10 klokuren) met `day_hr_cnt` 8. Een afwijkende waarde blijft
-// staan; alleen een waarde die bij het openen gelijk was aan de blokken volgt ze. Dat geldt voor de hele
-// venstersessie samen: de klikvolgorde telt niet, en het blok Werktijden volgt dezelfde regel als de
-// dagknoppen. Corpusloze kern: `tests/planning/check-urenperdag-dagwissel.ts` (§1–§4, §6).
-//
-// Het veld "Standard workday" toont de werktijd per dag waarmee de app rekent (modale bandsom), niet de
-// opgeslagen `hoursPerDay` (besluit eigenaar 2026-10-15, optie 1). De opgeslagen waarde lezen de tests daarom
-// na Toepassen uit de store.
-//
-// De .xer gaat via de ribbonknop Openen en de bestandskiezer; daarna alleen echte klikken. `window.__OPS__`
-// wordt uitsluitend gebruikt om de uitkomst te LEZEN (patroon `xer-wbs-tree.spec.ts`). Uitzondering: de
-// laatste test (resourcekalendervenster) zet zijn fixture via `__OPS__` (patroon
-// `calendar-dialog-commits.spec.ts`); de gebruikershandeling zelf blijft echte klikken.
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
@@ -26,8 +10,6 @@ const calendarData = (days: Days) => {
   };
   return `(0||CalendarData()((0||DaysOfWeek()(${[1, 2, 3, 4, 5, 6, 7].map(day).join('')}))(0||Exceptions()())))`;
 };
-/** XER met kalender C1 (de projectkalender) en één urentaak van 40 u. `days`: per P6-dag (1 = zondag …
- *  7 = zaterdag) het blok. `extra`: een tweede kalender C2 in de bibliotheek. */
 function xer(name: string, days: Days, dayHrCnt: number, extra?: { name: string; days: Days }): string {
   return [
     'ERMHDR\t8.4\t2026-07-18\t\t\t\t\t\tEUR',
@@ -44,7 +26,6 @@ function xer(name: string, days: Days, dayHrCnt: number, extra?: { name: string;
     '%E',
   ].join('\n');
 }
-// P6 telt de dagen vanaf zondag (1); 2..6 = ma..vr. Een blok tot middernacht eindigt op 00:00.
 const ON_MA_VR = (band: Clock) => ({ 2: band, 3: band, 4: band, 5: band, 6: band });
 const LATE_PLOEG = xer('Late ploeg', ON_MA_VR(['14:00', '00:00']), 8);
 const LATE = [{ start: 840, end: 1440 }];
@@ -72,7 +53,6 @@ async function calendarState(page: Page) {
   });
 }
 
-/** Planning ▸ Kalender met echte klikken; het venster toont de projectkalender. */
 async function openCalendarDialog(page: Page): Promise<Locator> {
   await page.locator('.ribbon-tab').filter({ hasText: /^Planning$/ }).click();
   await page.locator('[data-ops-ribbon-item="calendar"]').first().click();
@@ -88,8 +68,6 @@ const netHours = (dialog: Locator) => dialog.locator('[data-ops-simple-break-net
 
 test('kalendervenster: Za aan bij Late ploeg (14–24, 8 u/dag) houdt de uren per dag op 8', async ({ page, ops: _ops }) => {
   await openXer(page, LATE_PLOEG);
-  // Het dagengetal van de urentaak volgt de blokken, niet de opgeslagen 8 (eigenaarsbesluit 2026-10-15,
-  // optie 2): 2400 werkminuten ÷ 600 min (14–24) = 4 dagen. Bewaakt in `check-dag-is-werktijd.ts`.
   await expect.poll(() => calendarState(page)).toEqual({
     name: 'Late ploeg', workDays: [1, 2, 3, 4, 5], hoursPerDay: 8, sat: [], taskMinutes: 2400, taskDays: 4,
   });
@@ -100,7 +78,6 @@ test('kalendervenster: Za aan bij Late ploeg (14–24, 8 u/dag) houdt de uren pe
   await expect(sat).toHaveCount(1);
   await sat.click();
   await expect(sat).toHaveClass(/bg-accent/);
-  // Zaterdag krijgt de blokken van de eerste werkdag (14–24, 10 klokuren); de uren per dag blijven 8.
   await expect(dialog.locator('[data-ops-worktime-day="6"]')).toContainText('10h');
   await expect(netHours(dialog)).toHaveText('10h');
 
@@ -113,14 +90,11 @@ test('kalendervenster: Za aan bij Late ploeg (14–24, 8 u/dag) houdt de uren pe
 
 test('kalendervenster: ma t/m vr uit en dan Za aan geeft za de werkdag van het openen, zonder verzonnen pauze',
   async ({ page, ops: _ops }) => {
-    // XER ma–vr 08:00–18:00 (10 klokuren) met day_hr_cnt 8. Zonder enig blok in de tussenstand zaaide het
-    // venster za met 8 netto uren: 08–12 + 14–18. Nu krijgt za 08–18, de werkdag van het openen.
     await openXer(page, xer('Dagploeg 10 u', ON_MA_VR(['08:00', '18:00']), 8));
     await expect.poll(() => calendarState(page).then((s) => [s.workDays, s.hoursPerDay])).toEqual([[1, 2, 3, 4, 5], 8]);
 
     const dialog = await openCalendarDialog(page);
     await clickDays(dialog, ['Mon', 'Tue', 'Wed', 'Thu', 'Fri']);
-    // Geen enkele dag met werktijd: het veld toont een streepje, niet de opgeslagen 8.
     await expect(netHours(dialog)).toHaveText('—');
     await clickDays(dialog, ['Sat']);
     await expect(dialog.locator('[data-ops-worktime-day="6"]')).toContainText('10h');
@@ -134,15 +108,12 @@ test('kalendervenster: ma t/m vr uit en dan Za aan geeft za de werkdag van het o
 
 test('kalendervenster: twee klikvolgordes naar dezelfde werkdagen geven dezelfde uren per dag',
   async ({ page, ops: _ops }) => {
-    // XER ma–do 07:00–16:00 (9 u), vr 07:00–15:00 (8 u), day_hr_cnt 8: modaal 9, dus 8 is een afwijking.
-    // Per klik vergeleken gaf "ma t/m do uit, ma weer aan" 9 en "di, wo, do uit" 8. Nu geven beide 8.
     const nineToFour = ['07:00', '16:00'] as const;
     await openXer(page, xer('Negen en acht', { 2: nineToFour, 3: nineToFour, 4: nineToFour, 5: nineToFour, 6: ['07:00', '15:00'] }, 8));
     await expect.poll(() => calendarState(page).then((s) => [s.workDays, s.hoursPerDay])).toEqual([[1, 2, 3, 4, 5], 8]);
 
     let dialog = await openCalendarDialog(page);
     await clickDays(dialog, ['Tue', 'Wed', 'Thu']);
-    // Ma 9 u en vr 8 u: bij gelijke telling geldt de hoogste, dus het venster toont 9.
     await expect(netHours(dialog)).toHaveText('9h');
     await dialog.locator('[data-ops-cal-cancel]').click();
     await expect(dialog).toBeHidden();
@@ -163,7 +134,6 @@ test('kalendervenster: + blok bij Za in Werktijden houdt de uren per dag van Lat
     const dialog = await openCalendarDialog(page);
     const satRow = dialog.locator('[data-ops-worktime-day="6"]');
     await satRow.getByRole('button', { name: 'Add band', exact: true }).click();
-    // Het nieuwe blok is 08:00–16:00; zaterdag wordt daarmee een werkdag.
     await expect(satRow).toContainText('8h');
     await expect(dayButton(dialog, 'Sat')).toHaveClass(/bg-accent/);
     await expect(netHours(dialog)).toHaveText('10h');
@@ -175,9 +145,6 @@ test('kalendervenster: + blok bij Za in Werktijden houdt de uren per dag van Lat
   });
 
 test('kalendervenster: na een preset volgen de uren per dag de blokken weer', async ({ page, ops: _ops }) => {
-  // Late ploeg (8 u/dag) week af. De preset 2 ploegen zet 06–22 met 16 u/dag: dat is de nieuwe beginstand, en
-  // die volgt de blokken. Ma t/m vr uit en + blok op za (08–16) geeft dan 8 u/dag. Zonder nieuwe beginstand
-  // bleef de afwijking van Late ploeg gelden en bleef het 16.
   await openXer(page, LATE_PLOEG);
   await expect.poll(() => calendarState(page).then((s) => s.hoursPerDay)).toBe(8);
 
@@ -197,9 +164,6 @@ test('kalendervenster: na een preset volgen de uren per dag de blokken weer', as
 
 test('kalendervenster: de beginstand blijft per kalender bewaard als je in het venster van kalender wisselt',
   async ({ page, ops: _ops }) => {
-    // Het formulier mount per kalender opnieuw. Ma t/m do uit, even naar een andere kalender en terug, dan ma
-    // aan: ma krijgt zijn eigen 9 u van het openen terug en de 8 u/dag (afwijkend) blijft. Zonder bewaarde
-    // beginstand was de tussenstand (alleen vr 8 u) de nieuwe beginstand: ma kreeg 8 u, een kopie van vr.
     const nineToFour = ['07:00', '16:00'] as const;
     await openXer(page, xer('Negen en acht', { 2: nineToFour, 3: nineToFour, 4: nineToFour, 5: nineToFour, 6: ['07:00', '15:00'] }, 8,
       { name: 'Andere', days: ON_MA_VR(['08:00', '16:00']) }));
@@ -225,10 +189,6 @@ test('kalendervenster: de beginstand blijft per kalender bewaard als je in het v
 
 test('resourcekalendervenster: ma t/m do uit en ma weer aan bij 9/9/9/9/8 (8 u/dag) geeft 8, en ma krijgt zijn eigen 9 u terug',
   async ({ page, ops: _ops }) => {
-    // Het resourcekalendervenster houdt de beginstand in het formulier zelf (geen `sessionStart`-prop). Ma–do
-    // 07:00–16:00 (9 u), vr 07:00–15:00 (8 u), 8 u/dag: modaal 9, dus 8 is een afwijking. Met de tussenstand
-    // (alleen vr 8 u) als beginstand kreeg ma een kopie van vr (8 u). De fixture gaat via `__OPS__`; de
-    // dagknoppen en Toepassen zijn echte klikken.
     const calendarId = await page.evaluate(() => {
       const s = window.__OPS__!.store.getState();
       const { id: _ignored, ...base } = structuredClone(s.calendar);
@@ -267,10 +227,6 @@ test('resourcekalendervenster: ma t/m do uit en ma weer aan bij 9/9/9/9/8 (8 u/d
 
 test('kalendervenster: netto-uren per dag toont de werktijd van de blokken, live, en Annuleren laat de opgeslagen 8 staan',
   async ({ page, ops: _ops }) => {
-    // Besluit eigenaar 2026-10-15 (optie 1): ma–vr 08:00–18:00 (10 klokuren) met day_hr_cnt 8. Het veld toont
-    // 10; het is de enige plek met dat getal (de regel "Derived hours/day" in het blok Werktijden is weg). De
-    // opgeslagen 8 (P6-omrekenfactor) staat niet in het veld, maar blijft bewaard. Sinds besluit 2026-10-20 (punt 8,
-    // optie 2) noemt een oranje blok onder het veld hem: `calendar-file-hours-notice.spec.ts`.
     await openXer(page, xer('Dagploeg 10 u', ON_MA_VR(['08:00', '18:00']), 8));
     await expect.poll(() => calendarState(page).then((s) => [s.workDays, s.hoursPerDay])).toEqual([[1, 2, 3, 4, 5], 8]);
 
@@ -278,14 +234,12 @@ test('kalendervenster: netto-uren per dag toont de werktijd van de blokken, live
     await expect(netHours(dialog)).toHaveText('10h');
     await expect(dialog.locator('[data-ops-derived-hpd]')).toHaveCount(0);
 
-    // Ma 07:00–16:00 en kopiëren naar alle werkdagen: 9 klokuren per dag; het veld volgt live.
     const monBand = dialog.locator('[data-ops-worktime-day="1"] [data-ops-band]').first().locator('[data-ops-time-input]');
     await monBand.nth(0).fill('07:00');
     await monBand.nth(0).press('Tab');
     await monBand.nth(1).fill('16:00');
     await monBand.nth(1).press('Tab');
     await expect(dialog.locator('[data-ops-worktime-day="1"]')).toContainText('9h');
-    // Alleen ma op 9: de meeste werkdagen hebben nog 10 klokuren (modale bandsom), dus het veld blijft 10.
     await expect(netHours(dialog)).toHaveText('10h');
     await dialog.locator('[data-ops-worktime-day="1"]').getByTitle('Copy to all workdays').click();
     await expect(dialog.locator('[data-ops-worktime-day="5"]')).toContainText('9h');
@@ -301,8 +255,6 @@ test('kalendervenster: netto-uren per dag toont de werktijd van de blokken, live
 
 test('kalendervenster: standaard werkdag is de dagsom die het vaakst voorkomt, geen gemiddelde (ma 16 u, di–vr 10 u ⇒ 10)',
   async ({ page, ops: _ops }) => {
-    // Besluit eigenaar 2026-10-17 (checkstap 24, optie 2): het veld heet *Standard workday* en blijft 10 h
-    // als maandag 07:00–23:00 (16 u) wordt; een gemiddelde zou 11,20 h geven.
     await openXer(page, xer('Dagploeg 10 u', ON_MA_VR(['08:00', '18:00']), 10));
     await expect.poll(() => calendarState(page).then((s) => s.workDays)).toEqual([1, 2, 3, 4, 5]);
 
@@ -326,7 +278,6 @@ test('kalendervenster: het i-icoon bij Standard workday legt het veld uit, met d
     const dialog = await openCalendarDialog(page);
     const info = dialog.locator('[data-ops-standard-workday-info]');
     await expect(info).toHaveAttribute('aria-label', 'Explanation of the standard workday');
-    // Gewone cursor, geen vraagteken (patroon *Werkregel*).
     expect(await info.evaluate((el) => getComputedStyle(el).cursor)).not.toBe('help');
     const tip = page.locator('.ops-tooltip[role="tooltip"]');
     const text = 'The length of the workday that occurs most often. The app uses it to convert a day into hours.';
@@ -334,7 +285,6 @@ test('kalendervenster: het i-icoon bij Standard workday legt het veld uit, met d
     await expect(tip).toHaveText(text);
     await page.mouse.move(0, 0);
     await expect(tip).toHaveCount(0);
-    // Toetsenbord: de knop is focusbaar en toont de uitleg bij focus; Escape sluit alleen de tooltip.
     await info.focus();
     await expect(tip).toHaveText(text);
     await page.keyboard.press('Escape');

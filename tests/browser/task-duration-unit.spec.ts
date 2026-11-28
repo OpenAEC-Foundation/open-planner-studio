@@ -53,7 +53,6 @@ test('dialoog en eigenschappenpaneel normaliseren duur zonder redundante suffix 
   const panelDuration = page.locator('[data-ops-task-duration]').first();
   await expect(panelDuration).toBeVisible();
   await expect(panelDuration.locator('[data-ops-duration-value]')).toHaveValue('4');
-  // knownbugs #90: één klik en typen vervangt de oude waarde, zonder Ctrl+A.
   await panelDuration.locator('[data-ops-duration-value]').click();
   await page.keyboard.type('12 hours');
   await panelDuration.locator('[data-ops-duration-value]').blur();
@@ -151,13 +150,10 @@ test('de gemengde voorkeur regelt beide gedeelde duurvelden zonder taakdata te h
     }
   };
 
-  // De gemengde voorkeur bepaalt uitsluitend de eenheidsbediening.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ allowMixedDayHour: true }));
   await assertControls(true);
   await expect(panelDuration.locator('[data-ops-duration-value]')).toBeEnabled();
 
-  // Uren aan maar gemengd uit verbergt uitsluitend de eenheidsbediening. De bestaande urentaak
-  // blijft intact en de numerieke waarde is weer bewerkbaar.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ allowMixedDayHour: false }));
   await assertControls(false);
   await expect(panelDuration.locator('[data-ops-duration-value]')).toBeEnabled();
@@ -240,7 +236,6 @@ test('duurinfo is met hover en toetsenbordfocus bereikbaar en legt het vaste con
   await expect(tooltip).toContainText(/(days count working days|dagen tellen werkdagen)/i);
   await expect(tooltip).toContainText(/(hours count working hours|uren tellen werkuren)/i);
 
-  // De dialoog gebruikt hetzelfde veld, maar krijgt een eigen DOM-insertie en focusketen.
   await openDialog(page, taskId);
   const dialogInfo = page.getByRole('dialog').locator('[data-ops-duration-info]');
   await dialogInfo.hover();
@@ -266,7 +261,6 @@ test('scalaire standaardkalender converteert naar uren met middagpauze; ongeldig
   const duration = page.locator('[data-ops-task-duration]').first();
   await duration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();
   await page.getByRole('option', { name: /^(Hours|Uren)$/ }).click();
-  // De keuze geldt meteen: geen voorstel om doorheen te klikken.
   await expect(duration.locator('[data-ops-duration-value]')).toHaveValue('16');
   await expect(duration.locator('[data-ops-duration-message]')).toBeHidden();
   await duration.locator('[data-ops-duration-value]').fill('12h');
@@ -278,8 +272,6 @@ test('scalaire standaardkalender converteert naar uren met middagpauze; ongeldig
     return { unit: task.time.durationUnit, minutes: task.time.durationMinutes, finish: task.time.earlyFinish };
   }, dayTaskId)).toEqual({ unit: 'hours', minutes: 720, finish: '2026-09-08T12:00' });
 
-  // N0: kalenderwissel bewaart de oorspronkelijke start 08:00. Door de afgeleide
-  // pauze 12:00–13:00 eindigen acht werkuren dinsdag 08:00.
   await duration.locator('[data-ops-duration-value]').fill('8h');
   await duration.locator('[data-ops-duration-value]').blur();
   await expect.poll(() => page.evaluate((id) => {
@@ -296,8 +288,6 @@ test('scalaire standaardkalender converteert naar uren met middagpauze; ongeldig
   await page.getByRole('option', { name: /^(Days|Dagen)$/ }).click();
   await expect(duration.locator('[data-ops-duration-not-exact]')).toBeVisible();
 
-  // Sinds de dagenmaat een breuk mag hebben (spec "alleen uren" B1, §3.2) is 12 u op een werkdag van 8 u
-  // exact 1,5 d: de wissel houdt het eindmoment en meldt niets.
   const hourTaskId = await seedDurationTask(page, 'hours', 12);
   const hourDuration = page.locator('[data-ops-task-duration]').first();
   await expect(hourDuration.locator('[data-ops-duration-value]')).toBeEnabled();
@@ -325,19 +315,16 @@ test('eenheid kiezen zet een exacte duur meteen om en undo zet het in één stap
   await page.getByRole('option', { name: /^(Days|Dagen)$/ }).click();
 
   await expect.poll(readTime).toEqual({ unit: 'days', days: 2, minutes: null });
-  // Eén keuze is precies één geschiedenisstap: eenheid en duur landen samen.
   expect(await historyLength()).toBe(historyBefore + 1);
   await expect(duration.locator('[data-ops-duration-value]')).toHaveValue('2');
   await expect(duration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ })).toContainText(/^(Days|Dagen)$/);
   await expect(duration.locator('[data-ops-duration-message]')).toBeHidden();
   await expect(duration.getByRole('button', { name: /(proposal|voorstel|Retain|Behouden)/i })).toHaveCount(0);
 
-  // Eén undo-stap zet eenheid én duur samen terug; een tussenstand (alleen eenheid) mag niet bestaan.
   await page.keyboard.press('ControlOrMeta+z');
   await expect.poll(readTime).toEqual({ unit: 'hours', days: 2, minutes: 960 });
   await expect(duration.locator('[data-ops-duration-value]')).toHaveValue('16');
 
-  // De taakdialoog deelt hetzelfde veld en gedraagt zich gelijk: keuze ⇒ meteen omgezet in het concept.
   await openDialog(page, taskId);
   const dialogDuration = page.getByRole('dialog').locator('[data-ops-task-duration]');
   await dialogDuration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();
@@ -347,8 +334,6 @@ test('eenheid kiezen zet een exacte duur meteen om en undo zet het in één stap
   await expect(dialogDuration.locator('[data-ops-duration-message]')).toBeHidden();
 });
 
-/** Een kalender zonder werktijd: de enige plek waar een eenheidswissel niet om te rekenen is (sinds B1 is
- *  elke omzetting op een leesbare kalender exact, want de dagenmaat mag een breuk hebben). */
 async function unreadableCalendar(page: Page): Promise<void> {
   await page.evaluate(() => {
     const state = window.__OPS__!.store.getState();
@@ -370,7 +355,6 @@ test('niet exact: duidelijk waarschuwingsblok, eenheid blijft, geen toast; blok 
   await expect(block).toHaveAttribute('role', 'alert');
   await expect(block).toContainText('12h');
   await expect(block).toContainText(/(cannot be converted|niet om te rekenen)/i);
-  // Waarschuwingskleur uit de --warning-token, geen grijze bijschrifttekst.
   const colors = await block.evaluate((el) => {
     const css = getComputedStyle(el);
     const probe = document.createElement('span');
@@ -388,16 +372,13 @@ test('niet exact: duidelijk waarschuwingsblok, eenheid blijft, geen toast; blok 
     return { unit: task.time.durationUnit, minutes: task.time.durationMinutes };
   }, hourTaskId)).toEqual({ unit: 'hours', minutes: 720 });
   await expect(duration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ })).toContainText(/^(Hours|Uren)$/);
-  // Geen toast: de store krijgt geen melding en er staat geen toast in beeld.
   expect(await notificationCount()).toBe(notificationsBefore);
   await expect(page.locator('.ops-toast')).toHaveCount(0);
 
-  // Een nieuwe waarde haalt het blok weg.
   await duration.locator('[data-ops-duration-value]').fill('16h');
   await duration.locator('[data-ops-duration-value]').blur();
   await expect(block).toHaveCount(0);
 
-  // Opnieuw niet exact, daarna een andere taak: het blok lekt niet mee.
   await duration.locator('[data-ops-duration-value]').fill('12h');
   await duration.locator('[data-ops-duration-value]').blur();
   await duration.getByRole('button', { name: /^(Duration unit|Duureenheid)$/ }).click();
@@ -411,7 +392,6 @@ test('niet exact: duidelijk waarschuwingsblok, eenheid blijft, geen toast; blok 
     return { unit: task.time.durationUnit, minutes: task.time.durationMinutes };
   }, nextTaskId)).toEqual({ unit: 'hours', minutes: 1440 });
 
-  // De taakdialoog toont hetzelfde blok.
   const dialogTaskId = await seedDurationTask(page, 'hours', 12);
   await unreadableCalendar(page);
   await openDialog(page, dialogTaskId);

@@ -1,11 +1,3 @@
-// "Taak bewerken" openen en zonder iets te wijzigen op OK drukken is geen bewerking: de uit MS Project
-// geïmporteerde sturing (laag 3: `timephasedFinishFloor`/`timephasedStartAnchor`) blijft staan, er
-// komt geen melding, geen undo-stap en het document blijft ongewijzigd. Vóór de fix stuurde het
-// venster altijd het volledige `time`-object mee en besliste de app op sleutel-aanwezigheid; zie
-// `taskTriggerChanges` in src/utils/taskDefaults.ts en tests/planning/check-value-based-triggers.ts.
-//
-// De brug zet alleen de fixture (MSP-sturing, schoon document) en leest de state; openen en OK
-// drukken gaan via echte muisklikken (rechtsklik op de taakrij → "Bewerken..." → OK).
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
@@ -20,8 +12,6 @@ async function seedSteeredTask(page: Page): Promise<string> {
     s.setViewStartDate('2026-09-07');
     const id = s.addTask({ name: 'Metselwerk' });
     ops.store.getState().runCPM();
-    // Zoals de .mpp-lezer het aanlevert: een gelezen Z8-venster op een verder gewone taak. Daarna
-    // een schoon document, zodat "gewijzigd" en "melding" alleen van de dialoog kunnen komen.
     ops.store.setState((state) => {
       const task = state.tasks.find(candidate => candidate.id === id)!;
       task.timephasedFinishFloor = floor;
@@ -66,7 +56,6 @@ test('Taak bewerken → OK zonder wijziging laat MSP-sturing, meldingen en docum
   await page.getByRole('dialog').locator('[data-ops-task-save]').click();
   await expect(page.getByRole('dialog')).toBeHidden();
 
-  // De dialoog is dicht, dus `handleSave` heeft zijn `updateTask` al gedaan; de state is ongemoeid.
   expect(await snapshot(page, taskId)).toEqual(before);
 });
 

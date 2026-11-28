@@ -3,28 +3,16 @@ import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 import { LOCALE_CASES, chooseLocale } from './fixtures/locale';
 
-// De eigen keuzelijst (`Select`) mag geen toetsen naar de globale sneltoetsen laten lekken, en zijn
-// open lijst mag de opties niet afknippen. Gemeten fouten (review PR #368, ook op main):
-//  - Delete/Backspace op de trigger of in de open lijst verwijderden de geselecteerde taak;
-//  - − en 0 in de open lijst zoomden de Gantt;
-//  - Escape in een open lijst in een dialoog sloot de hele dialoog (concept weg);
-//  - Escape op een dichte trigger hief de taakselectie op (een native <select> doet dat niet);
-//  - de lijst was even breed als de trigger, dus lange opties vielen weg.
-// Fixtures (taken, kalender, panelen, dialoog openen) gaan via de brug; elke geteste handeling is
-// een echte klik of toetsaanslag.
-
 const zoom = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().view.zoom);
 const taskIds = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().tasks.map(t => t.id));
 const selected = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().selectedTaskIds);
 const menu = (page: Page) => page.locator('.ops-select__menu');
 
 const LONG_TASK = 'Gevelmetselwerk met verdiepte voegen en natuursteen plinten aan de noordzijde, inclusief steigerwerk en voegwerk na de vorstperiode';
-/** `dialog.parentTask` uit de taalbestanden: zo volgt de test de vertaling. */
 const parentTaskLabel = (locale: 'en' | 'ar'): string =>
   (JSON.parse(readFileSync(new URL(`../../src/i18n/locales/${locale}/task.json`, import.meta.url), 'utf8')) as { dialog: { parentTask: string } }).dialog.parentTask;
 const LONG_CALENDAR = 'Kalender met een heel lange naam voor de winterploeg op de bouwplaats Noord';
 
-/** Eén taak, geselecteerd, met het eigenschappenpaneel open. Geeft de kalendertrigger terug. */
 async function seedPanel(page: Page, extraCalendar = false): Promise<{ id: string; trigger: Locator }> {
   const [id] = await seedProject(page, [
     { name: 'Metselwerk', start: '2026-09-07', finish: '2026-09-10', durationDays: 4 },
@@ -39,7 +27,6 @@ async function seedPanel(page: Page, extraCalendar = false): Promise<{ id: strin
     s.selectTask(taskId);
     return s.calendar.name;
   }, { taskId: id, longName: extraCalendar ? LONG_CALENDAR : null });
-  // De kalendertrigger toont "<projectkalender>: <naam>"; zo vinden we hem in elke taal.
   const trigger = page.locator('button[aria-haspopup="listbox"]').filter({ hasText: projectCalendar });
   await expect(trigger).toBeVisible();
   return { id, trigger };
@@ -48,27 +35,22 @@ async function seedPanel(page: Page, extraCalendar = false): Promise<{ id: strin
 test('Delete en Backspace in de open lijst en op de dichte trigger verwijderen de taak niet', async ({ page, ops: _ops }) => {
   const { id, trigger } = await seedPanel(page);
 
-  // Open lijst.
   await trigger.click();
   await expect(menu(page)).toBeVisible();
   await page.keyboard.press('Delete');
   await page.keyboard.press('Backspace');
   expect(await taskIds(page)).toEqual([id]);
 
-  // Kiezen met de muis: de focus gaat terug naar de dichte trigger. Backspace en Delete daar
-  // verwijderen de taak ook niet.
   await menu(page).locator('[role="option"]').first().click();
   await expect(menu(page)).toHaveCount(0);
   await expect(trigger).toBeFocused();
   await page.keyboard.press('Backspace');
   await page.keyboard.press('Delete');
-  // Ook met Ctrl: Delete en Backspace blijven op de trigger afgevangen.
   await page.keyboard.press('Control+Delete');
   await page.keyboard.press('Control+Backspace');
   expect(await taskIds(page)).toEqual([id]);
   expect(await selected(page)).toEqual([id]);
 
-  // En in de open lijst met Ctrl evenmin.
   await trigger.click();
   await expect(menu(page)).toBeVisible();
   await page.keyboard.press('Control+Delete');
@@ -78,13 +60,11 @@ test('Delete en Backspace in de open lijst en op de dichte trigger verwijderen d
 
 test('Ctrl+Z na een muiskeuze zet de keuze terug; in de open lijst doet Ctrl+Z niets', async ({ page, ops: _ops }) => {
   const { id } = await seedPanel(page, true);
-  // De trigger toont na de keuze een andere tekst; zoek hem hier op zijn (Engelse) label.
   const trigger = page.locator('button[aria-haspopup="listbox"][aria-label="Calendar"]');
   await expect(trigger).toHaveCount(1);
   const calendarOf = () => page.evaluate(taskId => window.__OPS__!.store.getState().tasks.find(t => t.id === taskId)!.calendarId ?? null, id);
   expect(await calendarOf()).toBeNull();
 
-  // Muiskeuze: de focus staat daarna weer op de dichte trigger.
   await trigger.click();
   await menu(page).getByRole('option', { name: LONG_CALENDAR }).click();
   await expect(menu(page)).toHaveCount(0);
@@ -92,7 +72,6 @@ test('Ctrl+Z na een muiskeuze zet de keuze terug; in de open lijst doet Ctrl+Z n
   const chosen = await calendarOf();
   expect(chosen).not.toBeNull();
 
-  // Open lijst: Ctrl+Z blijft afgevangen, de keuze staat nog.
   await trigger.click();
   await expect(menu(page)).toBeVisible();
   await page.keyboard.press('ControlOrMeta+z');
@@ -101,7 +80,6 @@ test('Ctrl+Z na een muiskeuze zet de keuze terug; in de open lijst doet Ctrl+Z n
   await expect(menu(page)).toHaveCount(0);
   await expect(trigger).toBeFocused();
 
-  // Dichte trigger: Ctrl+Z gaat door naar de globale undo.
   await page.keyboard.press('ControlOrMeta+z');
   await expect.poll(calendarOf).toBeNull();
   expect(await taskIds(page)).toEqual([id]);
@@ -110,7 +88,6 @@ test('Ctrl+Z na een muiskeuze zet de keuze terug; in de open lijst doet Ctrl+Z n
 test('dezelfde optie opnieuw kiezen roept geen onChange aan (klik, Enter, Spatie)', async ({ page, ops: _ops }) => {
   const { id } = await seedPanel(page, true);
   const trigger = page.locator('button[aria-haspopup="listbox"][aria-label="Calendar"]');
-  // Spion op de storeactie achter de kalenderkeuze in het paneel (alleen tellen, gedrag blijft).
   await page.evaluate(() => {
     const store = window.__OPS__!.store;
     const original = store.getState().setTaskCalendar;
@@ -128,11 +105,9 @@ test('dezelfde optie opnieuw kiezen roept geen onChange aan (klik, Enter, Spatie
   expect(await calls()).toBe(1);
   const chosen = await page.evaluate(taskId => window.__OPS__!.store.getState().tasks.find(t => t.id === taskId)!.calendarId, id);
 
-  // Klik op de al gekozen optie: de lijst sluit, geen onChange.
   await trigger.click();
   await menu(page).getByRole('option', { name: LONG_CALENDAR }).click();
   await expect(menu(page)).toHaveCount(0);
-  // Enter+Enter en Spatie+Spatie: openen en de actieve (gekozen) optie opnieuw kiezen.
   for (const key of ['Enter', ' ']) {
     await page.keyboard.press(key);
     await expect(menu(page)).toBeVisible();
@@ -146,7 +121,6 @@ test('dezelfde optie opnieuw kiezen roept geen onChange aan (klik, Enter, Spatie
 test('− en 0 in de open lijst zoomen de Gantt niet', async ({ page, ops: _ops }) => {
   const { trigger } = await seedPanel(page);
 
-  // Controle vooraf: zonder veldfocus zoomt het min-teken wél.
   await page.locator('body').click({ position: { x: 1, y: 1 } });
   const start = await zoom(page);
   await page.keyboard.press('-');
@@ -171,8 +145,6 @@ test('Escape op de keuzelijst in het paneel: lijst dicht, taakselectie blijft (z
   await expect(trigger).toBeFocused();
   expect(await selected(page)).toEqual([id]);
 
-  // Dichte, gefocuste trigger: Escape heft de selectie niet op. Op main doet een gefocuste native
-  // <select> hetzelfde (het sneltoetsregister slaat een typveld over).
   await page.keyboard.press('Escape');
   expect(await selected(page)).toEqual([id]);
 });
@@ -186,7 +158,6 @@ test('Escape in een open lijst in de taakdialoog sluit alleen de lijst; het conc
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
 
-  // Concept: een nieuwe naam typen.
   const name = dialog.locator('input').first();
   await expect(name).toHaveValue('Metselwerk');
   await name.fill('Metselwerk gevel');
@@ -199,12 +170,9 @@ test('Escape in een open lijst in de taakdialoog sluit alleen de lijst; het conc
   await expect(dialog).toBeVisible();
   await expect(name).toHaveValue('Metselwerk gevel');
   await expect(parent).toBeFocused();
-  // De taak zelf is niet gewijzigd: het concept is nog niet opgeslagen en niet weggegooid.
   expect(await page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.name, second)).toBe('Metselwerk');
   expect(await taskIds(page)).toEqual([first, second]);
 
-  // Een tweede Escape op de dichte trigger sluit de dialoog wél, net als bij een gefocuste native
-  // <select> op main: alleen een open lijst houdt Escape vast.
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 });
@@ -214,7 +182,6 @@ test('taakdialoog: Ctrl+Z en Ctrl+V na een muiskeuze veranderen niets achter de 
     { name: 'Fundering', start: '2026-09-07', finish: '2026-09-10', durationDays: 4 },
     { name: 'Metselwerk', start: '2026-09-11', finish: '2026-09-16', durationDays: 4 },
   ]);
-  // Iets op het klembord, zodat Ctrl+V echt iets zou plakken.
   await page.evaluate(id => {
     const s = window.__OPS__!.store.getState();
     s.selectTask(id);
@@ -226,7 +193,6 @@ test('taakdialoog: Ctrl+Z en Ctrl+V na een muiskeuze veranderen niets achter de 
   const dialog = page.getByRole('dialog');
   await expect(dialog).toBeVisible();
 
-  // Muiskeuze: de focus staat daarna op de dichte trigger, in de modale dialoog.
   const parent = dialog.locator(`button[aria-haspopup="listbox"][aria-label="${parentTaskLabel('en')}"]`);
   await parent.click();
   await menu(page).getByRole('option', { name: /Fundering/ }).click();
@@ -234,7 +200,6 @@ test('taakdialoog: Ctrl+Z en Ctrl+V na een muiskeuze veranderen niets achter de 
   await expect(parent).toBeFocused();
   await expect(parent).toContainText('Fundering');
 
-  // In een dialoog staat de keuze in het concept. De globale undo en plakken mogen hier niet af.
   await page.keyboard.press('ControlOrMeta+z');
   await page.keyboard.press('ControlOrMeta+v');
   await expect(dialog).toBeVisible();
@@ -282,7 +247,6 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
     await expect.poll(() => cell.evaluate(el => el.contains(document.activeElement))).toBe(true);
     expect(await taskOf()).toEqual(before);
   }
-  // Dezelfde kalendercel kiest op naam, maar bewaart het id. Leeg betekent de projectkalender.
   const calendarFixture = await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     const { id: _id, ...base } = s.calendar;
@@ -310,8 +274,6 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
   await expect(calendarCell).toContainText(calendarFixture.projectName);
   expect((await taskOf()).calendar).toBeUndefined();
 
-  // #970: een eigen code (activiteitcode) opent dezelfde keuzelijst: "—" plus de waarden in de volgorde
-  // uit Codes en velden, zonder interne id; Enter en typen openen hem.
   const code = await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     const typeId = s.addActivityCodeType('PCM');
@@ -332,7 +294,6 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
   await expect(page.locator('[data-task-editor-kind="enum"]')).toBeVisible();
   await expect(menu(page).getByRole('option')).toHaveText(['—', 'Design Freeze', 'RFQ Issued', 'Quote Received', 'Order Placed', 'N/A']);
   expect(await menu(page).innerText()).not.toContain('acv-');
-  // De lijst is niet smaller dan de langste waarde (de oude suggestielijst was op macOS te smal).
   expect(await menu(page).getByRole('option').evaluateAll(options =>
     options.every(option => option.scrollWidth <= option.clientWidth))).toBe(true);
   await menu(page).getByRole('option', { name: 'RFQ Issued', exact: true }).click();
@@ -348,7 +309,6 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
   await expect(codeCell).toHaveText('Order Placed');
   expect(await codeOf()).toBe(code.ids[3]);
 
-  // Typen op de dichte cel opent de lijst op de passende waarde, niet op de letter als tekst.
   await codeCell.click();
   await page.keyboard.press('d');
   await expect(menu(page)).toBeVisible();
@@ -362,7 +322,6 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
   await expect(codeCell).toHaveText('—');
   expect(await codeOf()).toBeNull();
 
-  // Enter gaat na een keuze een rij omlaag, Shift+Enter een rij omhoog; ook bij de al gekozen waarde.
   const focusedRow = () => page.evaluate(() =>
     document.activeElement?.closest('[data-grid-row-key]')?.getAttribute('data-grid-row-key') ?? null);
   const codeCellOf = (rowKey: string) => page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${rowKey}"][data-grid-column-id="${code.columnId}"]`);
@@ -378,7 +337,6 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
     await expect.poll(focusedRow, { message: `${pick} + ${key}` }).toBe(want);
   }
 
-  // Dezelfde keuzelijst: typen op een dichte ja/nee-cel opent de lijst en Enter legt de passende waarde vast, zonder fout.
   const milestoneCell = page.locator(`[data-task-grid-surface-id="full-task-grid"] [data-grid-row-key="${id}"][data-grid-column-id="task.isMilestone"]`);
   await milestoneCell.click();
   await page.keyboard.press('n');
@@ -388,8 +346,6 @@ test('Tabel: één Escape in een open keuzelijst-cel sluit de lijst én annuleer
   await expect(milestoneCell).toHaveText('No');
   expect((await taskOf()).milestone).toBe(false);
 
-  // Besluit 21 nov (#970): een dubbelklik op een keuzelijstcel opent meteen de lijst in de cel; op een
-  // andere cel opent hij nog steeds het eigenschappenpaneel.
   const panelOpen = () => page.evaluate(() => window.__OPS__!.store.getState().ui.showPropertiesPanel);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showPropertiesPanel: false }));
   await codeCell.dblclick();
@@ -447,8 +403,6 @@ test('Tabel: de al gekozen optie opnieuw kiezen (klik, Spatie, Enter) legt vast 
       else await page.keyboard.press(how);
       await expect(menu(page)).toHaveCount(0);
       await expect(editor).toHaveCount(0);
-      // Vastleggen gaat zoals Enter bij een andere waarde: de focus staat weer op een cel van deze
-      // kolom (de volgende rij), niet op een losse knop.
       await expect.poll(() => page.evaluate(() => document.activeElement?.closest('[data-grid-column-id]')?.getAttribute('data-grid-column-id') ?? null)).toBe(column);
       expect(await taskOf()).toEqual(before);
     }
@@ -481,7 +435,6 @@ test('lange lijst: alleen de zichtbare opties in de DOM; toetsen, scrollen en br
   const list = menu(page);
   await expect(list).toBeVisible();
 
-  // Veel minder optie-nodes dan opties; aria-setsize noemt het echte aantal.
   const options = list.locator('[role="option"]');
   const rendered = await options.count();
   expect(rendered).toBeGreaterThan(0);
@@ -498,7 +451,6 @@ test('lange lijst: alleen de zichtbare opties in de DOM; toetsen, scrollen en br
     await expect(list).toHaveAttribute('aria-activedescendant', activeId!);
   };
 
-  // End: de laatste optie is actief en staat in beeld; het langste label past helemaal.
   await page.keyboard.press('End');
   await expectActiveInView(LAST);
   await expect(active()).toHaveAttribute('aria-posinset', String(setsize));
@@ -511,7 +463,6 @@ test('lange lijst: alleen de zichtbare opties in de DOM; toetsen, scrollen en br
   expect(fit.left).toBeGreaterThanOrEqual(0);
   expect(fit.right).toBeLessThanOrEqual(fit.viewport);
 
-  // Home, PageDown en PageUp.
   await page.keyboard.press('Home');
   await expect(active()).toHaveAttribute('aria-posinset', '1');
   await expect(active()).toBeInViewport();
@@ -522,8 +473,6 @@ test('lange lijst: alleen de zichtbare opties in de DOM; toetsen, scrollen en br
   await page.keyboard.press('PageUp');
   await expect(active()).toHaveAttribute('aria-posinset', '1');
 
-  // Typeahead vindt een optie ver buiten het getekende stuk. Het label is "<WBS> — <naam>" (of alleen
-  // de naam); typ het begin tot de eerste spatie, want een spatie kiest de actieve optie.
   const target = await page.evaluate(taskId => {
     const t = window.__OPS__!.store.getState().tasks.find(x => x.id === taskId)!;
     return { label: `${t.wbsCode ? `${t.wbsCode} — ` : ''}${t.name}`, name: t.name };
@@ -531,7 +480,6 @@ test('lange lijst: alleen de zichtbare opties in de DOM; toetsen, scrollen en br
   await page.keyboard.type(target.label.split(' ')[0], { delay: 20 });
   await expectActiveInView(target.name);
 
-  // Scrollen met het muiswiel naar onderen toont de laatste optie.
   await page.keyboard.press('Escape');
   await expect(list).toHaveCount(0);
   await trigger.click();
@@ -544,7 +492,6 @@ test('lange lijst: alleen de zichtbare opties in de DOM; toetsen, scrollen en br
   expect(await options.count()).toBeLessThan(100);
 });
 
-/** Elke optie past volledig: geen afgeknipt label, en de lijst ligt binnen het venster. */
 async function expectOptionsFit(page: Page): Promise<{ menu: DOMRect; widest: number }> {
   const result = await menu(page).evaluate(el => {
     const labels = [...el.querySelectorAll<HTMLElement>('.ops-select__option-label')];
@@ -562,8 +509,6 @@ async function expectOptionsFit(page: Page): Promise<{ menu: DOMRect; widest: nu
   return { menu: result.menu, widest: result.widest };
 }
 
-/** De taakdialoog met een taak met een naam die breder is dan de (brede) trigger "Bovenliggende taak". De
- *  dialoog staat midden in het venster, dus de lijst heeft aan beide kanten ruimte om te groeien. */
 async function openParentSelect(page: Page, locale: 'en' | 'ar'): Promise<Locator> {
   const [, second] = await seedProject(page, [
     { name: LONG_TASK, start: '2026-09-07', finish: '2026-09-10', durationDays: 4 },
@@ -582,7 +527,6 @@ test('de open lijst is minstens zo breed als de langste optie en lijnt links uit
   const trigger = await openParentSelect(page, 'en');
   const t = (await trigger.boundingBox())!;
   const { menu: box, widest } = await expectOptionsFit(page);
-  // De lange naam is breder dan de trigger; de lijst groeit dus mee, vanaf de linkerrand.
   expect(widest).toBeGreaterThan(t.width);
   expect(box.width).toBeGreaterThan(t.width);
   expect(Math.abs(box.left - t.x)).toBeLessThanOrEqual(1);
@@ -604,7 +548,6 @@ test('RTL (ar): de open lijst past de langste optie en lijnt uit op de rechterra
   const t = (await trigger.boundingBox())!;
   const { menu: box, widest } = await expectOptionsFit(page);
   expect(widest).toBeGreaterThan(t.width);
-  // Rechterrand van lijst en trigger vallen samen (binnen een pixel); de lijst groeit naar links.
   expect(Math.abs(box.right - (t.x + t.width))).toBeLessThanOrEqual(1);
   expect(box.left).toBeLessThan(t.x);
 });

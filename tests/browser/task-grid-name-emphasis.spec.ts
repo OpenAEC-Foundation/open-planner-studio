@@ -1,12 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 
-// Discussion #97: de naamkolom van het taakraster gaf samenvattingen (containertaken) en
-// mijlpalen geen enkel typografisch signaal — alleen de inspringing verried de hiërarchie. Dit
-// karakteriseert het `data-grid-task-kind`-attribuut dat FullTaskGrid nu op de naamrij zet en de
-// bijbehorende CSS in globals.css (vet voor samenvatting/mijlpaal, plus de mijlpaalkleur):
-// echte DOM-attributen en computed styles, geen canvaspixels.
-
 function nameSpan(page: Page, taskId: string): Locator {
   return page.locator(
     `[data-task-grid-surface-id="full-task-grid"] [data-grid-data-row="true"][data-grid-row-key="${taskId}"] .full-task-grid-name`,
@@ -20,8 +14,6 @@ test('samenvatting en mijlpaal krijgen een eigen data-grid-task-kind en typograf
     { name: 'Gewone taak', start: '2026-09-07', finish: '2026-09-18' },
   ]);
 
-  // seedProject maakt platte taken aan; maak er hier een echte samenvatting (kind erbij) en een
-  // echte mijlpaal van via de publieke store-acties, en herbereken.
   await page.evaluate((parentId) => {
     const s = window.__OPS__!.store.getState();
     const id = s.addTask({ name: 'Onderdeel', parentId, manuallyScheduled: true });
