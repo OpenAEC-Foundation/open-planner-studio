@@ -3,11 +3,6 @@ import { Icon } from '@/components/icons';
 import type { FieldRef, GroupLevel } from '@/types/view';
 import { decodeFieldRef, encodeFieldRef } from './fieldRefCodec';
 
-/**
- * Herhaalbare rijen {veld ▾, richting} voor groeperen en sorteren. Controlled, zodat
- * dezelfde editor zowel live op de view werkt (de klassieke lintpopovers) als op het concept van de
- * layoutdialoog. `GroupLevel` en `SortLevel` hebben dezelfde vorm.
- */
 export function LevelListEditor({
   levels, onChange, options, maxLevels, emptyLabel, addLabel,
 }: {
