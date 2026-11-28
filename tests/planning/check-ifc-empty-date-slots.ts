@@ -1,21 +1,3 @@
-// Import/export-audit, vervolg op bevinding 6: `parseDateFromIFC` maakt van een leeg `$`-slot de
-// datum van VANDAAG. Per veld nagelopen wat een leeg slot hoort te betekenen:
-//
-//   1. IfcTaskTime Early/Late Start/Finish (rekenslots). Het laden rekent ze opnieuw uit en "datums
-//      zoals opgeslagen" leest hun aanwezigheid uit `recordedFields`, niet uit de waarde. Maar vóór
-//      die solve lezen `normalizeImportedProgress` (AS/AF-default van een taak op 100 %) en een
-//      slapend hersteld document ze wél: een leeg slot werd dan "vandaag". Leeg ⇒ de eigen geplande
-//      start/finish van de taak, zoals de CSV-lezer het doet.
-//   2. IFCWORKPLAN.FinishTime zonder OPS-pset ⇒ projecteinde leeg (zoals StartTime al deed), niet
-//      vandaag.
-//   3. Feestdag/werkende uitzondering (IfcWorkTime Start/FinishDate, allebei OPTIONEEL in IFC 4.3):
-//      één datum leeg ⇒ de andere (één dag); allebei leeg ⇒ geen datum, dus geen uitzondering —
-//      nooit een verzonnen feestdag op de leesdatum.
-//
-// Bewust NIET veranderd: ScheduleStart/ScheduleFinish (verplichte invoervelden; alle lezers vallen
-// daar op vandaag terug — zie het rapport). Ankerjaar 2015, zodat "vandaag" nooit toevallig klopt.
-// Draait via run.sh. Exit 0 = alles groen.
-
 import { useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -43,7 +25,6 @@ const byName = (tasks: readonly Task[], name: string): Task => {
   return t;
 };
 
-/** Splits de argumentlijst van één STEP-regel op topniveau (respecteert quotes en haakjes). */
 function splitArgs(inner: string): string[] {
   const out: string[] = [];
   let depth = 0, quoted = false, cur = '';
@@ -57,7 +38,6 @@ function splitArgs(inner: string): string[] {
   out.push(cur);
   return out;
 }
-/** Zet in de eerste STEP-regel van `type` waarvoor `pick(args)` klopt de gegeven slots op `$`. */
 function blankSlots(ifc: string, type: string, pick: (args: string[]) => boolean, slots: number[]): string {
   const lines = ifc.split('\n');
   const re = new RegExp(`^(#\\d+=${type}\\()(.*)(\\);\\s*)$`);
@@ -73,7 +53,6 @@ function blankSlots(ifc: string, type: string, pick: (args: string[]) => boolean
   throw new Error(`geen ${type}-regel gevonden om te bewerken`);
 }
 
-// ── Opzet: A (5 d) → B, A op 100 % zonder actuals (zoals updateTask hem achterlaat), één feestdag. ──
 S().newProject();
 S().setProject({ startDate: '2015-01-05' });
 S().setCalendar({
@@ -87,11 +66,9 @@ S().runCPM();
 S().updateTask(idA, { time: { ...byName(S().tasks, 'A').time, completion: 1 } });
 S().runCPM();
 const base = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
-// IfcTaskTime: 5 ScheduleStart, 6 ScheduleFinish, 7 EarlyStart, 8 EarlyFinish, 9 LateStart, 10 LateFinish.
 const EARLY_LATE = [7, 8, 9, 10];
 const isTaskTime = (name: string) => (args: string[]) => args[0] === `'${name} Time'`;
 
-// ── 1. Lege Early/Late-slots ⇒ de eigen geplande datums, niet vandaag ─────────────────────────────
 {
   const ifc = blankSlots(blankSlots(base, 'IFCTASKTIME', isTaskTime('A'), EARLY_LATE),
     'IFCTASKTIME', isTaskTime('B'), EARLY_LATE);
@@ -110,19 +87,14 @@ const isTaskTime = (name: string) => (args: string[]) => args[0] === `'${name} T
     (parsed.recordedFields?.[a.id] ?? []).filter(k => ['earlyStart', 'earlyFinish', 'lateStart', 'lateFinish'].includes(k)), []);
 }
 
-// ── 2. Leeg IFCWORKPLAN.FinishTime zonder OPS-pset ⇒ projecteinde leeg ────────────────────────────
 {
-  // Een extern bestand kent het OPS-pset niet: hernoem de eigenschap zodat alleen WORKPLAN overblijft.
   const zonderPset = base.replace("'ProjectEndDate'", "'OnbekendVeld'");
-  // FinishTime op de plek die bij het argumentaantal van de writer hoort (issue #292: 12 in het
-  // schema, 13 in bestanden van oudere versies).
   const ifc = blankSlots(zonderPset, 'IFCWORKPLAN', () => true, [workControlSlots(Array<string>(WORK_CONTROL_ARITY).fill('$')).finishTime]);
   eq('2a projecteinde bij leeg FinishTime-slot', readIFC(ifc).project.endDate, '');
   ok('2b zonder die bewerking levert de WORKPLAN nog gewoon zijn einde (controle)',
     readIFC(zonderPset).project.endDate.startsWith('2015'));
 }
 
-// ── 3. Feestdag met lege datum(s) ─────────────────────────────────────────────────────────────────
 {
   const isCarnaval = (args: string[]) => args[0] === "'Carnaval'";
   const alleenStart = readIFC(blankSlots(base, 'IFCWORKTIME', isCarnaval, [5])).calendar.holidays;

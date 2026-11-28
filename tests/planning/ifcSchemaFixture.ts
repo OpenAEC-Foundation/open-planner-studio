@@ -1,31 +1,3 @@
-// Gedeelde projecten voor de IFC-schemapoort (`check-ifc-schema.ts`), de ariteitscheck in de drie
-// schema's (`check-ifc-arity.ts`) en de lezerscheck van de oude en de nieuwe indeling
-// (`check-ifc-schema-reader.ts`). Geen check: dit bestand draait niets.
-//
-// RIJK project: de enige rijke fixture. Basis: de showcase met alle vijf resourcetypen, een ploeg, twee
-// kalenders en twee baselines (examples/showcase-appartementencomplex.ifc). Daarop twee lagen:
-//  1. Breedte van de writer (vroeger `fixtures/ifc-arity-rich.ts`): een werkende uitzondering met banden
-//     op de projectkalender, bibliotheekkalenders met de ploegen SECOND/THIRD/USERDEFINED (een
-//     tweeploegen-uurkalender), extra resources van alle zes soorten (ook kosten, #815) (een ploeg met leden,
-//     capaciteitsstap, bibliotheekstempel), toewijzingen met curves, werkvelden en een timephased-
-//     venster, een eigen taaktype, activity codes met kleur, een constraint, deadline en notitie, een
-//     kalenderwandeling, voortgang, alle vier relatiesoorten met elke lag-vorm, een extra baseline, een
-//     eigen rekenprofiel, en een NEGATIEVE speling (`-P0Y0M2D`: het minteken vóór de P).
-//  2. Randgevallen van het schema: bibliotheekkalenders (dag met werkende uitzonderingen en een
-//     HoursPerDay-afwijking, uur met blokken), alle eigen-veldtypen met hele en gebroken getallen en een
-//     lege tekst, procent-lag van 0/37,5/100 %, minuten- en negatieve lag, voortgang (0,38 en 1), een
-//     statusdatum met tijd, een USERDEFINED-taak zonder eigen taaktype, een naamloze taak, dezelfde
-//     resource twee keer op één taak, heropen-herkomst, een codetype zonder waarden en een baseline
-//     zonder taken (aanmaakmoment zonder seconden: IfcDateTime moet ze toch krijgen).
-// Laag 1 raakt andere taken dan laag 2 (de eerste vier bladtaken zijn van laag 2).
-//
-// XER-IMPORT met bronarchief: een kleine echte XER (twee taken, een relatie, een resource met
-// toewijzing, codes, een UDF, een onbekende tabel van ruim 500 kB), zodat `OPS_XerSourceArchive` met
-// meer brokken in de poort meedoet.
-//
-// LEEG project: geen naam, auteur, bedrijf, omschrijving of datums, en geen taken.
-//
-// RANDGEVALLEN van de kalender: geen werkdagen, en een uurkalender zonder blokken.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -37,16 +9,11 @@ import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Sequence } from '@/types/sequence';
 import type { CustomFieldDef } from '@/types/structure';
 
-/** De negatieve speling die laag 1 zet (dagen), voor de vormtoets in de poort (`-P0Y0M2D`). */
 export const RICH_NEGATIVE_TOTAL_FLOAT = -2;
 
 const WEEK_6_TO_22 = { start: 360, end: 840 };
 const WEEK_14_TO_22 = { start: 840, end: 1320 };
 
-/**
- * Laag 1 (zie de kop): de breedte van de writer, op een kopie van `base`. Raakt alleen bladtaken die
- * geen mijlpaal zijn en niet bij de eerste vier bladtaken horen (die zijn van laag 2).
- */
 function addWriterBreadth(base: ImportResult): ImportResult {
   const r = structuredClone(base);
   const reserved = new Set(r.tasks.filter(t => t.childIds.length === 0).slice(0, 4).map(t => t.id));
@@ -54,8 +21,6 @@ function addWriterBreadth(base: ImportResult): ImportResult {
   if (leaves.length < 8) throw new Error(`ifcSchemaFixture: te weinig bladtaken voor laag 1 (${leaves.length})`);
   const leaf = (i: number): Task => leaves[i];
 
-  // ── Kalenders ────────────────────────────────────────────────────────────────────────────────
-  // Projectkalender: een werkende uitzondering mét banden (DAILY-recurrence in ExceptionTimes).
   r.calendar.workingExceptions = [
     ...(r.calendar.workingExceptions ?? []),
     { name: 'Inhaalzaterdag', startDate: '2027-06-12', endDate: '2027-06-12', bands: [{ start: 420, end: 720 }] },
@@ -83,7 +48,6 @@ function addWriterBreadth(base: ImportResult): ImportResult {
   const unused = day('cal-rich-eigen', 'Eigen rooster', 'USERDEFINED');
   r.resourceCalendars = [...(r.resourceCalendars ?? []), twoShift, night, unused];
 
-  // ── Resources: alle zes soorten (ook kosten), ploeg met leden, kalender, capaciteitsstap, bibliotheekstempel ──
   const extra: Resource[] = [
     {
       id: 'res-rich-kraan', name: 'Torenkraan', type: 'EQUIPMENT', description: 'Kraan met capaciteitsstap',
@@ -105,12 +69,10 @@ function addWriterBreadth(base: ImportResult): ImportResult {
       parentId: 'res-rich-ploeg', calendarId: twoShift.id,
     },
     { id: 'res-rich-schilder', name: 'Schilder (ploeg)', type: 'LABOR', description: '', maxUnits: 2, parentId: 'res-rich-ploeg' },
-    // Kostenresource (#815): IFCCONSTRUCTIONMATERIALRESOURCE met ObjectType 'COST' en .USERDEFINED.
     { id: 'res-rich-leges', name: 'Leges', type: 'COST', description: 'Vast bedrag', maxUnits: 1 },
   ];
   r.resources = [...r.resources, ...extra];
 
-  // Toewijzingen met curves, timephased-venster en werkvelden.
   const assign = (id: string, task: Task, resourceId: string, more: Partial<ResourceAssignment> = {}): ResourceAssignment => {
     task.resourceIds = [...new Set([...task.resourceIds, resourceId])];
     return { id, taskId: task.id, resourceId, unitsPerDay: 1, ...more };
@@ -129,7 +91,6 @@ function addWriterBreadth(base: ImportResult): ImportResult {
     assign('asg-rich-6', leaf(3), 'res-rich-leges', { costAmount: 1250.5 }),
   ];
 
-  // ── Structuur: eigen velden (alle zes soorten), activity codes, eigen taaktype ────────────────────
   r.customFieldDefs = [
     ...(r.customFieldDefs ?? []),
     { id: 'cf-rich-tekst', name: 'Opmerking', type: 'text' },
@@ -154,7 +115,6 @@ function addWriterBreadth(base: ImportResult): ImportResult {
   leaf(5).customTaskTypeId = 'ctt-rich-keuring';
   leaf(5).taskType = 'USERDEFINED';
 
-  // ── Taakeigenschappen: kalender, constraint, deadline, notities, kalenderwandeling ──────────────
   leaf(6).calendarId = night.id;
   leaf(6).constraint = { type: 'SNET', date: leaf(6).time.scheduleStart };
   leaf(6).deadline = leaf(7).time.scheduleFinish;
@@ -162,12 +122,9 @@ function addWriterBreadth(base: ImportResult): ImportResult {
   leaf(0).timephasedDurationWalks = [
     { anchor: leaf(0).time.scheduleStart, resourceCalendarId: twoShift.id, workMinutes: 480 },
   ];
-  // Negatieve speling (achter op schema): de writer zet het minteken vóór de P (`-P0Y0M2D`), niet bij
-  // het getal (`P0Y0M-2D`, zoals v2026.9.0). Een gebroken waarde toetst ook het afronden.
   leaf(7).time.totalFloat = RICH_NEGATIVE_TOTAL_FLOAT;
   leaf(7).time.freeFloat = -0.25;
 
-  // ── Voortgang: twee taken klaar, één bezig ──────────────────────────────────────────────────────
   for (const t of [leaf(0), leaf(1)]) {
     t.time.actualStart = t.time.scheduleStart;
     t.time.actualFinish = t.time.scheduleFinish;
@@ -179,7 +136,6 @@ function addWriterBreadth(base: ImportResult): ImportResult {
   leaf(2).time.remainingTime = 2;
   leaf(2).status = 'STARTED';
 
-  // ── Relaties: alle vier soorten en elke lag-vorm (dagen, lead, procent, minuten, verstreken tijd) ──
   const seq = (id: string, p: number, s: number, more: Partial<Sequence>): Sequence => ({
     id, predecessorId: leaf(p).id, successorId: leaf(s).id, type: 'FINISH_START', lagDays: 0, ...more,
   });
@@ -192,7 +148,6 @@ function addWriterBreadth(base: ImportResult): ImportResult {
     seq('seq-rich-lead', 6, 7, { lagDays: -1 }),
   ];
 
-  // ── Baselines: een extra (elk een eigen .BASELINE.-werkschema), en die is actief ─────────────────
   const first = r.baselines?.[0];
   if (!first) throw new Error('ifcSchemaFixture: het basisproject heeft geen baseline');
   r.baselines = [...(r.baselines ?? []), {
@@ -200,7 +155,6 @@ function addWriterBreadth(base: ImportResult): ImportResult {
   }];
   r.activeBaselineId = 'bl-rich-herplanning';
 
-  // ── Project: eigen rekenprofiel en -opties ───────────────────────────────────────────────────────
   r.project.schedulingProfile = { baseId: 'msproject', id: 'msproject', name: '', overrides: {} };
   r.project.schedulingOptions = { ...(r.project.schedulingOptions ?? {}), nearCriticalThreshold: 2 };
   return r;
@@ -211,7 +165,6 @@ export function buildRichSchemaProject(root: string): ImportResult {
   if (showcase.tasks.length < 10 || showcase.resources.length < 5 || showcase.assignments.length === 0 || (showcase.baselines ?? []).length < 2) {
     throw new Error('ifcSchemaFixture: de basis-showcase is verarmd (taken, resources, toewijzingen of baselines)');
   }
-  // Laag 1, daarna laag 2 (de rest van deze functie) op de eerste vier bladtaken.
   const base = addWriterBreadth(showcase);
 
   const libCal: WorkCalendar = {
@@ -276,7 +229,6 @@ export function buildRichSchemaProject(root: string): ImportResult {
     tasks,
     sequences: [...base.sequences, ...extraSeqs],
     resources,
-    // Dezelfde resource twee keer op één taak (check-ifc-schema.ts, SET_DUPLICATES_ALLOWED).
     assignments: [...base.assignments, { ...firstAssignment, id: 'schema-a-dup', unitsPerDay: 0.5, curve: 'BELL' }],
     resourceCalendars: [...(base.resourceCalendars ?? []), libCal, hourCal],
     customFieldDefs: [...(base.customFieldDefs ?? []), ...fieldDefs],
@@ -289,12 +241,6 @@ export function buildRichSchemaProject(root: string): ImportResult {
   };
 }
 
-/**
- * RANDGEVALLEN van de kalender: een projectkalender zonder werkdagen en een uurkalender zonder blokken.
- * `WeekdayComponent` en `TimePeriods` van IfcRecurrencePattern zijn OPTIONAL SET/LIST [1:?]; leeg moet
- * dus `$` zijn, geen `()`. (Zo'n uurkalender las de lezer vóór de schemafix uit een IfcWorkCalendar
- * met 9 attributen, zoals in het bSI-voorbeeld `construction-scheduling-task`.)
- */
 export function buildEdgeCalendarProject(rich: ImportResult): ImportResult {
   const noWorkDays: WorkCalendar = { ...rich.calendar, id: 'schema-geen-werkdagen', name: 'Geen werkdagen', workDays: [], workTime: undefined };
   const noBlocks: WorkCalendar = {
@@ -315,8 +261,6 @@ export function buildEmptySchemaProject(rich: ImportResult): ImportResult {
   };
 }
 
-/** XER-import met bronarchief (zie de kop). Ontleend aan de bronretentiecheck
- *  `check-xer-source-retention.ts`, ingekort tot wat de writer nodig heeft. */
 export function buildXerSchemaProject(): ImportResult {
   const unknownPayload = 'onbekende-bronwaarde-'.repeat(24_000);
   const bytes = new TextEncoder().encode([

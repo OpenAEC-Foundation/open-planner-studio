@@ -67,7 +67,6 @@ for (const variant of ['W0', 'W1', 'W2']) {
   if (variant === 'W0') eq('W0 schrijft datums als anker', view.tasks[0].time.earlyFinish, '2026-06-01');
   else eq(`${variant} dagtaak blijft letterlijk op de kalender`, view.tasks[0].time.earlyFinish, '2026-06-01T16:00');
 }
-// D7: zonder soort kan een anker alleen met de hint hetzelfde eindmoment herstellen.
 {
   const payload = freshPayload();
   payload.calendar.holidays = [];
@@ -80,7 +79,6 @@ for (const variant of ['W0', 'W1', 'W2']) {
   eq('D7 begin en einde één moment', [back.time.earlyStart, back.time.earlyFinish], ['2026-06-01T16:00', '2026-06-01T16:00']);
   eq('D7 soort blijft oningevuld', back.milestoneKind, undefined);
 }
-// D3: de baseline van een voltooide kalendertijd-taak houdt haar afstand tot het getoonde einde.
 {
   const payload = freshPayload();
   const t = task('kalender', '2026-06-01', '2026-06-02');
@@ -98,13 +96,6 @@ for (const variant of ['W0', 'W1', 'W2']) {
     (parseInstant(normalized.tasks[0].time.actualFinish!).getTime() - parseInstant(normalized.baselines[0].tasks[0].finish).getTime()) / MS_PER_DAY, 2);
 
 }
-// Datumloze actuals op een minutenkalender (review ronde 1 van PR #559, deel B, punt 3; spec §3.6 en
-// §5.2 geval 9). Een ander programma (hier: de tijden met de hand uit het slot gehaald) schrijft een
-// voltooide dagtaak met werkelijk begin 1 juni en einde 2 juni zonder tijd. De lezer maakte daar 00:00
-// van, en de normalisatie liet dat moment staan; na opslaan bleef het fout. Nu blijft de datum een datum
-// tot de normalisatie: D1 voor het begin, D2 voor het einde, op de kalender van de taak.
-//  - `literal`: scalaire kalender met `LiteralTimes` (een urentaak maakt hem letterlijk), 07:00–16:00.
-//  - `blokken`: kalender met eigen werkblokken 08:00–17:00 (een urenkalender van een ander programma).
 for (const variant of ['literal', 'blokken'] as const) {
   const p = freshPayload();
   p.project = { ...p.project, startDate: '2026-06-01', statusDate: '2026-06-05' };
@@ -123,7 +114,6 @@ for (const variant of ['literal', 'blokken'] as const) {
   p.tasks = [dag, uur];
   const own = writeIFC(buildWriteIFCInput(p, 'planOnly'));
   if (variant === 'literal') eq('datumloze actuals: kalender is letterlijk', own.includes("'LiteralTimes'"), true);
-  // Alleen het tijdslot van de dagtaak verliest zijn tijden.
   const external = own.replace(/^(#\d+=IFCTASKTIME\('Dag Time'.*)$/m,
     line => line.replace(/'(\d{4}-\d{2}-\d{2})T\d{2}:\d{2}:\d{2}'/g, "'$1'"));
   eq(`${variant} voorwaarde: het slot draagt datums zonder tijd`,

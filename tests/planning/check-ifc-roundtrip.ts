@@ -1,77 +1,3 @@
-// Toelichting bij dit contract (stappen, routes, "waar het echt staat"): docs/ifc-round-trip.md.
-//
-// IFC-ROUND-TRIP-CONTRACT (fase 3, eerste helft van P11 uit docs/superpowers/modulariteit-audit.md,
-// bevinding A2/F2). IFC 4.3 is het NATIVE bestandsformaat: opslaan = writeIFC, laden = readIFC. Het
-// impliciete contract "alle domeindata moet door de IFC-laag round-trippen" had géén test — twee
-// dataverlies-bugs (B4: IFCPanel schreef zonder baselines; F6: open-paden namen structuur niet over)
-// waren daardoor onzichtbaar. Deze batterij maakt dat contract expliciet en bewaakt het permanent.
-//
-// AANPAK
-//   1. Eén MAXIMAAL bevolkte fixture: elk veld van elk domeintype met een niet-default,
-//      onderscheidende waarde (Task/TaskTime incl. constraints/actuals/notes/hammock/externalLinks/
-//      activity-codes/custom-fields, Sequence alle 4 types + lag-varianten, Resource alle types +
-//      curves + capaciteit, WorkCalendar + generation + shift + holidays, Project incl.
-//      schedulingOptions/statusDate/progressMode, ActivityCode/CustomField-definities, Baselines).
-//   2. COMPILE-AFDWINGING, op TWEE plekken (bevinding K10a — één was niet genoeg):
-//      (2a) de kern-fixtures zijn `satisfies Required<...>` — een nieuw domeinveld moet een WAARDE
-//           krijgen. Twee types kunnen NIET direct `satisfies Required<>` (mutueel-exclusieve
-//           velden) → type-only getuige, zie WITNESS hieronder.
-//      (2b) de VERGELIJKING (`canon`) is sleutel-gedreven: `satisfies CanonSpec<X>` =
-//           `Record<keyof X, ...>` per domeintype — een nieuw veld moet ook een EXPLICIETE keuze
-//           krijgen (meedoen of gemotiveerd overslaan). Zonder (2b) was de batterij NIET
-//           zelf-uitbreidend: een nieuw veld kreeg wel een fixture-waarde maar stond in geen enkele
-//           hand-opgesomde canon-literal, en round-tripte dus stil nul bytes. Zie het blok boven
-//           `canon` voor de meting.
-//      Beide leunen op tests/planning/tsconfig.check.json, want de hoofd-tsconfig sluit tests/ uit.
-//   3. writeIFC(fixture) → readIFC → diepe, veld-voor-veld-vergelijking van de HELE ImportResult.
-//      Gegenereerde ids (resource/sequence/kalender worden bij inlezen uit het GlobalId afgeleid) worden
-//      genormaliseerd via NATUURLIJKE SLEUTELS (wbsCode/naam) i.p.v. letterlijk vergeleken; taak-id's
-//      hebben daarnaast een expliciet stabiliteitscontract voor externe bronverversing; alle
-//      kruisverwijzingen (parentId/childIds/pred/succ/calendarId/taskId/resourceId/activityCodes)
-//      worden naar die sleutels herschreven. Datum-normalisaties (het 07:00-anker) round-trippen
-//      naar dag-datums en zijn in de fixture al in dag-vorm gekozen.
-//   4. IDEMPOTENTIE: een TWEEDE round-trip (write→read→write→read) moet byte-stabiel zijn t.o.v. de
-//      eerste (canon(rt1) === canon(rt2)).
-//   5. KNOWN_GAPS: velden die NIET overleven, expliciet geclassificeerd + getest-als-bekend (elke
-//      gap-assertie bewijst dat het verlies er NOG steeds is; verdwijnt het verlies — iemand fixt de
-//      writer/reader — dan FAALT de assertie en herinnert die eraan de gap uit KNOWN_GAPS te halen).
-//      GEEN productiecode-fix in dit pakket; de gaps zijn gerapporteerd aan de opdrachtgever.
-//
-// KNOWN_GAPS (write→read verlies), classificatie (b) bewuste normalisatie. De acht (a)-gaps
-// (project.author/company/description/createdAt/modifiedAt, task.color/resourceIds,
-// task.time.interferingFloat/isNearCritical/floatPath) zijn in werkpakket H2 GEDICHT — ze lopen nu
-// door de echte round-trip-vergelijking. author/company via de IFCPERSON/IFCORGANIZATION-keten;
-// description via de IFCWORKPLAN/IFCPROJECT.Description-slot; createdAt/modifiedAt via het
-// OPS_ProjectSettings-pset; color via OPS_TaskAppearance; resourceIds herbouwd uit de assignments
-// (enige bron van waarheid, geen dubbele opslag); de drie analyse-velden via OPS_Analysis. Wat
-// bewust NIET round-trippt:
-//   (b) resource.availability — @deprecated migratie-alleen veld; writer schrijft 'm bewust niet.
-//   (b) task.time.durationMinutes / remainingMinutes — voor de uurtaak TM geldt de minutenbron
-//                             als invoer; de reguliere uur-round-trip is daarnaast gedekt door
-//                             tests/planning/check-adapters-hours.ts.
-//   (b) resourceCalendars: de projectkalender-entry wordt bewust NIET in de bibliotheek gedupliceerd
-//                             (writer filtert 'm eruit; reader geeft de bibliotheek zonder projectkalender).
-//   project.startDate/endDate was hier ook zo'n (b)-normalisatie (→taak-span). Dat is GEDICHT: de
-//   contractuele datums hebben nu eigen opslag in het OPS_ProjectSettings-pset en lopen door de
-//   echte round-trip-vergelijking; de fixture kiest ze bewust LOS van de taak-span, zodat de
-//   vergelijking het verschil ook echt kan zien. IFCWORKPLAN.StartTime/FinishTime blijft de
-//   AFGELEIDE plan-omvang dragen. Zie blok (4) onderaan voor leeg-geval en legacy-terugval.
-//   Overige bewuste (b)-normalisaties die de fixture al in genormaliseerde vorm kiest (dus GEEN
-//   afwijking geven): niet-taak-id's wijken na het eerste inlezen af (→ natuurlijke sleutels), project.calendarId→'cal-default',
-//   ASAP-constraint niet geschreven, shift FIRST→undefined,
-//   lagUnit WORKTIME→undefined, curve UNIFORM→undefined, progressMode RETAINED_LOGIC→undefined,
-//   priority 500 niet geschreven. (Dag-duren zijn in deze fixture heel; fractionele dag-duren
-//   round-trippen sinds audit import/export nr. 1 ook, zie blok (18).)
-//   M3 (eindreview T16c, GEDICHT): `completion` rondde vóór deze fix af op 1 decimaal (10%-stappen;
-//   ≥0,955 werd zelfs "1.0" = 100%, een stille VOLTOOID-gedragswisseling in CPMSolver.ts) — nu
-//   2 decimalen (1%-stappen, MSP se eigen PercentComplete-granulariteit). Deze fixture se eigen
-//   completion-waarden (0/1) waren toevallig al ongevoelig voor die afronding; zie blok (9)
-//   hieronder voor het gerichte precisie-bewijs met een niet-decielwaarde (0.38/0.955).
-//   Bugfix B2 (gebruikstest 2026-08, GEDICHT): `hoursPerDay ≠ eind−startuur` (een impliciet
-//   lunchuur, zoals de echte standaard "Bouwkalender NL" 07-16/hoursPerDay 8) round-trippt nu via
-//   een `HoursPerDay`-property op het `OPS_Calendar`-pset i.p.v. stilzwijgend te normaliseren naar
-//   de afgeleide span — zie `projCal` hieronder (workEndHour 16, hoursPerDay 8: 16−7=9 ≠ 8).
-
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { checkIfcSchema, parseStep } from './ifcSchemaCheck';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -94,15 +20,8 @@ import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { crewEdgeResources } from './ifcCrewIndexFixture';
 import { COST_RESOURCE_NAMES, fixture, plainTime, RMember, TM, TX } from './ifcRoundtripFixture';
 
-// tests/ valt buiten de hoofd-tsconfig; process is niet via @types/node beschikbaar in de
-// dedicated round-trip-tsconfig (types:[]). Minimale, botsingvrije declaratie.
 declare const process: { exit(code: number): never };
 
-// `import.meta.url`-relatief i.p.v. `process.cwd()` (zelfde conventie/reviewbevinding als
-// check-adapters-hours.ts): dit bestand draait via `bash tests/planning/run.sh`, dat NOOIT naar de
-// repo-root `cd`'t — de child-`node`'s cwd is die van de AANROEPER, niet gegarandeerd de repo-root.
-// De bundel wordt door `run.sh` altijd in `tests/planning/` zelf geschreven, dus `HERE` is
-// cwd-onafhankelijk stabiel op die map.
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 
 let checks = 0;
@@ -112,7 +31,6 @@ function assert(cond: boolean, msg: string): void {
   if (!cond) { fails++; console.log(`   XX ${msg}`); }
 }
 
-// De IFC-lijsten zelf bewaren volgorde en duplicaten; de canon verderop sorteert op naam.
 for (const duplicates of [false, true]) {
   const crewResources = crewEdgeResources(duplicates);
   const before = structuredClone(crewResources);
@@ -154,7 +72,6 @@ for (const duplicates of [false, true]) {
   }
 }
 
-// De runtime accepteert ook deze beschadigde id's; === koppelde NaN nooit aan NaN.
 {
   const damaged = crewEdgeResources().slice(0, 2).map((r, i) => ({
     ...r, id: i === 0 ? NaN : 'lid-nan', type: i === 0 ? 'CREW' : 'LABOR', parentId: NaN,
@@ -163,62 +80,27 @@ for (const duplicates of [false, true]) {
   assert(!parseStep(output).some(e => e.type === 'IFCRELNESTS'), 'ploegen: NaN blijft ongelijk aan zichzelf');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-//  CANONICALISATIE — vervang volatiele ids door natuurlijke sleutels, herschrijf kruisverwijzingen,
-//  strip de KNOWN_GAPS-velden (aan BEIDE zijden, zodat ze geen mismatch geven; het VERLIES zelf
-//  bewijzen we los in blok (3)). Levert een puur, vergelijkbaar objectboom.
-//
-//  SLEUTEL-GEDREVEN (bevinding K10a). De kop van dit bestand claimde dat de batterij ZELF-UITBREIDEND
-//  is: een nieuw domeinveld geeft een compile-fout, dus de round-trip bewaakt het automatisch. Dat
-//  klopte maar half — de FIXTURE was afgedwongen (`satisfies Required<...>`), de VERGELIJKING niet.
-//  `canon` bouwde met de hand opgesomde object-literals; een nieuw veld stond daar simpelweg niet in
-//  en werd dus nooit vergeleken. Gemeten (het onderzoek achter K10a): een veld toevoegen aan `Task`,
-//  de twee compile-fouten oplossen die dat gaf (`src/engine/moveProject.ts` + de fixture hierboven)
-//  en reader/writer NIET aanraken gaf gewoon `OK ifc-roundtrip: alle checks groen`, exit 0. Het veld
-//  round-tripte nul bytes en geen enkele poort merkte het — exact de bugklasse (stil veldverlies)
-//  waarvoor deze batterij bestaat.
-//
-//  Daarom is élke projectie hieronder een `satisfies CanonSpec<X>`-tabel, d.w.z.
-//  `Record<keyof X, ...>`: dezelfde compile-time volledigheidstruc als `TASK_VERDICTS` in
-//  `src/engine/moveProject.ts` en `DOCUMENT_FIELDS` in `src/state/documentContract.ts`. Elke sleutel
-//  draagt een EXPLICIETE keuze — meedoen zoals hij is (`KEEP`), meedoen in geprojecteerde vorm
-//  (`{ get, as? }`), of bewust niet vergelijken (`{ skip: '<reden>' }`, reden verplicht). Een nieuw
-//  veld zonder cel geeft een compile-fout onder tests/planning/tsconfig.check.json.
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
 type Any = Record<string, unknown>;
 const def = <T>(v: T | undefined): v is T => v !== undefined;
 
-/** Volatiele id → leesbare, stabiele sleutel. Ids wijken na het eerste inlezen af, dus élke verwijzing
- *  naar een ander object wordt via deze kaarten naar een natuurlijke sleutel herschreven. */
 interface Keys {
-  /** kalender-id → kalendernaam (undefined blijft undefined: "projectkalender"). */
   cal(id: string | undefined): string | undefined;
-  /** taak-id → wbsCode. */
   task(id: string): string;
-  /** resource-id → resourcenaam. */
   res(id: string): string;
-  /** activity-code-TYPE-id → typenaam. */
   codeType(id: string): string;
-  /** activity-code-WAARDE-id → code. */
   codeValue(id: string): string;
-  /** custom-field-definitie-id → veldnaam. */
   fieldDef(id: string): string;
 }
 
-/** "Doe mee aan de vergelijking, ongewijzigd, onder je eigen naam." */
 const KEEP = { keep: true } as const;
 
-/** Eén cel in een canon-tabel. De drie vormen zijn de enige toegestane keuzes per veld. */
 type CanonCell<T> =
   | typeof KEEP
-  | { readonly skip: string }                                     // reden verplicht
+  | { readonly skip: string }
   | { readonly as?: string; readonly get: (o: T, k: Keys) => unknown };
 
-/** DE tabelvorm: één cel per sleutel van het domeintype — geen sleutel mag ontbreken. */
 type CanonSpec<T> = Record<keyof T, CanonCell<T>>;
 
-/** Bouw het vergelijkbare object sleutel-voor-sleutel uit de tabel. */
 function canonize<T extends object>(spec: CanonSpec<T>, o: T, k: Keys): Any {
   const src = o as unknown as Any;
   const out: Any = {};
@@ -231,15 +113,10 @@ function canonize<T extends object>(spec: CanonSpec<T>, o: T, k: Keys): Any {
   return out;
 }
 
-// ── De veldtabellen ─────────────────────────────────────────────────────────────────────────────
-
 const HOLIDAY_CANON = {
   name: KEEP, startDate: KEEP, endDate: KEEP,
 } satisfies CanonSpec<Holiday>;
 
-// T5 (fase 3.8): `bands` KEEP volstaat — `collectDiffs` behandelt een afwezig array-veld als `[]`
-// (zie het array-blok in `collectDiffs`), dus een fixture-uitzondering zonder `bands` (default
-// bandengelden) vergelijkt gelijk aan de teruggelezen `bands: undefined`.
 const WORKING_EXCEPTION_CANON = {
   name: KEEP, startDate: KEEP, endDate: KEEP, bands: KEEP,
 } satisfies CanonSpec<WorkingException>;
@@ -266,15 +143,13 @@ const CALENDAR_CANON = {
   p6NonWorkPenaltyDates: KEEP,
   p6NonWorkPenaltyDatesState: KEEP,
   generation: KEEP,
-  // Per weekdag (B7): de blokken van élke dag, niet alleen die van de eerste werkdag. `undefined` blijft
-  // `undefined` (dag-kalender).
   workTime: {
     get: (c: WorkCalendar) => c.workTime
       ? ([1, 2, 3, 4, 5, 6, 7] as const).map(d => (c.workTime!.byWeekday[d] ?? []).map(b => ({ start: b.start, end: b.end })))
       : undefined,
   },
   shift: KEEP,
-  libraryOrigin: KEEP,   // B1.1: herkomststempel round-trippt via OPS_LibraryOrigin
+  libraryOrigin: KEEP,
 } satisfies CanonSpec<WorkCalendar>;
 
 const TIME_CANON = {
@@ -283,13 +158,7 @@ const TIME_CANON = {
   scheduleStart: KEEP, scheduleFinish: KEEP,
   earlyStart: KEEP, earlyFinish: KEEP, lateStart: KEEP, lateFinish: KEEP,
   freeFloat: KEEP, totalFloat: KEEP, isCritical: KEEP,
-  // De drie analyse-velden round-trippen sinds pakket K BEWUST niet meer mee: de writer schrijft
-  // ze niet langer in `OPS_Analysis` omdat het pure runCPM-uitvoer is die élk laadpad herberekent (zie
-  // ifcWriter.emitPerTaskPsets). Ze staan als (a)-gap in KNOWN_GAPS; het verlies zelf wordt
-  // in blok (3) apart geassserteerd. De LEESkant blijft bestaande bestanden gewoon accepteren.
   interferingFloat: { skip: '(a) afgeleid; OPS_Analysis wordt sinds pakket K niet meer geschreven' },
-  // Alleen uren §3.4, T5 (F3c): de speling in minuten gaat met de exacte dagen naar
-  // `OPS_Analysis.ExactFloat`; IfcTaskTime draagt hele dagen. Eigen toetsen: check-ifc-dagenmaat.ts.
   totalFloatMinutes: KEEP,
   freeFloatMinutes: KEEP,
   isNearCritical: { skip: '(a) afgeleid; OPS_Analysis wordt sinds pakket K niet meer geschreven' },
@@ -298,10 +167,6 @@ const TIME_CANON = {
   remainingMinutes: KEEP,
   completion: KEEP,
   progressBeforeRecalculation: { skip: 'tijdelijke rekenbasis tot F5, geen planningsdata voor IFC' },
-  // Z14 (Z12-herwerk-signaal): resume/stop round-trippen sinds Z14 via het `OPS_Resume`-pset
-  // (ifcPsets.ts) — echte KEEP-vergelijking i.p.v. de vroegere skip-cel. MSPDI/P6-export blijven
-  // ze WEL warnen-en-weglaten (native `<Resume>`/`<Stop>` zonder terugleesbaarheid, zelfde
-  // ELAPSEDTIME-precedent) — dat is een aparte, bewuste exportrand, geen IFC-gat.
   resume: KEEP, stop: KEEP,
 } satisfies CanonSpec<TaskTime>;
 
@@ -311,39 +176,18 @@ const TASK_CANON = {
   customTaskTypeId: { skip: 'lege optionele fixturewaarde normaliseert naar undefined; echte custom-id wordt gedekt door check-custom-task-types.ts' },
   status: KEEP,
   isMilestone: KEEP, milestoneKind: KEEP, mandatory: KEEP, priority: KEEP, levelingDelay: KEEP,
-  // Z14: de vier Z0-typecontractvelden round-trippen nu écht (ifcPsets.ts: `OPS_Leveling`
-  // uitgebreid met LevelingDelayMinutes/-Elapsed, `OPS_TaskSplits` en `OPS_ManualScheduling` nieuw)
-  // — echte KEEP-vergelijking i.p.v. de vroegere skip-cellen.
   levelingDelayMinutes: KEEP, levelingDelayElapsed: KEEP, splitGaps: KEEP, manuallyScheduled: KEEP,
-  // Z14b — het Z8-venster round-trippt nu écht via `OPS_TimephasedWindow` (ifcPsets.ts): echte
-  // KEEP/get-vergelijking i.p.v. de vroegere skip-cellen (Z8-nataak, plan-Z14 regel ~464).
   timephasedFinishFloor: KEEP, timephasedStartAnchor: KEEP,
-  // `resourceCalendarId` is een KALENDER-VERWIJZING (ander id na het eerste inlezen) — spiegelt
-  // `calendarId` hieronder: via `k.cal(...)` naar de natuurlijke sleutel (kalendernaam) herschreven,
-  // net als elke andere cross-object-verwijzing in dit bestand.
-  // Z19-reviewbevinding M1: `workMinutes` MOET meevergelijken — vóór deze correctie ontbrak het
-  // hier volledig, waardoor een writer/reader-bug op precies dit veld nooit rood zou gaan (de
-  // vergelijking zag alleen `anchor`/`resourceCalendarId`, altijd gelijk gebleven).
   timephasedDurationWalks: {
     get: (t: Task, k: Keys) => (t.timephasedDurationWalks ?? []).map(w => ({
       anchor: w.anchor, resourceCalendarId: k.cal(w.resourceCalendarId), workMinutes: w.workMinutes ?? null,
     })),
   },
-  // Z14b — rauwe contourperiodes (`OPS_TimephasedContours`): `resourceUid` is een MSP-eigen rauw
-  // getal, GEEN verwijzing naar iets in deze fixture-graaf (zie `TaskTimephasedContour`'s eigen
-  // docblok — puur herkomst/traceability) — dus geen `Keys`-vertaling nodig, plain KEEP volstaat.
   timephasedContours: KEEP,
-  // Z14b — MSP's eigen task-type/effort-driven-vlag (`OPS_MspTaskType`), puur data, geen verwijzing.
   mspTaskType: KEEP, effortDriven: KEEP,
-  // Taaktypes-etappe — de neutrale werkregel (`OPS_WorkRule`), puur data, geen verwijzing.
   workRule: KEEP,
-  // X9 — dezelfde smalle OPS_P6Progress-Pset bewaart ook de twee P6-taaktypen; puur brondata,
-  // nooit solverinvoer.
   p6DurationType: KEEP,
   p6ActivityType: KEEP,
-  // X7-reviewfix: deze vijf velden vormen samen de P6-solverfirewall en bronidentiteit. Ze moeten
-  // vóór de bredere X9-archiefetappe al exact door IFC heen, anders kan een kale resume na reload
-  // onbedoeld MSP-semantiek erven.
   p6ProjectId: KEEP,
   p6TaskId: KEEP,
   p6ExplicitTargetWindow: KEEP,
@@ -354,8 +198,6 @@ const TASK_CANON = {
   parentId: { as: 'parent', get: (t: Task, k: Keys) => (t.parentId ? k.task(t.parentId) : null) },
   childIds: { as: 'children', get: (t: Task, k: Keys) => t.childIds.map(c => k.task(c)).sort() },
   time: { get: (t: Task, k: Keys) => canonize(TIME_CANON, t.time, k) },
-  // color + resourceIds round-trippen sinds H2 (OPS_TaskAppearance resp. herbouw uit assignments).
-  // resourceIds naar natuurlijke sleutels (resourcenaam) + gesorteerd (volgorde-onafhankelijk).
   resourceIds: { get: (t: Task, k: Keys) => [...t.resourceIds].map(id => k.res(id)).sort() },
   color: KEEP,
   activityCodes: {
@@ -389,8 +231,8 @@ const RESOURCE_CANON = {
   calendarId: { as: 'calendar', get: (r: Resource, k: Keys) => k.cal(r.calendarId) },
   availabilitySteps: KEEP, unitOfMeasure: KEEP,
   parentId: { as: 'parent', get: (r: Resource, k: Keys) => (r.parentId ? k.res(r.parentId) : undefined) },
-  color: KEEP,           // #21: weergavekleur round-trippt via de OPS_Resource-pset (IFCTEXT Color)
-  libraryOrigin: KEEP,   // B1.1: herkomststempel round-trippt via OPS_LibraryOrigin
+  color: KEEP,
+  libraryOrigin: KEEP,
 } satisfies CanonSpec<Resource>;
 
 const ASSIGNMENT_CANON = {
@@ -398,18 +240,10 @@ const ASSIGNMENT_CANON = {
   taskId: { as: 'task', get: (a: ResourceAssignment, k: Keys) => k.task(a.taskId) },
   resourceId: { as: 'resource', get: (a: ResourceAssignment, k: Keys) => k.res(a.resourceId) },
   unitsPerDay: KEEP, curve: KEEP,
-  // Resttempo-besluit (2026-10-15): het begrote tempo in het `OPS_Timephased`-JSON-blob — echte KEEP.
   plannedUnitsPerDay: KEEP,
-  // Z14: het timephased-venster round-trippt nu écht via het nieuwe `OPS_Timephased`-JSON-pset
-  // (ifcWriter.writeTimephasedMeta / ifcReader.extractAssignments) — echte KEEP-vergelijking.
-  // Nog ONGEVULD door de mpp-lezer (Z8, aparte taak) — dit is puur de opslag-/round-trip-laag.
   workWindowStart: KEEP, workWindowFinish: KEEP,
-  // Contour-engine (2026-09): `curveValues` in hetzelfde `OPS_Timephased`-pset — echte KEEP.
   curveValues: KEEP,
-  // Taaktypes-etappe (spec §4.3): de drie werkvelden in hetzelfde JSON-blob — echte KEEP.
   plannedWorkMinutes: KEEP, actualWorkMinutes: KEEP, remainingWorkMinutes: KEEP,
-  // Kostenresource (#815): het bedrag in hetzelfde `OPS_Timephased`-blob — KEEP op een kostenresource;
-  // op een werkresource is het geen data (de lezer wist het, zie A1).
   costAmount: {
     get: (a: ResourceAssignment, k: Keys) => (COST_RESOURCE_NAMES.has(k.res(a.resourceId)) ? a.costAmount : undefined),
   },
@@ -418,12 +252,10 @@ const ASSIGNMENT_CANON = {
 const PROJECT_CANON = {
   id: { skip: 'documentinterne id; de reader genereert een eigen id, geen contractuele data' },
   name: KEEP,
-  // description/author/company/createdAt/modifiedAt round-trippen sinds H2.
   description: KEEP, startDate: KEEP, endDate: KEEP,
   calendarId: { as: 'calendar', get: (p: Project, k: Keys) => k.cal(p.calendarId) },
   createdAt: KEEP, modifiedAt: KEEP, author: KEEP, company: KEEP,
   wbsAutoNumber: KEEP, statusDate: KEEP, progressMode: KEEP,
-  // Letterlijk, behalve de resource-ids in het nivelleerblok: die wijken na het eerste lezen af (op naam).
   schedulingOptions: {
     get: (p: Project, k: Keys) => (p.schedulingOptions?.leveling?.resources
       ? {
@@ -435,18 +267,15 @@ const PROJECT_CANON = {
       }
       : p.schedulingOptions),
   },
-  // Rekenprofielen C2: OPS_SchedulingProfile round-tript via writeIFC/readIFC.
   schedulingProfile: KEEP,
   defaultTaskDurationUnit: KEEP,
-  defaultWorkRule: KEEP, // taaktypes-etappe: OPS_ProjectSettings/DefaultWorkRule
-  // B1.1: bedrijfsbinding round-trippt via OPS_CompanyBinding.
+  defaultWorkRule: KEEP,
   companyId: KEEP, companyName: KEEP,
-  // Issue #292: het schema round-tript via de bestandskop (FILE_SCHEMA).
   ifcSchema: KEEP,
   ifcSchemaUnconfirmed: KEEP,
-  p6ProjectCode: KEEP, // P6 Project-ID los van de naam (eigen toetsen: check-p6xml-project-code)
-  dependentProjectsFolder: KEEP, // stap 1.11: de map met afhankelijke projecten (OPS_ProjectSettings)
-  anchorsFromOpenDocuments: KEEP, // stap 1.7: het vinkje ankers uit geopende documenten (OPS_ProjectSettings)
+  p6ProjectCode: KEEP,
+  dependentProjectsFolder: KEEP,
+  anchorsFromOpenDocuments: KEEP,
 } satisfies CanonSpec<Project>;
 
 const BASELINE_TASK_CANON = {
@@ -456,7 +285,7 @@ const BASELINE_TASK_CANON = {
 } satisfies CanonSpec<BaselineTask>;
 
 const BASELINE_CANON = {
-  id: KEEP,   // baseline-ids round-trippen letterlijk mee (OPS_Baselines-JSON)
+  id: KEEP,
   name: KEEP, createdAt: KEEP, sourceProjectId: KEEP,
   tasks: {
     get: (b: Baseline, k: Keys) => (b.tasks ?? []).map(bt => canonize(BASELINE_TASK_CANON, bt, k))
@@ -490,8 +319,6 @@ function canon(r: ImportResult): Any {
   const calNameById = new Map(cals.map(c => [c.id, c.name]));
   const taskKeyById = new Map(r.tasks.map(t => [t.id, t.wbsCode]));
   const resNameById = new Map(r.resources.map(res => [res.id, res.name]));
-  // activity-code/custom-field-id → leesbare sleutel (naam/code), voor robuustheid ook al bewaart
-  // de meta-JSON de ids letterlijk.
   const typeNameById = new Map((r.activityCodeTypes ?? []).map(t => [t.id, t.name]));
   const codeById = new Map<string, string>();
   for (const t of r.activityCodeTypes ?? []) for (const v of t.values) codeById.set(v.id, v.code);
@@ -526,13 +353,11 @@ function canon(r: ImportResult): Any {
     baselines: [...(r.baselines ?? [])].map(b => canonize(BASELINE_CANON, b, k))
       .sort((a, b) => String(a.id).localeCompare(String(b.id))),
     activeBaselineId: r.activeBaselineId ?? null,
-    // Heropen-herkomst uit OPS_ImportProvenance; een eigen IFC zonder pset leest als false/afwezig.
     importPristine: r.importPristine ?? false,
     recordedSourceFormat: r.recordedSourceFormat ?? null,
   };
 }
 
-/** Recursief diepe vergelijking met pad-rapportage; undefined ≡ afwezig (canon dropt gestripte gaps). */
 function collectDiffs(path: string, a: unknown, b: unknown, out: string[]): void {
   if (Array.isArray(a) || Array.isArray(b)) {
     const aa = Array.isArray(a) ? a : [];
@@ -556,12 +381,6 @@ function collectDiffs(path: string, a: unknown, b: unknown, out: string[]): void
   if (a !== b) out.push(`${path}: verwacht ${JSON.stringify(a)} — kreeg ${JSON.stringify(b)}`);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-//  DE CHECK
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
-// (1) Round-trip + veld-voor-veld. `expected` = de fixture met de bewuste (b)-normalisaties die het
-//     canon-model niet al dekt: de projectkalender-entry uit de bibliotheek filteren (writer dedupt).
 const expectedInput: ImportResult = { ...fixture, resourceCalendars: (fixture.resourceCalendars ?? []).filter(c => c.id !== fixture.project.calendarId) };
 const firstIfc = writeIFC(fixture);
 const rt1 = readIFC(firstIfc);
@@ -616,7 +435,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     'twee geldig gekoppelde OPS_Sequences-bronnen zijn ambigu en falen gesloten');
 }
 
-// Kostenresource (#815): drager, markering, bedrag in het blob, en wat de lezer normaliseert.
 {
   const costLine = firstIfc.split('\n').find(line => line.includes('IFCCONSTRUCTIONMATERIALRESOURCE(') && line.includes("'Leges vergunning'"));
   assert(!!costLine && costLine.includes(",'COST',") && costLine.endsWith('.USERDEFINED.);'),
@@ -636,7 +454,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     const a1Back = rt.assignments.find(a => a.unitsPerDay === 2 && rt.resources.find(r => r.id === a.resourceId)?.name === 'Timmerman Jan');
     assert(!!a1Back && a1Back.costAmount === undefined, '#815: een bedrag op een werkresource valt bij het lezen weg');
   }
-  // Een kostenresource met werkvelden (handbewerkt bestand): de lezer zet inzet 1 en wist werk/curve.
   const dirty = writeIFC({
     ...fixture,
     assignments: [...fixture.assignments.filter(a => a.id !== 'a4'),
@@ -659,12 +476,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   'P6NonWorkPenaltyDates zonder P6Source=XER blijft bij IFC-inlees inert en wordt niet gematerialiseerd');
 }
 
-// ── Eindreview XER-etappe, bevinding 4: het OPS_SchedulingOptions-JSON is buiteninvoer ────────────
-// Een geschreven IFC waarvan het JSON-blob is vervangen door een vijandig object: onbekende sleutels,
-// een niet-bestaande kritiek-modus, een string waar een getal hoort, een half `floatPaths`. Alles wat
-// niet aan het `SchedulingOptions`-contract voldoet valt weg. Sinds C2 wordt wat wél klopt gesplitst:
-// de XER-bronmarkering en de conventies worden het profiel (migratie, geen profiel-pset in dit
-// bestand), het project draagt alleen de projectopties.
 {
   const hostile = JSON.stringify({
     p6Source: 'XER',
@@ -678,7 +489,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     floatPaths: { enabled: true, method: 'TOTAL_FLOAT' },
     onzin: [1, 2, 3],
   });
-  // Zonder profiel-pset (een pset zou van de migratie winnen); het optieblok is het anker.
   const written = writeIFC({ ...fixture, project: { ...fixture.project, schedulingProfile: undefined } });
   const pattern = /IFCPROPERTYSINGLEVALUE\('SchedulingOptions',\$,IFCTEXT\('[^']*'\),\$\)/;
   assert(pattern.test(written), 'fixture schrijft het OPS_SchedulingOptions-pset (anker voor de vijandige vervanging)');
@@ -692,9 +502,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     p6CompletedLateFromRemainingWindow: true,
     totalFloatMode: 'finish',
   }), 'vijandig OPS_SchedulingOptions-JSON: alleen de goed getypeerde, bekende projectopties overleven; onzin-mode, string-getallen, onbekende sleutels en een half floatPaths-blok vallen weg');
-  // De bronmarkering migreert naar p6; elke p6-basisconventie die de blob niet GELDIG draagt
-  // (A12 = 1 is ongeldig) rekende vroeger als uit ⇒ afwijking false. A19 en (sinds 2026-09-23, §1d-7)
-  // A17 staan op de basis al uit, dus die zijn geen afwijking.
   assert(canon(hostileProject.schedulingProfile) === canon({
     baseId: 'p6', id: 'p6', name: '',
     overrides: {
@@ -721,7 +528,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     floatPaths: { enabled: false, method: 'FREE_FLOAT', maxPaths: 2 },
   }), 'geneste blokken: een geldige mode met een ongeldige threshold houdt alleen de geldige velden; een compleet floatPaths-blok blijft heel');
 
-  // Nivelleerblok (fundament): geen verplicht veld, ongeldige lijstelementen vallen los weg, niets gerepareerd.
   const hostileLeveling = JSON.stringify({
     leveling: {
       enabled: false, preserveScheduledDates: 'N', levelAllResources: true, extra: 1,
@@ -807,19 +613,10 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   collectDiffs('', canon(expectedInput), canon(rt1), diffs);
   assert(diffs.length === 0, `round-trip-afwijkingen (${diffs.length}):\n${diffs.map(d => `        - ${d}`).join('\n')}`);
 
-  // (1b) De aanwezigheidsregistratie (§9r, uitgebreid in taak 2/MOET 1 met de twee invoerslots) rust
-  // op de writer-conventie "altijd een waarde, nooit `$`" voor zowel de zeven rekenslots als
-  // ScheduleStart/ScheduleFinish. Een door OPS zelf geschreven bestand moet dus alle NEGEN slots
-  // als aanwezig melden — schrijft de writer later ooit "alleen wat gezet is" over deze slots heen,
-  // dan zakt "datums zoals opgeslagen" stil terug op herberekenen, met een verder groene suite.
   assert(rt1.tasks.every(t => (rt1.recordedFields?.[t.id] ?? []).length === ALL_RECORDED_SLOT_KEYS.length),
     '(1b) een door OPS zelf geschreven bestand moet ALLE negen slots (7 rekenslots + 2 invoerslots) als aanwezig melden');
 }
 
-// (1c) Externe relaties bewaren het taak-id uit een geparseerd bronbestand. Daarom moet hetzelfde
-// fysieke IFC-bestand bij iedere parse dezelfde taak-id's leveren, en moeten die id's ook na
-// openen→opnieuw opslaan stabiel blijven. Alleen canonieke inhoud vergelijken (de oudere test)
-// merkt deze breuk niet: WBS/naam blijven gelijk terwijl refreshExternalAnchors de taak mist.
 {
   const sameFileAgain = readIFC(firstIfc);
   const idsByWbs = (r: ImportResult) => Object.fromEntries(r.tasks.map(task => [task.wbsCode, task.id]));
@@ -833,16 +630,12 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     '(1c) openen en opnieuw opslaan mag het project-id voor externe bronverversing niet veranderen');
 }
 
-// (2) Idempotentie: tweede round-trip byte-stabiel t.o.v. de eerste (normalisatie is stabiel).
 {
   const diffs: string[] = [];
   collectDiffs('', canon(rt1), canon(rt2), diffs);
   assert(diffs.length === 0, `idempotentie-afwijkingen (${diffs.length}):\n${diffs.map(d => `        - ${d}`).join('\n')}`);
 }
 
-// (2b) #804 fase 1a: met de flag `ifcForeignContent` leest de bytes-route (scanner, indeling, lezer per stuk) het eigen
-//      bestand. Zelfde uitkomst als `readIFC`, ook na een tweede round-trip, zonder terugval en met een bron zonder vreemd
-//      deel (de maximale fixture is 100 % P).
 {
   const enc = new TextEncoder();
   for (const [label, text, want] of [['eerste', firstIfc, rt1], ['tweede', writeIFC(rt1), rt2]] as const) {
@@ -857,29 +650,15 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   }
 }
 
-// (3) KNOWN_GAPS — getest-als-bekend: elke assertie bewijst dat het verlies er NOG is. Faalt er één,
-//     dan is de gap gedicht → haal 'm uit KNOWN_GAPS en neem 'm op in de round-trip-vergelijking.
 {
   const tByWbs = (r: ImportResult, wbs: string) => r.tasks.find(t => t.wbsCode === wbs)!;
   const rMem = rt1.resources.find(r => r.name === 'Timmerman Jan')!;
-  const tmOut = tByWbs(rt1, '1.1'); // Oplevering (kitchen-sink)
-  const txOut = tByWbs(rt1, '1.2'); // Ruwbouw
+  const tmOut = tByWbs(rt1, '1.1');
+  const txOut = tByWbs(rt1, '1.2');
 
-  // De gaps author/company/description/createdAt/modifiedAt/color/resourceIds zijn in H2 gedicht —
-  // die lopen nu door de echte round-trip-vergelijking hierboven.
-  //
-  // (a) HEROPEND in pakket K: interferingFloat/isNearCritical/floatPath. De writer schrijft de
-  // `OPS_Analysis`-pset bewust niet meer — het is pure runCPM-uitvoer zonder gebruikersinvoer, die
-  // élk laadpad direct herberekent (gemeten: 589/589 taken bit-exact identiek na runCPM), en hij
-  // kostte ~157 kB over de publieke voorbeeldset plus ~21% van elke auto-save-schrijfactie.
-  // Deze drie asserties bewijzen dat het verlies er is én bedoeld is: gaat er één falen, dan
-  // schrijft iemand de pset weer en moet dit besluit opnieuw gewogen worden (niet de assert
-  // aanpassen). De LEESkant is ongemoeid: bestaande bestanden mét de pset laden gewoon.
   assert(tmOut.time.interferingFloat === undefined && def(TM.time.interferingFloat), '(a) time.interferingFloat — afgeleid, OPS_Analysis niet meer geschreven');
   assert(tmOut.time.isNearCritical === undefined && def(TM.time.isNearCritical), '(a) time.isNearCritical — afgeleid, OPS_Analysis niet meer geschreven');
   assert(tmOut.time.floatPath === undefined && def(TM.time.floatPath), '(a) time.floatPath — afgeleid, OPS_Analysis niet meer geschreven');
-  // De (a)-gap van de speling in minuten (alleen uren §3.4) is in F3c gedicht: `totalFloatMinutes` en
-  // `freeFloatMinutes` lopen nu door de echte vergelijking (TIME_CANON).
   assert(tmOut.time.durationUnit === 'hours' && tmOut.time.durationMinutes === 480,
     '(b) time.durationUnit/durationMinutes blijven native uren met exacte minuten');
   assert(tmOut.time.remainingMinutes === 0, '(b) time.remainingMinutes blijft exact nul in uur-modus');
@@ -887,7 +666,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   void txOut;
 }
 
-// (4) B1 (§6) — projectbinding + herkomststempels expliciet: round-trippen door het project-IFC.
 {
   assert(rt1.project.companyId === 'c-fixture', 'project.companyId round-trip');
   assert(rt1.project.companyName === 'Fixture Bouw BV', 'project.companyName round-trip');
@@ -905,36 +683,20 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     && rtLibCal.libraryOrigin?.poolVersion === 4, 'bibliotheekkalender.libraryOrigin round-trip');
 }
 
-// (5) Contractuele projectdatums — de drie gevallen van de OPS_ProjectSettings-opslag. Het GEVULDE
-//     geval loopt al door de vergelijking in (1) (fixture: 2026-06-15 … 2026-09-30, bewust los van
-//     de taak-span 2026-07-06 … 2026-07-24). Hier de twee andere:
 {
-  // (4a) Een bewust LEEG gelaten einddatum moet leeg terugkomen. Zou de writer 'm — volgens de
-  //      golden rule "alleen schrijven wat gezet is" — weglaten, dan viel de lezer terug op
-  //      IFCWORKPLAN.FinishTime en stond de AFGELEIDE datum 2026-07-24 er alsnog in: dezelfde bug,
-  //      alleen verplaatst naar het lege geval.
   const emptyEnd: ImportResult = { ...fixture, project: { ...fixture.project, endDate: '' } };
   const rtEmpty = readIFC(writeIFC(emptyEnd));
   assert(rtEmpty.project.endDate === '', `lege endDate moet leeg terugkomen — kreeg ${JSON.stringify(rtEmpty.project.endDate)}`);
   assert(rtEmpty.project.startDate === '2026-06-15', `gevulde startDate naast een lege endDate — kreeg ${JSON.stringify(rtEmpty.project.startDate)}`);
 
-  // (4b) Terugval voor bestanden ZONDER de nieuwe pset-velden (vóór deze versie, of van een ander
-  //      tool): die moeten zich exact gedragen als voorheen — de afgeleide plan-omvang uit
-  //      IFCWORKPLAN. Gesimuleerd door precies die twee property-regels uit het bestand te knippen;
-  //      de pset houdt dan losse verwijzingen over, die de lezer al negeert.
   const legacy = writeIFC(fixture).split('\n')
     .filter(l => !/IFCPROPERTYSINGLEVALUE\('Project(Start|End)Date'/.test(l)).join('\n');
   const rtLegacy = readIFC(legacy);
   assert(rtLegacy.project.startDate === '2026-07-06', `zonder pset-veld terugvallen op IFCWORKPLAN.StartTime — kreeg ${JSON.stringify(rtLegacy.project.startDate)}`);
   assert(rtLegacy.project.endDate === '2026-07-24', `zonder pset-veld terugvallen op IFCWORKPLAN.FinishTime — kreeg ${JSON.stringify(rtLegacy.project.endDate)}`);
 
-  // (4c) De IFCWORKPLAN-slots zelf blijven ONGEWIJZIGD de afgeleide plan-omvang dragen (semantisch
-  //      juist; andere IFC-tools lezen die slots). Dat is precies waarom de contractuele datums een
-  //      eigen plek nodig hadden in plaats van dit slot over te nemen.
   const ifc = writeIFC(fixture);
   const workPlan = parseStep(ifc).find(entity => entity.type === 'IFCWORKPLAN')!;
-  // Alleen StartTime/FinishTime toetsen, niet CreationDate, Name of Description. De schema-slots
-  // zijn bewust onafhankelijk van de productielezer: 6 = CreationDate, 11/12 = de plan-omvang.
   const derivedSpan = (args: typeof workPlan.args) =>
     args[11]?.k === 'str' && args[11].raw.startsWith("'2026-07-06T")
     && args[12]?.k === 'str' && args[12].raw.startsWith("'2026-07-24T");
@@ -943,8 +705,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const creation = workPlan.args[6];
   if (creation.k !== 'str') throw new Error('IFCWORKPLAN.CreationDate moet een datumstring zijn');
   for (const date of ['2026-06-15', '2026-09-30']) {
-    // Reproduceert de kalenderafhankelijke fout zonder de globale klok te veranderen.
-    // CreationDate staat ook in de header: vervang gericht de entiteitsregel.
     const wpLine = ifc.split('\n').find(line => line.includes('IFCWORKPLAN('))!;
     const collisionLine = wpLine.replace(creation.raw, "'" + date + "T12:00:00'");
     const collision = parseStep(ifc.replace(wpLine, collisionLine)).find(entity => entity.type === 'IFCWORKPLAN')!;
@@ -954,27 +714,14 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (5) B8 — GlobalId-uitgifte: uniciteit, en de ONTKOPPELING van de baseline-remap.
-//
-// `ifcGuid` is een 32-bits hash, geen UUID. Twee dingen zijn nu geborgd, en de volgorde waarin ze
-// zijn aangepakt is wezenlijk: eerst de ontkoppeling (de writer schrijft wég welk GlobalId hij per
-// baseline-taak gebruikte), pas daarna de botsingscheck. Andersom zou een gesuffixt GlobalId de
-// remap breken, omdat de reader de hash dan nog zelf herberekende.
 {
   const ifc = writeIFC(fixture);
 
-  // (5a) Elk ENTITY-GlobalId komt precies één keer voor. Let op de ankering op `#N=`: een naïeve
-  //      scan op `IFC…('…')` telt ook `IFCTEXT('<guid>')` mee, en dat zijn juist de bedoelde
-  //      VERWIJZINGEN naar een GlobalId (ParentGuid, en de resource-GUID als property-naam van een
-  //      toewijzing). Die horen te herhalen; entity-id's niet.
   const entityGuids = [...ifc.matchAll(/^#\d+=IFC[A-Z]+\('([0-9A-Za-z_$]{22})'/gm)].map(m => m[1]);
   const dupes = entityGuids.filter((g, i) => entityGuids.indexOf(g) !== i);
   assert(entityGuids.length > 20, `verwachtte een flink aantal entity-GlobalIds — kreeg ${entityGuids.length}`);
   assert(dupes.length === 0, `entity-GlobalIds moeten uniek zijn — dubbel: ${[...new Set(dupes)].join(', ')}`);
 
-  // (5b) De writer schrijft de taak→GlobalId-map expliciet weg, zodat de reader niets hoeft te
-  //      herberekenen.
   assert(ifc.includes("'TaskGuids'"), 'writeBaselineMeta moet een TaskGuids-map schrijven zolang er baselines zijn');
 
   const baseRt = readIFC(ifc);
@@ -982,9 +729,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(baseRt.tasks.some(t => t.id === bt0.taskId),
     'basisgeval: de baseline-taak moet normaal op een bestaande taak worden geremapt');
 
-  // (5c) En de reader GEBRUIKT die map. Bewijs: wijs in de map de eerste baseline-taak naar het
-  //      GlobalId van een ÁNDERE taak. Herberekende de reader nog zelf, dan verandert er niets;
-  //      volgt hij de map, dan landt de baseline-taak op die andere taak.
   const other = baseRt.tasks.find(t => t.id !== bt0.taskId)!;
   const otherLine = ifc.split('\n').find(l => l.includes('=IFCTASK(') && l.includes(`'${other.name}'`))!;
   const otherGuid = /=IFCTASK\('([0-9A-Za-z_$]{22})'/.exec(otherLine)![1];
@@ -993,63 +737,38 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(!!origGuid, 'kon het eerste GlobalId in de TaskGuids-map niet uitlezen');
   const tampered = ifc.replace(mapLine, mapLine.replace(origGuid!, otherGuid));
   const rtTampered = readIFC(tampered);
-  // Identificeer de doeltaak op naam binnen dezelfde beurt; de gemanipuleerde map hoort die taak
-  // nog steeds als baseline-doel aan te wijzen, onafhankelijk van het stabiliteitscontract erboven.
   const otherInTampered = rtTampered.tasks.find(t => t.name === other.name)!;
   assert(rtTampered.baselines![0].tasks.some(bt => bt.taskId === otherInTampered.id),
     'de reader moet de expliciete TaskGuids-map volgen, niet de hash herberekenen (B8-ontkoppeling)');
 
-  // (5d) Terugval voor bestanden van vóór deze wijziging: haal de map weg en de remap moet nog
-  //      steeds werken via de herberekende hash.
   const legacy = ifc.split('\n').filter(l => !l.includes("'TaskGuids'")).join('\n');
   const rtLegacyGuids = readIFC(legacy);
   assert(rtLegacyGuids.tasks.some(t => t.id === rtLegacyGuids.baselines![0].tasks[0].taskId),
     'zonder TaskGuids-map (oud bestand) moet de remap terugvallen op het herberekenen van de hash');
 }
 
-// (6) Aanwezigheidsregistratie (issue #63). Taak 1 ("Aanwezigheid van rekenslots vastleggen in de
-// IFC-lezer") registreerde de zeven REKENSLOTS: `$` telt NIET als opgeslagen datum, want
-// parseDateFromIFC maakt van `$` de datum van VANDAAG. Taak 2 (kwaliteitsreview MOET 1) breidde dit
-// uit met de twee INVOERSLOTS ScheduleStart/ScheduleFinish: zonder hún aanwezigheid apart te
-// registreren kon `captureRecordedDates` (recordedDates.ts) een `$`-ScheduleStart niet onderscheiden
-// van een écht geëxporteerde datum, en zou een IFCTASK zonder IfcTaskTime (of met `$` op
-// ScheduleStart) alsnog als "vandaag opgeslagen" worden voorgesteld — precies de kritieke bevinding.
 {
   const TT_LEEG = [
     'ISO-10303-21;', 'HEADER;',
     "FILE_NAME('X.ifc','2031-01-01T07:00:00',('A'),('B'),'x','y','');",
     'ENDSEC;', 'DATA;',
     "#1=IFCPROJECT('g1',$,'Extern',$,$,$,$,$,$);",
-    // IfcTaskTime met alleen ScheduleStart/ScheduleFinish; alle rekenslots (EarlyStart t/m
-    // IsCritical) op `$`.
     "#9=IFCTASKTIME('T',.PREDICTED.,$,.WORKTIME.,$,'2026-03-02','2026-03-06',$,$,$,$,$,$,$,$,$,$,$,$,$);",
     "#2=IFCTASK('g2',$,'Extern A',$,$,'1.1',$,$,$,.F.,$,#9,.CONSTRUCTION.);",
-    // Taak ZONDER IfcTaskTime-referentie (taskTime-slot op `$`) — moet ook een lege lijst geven,
-    // niet een ontbrekende entry (het contract in extractTasks: "geen slot gevuld" ≠ "onbekend").
     "#3=IFCTASK('g3',$,'Zonder tijd',$,$,'1.2',$,$,$,.F.,$,$,.CONSTRUCTION.);",
     'ENDSEC;', 'END-ISO-10303-21;',
   ].join('\n');
   const rtLeeg = readIFC(TT_LEEG);
   assert(rtLeeg.tasks.length === 2, `9r fixture moet precies twee taken opleveren — kreeg ${rtLeeg.tasks.length}`);
   const leegId = rtLeeg.tasks.find(t => t.wbsCode === '1.1')!.id;
-  // Geen enkel REKENSLOT is aanwezig, maar ScheduleStart/ScheduleFinish WEL — sinds taak 2/MOET 1
-  // meldt recordedFields dat nu, precies zodat captureRecordedDates hier de schedule-laag mag kiezen
-  // (zie check-recorded-dates.ts, de MOET-4-laagkeuze) in plaats van niets te kunnen zeggen.
   assert(JSON.stringify(rtLeeg.recordedFields?.[leegId]) === JSON.stringify(['scheduleStart', 'scheduleFinish']),
     `9r geen rekenslot, wel de twee invoerslots aanwezig gemeld — kreeg ${JSON.stringify(rtLeeg.recordedFields?.[leegId])}`);
   assert(rtLeeg.tasks.find(t => t.wbsCode === '1.1')!.time.scheduleStart === '2026-03-02',
     `9r scheduleStart moet gewoon gelezen worden — kreeg ${rtLeeg.tasks.find(t => t.wbsCode === '1.1')!.time.scheduleStart}`);
   const zonderTijdId = rtLeeg.tasks.find(t => t.wbsCode === '1.2')!.id;
-  // Taak ZONDER IfcTaskTime-entiteit: er is niets om uit te lezen, dus ook de twee invoerslots
-  // blijven afwezig — de lege lijst is hier terecht leeg (i.p.v. ['scheduleStart','scheduleFinish']
-  // zoals hierboven), wat `captureRecordedDates` straks laat concluderen "geen uitspraak" i.p.v. de
-  // `createDefaultTaskTime`-"vandaag"-default als een echte datum te lezen (kritieke bevinding).
   assert(JSON.stringify(rtLeeg.recordedFields?.[zonderTijdId]) === JSON.stringify([]),
     `9r taak zonder IfcTaskTime moet een lege lijst geven (niet ontbrekend, en niet de twee invoerslots) — kreeg ${JSON.stringify(rtLeeg.recordedFields?.[zonderTijdId])}`);
 
-  // Tegenproef: mét gevulde rekenslots én invoerslots worden ze allemaal gemeld (freeFloat blijft
-  // bewust `$`, dus die hoort NIET in de lijst — bewijst dat het per-slot en niet per-IfcTaskTime
-  // wordt geregistreerd).
   const TT_VOL = [
     'ISO-10303-21;', 'HEADER;',
     "FILE_NAME('X.ifc','2031-01-01T07:00:00',('A'),('B'),'x','y','');",
@@ -1065,18 +784,11 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(JSON.stringify(rtVol.recordedFields?.[rtVol.tasks[0].id]) === JSON.stringify(wantVol),
     `9r gevulde reken- én invoerslots wél gemeld — kreeg ${JSON.stringify(rtVol.recordedFields?.[rtVol.tasks[0].id])}`);
 
-  // De kritieke bevinding zelf, expliciet vastgelegd (hercontrole kwaliteitsreview): een IfcTaskTime
-  // MET `$` op ScheduleStart (maar ScheduleFinish gevuld) mag ScheduleStart NIET als aanwezig melden.
-  // `recordedSlotsOf` gebruikt één lus over alle negen sleutels met dezelfde `arg && arg !== '$'`-
-  // check per slot; zonder deze assertie zou een latere "vereenvoudiging" die de `$`-check op de twee
-  // invoerslots overslaat (want "invoer is er toch altijd") zowel TT_LEEG als TT_VOL hierboven groen
-  // laten staan — precies de regressie die deze hele taak moest voorkomen.
   const TT_HALF_SCHEDULE = [
     'ISO-10303-21;', 'HEADER;',
     "FILE_NAME('X.ifc','2031-01-01T07:00:00',('A'),('B'),'x','y','');",
     'ENDSEC;', 'DATA;',
     "#1=IFCPROJECT('g1',$,'Extern',$,$,$,$,$,$);",
-    // ScheduleStart op `$`, ScheduleFinish gevuld; alle rekenslots ook `$`.
     "#9=IFCTASKTIME('T',.PREDICTED.,$,.WORKTIME.,$,$,'2026-03-06',$,$,$,$,$,$,$,$,$,$,$,$,$);",
     "#2=IFCTASK('g2',$,'Half schedule',$,$,'1.3',$,$,$,.F.,$,#9,.CONSTRUCTION.);",
     'ENDSEC;', 'END-ISO-10303-21;',
@@ -1088,17 +800,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     `9r $-ScheduleStart telt niet mee als aanwezig, ScheduleFinish wel — kreeg ${JSON.stringify(rtHalf.recordedFields?.[halfId])}`);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (6) T5-HERZIENING (2026-08-15, spec-reviewbevinding — zie het plandocument §T5) — extern-stijl
-//     fragment: een spec-conforme externe IFC 4.3-tool mag een RECURRENTE FEESTDAG ("elke 25
-//     december") schrijven als `IFCWORKTIME` met een GEVULDE `RecurrencePattern`-ref (args[3]),
-//     zonder de OPS-pset-markering die alleen ONZE writer zet. Vóór de herziening zou zo'n ref op
-//     zichzelf al "werkende uitzondering" betekenen (het oorspronkelijke, foutieve ontwerp) — deze
-//     case bewijst dat de reader nu conservatief blijft: geen OPS-markering ⇒ feestdag, ook met een
-//     gevulde recurrence. We bouwen het fragment door de "Kerst"-feestdagregel uit de echte
-//     `writeIFC`-uitvoer te patchen (geen losse hand-geschreven STEP-file nodig — dat zou het risico
-//     lopen zelf een ongeldig fragment te zijn) en een YEARLY-recurrence toe te voegen die de writer
-//     zelf nooit voor een feestdag zou schrijven.
 {
   const ifc = writeIFC(fixture);
   const lines = ifc.split('\n');
@@ -1114,8 +815,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(patchedLine !== lines[kerstIdx], 'kon de RecurrencePattern-ref niet inpatchen in de Kerst-regel');
   lines[kerstIdx] = patchedLine;
 
-  // Vóór de DATA-sluitende `ENDSEC;` (de HEADER-sectie heeft er ook één, vandaar `lastIndexOf` i.p.v.
-  // de eerste treffer — anders belandt de nieuwe entiteit vóór `DATA;` en is het fragment ongeldig).
   const dataEndIdx = lines.lastIndexOf('ENDSEC;');
   assert(dataEndIdx > 0, 'kon de sluitende ENDSEC; van de DATA-sectie niet vinden');
   lines.splice(dataEndIdx, 0, `#${newRecId}=IFCRECURRENCEPATTERN(.YEARLY.,$,$,(25),(12),$,$,$);`);
@@ -1125,22 +824,9 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const kerstAsException = (rt.calendar.workingExceptions ?? []).find(e => e.name === 'Kerst');
   assert(!!kerstAsHoliday, 'extern-fragment: "Kerst" met gevulde-maar-ongemarkeerde RecurrencePattern moet als feestdag teruglezen');
   assert(!kerstAsException, 'extern-fragment: "Kerst" mag NIET als werkende uitzondering teruglezen — dat was precies de spec-reviewregressie');
-
-  // Mutatiebewijs (uitgevoerd, zie commitbericht): de oude discriminator ("recurrence-ref gevuld
-  // ⇒ werkende uitzondering") teruggezet in de reader maakt precies déze twee asserties ROOD.
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (7) T5-HERZIENING her-check-afronding (hardening-§7): rode-pad-fixture voor de `try { JSON.parse }
-//     catch` in `extractWorkingExceptionStepIds`, plus de reviewer-suggestie — een tweede
-//     extern-fragment-variant MET gevulde TimePeriods (block 6 dekte alleen de lege vorm).
 {
-  // (7a) Corrupte JSON in de `WorkingExceptionIds`-property. `libCal` heeft echte werkende
-  //      uitzonderingen in de fixture, dus zijn `OPS_Calendar`-pset draagt een reële property —
-  //      die corrumperen we naar onparseerbare tekst. Verwacht: geen crash, terugval op "alles in
-  //      ExceptionTimes is een feestdag" (dezelfde conservatieve terugval als "geen markering",
-  //      block 6).
-  // Expliciet legacy-bestand: behoud de oude corrupte-ids-regressie zonder V1-markering.
   const ifc7a = writeIFC(fixture).split("'WorkingExceptionKeysV1'").join("'IgnoredWorkingExceptionKeysV1'");
   const lines7a = ifc7a.split('\n');
   const wexcIdx = lines7a.findIndex(l => l.includes("'WorkingExceptionIds'"));
@@ -1164,17 +850,9 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const holidayNames = (libCalOut?.holidays ?? []).map(h => h.name).sort();
   assert(holidayNames.includes('Overwerkdag') && holidayNames.includes('Verschoven werkdag'),
     `corrupte JSON: de twee werkende uitzonderingen moeten als feestdag teruglezen — kreeg holidays: ${JSON.stringify(holidayNames)}`);
-
-  // Mutatiebewijs (uitgevoerd, zie commitbericht): de `catch { /* corrupte JSON: negeren */ }` in
-  // `extractWorkingExceptionStepIds` tijdelijk laten rethrowen ⇒ deze case ROOD op
-  // `assert(!threw, ...)` hierboven (een echte crash i.p.v. de bedoelde terugval).
 }
 
 {
-  // (7b) Reviewer-suggestie: een tweede extern-fragment-variant met een ongemarkeerde YEARLY-
-  //      recurrence die WEL gevulde TimePeriods draagt (06:00–12:00) — block 6 testte alleen de
-  //      lege-TimePeriods-vorm. We hergebruiken "Nieuwjaar" (de tweede feestdag in de fixture) zodat
-  //      dit los staat van block 6's "Kerst"-fragment.
   const ifc7b = writeIFC(fixture);
   const lines7b = ifc7b.split('\n');
   const ids7b = lines7b.map(l => { const m = /^#(\d+)=/.exec(l); return m ? parseInt(m[1], 10) : 0; });
@@ -1206,24 +884,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     'extern-fragment-met-TimePeriods: "Nieuwjaar" mag NIET als werkende uitzondering teruglezen — de OPS-markering ontbreekt, TimePeriods alleen is geen signaal');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (8) T14b (gebruikstestbevinding, ernst hoog — dataverlies): een taak met `time.completion ===
-//     undefined` liet ELKE `writeIFC` crashen (`TypeError` op `w.task.time.completion.toFixed(1)`,
-//     ifcTaskSlots.ts) — dat trof auto-save (faalt stil elke 10s), Opslaan/Opslaan-als, én
-//     `planner_export_ifc`. Drieledige verdediging, elk apart mutatie-bewezen:
-//       (8a) BRON — `taskSlice.addTask`: een meegegeven, onvolledig `time`-object wordt nu
-//            veld-voor-veld gemerged (`mergeTaskTime`) i.p.v. ongewijzigd overgenomen.
-//       (8b) BRON — `mcpTransaction.ts` `draft.addTask`: zelfde regel, MCP-pad.
-//       (8c) EXTENSIE-RAND — `extMappers.ts` `fromExtTaskTime`: een extensie draait ongetypeerd, dus
-//            de TS-`Required<>`-garantie van `ExtTaskTime` geldt niet op runtime; ontbrekende
-//            velden krijgen hier al een terugval, los van de bronlaag.
-//       (8d) VANGNET — `ifcTaskSlots.ts`: de writer crasht nooit meer op een ontbrekende
-//            `completion`, ONGEACHT hoe de taak tot stand kwam (rechtstreeks gevoede, kunstmatig-
-//            kapotte fixture — bronlaag en extensie-rand blijven hier bewust ongebruikt).
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
-// (8a) BRON — directe reproductie van de bugmelding via de ECHTE store: `addTask({..., time: {...
-//      zonder completion}})`. Bewijst taskSlice.ts' `mergeTaskTime`-toepassing.
 {
   const { useAppStore } = await import('@/state/appStore');
   const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
@@ -1245,21 +905,10 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   if (!threw) {
     const out = readIFC(ifcOut).tasks.find(t => t.name === 'T14b-bron-store');
     assert(out?.time.completion === 0, `(8a) completion moet via de merge-default op 0 uitkomen — kreeg ${out?.time.completion}`);
-    // Het completion-vangnet in ifcTaskSlots.ts (8d) zou een crash hier ALSNOG voorkomen zelfs
-    // zonder de merge — deze regel isoleert dus specifiek de BRON-fix: freeFloat/totalFloat hebben
-    // géén eigen vangnet, dus een ongemergede (nog altijd `undefined`) waarde interpoleert letterlijk
-    // de string "undefined" in de STEP-uitvoer (geverifieerd: `'P0Y0MundefinedD'`).
     assert(!ifcOut.includes('undefined'), `(8a) writeIFC-uitvoer mag nooit de tekst "undefined" bevatten — bewijst dat ALLE gemergede time-velden gevuld zijn, niet alleen completion`);
   }
-  // Mutatiebewijs (uitgevoerd): `mergeTaskTime(createDefaultTaskTime(...), partial.time)` in
-  // taskSlice.ts `addTask` teruggezet naar `partial.time || createDefaultTaskTime(...)` maakt de
-  // laatste assertie hierboven ROOD (freeFloat/totalFloat blijven `undefined` → `'P0Y0MundefinedD'`
-  // in de STEP-tekst), óók al voorkomt het completion-vangnet in ifcTaskSlots.ts (8d) hier nog
-  // steeds een echte crash — precies het bewijs dat de bron-fix ONAFHANKELIJK meetelt.
 }
 
-// (8b) BRON — zelfde reproductie via het MCP-pad (`mcpTransaction.ts` `draft.addTask`, bypassed de
-//      extensie-mapper volledig). Bewijst dat de MCP-implementatie apart is gefixt.
 {
   const { useAppStore } = await import('@/state/appStore');
   const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
@@ -1285,26 +934,16 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   if (!threw) {
     const out = readIFC(ifcOut).tasks.find(t => t.name === 'T14b-bron-mcp');
     assert(out?.time.completion === 0, `(8b) completion moet via de merge-default op 0 uitkomen — kreeg ${out?.time.completion}`);
-    // Zelfde isolatie-redenering als (8a): freeFloat/totalFloat hebben geen eigen vangnet.
     assert(!ifcOut.includes('undefined'), `(8b) writeIFC-uitvoer mag nooit de tekst "undefined" bevatten — bewijst dat ALLE gemergede time-velden gevuld zijn, niet alleen completion`);
   }
-  // Mutatiebewijs (uitgevoerd): dezelfde terugdraai-mutatie in mcpTransaction.ts' `draft.addTask`
-  // maakt de laatste assertie hierboven ROOD, terwijl (8a) groen blijft — bewijst dat de twee
-  // bron-call-sites onafhankelijk gefixt zijn (geen gedeelde code die één mutatie allebei zou raken).
 }
 
-// (8c) EXTENSIE-RAND — `fromExtTaskTime` in isolatie: een `ExtTaskTime`-achtig object dat op
-//      RUNTIME niet aan zijn eigen `Required<>`-belofte voldoet (zoals een JS-extensie kan opsturen),
-//      moet toch een geldige `TaskTime` opleveren — geen crash, geen `undefined`-lek naar de bronlaag.
 {
   const { fromExtTaskTime } = await import('@/extensions/extMappers');
   const brokenExtTime = {
     durationType: 'WORKTIME',
     scheduleStart: '2026-08-12',
     scheduleFinish: '2026-08-14',
-    // scheduleDuration/earlyStart/earlyFinish/lateStart/lateFinish/freeFloat/totalFloat/isCritical/
-    // completion bewust WEGGELATEN — `ExtTaskTime` typeert ze als verplicht, maar een ongetypeerde
-    // extensie kan ze gewoon weglaten.
   } as unknown as Parameters<typeof fromExtTaskTime>[0];
 
   const mapped = fromExtTaskTime(brokenExtTime);
@@ -1316,8 +955,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(mapped.earlyFinish === '2026-08-14' && mapped.lateFinish === '2026-08-14',
     `(8c) ontbrekende early/lateFinish moeten op scheduleFinish terugvallen — kreeg earlyFinish=${mapped.earlyFinish}, lateFinish=${mapped.lateFinish}`);
 
-  // Bewijs dat het resultaat ook echt een GELDIGE taak oplevert (niet alleen "geen crash hier"):
-  // door writeIFC/readIFC heen, zoals een `api.data.addTask`-aanroep 'm verderop zou voeren.
   const asTask: Task = {
     id: 't-8c', name: 'T14b-mapper-rand', description: '', wbsCode: '',
     taskType: 'CONSTRUCTION', status: 'NOT_STARTED', isMilestone: false, priority: 500,
@@ -1326,15 +963,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const rt8c = readIFC(writeIFC({ ...fixture, tasks: [...fixture.tasks, asTask] }));
   const out8c = rt8c.tasks.find(t => t.name === 'T14b-mapper-rand');
   assert(out8c?.time.completion === 0, `(8c) de gemapte taak moet ook door writeIFC/readIFC heen completion 0 houden — kreeg ${out8c?.time.completion}`);
-
-  // Mutatiebewijs (uitgevoerd): elke `?? <default>` in `fromExtTaskTime` teruggezet naar de kale
-  // doorgifte (`tt.completion`, `tt.scheduleDuration`, …) maakt de bijbehorende assertie hierboven
-  // ROOD (bv. `mapped.completion === 0` faalt met `undefined` i.p.v. `0`).
 }
 
-// (8d) VANGNET — een kunstmatig-kapotte taak wordt RECHTSTREEKS aan `writeIFC` gevoed, bronlaag en
-//      extensie-rand volledig omzeild (geen addTask, geen fromExtTaskTime). Bewijst dat de derde
-//      verdedigingslinie in ifcTaskSlots.ts onafhankelijk van de andere twee lagen werkt.
 {
   const brokenTask: Task = {
     id: 't-8d-vangnet', name: 'T14b-vangnet', description: '', wbsCode: '',
@@ -1356,16 +986,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     const out = readIFC(ifcOut).tasks.find(t => t.name === 'T14b-vangnet');
     assert(out?.time.completion === 0, `(8d) completion moet via het vangnet op 0 terugkomen — kreeg ${out?.time.completion}`);
   }
-  // Mutatiebewijs (uitgevoerd): `(w.task.time.completion ?? 0)` in ifcTaskSlots.ts teruggezet naar
-  // `w.task.time.completion` maakt precies déze twee asserties ROOD — ONAFHANKELIJK van (8a)/(8b)/
-  // (8c), die hier bewust ongebruikt blijven (de kapotte taak wordt buiten addTask/fromExtTaskTime om
-  // rechtstreeks in de fixture gezet).
 }
 
-// (8e) F5 (spec-review-fixronde op 526af9f9, plan-Z14 regel ~470) — `toExtTask` moet de drie NIEUWE
-//      Z14b-leeskant-velden (mspTaskType/effortDriven/timephasedContours) doorgeven, en ZWIJGEN als
-//      ze niet gezet zijn (compact-optioneel, spiegelt hoe de rest van `toExtTask` met
-//      `manuallyScheduled`/`splitGaps` omgaat).
 {
   const { toExtTask } = await import('@/extensions/extMappers');
   const withFields: Task = {
@@ -1374,8 +996,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     parentId: null, childIds: [], resourceIds: [], time: plainTime('2026-08-18', '2026-08-20', 2),
     mspTaskType: 'FIXED_DURATION', effortDriven: true,
     timephasedContours: [{ resourceUid: 3, periods: [{ afterMinutes: 0, minutes: 60, workMinutes: 60, kind: 'actual' }] }],
-    // X0 (XER-etappeplan, 2026-08-20): drie nieuwe .xer-importvelden, zelfde compact-optionele
-    // doorgifte als de drie Z14b-velden hierboven.
     p6DurationType: 'DT_FixedQty', p6ActivityType: 'TT_LOE', p6ExplicitTargetWindow: true, p6SuspendResume: true,
   };
   const mapped8e = toExtTask(withFields);
@@ -1403,27 +1023,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(mapped8eNeg.p6ActivityType === undefined, `(8e) zonder p6ActivityType blijft toExtTask.p6ActivityType undefined — kreeg ${mapped8eNeg.p6ActivityType}`);
   assert(mapped8eNeg.p6ExplicitTargetWindow === undefined, `(8e) zonder p6ExplicitTargetWindow blijft toExtTask.p6ExplicitTargetWindow undefined — kreeg ${mapped8eNeg.p6ExplicitTargetWindow}`);
   assert(mapped8eNeg.p6SuspendResume === undefined, `(8e) zonder p6SuspendResume blijft toExtTask.p6SuspendResume undefined — kreeg ${mapped8eNeg.p6SuspendResume}`);
-
-  // Mutatiebewijs (uitgevoerd): de drie nieuwe regels in `toExtTask` tijdelijk verwijderd maakt de
-  // eerste drie asserties hierboven ROOD (undefined i.p.v. de gezette waarde).
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (9) T14b-vervolg (buiten-scope-vondst uit de eerste T14b-ronde, alsnog gedicht): `updateTask` deed
-//     `Object.assign(task, updates)` — een meegegeven `updates.time` verving de HELE `time`-tak in
-//     plaats van 'm aan te vullen. Een PARTIËLE time-update (bv. alleen `scheduleStart`, via de
-//     publieke `api.data.updateTask`) wiste zo stil `completion`/floats/etc. — dezelfde schadeklasse
-//     als (8), nu via UPDATE i.p.v. ADD, en zonder crash: de waarden verdwenen gewoon.
-//       (9a) BRON — `taskSlice.updateTask`: `mergeTaskTime` met de BESTAANDE taaktijd als basis
-//            (nooit een verse default — zie de docstring bij `mergeTaskTime`).
-//       (9b) BRON — `mcpTransaction.ts` `draft.updateTaskFields`: zelfde regel op de MCP-vangrail.
-//       (9c) EXTENSIE-RAND — het volledige `api.data.updateTask`-pad: `fromExtTaskUpdates` gebruikt
-//            nu `fromExtTaskTimePatch` (geen fallback-fabricage) zodat (9a)'s merge de ECHTE
-//            bestaande waarden kan terugvinden i.p.v. gefabriceerde generieke defaults.
-//       (9d) `fromExtTaskUpdates` in isolatie: bewijst dat er NIET meer gefabriceerd wordt.
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
-// (9a) BRON — taskSlice.updateTask: een partiële time-update mag completion niet wissen.
 {
   const { useAppStore } = await import('@/state/appStore');
   const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
@@ -1431,15 +1032,12 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   S().newProject();
   const id = S().addTask({ name: 'T14b-update-store' });
   const full = S().tasks.find(t => t.id === id)!.time;
-  S().updateTask(id, { time: { ...full, completion: 0.4 } }); // volledige update: de VEILIGE weg, zet completion.
+  S().updateTask(id, { time: { ...full, completion: 0.4 } });
 
-  // De KWETSBARE aanroep: een partiële time-update die completion niet meestuurt.
   S().updateTask(id, {
     time: { scheduleStart: '2026-09-01', scheduleDuration: 4, durationType: 'WORKTIME' } as TaskTime,
   });
 
-  // Niet gewist: de waarde volgt sinds de restduurregel (besluit eigenaar) de duurwijziging van deze
-  // lopende taak — het gedane werk (40% van de oude duur) blijft gelijk, het percentage past zich aan.
   const expected9a = 0.4 * full.scheduleDuration / 4;
   const afterPartial = S().tasks.find(t => t.id === id)!.time;
   assert(afterPartial.completion === expected9a, `(9a) een partiële time-update mag completion niet wissen (gedane werk blijft) — kreeg ${afterPartial.completion}, verwacht ${expected9a}`);
@@ -1457,13 +1055,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     const out = readIFC(ifcOut).tasks.find(t => t.name === 'T14b-update-store');
     assert(out?.time.completion === expected9a, `(9a) completion moet ${expected9a} blijven ná writeIFC/readIFC — kreeg ${out?.time.completion}`);
   }
-  // Mutatiebewijs (uitgevoerd): `mergeTaskTime(s.tasks[idx].time, time)` in taskSlice.ts `updateTask`
-  // teruggezet naar de kale `Object.assign(s.tasks[idx], updates)` (`time` dus wholesale vervangen)
-  // maakt de EERSTE assertie hierboven al ROOD, vóór writeIFC zelfs aan bod komt (`afterPartial.
-  // completion` wordt dan `undefined`, niet 0.4) — de meest directe, in-memory bewezen mutatie.
 }
 
-// (9b) BRON — mcpTransaction.ts draft.updateTaskFields: zelfde regel, MCP-vangrail.
 {
   const { useAppStore } = await import('@/state/appStore');
   const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
@@ -1475,15 +1068,9 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const tx = runInMcpTransaction(() => {
     id = draft.addTask({ name: 'T14b-update-mcp' });
     const full = S().tasks.find(t => t.id === id)!.time;
-    // Zie (9a): de duurwijziging van deze lopende taak houdt het gedane werk gelijk.
     expected9b = 0.4 * full.scheduleDuration / 3;
     draft.updateTaskFields(id, { time: { ...full, completion: 0.4 } });
 
-    // `completion` hier bewust als EXPLICIETE `undefined`-sleutel (niet gewoon weggelaten): dat is
-    // precies het residuele gat dat een kale `Object.assign(task.time, partial)` niet dekte — een
-    // ONTBREKENDE sleutel liet `Object.assign` de bestaande waarde met rust, maar een AANWEZIGE sleutel
-    // met waarde `undefined` (zoals een ongetypeerde aanroeper kan opsturen) werd alsnog gekopieerd en
-    // wiste zo de bestaande completion. `mergeTaskTime`s `??` behandelt beide gevallen gelijk.
     draft.updateTaskFields(id, {
       time: { scheduleStart: '2026-09-02', scheduleDuration: 3, durationType: 'WORKTIME', completion: undefined } as unknown as TaskTime,
     });
@@ -1505,17 +1092,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     const out = readIFC(ifcOut).tasks.find(t => t.name === 'T14b-update-mcp');
     assert(out?.time.completion === expected9b, `(9b) completion moet ${expected9b} blijven ná writeIFC/readIFC — kreeg ${out?.time.completion}`);
   }
-  // Mutatiebewijs (uitgevoerd): `mergeTaskTime(s.tasks[idx].time, time)` in mcpTransaction.ts' `draft.
-  // updateTaskFields` teruggezet naar de kale `Object.assign(s.tasks[idx].time, time)` maakt de
-  // completion-assertie hierboven ROOD — specifiek dankzij de EXPLICIETE `completion: undefined` in de
-  // partial hierboven (een kale `Object.assign` liet een simpelweg ONTBREKENDE sleutel al met rust;
-  // dit isoleert het residuele gat dat `mergeTaskTime`s `??` daarbovenop dicht). (9a) blijft groen —
-  // bewijst dat de twee update-call-sites onafhankelijk gefixt zijn.
 }
 
-// (9c) EXTENSIE-RAND — het volledige `api.data.updateTask`-pad: fromExtTaskUpdates + de
-//      store-updateTask-merge samen. Een extensie die alleen `scheduleStart` opgeeft, mag de rest
-//      van de taak-tijd niet fabriceren/wissen.
 {
   const { useAppStore } = await import('@/state/appStore');
   const { buildWriteIFCInput } = await import('@/state/ifcSaveInput');
@@ -1526,8 +1104,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const full = S().tasks.find(t => t.id === id)!.time;
   S().updateTask(id, { time: { ...full, completion: 0.4 } });
 
-  // Exact het `api.data.updateTask`-pad: een ONVOLLEDIG ExtTaskTime (zoals een ongetypeerde extensie
-  // op runtime kan opsturen), enkel scheduleStart.
   S().updateTask(id, fromExtTaskUpdates({
     time: { scheduleStart: '2026-09-03' } as unknown as ExtTaskTime,
   }));
@@ -1548,15 +1124,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     const out = readIFC(ifcOut).tasks.find(t => t.name === 'T14b-update-ext');
     assert(out?.time.completion === 0.4, `(9c) completion moet 0.4 blijven ná writeIFC/readIFC — kreeg ${out?.time.completion}`);
   }
-  // Mutatiebewijs (uitgevoerd): `fromExtTaskTimePatch` in `fromExtTaskUpdates` teruggezet naar
-  // `fromExtTaskTime` (de fabricerende ADD-variant) maakt de completion-assertie hierboven ROOD —
-  // ONAFHANKELIJK van (9a): taskSlice.updateTask's merge blijft daarbij ongewijzigd gefixt, maar
-  // krijgt dan een reeds-VOLLEDIG (met generieke defaults gefabriceerd) object aangeleverd en kan de
-  // echte 0.4 niet meer terugvinden.
 }
 
-// (9d) fromExtTaskUpdates in isolatie: bewijst dat er GEEN fallback-fabricage meer gebeurt voor een
-//      veld dat de aanroeper niet opgaf (dat zou (9c)'s merge om de tuin leiden).
 {
   const { fromExtTaskUpdates } = await import('@/extensions/extMappers');
   const patch = fromExtTaskUpdates({ time: { scheduleStart: '2026-09-04' } as unknown as ExtTaskTime });
@@ -1564,35 +1133,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(patch.time?.completion === undefined, `(9d) fromExtTaskUpdates mag GEEN completion fabriceren voor een niet-opgegeven veld — kreeg ${patch.time?.completion}`);
   assert(patch.time?.isCritical === undefined, `(9d) fromExtTaskUpdates mag GEEN isCritical fabriceren voor een niet-opgegeven veld — kreeg ${patch.time?.isCritical}`);
   assert(patch.time?.freeFloat === undefined, `(9d) fromExtTaskUpdates mag GEEN freeFloat fabriceren voor een niet-opgegeven veld — kreeg ${patch.time?.freeFloat}`);
-  // Mutatiebewijs (uitgevoerd): `fromExtTaskTimePatch` in `fromExtTaskUpdates` teruggezet naar
-  // `fromExtTaskTime` maakt alle drie de laatste asserties hierboven ROOD (completion/isCritical/
-  // freeFloat worden dan 0/false/0 gefabriceerd i.p.v. ontbrekend te blijven).
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (10) T14b-spec-review-fixronde (2026-08-17): blok (9) sloot het gat voor de 12 VERPLICHTE velden,
-//      maar voor de 9 OPTIONELE velden bewees de reviewer dat de toenmalige "1-op-1 uit partial,
-//      geen terugval"-vorm hetzelfde soort dataverlies gaf — een partiële `api.data.updateTask`-
-//      aanroep die alleen `scheduleStart` noemde, wiste stil `durationMinutes`/`actualStart`/
-//      `actualFinish`/`remainingTime`/`remainingMinutes`. `mergeTaskTime` gebruikt voor die 9 velden
-//      nu de SLEUTEL-AANWEZIGHEID-conventie (`'veld' in partial ? partial.veld : base.veld`) i.p.v.
-//      een waarde-check — dat is de enige vorm die "bewust gewist" (sleutel aanwezig, `undefined`)
-//      kan onderscheiden van "nooit genoemd" (sleutel afwezig). De dagmodus in `TaskDialog.tsx`
-//      gebruikt daarom `time.durationMinutes = undefined`; de mijlpaalroute levert dezelfde
-//      expliciet aanwezige undefined-sleutel via de gedeelde `taskMilestoneTransition`, want een
-//      `delete` laat de sleutel weer verdwijnen vóórdat de merge 'm ziet.
-//        (10a) `mergeTaskTime` in isolatie — alle 9 optionele velden, beide scenario's.
-//        (10b) het reviewer-scenario op alle drie de update-paden (taskSlice/draft/api.data).
-//        (10c) de clear-conventie op store-niveau (TaskDialog-stijl payload).
-//        (10d) TaskDialog.tsx-bronguard — dit repo heeft geen React-rendertest-harnas (AGENTS.md:
-//              "Er is geen vitest/jest"), dus dit is een bewuste, lichte bronvorm-check: bewijst dat
-//              de daadwerkelijke `delete`→`= undefined`-mutatie in TaskDialog.tsx zelf is doorgevoerd.
-//        (10e) mspdiWriter.ts-vangnet (spec-review-bevinding): `Math.round(completion * 100)` gaf
-//              `NaN` in de MSPDI-export bij een undefined completion — zelfde diepteverdediging als
-//              de IFC-writer.
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-
-// (10a) mergeTaskTime in isolatie: sleutel-aanwezigheid voor alle 9 optionele velden.
 {
   const { mergeTaskTime, createDefaultTaskTime } = await import('@/utils/taskDefaults');
   const base: TaskTime = {
@@ -1610,7 +1152,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     remainingMinutes: 60,
   };
 
-  // Scenario 1: partial noemt GEEN van de 9 optionele velden (alleen scheduleStart) ⇒ allemaal behouden.
   const notMentioned = mergeTaskTime(base, { scheduleStart: '2026-08-10' });
   assert(notMentioned.durationMinutes === 240, `(10a) ontbrekende sleutel moet durationMinutes behouden — kreeg ${notMentioned.durationMinutes}`);
   assert(notMentioned.interferingFloat === 1.5, `(10a) ontbrekende sleutel moet interferingFloat behouden — kreeg ${notMentioned.interferingFloat}`);
@@ -1622,8 +1163,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(notMentioned.remainingTime === 1, `(10a) ontbrekende sleutel moet remainingTime behouden — kreeg ${notMentioned.remainingTime}`);
   assert(notMentioned.remainingMinutes === 60, `(10a) ontbrekende sleutel moet remainingMinutes behouden — kreeg ${notMentioned.remainingMinutes}`);
 
-  // Scenario 2: partial noemt alle optionele velden expliciet als `undefined`. De urenduurbron mag
-  // alleen atomair met een eenheidswissel worden gewist; daarom schakelt dit scenario naar dagen.
   const explicitlyCleared = mergeTaskTime(base, {
     scheduleStart: '2026-08-10',
     durationUnit: 'days',
@@ -1646,19 +1185,9 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(explicitlyCleared.actualDuration === undefined, `(10a) expliciete undefined-sleutel moet actualDuration wissen — kreeg ${explicitlyCleared.actualDuration}`);
   assert(explicitlyCleared.remainingTime === undefined, `(10a) expliciete undefined-sleutel moet remainingTime wissen — kreeg ${explicitlyCleared.remainingTime}`);
   assert(explicitlyCleared.remainingMinutes === undefined, `(10a) expliciete undefined-sleutel moet remainingMinutes wissen — kreeg ${explicitlyCleared.remainingMinutes}`);
-  // Required velden blijven ondertussen ongemoeid door beide scenario's (regressiebewijs op de T9-fix).
   assert(notMentioned.completion === 0.4 && explicitlyCleared.completion === 0.4, '(10a) completion (verplicht veld) mag door dit blok niet geraakt worden');
-
-  // Mutatiebewijs (uitgevoerd): elk `'veld' in partial ? partial.veld : base.veld` teruggezet naar de
-  // vorige `partial.veld` (kale doorgifte, geen terugval) maakt ALLE 9 `notMentioned.*`-asserties ROOD
-  // (kreeg `undefined` i.p.v. de bestaande waarde), terwijl de `explicitlyCleared.*`-asserties GROEN
-  // bleven (kale doorgifte geeft toevallig ook `undefined` terug voor het clear-scenario) — precies
-  // hoe de reviewer het gat vond: alleen het "niet genoemd"-scenario was stuk.
 }
 
-// (10b) Reviewer-scenario, op alle drie de update-paden: een partiële time-update die ALLEEN
-//       scheduleStart noemt, mag durationMinutes/completion/actualStart/actualFinish/remainingTime/
-//       remainingMinutes niet wissen.
 {
   const { useAppStore } = await import('@/state/appStore');
   const S = () => useAppStore.getState();
@@ -1675,10 +1204,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
         actualFinish: '2026-08-03',
         remainingTime: 1,
         remainingMinutes: 60,
-        // Z14 (sleutel-conventie-testgat, Z12-her-check L1): resume/stop volgen dezelfde
-        // sleutel-aanwezigheid-conventie in mergeTaskTime als actualStart/actualFinish hierboven —
-        // vóór deze twee regels was dat ONGETEST (mutatie `resume: partial.resume` i.p.v. de
-        // `'resume' in partial`-guard bleef hier stil groen).
         resume: '2026-08-02',
         stop: '2026-08-02',
       },
@@ -1692,16 +1217,11 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     assert(t.actualFinish === '2026-08-03T16:00', `${label} actualFinish moet blijven — kreeg ${t.actualFinish}`);
     assert(t.remainingTime === 1, `${label} remainingTime moet blijven — kreeg ${t.remainingTime}`);
     assert(t.remainingMinutes === 60, `${label} remainingMinutes moet blijven — kreeg ${t.remainingMinutes}`);
-    // Z14 — de twee nieuwe cases (zie setFullProgress hierboven).
     assert(t.resume === '2026-08-02T07:00', `${label} resume moet blijven — kreeg ${t.resume}`);
     assert(t.stop === '2026-08-02T16:00', `${label} stop moet blijven — kreeg ${t.stop}`);
   };
 
-  // Pad 1: taskSlice.updateTask rechtstreeks.
   S().newProject();
-  // De fixture zet hieronder bewust een urentaak op. Sinds T1 mag zo'n taak niet meer stil via de
-  // dagfallback worden opgelost; geef dit isolatiescenario daarom de concrete werkblokken die een
-  // geldige urentaak ook in productie nodig heeft.
   const baseCalendar = S().calendar;
   S().setCalendar({
     ...baseCalendar,
@@ -1722,7 +1242,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   S().updateTask(id1, { time: { scheduleStart: '2026-09-10', scheduleDuration: 4, durationType: 'WORKTIME' } as TaskTime });
   assertPreserved('(10b/taskSlice)', id1);
 
-  // Pad 2: mcpTransaction.draft.updateTaskFields.
   const { draft, runInMcpTransaction } = await import('@/state/mcpTransaction');
   let id2 = '';
   const tx = runInMcpTransaction(() => {
@@ -1733,28 +1252,13 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(tx.ok, '(10b/draft.updateTaskFields) hoort binnen zijn MCP-transactie te slagen');
   assertPreserved('(10b/draft.updateTaskFields)', id2);
 
-  // Pad 3: het volledige api.data.updateTask-pad (fromExtTaskUpdates + store-updateTask).
   const { fromExtTaskUpdates } = await import('@/extensions/extMappers');
   const id3 = S().addTask({ name: 'T14b-10b-ext' });
   setFullProgress(id3);
   S().updateTask(id3, fromExtTaskUpdates({ time: { scheduleStart: '2026-09-12' } as unknown as ExtTaskTime }));
   assertPreserved('(10b/api.data.updateTask)', id3);
-
-  // Mutatiebewijs (uitgevoerd): elk `'veld' in partial ? partial.veld : base.veld` in `mergeTaskTime`
-  // teruggezet naar de kale `partial.veld` maakt ALLE DRIE de paden hierboven ROOD (elk 6 asserties) —
-  // exact het reviewer-scenario, nu structureel gedekt.
-  //
-  // Tweede, apart uitgevoerd mutatiebewijs (bevinding TIJDENS deze fixronde, niet door de reviewer
-  // gemeld maar wél door dit blok gevangen): `fromExtTaskTimePatch` (extMappers.ts) teruggezet van
-  // de `'veld' in tt`-vorm naar een object-LITERAL met elke sleutel expliciet genoemd (`{
-  // durationMinutes: tt.durationMinutes, ... }`) maakt UITSLUITEND pad 3 ((10b/api.data.updateTask),
-  // 5 asserties) ROOD — pad 1/2 blijven groen, want die gaan niet door `fromExtTaskTimePatch`. Een
-  // object-literal zet een sleutel altijd als eigen property, ook met een `undefined`-waarde; dat
-  // liet élk optioneel veld dat de aanroeper niet noemde alsnog als "bewust gewist" overkomen.
 }
 
-// (10c) Clear-conventie op store-niveau: een TaskDialog-stijl update (expliciete `undefined`-sleutel,
-//       niet weggelaten) moet het veld daadwerkelijk wissen.
 {
   const { useAppStore } = await import('@/state/appStore');
   const S = () => useAppStore.getState();
@@ -1764,25 +1268,14 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   S().updateTask(id, { time: { ...full, durationUnit: 'hours', durationMinutes: 240 } });
   assert(S().tasks.find(t => t.id === id)!.time.durationMinutes === 240, '(10c) opzet: durationMinutes moet eerst gezet zijn');
 
-  // Exact het TaskDialog-mijlpaalpatroon: spread de bestaande tijd, schakel atomair naar dagen en
-  // zet de niet-meer-geldige minutenbron expliciet op `undefined` (geen `delete`).
   const current = S().tasks.find(t => t.id === id)!.time;
   const cleared = { ...current, durationUnit: 'days' as const, scheduleDuration: 0, durationMinutes: undefined };
   S().updateTask(id, { time: cleared });
 
   assert(S().tasks.find(t => t.id === id)!.time.durationMinutes === undefined,
     `(10c) een expliciete undefined-sleutel moet durationMinutes daadwerkelijk wissen — kreeg ${S().tasks.find(t => t.id === id)!.time.durationMinutes}`);
-
-  // Mutatiebewijs: dit blok blijft groen onder ZOWEL de oude ("1-op-1 uit partial") als de nieuwe
-  // ("sleutel-aanwezigheid") vorm van mergeTaskTime — het bewijst dus specifiek de CONVENTIE die
-  // TaskDialog.tsx nu volgt (`= undefined`), niet de (10a/10b)-fix zelf. Zie (10d) voor het
-  // mutatiebewijs op TaskDialog.tsx's eigen bronregels.
 }
 
-// (10d) Gedeelde UI-bronguard: de dialoog delegeert duurmutaties aan TaskDurationField; die wist
-//       dagmodus expliciet. De mijlpaalroute gebruikt de gedeelde transitie die dezelfde aanwezige
-//       undefined-sleutel levert. Dit repo heeft geen React-rendertest-harnas, dus dit is een
-//       bewuste, lichte bronvorm-check naast de gedragschecks voor de gedeelde helpers.
 {
   const taskDialogPath = join(HERE, '..', '..', 'src', 'components', 'dialogs', 'TaskDialog.tsx');
   const src = readFileSync(taskDialogPath, 'utf8');
@@ -1790,8 +1283,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const taskDurationFieldSource = readFileSync(taskDurationFieldPath, 'utf8');
   const milestoneTransitionPath = join(HERE, '..', '..', 'src', 'engine', 'taskMilestoneTransition.ts');
   const milestoneTransitionSource = readFileSync(milestoneTransitionPath, 'utf8');
-  // Het Opslaan van de dialoog staat sinds de taakmutaties-audit (bevindingen 4/10) in
-  // state/taskDialogSave.ts, zodat het headless testbaar is; de dialoog roept het alleen aan.
   const dialogSavePath = join(HERE, '..', '..', 'src', 'state', 'taskDialogSave.ts');
   const dialogSaveSource = readFileSync(dialogSavePath, 'utf8');
   assert(!src.includes('delete time.durationMinutes') && !dialogSaveSource.includes('delete time.durationMinutes'),
@@ -1807,14 +1298,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     '(10d) het dialoog-Opslaan (taskDialogSave.ts) moet de gedeelde mijlpaaltransitie gebruiken');
   assert(/durationMinutes:\s*undefined/.test(milestoneTransitionSource),
     '(10d) de gedeelde mijlpaaltransitie moet durationMinutes met een aanwezige undefined-sleutel wissen');
-
-  // De gedragsmatrix in check-task-grid-editors.ts bewijst daarnaast aan/uit/no-op en behoud van
-  // geïmporteerde mijlpalen-met-duur; de browsertest dekt de gedeelde duurinvoer en deze broncheck
-  // bewaakt aanvullend dat de dialoog ook voor mijlpalen dezelfde domeintransitie gebruikt.
 }
 
-// (10e) mspdiWriter.ts-vangnet: een kunstmatig-kapotte `time.completion` mag geen "NaN" in de
-//       MSPDI-export opleveren.
 {
   const { writeMSPDI } = await import('@/services/msproject/mspdiWriter');
   const brokenTask: Task = {
@@ -1832,15 +1317,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const afterName = xmlOut.slice(xmlOut.indexOf('T14b-mspdi-vangnet'));
   const m = /<PercentComplete>(-?\d+)<\/PercentComplete>/.exec(afterName);
   assert(!!m && m[1] === '0', `(10e) PercentComplete moet via het vangnet 0 zijn — kreeg ${m?.[1] ?? 'GEEN MATCH'}`);
-
-  // Mutatiebewijs (uitgevoerd): `(task.time.completion ?? 0)` in mspdiWriter.ts teruggezet naar de
-  // kale `task.time.completion` maakt de eerste assertie hierboven ROOD (`PercentComplete>NaN<` komt
-  // dan letterlijk in de uitvoer voor).
 }
 
-// (11) M3 (eindreview T16c): completion-precisie in IFC. `ifcTaskSlots.ts` schreef vóór deze fix
-//      `.toFixed(1)` (10%-stappen) — een taak op 38% werd bij elke IFC-save stil 40%, en ≥0,955
-//      rondde helemaal naar 100% (VOLTOOID-gedragswisseling in CPMSolver.ts: andere ES/EF-tak).
 {
   const mkCompl = (id: string, completion: number): Task => ({
     id, name: `M3-${id}`, description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -1854,29 +1332,15 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const back38 = back.tasks.find((t) => t.name === 'M3-m3-38pct');
   const back9955 = back.tasks.find((t) => t.name === 'M3-m3-9955pct');
   assert(back38?.time.completion === 0.38, `(11a) M3-precisie: 38% blijft 0,38 (niet 0,4 — de oude 10%-afrondbug), kreeg ${back38?.time.completion}`);
-  // Sinds de restduurregel (besluit eigenaar) schrijft de writer een percentage dat niet exact op
-  // twee decimalen past verliesvrij (`ifcCompletionReal`): 95,5% komt als 0,955 terug. Vroeger werd
-  // dat 0,95 (`toFixed(2)`); de kern van M3 blijft: NOOIT naar 1,0/100% afronden.
   assert(back9955?.time.completion === 0.955, `(11b) M3-precisie: 95,5% blijft 0,955 (niet 1,0/100% — de VOLTOOID-gedragswisseling), kreeg ${back9955?.time.completion}`);
   assert((back9955?.time.completion ?? 0) < 1, '(11c) M3-precisie: 95,5% mag NIET als 100% (completion===1, VOLTOOID-tak) terugkomen');
 
-  // Backward-compatibiliteit: een bestand geschreven met de OUDE 1-decimaal-precisie (bv. door een
-  // andere/oudere OPS-versie of een extern tool) leest nog steeds exact zo in als voorheen —
-  // `parseFloat` is formaat-onafhankelijk, geen enkele nieuwe klem raakt bestaande bestanden. De
-  // writer schrijft "0.38" (géén trailing nullen — `(0.38).toFixed(2)`), dus een kale
-  // string-vervanging naar het OUDE 1-decimaal-formaat ("0.4") volstaat om dat pad te simuleren.
   assert(ifcOut.includes('0.38'), 'setup (11d): writer emitteert "0.38" letterlijk (geen trailing nullen)');
   const legacyText = ifcOut.replace('0.38', '0.4');
   const legacyBack = readIFC(legacyText);
   const legacyTask = legacyBack.tasks.find((t) => t.name === 'M3-m3-38pct');
   assert(legacyTask?.time.completion === 0.4, `(11d) M3-backward-compat: een 1-decimaal-bestand (extern/oud, "0.4") leest gewoon 0,4 — geen nieuwe leesklem, kreeg ${legacyTask?.time.completion}`);
 
-  // Mutatiebewijs (uitgevoerd): `.toFixed(2)` in ifcTaskSlots.ts teruggezet naar `.toFixed(1)` maakt
-  // (11a) en (11b)/(11c) ROOD — 0,38 wordt dan 0,4 en 0,955 wordt 1,0 (completion===1).
-
-  // (11e) Restduurregel: 10 d op 40% → 12 d geeft 4/12. Dat percentage en de restduur (8 d) komen
-  // exact terug, dus ook het gedane werk (percentage × duur = 4 d). Hele procenten blijven op twee
-  // decimalen, zie (11d).
   const t13 = { ...mkCompl('rule3', 0.4 * 10 / 12), time: { ...mkCompl('rule3', 0).time, scheduleDuration: 12, remainingTime: 8, completion: 0.4 * 10 / 12, actualStart: '2026-08-15' } };
   const out13 = writeIFC({ ...fixture, tasks: [...fixture.tasks, t13, t38] });
   const back13 = readIFC(out13).tasks.find((t) => t.name === 'M3-rule3');
@@ -1884,28 +1348,12 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(back13?.time.remainingTime === 8, `(11e) restduurregel: restduur 8 d komt exact terug, kreeg ${back13?.time.remainingTime}`);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (12) Z14 (acceptatie 4, spiegelt het T5-precedent uit blok (6)): extern-stijl IFC zonder de
-//      OPS-markering leest CONSERVATIEF — geen fantoom-splits/-manual/-resume/-timephased. Anders
-//      dan T5 (een discriminator die een gevulde-maar-neutrale ref verkeerd kon lezen) is de
-//      bescherming hier structureel: `PER_TASK_PSET_BY_NAME`/`extractAssignments` dispatchen strikt
-//      op EXACTE pset-naam (`OPS_TaskSplits`/`OPS_ManualScheduling`/`OPS_Resume`/`OPS_Timephased`),
-//      dus een extern pset met een andere naam — óók als de INHOUD toevallig een geldige
-//      splits-JSON-array bevat — wordt nooit als OPS-data gelezen. Bewezen door de writer-uitvoer
-//      te patchen (geen losse hand-geschreven STEP-file), zelfde methode als blok (6).
 {
   const ifc12 = writeIFC(fixture);
-  // TX draagt geen splitGaps in de fixture (alleen TM, de kitchen-sink-taak, wel) — bevestig eerst
-  // dat TX zónder patch ook geen splitGaps heeft (golden rule: de writer emitteert OPS_TaskSplits
-  // alleen voor TM, niet voor TX — de patch hieronder koppelt het nep-fragment expliciet aan TX).
   const rt12setup = readIFC(ifc12);
-  const tx12setup = rt12setup.tasks.find(t => t.wbsCode === '1.2'); // TX
+  const tx12setup = rt12setup.tasks.find(t => t.wbsCode === '1.2');
   assert(tx12setup?.splitGaps === undefined, 'setup (12): TX heeft geen splitGaps vóór de patch');
 
-  // Patch: een extern-stijl pset met een ANDERE naam ('EXT_FakeSplits', geen OPS_-prefix) maar
-  // met een INHOUD die — als de dispatch op inhoud i.p.v. naam zou letten — als geldige splits
-  // gelezen zou worden. Dezelfde IFCPROPERTYSET/IFCRELDEFINESBYPROPERTIES-vorm als een echte
-  // OPS_TaskSplits-pset, gekoppeld aan TX (task_t-x).
   const lines12 = ifc12.split('\n');
   const ids12 = lines12.map(l => { const m = /^#(\d+)=/.exec(l); return m ? parseInt(m[1], 10) : 0; });
   const propId = Math.max(...ids12) + 1;
@@ -1913,7 +1361,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const relId = setId + 1;
   const dataEndIdx12 = lines12.lastIndexOf('ENDSEC;');
   assert(dataEndIdx12 > 0, 'kon de sluitende ENDSEC; van de DATA-sectie niet vinden (blok 12)');
-  // Vind de STEP-#id van task_t-x via zijn IFCTASK-regel (naam 'Ruwbouw', TX se naam in de fixture).
   const txLine = lines12.find(l => /=IFCTASK\(/.test(l) && l.includes("'Ruwbouw'"));
   assert(!!txLine, 'kon de IFCTASK-regel van TX (Ruwbouw) niet vinden');
   const txId = parseInt(/^#(\d+)=/.exec(txLine!)![1], 10);
@@ -1925,23 +1372,11 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   );
 
   const rt12 = readIFC(lines12.join('\n'));
-  const tx12 = rt12.tasks.find(t => t.wbsCode === '1.2'); // TX
+  const tx12 = rt12.tasks.find(t => t.wbsCode === '1.2');
   assert(tx12?.splitGaps === undefined,
     `(12) extern-fragment: een pset met een NIET-OPS-naam ('EXT_FakeSplits') die toevallig geldige splits-JSON draagt, mag NIET als splitGaps gelezen worden — kreeg ${JSON.stringify(tx12?.splitGaps)}`);
-
-  // Mutatiebewijs (uitgevoerd, zie commitbericht): `PER_TASK_PSET_BY_NAME.get(psetName)` in
-  // ifcReader.ts tijdelijk vervangen door `PER_TASK_PSET_BY_NAME.get(psetName) ?? (psetName.includes('Splits')
-  // ? PER_TASK_PSET_BY_NAME.get('OPS_TaskSplits') : undefined)` (een fuzzy substring-match op 'Splits'
-  // i.p.v. de exacte naamsgelijkheid) maakt precies deze assertie ROOD — `EXT_FakeSplits` matcht de
-  // substring, de fantoom-splits worden dan wél gelezen.
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (13) Z14-spec-review-fixronde (§8-punt): rode-pad-fixture voor de `try { JSON.parse } catch` in de
-//      OPS_TaskSplits-descriptor (ifcPsets.ts) — TM draagt in de fixture een ECHTE 'Splits'-property
-//      (op een GELDIGE OPS_TaskSplits-pset), die we corrumperen naar onparseerbare tekst. Verwacht:
-//      geen crash, geen fantoom-splitGaps (de catch doet niets, `task.splitGaps` blijft ongezet —
-//      exact het WorkingExceptionIds-precedent uit blok (7a), maar dan voor Splits).
 {
   const ifc13 = writeIFC(fixture);
   const lines13 = ifc13.split('\n');
@@ -1959,25 +1394,15 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     threw13 = e;
   }
   assert(!threw13, `corrupte Splits-JSON mag niet crashen — kreeg: ${threw13 instanceof Error ? threw13.message : String(threw13)}`);
-  const tm13 = rt13?.tasks.find(t => t.wbsCode === '1.1'); // TM
+  const tm13 = rt13?.tasks.find(t => t.wbsCode === '1.1');
   assert(!!tm13, 'kon TM niet terugvinden ná de corrupte-Splits-fallback');
   assert(tm13?.splitGaps === undefined,
     `corrupte Splits-JSON moet terugvallen op "geen splits" (geen fantoomdata) — kreeg ${JSON.stringify(tm13?.splitGaps)}`);
-
-  // Mutatiebewijs (uitgevoerd, zie commitbericht): de `catch { /* corrupte JSON: negeren ... */ }`
-  // in de OPS_TaskSplits-descriptor (ifcPsets.ts) tijdelijk laten rethrowen ⇒ deze case ROOD op
-  // `assert(!threw13, ...)` hierboven (een echte crash i.p.v. de bedoelde terugval).
 }
 
-// (14) Z14-spec-review-fixronde (§8-punt): rode-pad-fixture voor de `try { parsed = JSON.parse(raw) }
-//      catch { continue }` in de OPS_Timephased-extractie (ifcReader.ts, extractAssignments) — A1
-//      draagt in de fixture een ECHTE 'Windows'-property (op een GELDIGE OPS_Timephased-pset), die
-//      we corrumperen naar onparseerbare tekst. Verwacht: geen crash, geen fantoom-workWindow (de
-//      catch/continue slaat de hele pset over, `workWindowStart`/`workWindowFinish` blijven ongezet).
 {
   const ifc14 = writeIFC(fixture);
   const lines14 = ifc14.split('\n');
-  // Sinds #815 heeft ook de mijlpaal een blob (alleen een bedrag): zoek het blob met het venster van A1.
   const windowsIdx = lines14.findIndex(l => l.includes("IFCPROPERTYSINGLEVALUE('Windows',") && l.includes('workWindowStart'));
   assert(windowsIdx >= 0, 'kon de Windows-property niet vinden (verwacht op t-x, A1 heeft een workWindow)');
   const corruptedWindowsLine = lines14[windowsIdx].replace(/IFCTEXT\('[^']*'\)/, "IFCTEXT('{niet geldige json')");
@@ -1992,8 +1417,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     threw14 = e;
   }
   assert(!threw14, `corrupte Windows-JSON mag niet crashen — kreeg: ${threw14 instanceof Error ? threw14.message : String(threw14)}`);
-  // A1: taak t-x (TX, wbsCode 1.2), resource r-mem ('Timmerman Jan'), unitsPerDay 2 (curve BELL) —
-  // de meest-specifieke sleutel om de juiste assignment terug te vinden (t-x/r-mem komt twee keer voor).
   const a1Back = rt14?.assignments.find(a => {
     const t = rt14!.tasks.find(tt => tt.id === a.taskId);
     const r = rt14!.resources.find(rr => rr.id === a.resourceId);
@@ -2002,20 +1425,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(!!a1Back, 'kon A1 (t-x/r-mem, unitsPerDay 2) niet terugvinden ná de corrupte-Windows-fallback');
   assert(a1Back?.workWindowStart === undefined && a1Back?.workWindowFinish === undefined,
     `corrupte Windows-JSON moet terugvallen op "geen venster" (geen fantoomdata) — kreeg start=${a1Back?.workWindowStart} finish=${a1Back?.workWindowFinish}`);
-
-  // Mutatiebewijs (uitgevoerd, zie commitbericht): de `catch { continue }` in de OPS_Timephased-
-  // extractie (ifcReader.ts) tijdelijk laten rethrowen ⇒ deze case ROOD op `assert(!threw14, ...)`
-  // hierboven (een echte crash i.p.v. de bedoelde terugval).
 }
 
-// (15) Z19-reviewbevinding M1 — vijandige fixture voor de `workMinutes`-typebewaking in
-//      `extractTimephasedDurationWalksMeta`s `isValidWalk` (ifcReader.ts): ANDERS dan case (14)
-//      hierboven is dit GEEN onparseerbare JSON (die crasht niet, valt terug op "niets") — dit is
-//      GELDIGE JSON met een SEMANTISCH fout getypeerd veld (`workMinutes` als string i.p.v. getal)
-//      op ÉÉN van de TWEE items in TM se `timephasedDurationWalks`-array. `isValidWalk` toetst élk
-//      item; `parsed.every(isValidWalk)` faalt dus op de HELE array, niet alleen het ene corrupte
-//      item — verwacht gedrag (gepind, niet aangenomen): de VOLLEDIGE walks-lijst valt weg,
-//      INCLUSIEF het andere, verder perfect geldige item (geen "gedeeltelijk redden").
 {
   const ifc15 = writeIFC(fixture);
   const lines15 = ifc15.split('\n');
@@ -2037,27 +1448,13 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(!!tm15, 'kon TM (Oplevering) niet terugvinden ná de corrupte-workMinutes-fallback');
   assert(tm15?.timephasedDurationWalks === undefined,
     `semantisch-corrupte workMinutes op ÉÉN item laat de HELE walks-lijst wegvallen (geen gedeeltelijke redding) — kreeg ${JSON.stringify(tm15?.timephasedDurationWalks)}`);
-
-  // Mutatiebewijs (uitgevoerd, zie commitbericht): `typeof (w as {workMinutes?:unknown}).workMinutes
-  // === 'number'` in `isValidWalk` (ifcReader.ts) tijdelijk verzwakken tot "waarde is aanwezig"
-  // (zonder typetoets) ⇒ deze case ROOD op `assert(tm15?.timephasedDurationWalks === undefined, ...)`
-  // hierboven (de array zou dan gewoon met de string-waarde intact doorkomen).
 }
 
-// (16) Projectstartdatum-contract (critreview v2026.8.1, bevinding 1/4). Drie uitspraken:
-//   a. "bewust leeg" (OPS-pset aanwezig, NominalValue $) blijft leeg door de round-trip — de
-//      afleiding uit de vroegste taakstart mag een gebruikersuitspraak niet overschrijven;
-//   b. ontbreekt élke bron (geen gevuld WORKPLAN-slot, geen pset), dan wordt de start afgeleid
-//      uit de vroegste taak-scheduleStart — nooit "vandaag" verzonnen;
-//   c. een IFCWORKPLAN met een LEEG StartTime-slot ($) telt als afwezig, niet als "vandaag".
 {
-  // (16a) leeggemaakte startdatum round-tript leeg.
   const leeg = readIFC(writeIFC({ ...fixture, project: { ...fixture.project, startDate: '' } }));
   assert(leeg.project.startDate === '',
     `(16a) bewust lege ProjectStartDate moet leeg round-trippen — kreeg ${JSON.stringify(leeg.project.startDate)}`);
 
-  // (16b/16c) extern-stijl bestand zonder projectstart: afleiding uit de vroegste taakstart.
-  // Slots via de registry (zoals tests/fixtures/recordedDatesIfc.ts) — nooit met de hand tellen.
   const tt = new Array<string>(IFC_TASKTIME_SLOTS.length).fill('$');
   tt[TASKTIME_SLOT.durationType] = '.WORKTIME.';
   tt[TASKTIME_SLOT.scheduleDuration] = "'P5D'";
@@ -2087,23 +1484,11 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     `(16c) een leeg IFCWORKPLAN-StartTime-slot telt als afwezig (geen "vandaag") — kreeg ${JSON.stringify(leegSlot.project.startDate)}`);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (17) B1c-plan-2 taak 7: `TaskSplitGap.source` (spec §4, "Herkomst"). Het round-trip-bewijs voor
-//      een BEKENDE `source`-waarde (`'leveling'`) en een AFWEZIGE `source` zit al in de whole-
-//      fixture-vergelijking hierboven (TM se `splitGaps`, twee gaten). Hier de twee gevallen die dat
-//      niet dekt: vijandige invoer (een onbekende `source`-string) en de pure `clearLevelingGaps`-
-//      helper (die niets met IFC te maken heeft, maar leunt op hetzelfde `TaskSplitGap`-contract).
 {
-  // (17a) Vijandige invoer: een gat met `source: "iets-anders"` in het IFC verliest ALLEEN het
-  // source-veld — het gat zelf blijft staan (conservatief, zelfde lat als blok (13)'s corrupte-
-  // JSON-tak). Patch de FIRST 'Splits'-property (TM se, zie blok (13)) naar een JSON-array met een
-  // niet-bestaande source-waarde.
   const ifc17 = writeIFC(fixture);
   const lines17 = ifc17.split('\n');
   const splitsIdx17 = lines17.findIndex(l => l.includes("IFCPROPERTYSINGLEVALUE('Splits',"));
   assert(splitsIdx17 >= 0, '(17a) kon de Splits-property niet vinden');
-  // JSON.stringify van dit object bevat geen enkele quote (dubbele-quotes-JSON binnen een STEP-
-  // string), dus geen escaping nodig — anders dan `ifcStr` (die enkele quotes verdubbelt, `''`).
   const hostileGaps = JSON.stringify([{ afterMinutes: 120, gapMinutes: 60, source: 'iets-anders' }]);
   assert(!hostileGaps.includes("'"), '(17a) vooronderstelling: de JSON bevat geen quotes om te escapen');
   const hostileLine = lines17[splitsIdx17].replace(/IFCTEXT\('[^']*'\)/, `IFCTEXT('${hostileGaps}')`);
@@ -2111,7 +1496,7 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   lines17[splitsIdx17] = hostileLine;
 
   const rt17 = readIFC(lines17.join('\n'));
-  const tm17 = rt17.tasks.find(t => t.wbsCode === '1.1'); // TM
+  const tm17 = rt17.tasks.find(t => t.wbsCode === '1.1');
   assert(!!tm17?.splitGaps && tm17.splitGaps.length === 1,
     `(17a) het gat zelf blijft staan ondanks de onbekende source — kreeg ${JSON.stringify(tm17?.splitGaps)}`);
   assert(tm17?.splitGaps?.[0].source === undefined,
@@ -2119,11 +1504,8 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(tm17?.splitGaps?.[0].afterMinutes === 120 && tm17?.splitGaps?.[0].gapMinutes === 60,
     `(17a) afterMinutes/gapMinutes blijven ongemoeid — kreeg ${JSON.stringify(tm17?.splitGaps?.[0])}`);
 
-  // (17c) Issue #146: de derde bekende herkomst, `'user'` (een door de gebruiker gemaakte
-  // onderbreking), overleeft schrijven+lezen ongeschonden — expliciet naast de whole-fixture-
-  // vergelijking, zodat een regressie hier bij naam genoemd wordt.
   const rt17c = readIFC(writeIFC(fixture));
-  const tm17c = rt17c.tasks.find(t => t.wbsCode === '1.1'); // TM
+  const tm17c = rt17c.tasks.find(t => t.wbsCode === '1.1');
   assert(tm17c?.splitGaps?.length === 3,
     `(17c) alle drie de gaten komen terug — kreeg ${JSON.stringify(tm17c?.splitGaps)}`);
   assert(tm17c?.splitGaps?.[2].source === 'user',
@@ -2131,9 +1513,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(tm17c?.splitGaps?.[2].afterMinutes === 1440 && tm17c?.splitGaps?.[2].gapMinutes === 480,
     `(17c) afterMinutes/gapMinutes van het gebruikersgat blijven ongemoeid — kreeg ${JSON.stringify(tm17c?.splitGaps?.[2])}`);
 
-  // (17b) `clearLevelingGaps` (taskDefaults.ts): wist uitsluitend gaten met source 'leveling', laat
-  // importsplits staan, en geeft `true` terug precies wanneer er iets gewist is (zelfde contract als
-  // `clearTimephasedWindow` in dat bestand).
   const { clearLevelingGaps } = await import('@/utils/taskDefaults');
   const gapImport: TaskSplitGap = { afterMinutes: 120, gapMinutes: 60 };
   const gapLeveling: TaskSplitGap = { afterMinutes: 480, gapMinutes: 480, source: 'leveling' };
@@ -2160,20 +1539,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(clearLevelingGaps(taskNoGaps) === false, '(17b) geen splitGaps ⇒ no-op, false');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (18) Fractionele dag-duren (audit import/export nr. 1, ernst hoog). De writer schreef een
-//      fractionele dag letterlijk (`'P0Y0M2.5D'`), maar `parseDurationDays` las met `/(-?\d+)D/` +
-//      `parseInt` en pakte zo alleen de cijfers NA de punt: 2,5 → 5, 0,5 → 5, 1,25 → 25. Float-ruis
-//      en exponent-notatie werden onzin (0.30000000000000004 → 3·10¹⁶, 1e-7 → −7). Bereikbaar via een
-//      CSV met halve dagen, de eigen CSV-export van een uurtaak, de Tabel ("1d 4u") en de AI-bridge —
-//      en via crashherstel, dat ook writeIFC → readIFC doet. De hoofd-fixture hierboven kiest bewust
-//      hele dagen; dit blok dekt de fractionele kant, plus de lees-gevallen die alleen een vreemd of
-//      ouder bestand bevat (het `H`-pad, beide negatief-notaties, een oude exponent).
-//      Sinds F3c (alleen uren §3.10, §5.4, T5 en T21) schrijft de writer NOOIT meer een gebroken `P…D`:
-//      de lezer van v2026.9.0 las die nog steeds als 5. Een breuk gaat als `PT…` (dagen × werktijd per
-//      dag) met een record `[dagen, geschreven minuten]`; speling als hele dagen met de exacte waarde in
-//      `OPS_Analysis.ExactFloat`. De waarden hieronder komen dus via die records exact terug; de vormen
-//      en de leesregel toetst check-ifc-dagenmaat.ts.
 {
   const mkFrac = (id: string, dur: number, extra: Partial<TaskTime> = {}): Task => ({
     id, name: `FR-${id}`, description: '', wbsCode: '', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -2184,15 +1549,11 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     mkFrac('2_5', 2.5),
     mkFrac('0_5', 0.5),
     mkFrac('1_25', 1.25),
-    // Tabel-route: werkelijke duur "1d 4u" op een 8-uursdag = 1,5 dag. (RemainingTime loopt ook door
-    // deze codec, maar de import leidt hem altijd opnieuw af uit completion — `normalizeImportedProgress`,
-    // bewust op hele dagen — dus die is hier geen round-trip-getuige.)
     mkFrac('act', 2, { actualStart: '2026-09-01', actualDuration: 1.5, completion: 0.25 }),
-    mkFrac('ruis', 0.1 + 0.2), // 0.30000000000000004
+    mkFrac('ruis', 0.1 + 0.2),
     mkFrac('ruis3a', 2.9999999999999996),
     mkFrac('ruis3b', 3.0000000000000004),
     mkFrac('klein', 1e-7),
-    // Speling is afgeleid, maar gaat door dezelfde codec: negatief én fractioneel (uurtaken).
     mkFrac('spel', 2, { totalFloat: -1.5, freeFloat: 0.25 }),
   ];
   const frSeqs: Sequence[] = [
@@ -2207,8 +1568,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   const frTime = (r: ImportResult, id: string): TaskTime | undefined => r.tasks.find(t => t.name === `FR-${id}`)?.time;
   const b = (id: string) => frTime(rt18, id);
 
-  // (18a) De writer schrijft een breuk als `PT…` met de lengte in minuten (projectkalender 8 u per dag),
-  //       nooit als gebroken `P…D` (B1: alleen uren §3.10, T21; v2026.9.0 leest `P0Y0M2.5D` als 5).
   for (const lit of ["'PT20H0M0S'", "'PT4H0M0S'", "'PT10H0M0S'", "'PT12H0M0S'", "IFCDURATION('-PT12H0M0S')"]) {
     assert(ifc18.includes(lit), `(18a) writer emitteert ${lit} voor een breuk in dagen`);
   }
@@ -2216,16 +1575,12 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     assert(!ifc18.includes(lit), `(18a) writer schrijft geen gebroken dag-duur ${lit} meer`);
   }
 
-  // (18b) De duur komt EXACT terug (was 5 / 5 / 25).
   assert(b('2_5')?.scheduleDuration === 2.5, `(18b) 2,5 dag round-trippt als 2,5 (was 5) — kreeg ${b('2_5')?.scheduleDuration}`);
   assert(b('0_5')?.scheduleDuration === 0.5, `(18b) 0,5 dag round-trippt als 0,5 (was 5) — kreeg ${b('0_5')?.scheduleDuration}`);
   assert(b('1_25')?.scheduleDuration === 1.25, `(18b) 1,25 dag round-trippt als 1,25 (was 25) — kreeg ${b('1_25')?.scheduleDuration}`);
 
-  // (18c) Voortgang: ActualDuration gaat door dezelfde codec.
   assert(b('act')?.actualDuration === 1.5, `(18c) actualDuration 1,5 round-trippt (was 5) — kreeg ${b('act')?.actualDuration}`);
 
-  // (18d) Float-ruis en een waarde onder de precisie worden afgerond geschreven, niet als ruis of
-  //       exponent — en lezen dus terug als de bedoelde waarde.
   assert(b('ruis')?.scheduleDuration === 0.3, `(18d) 0.1+0.2 komt terug als 0,3 (was 3·10¹⁶) — kreeg ${b('ruis')?.scheduleDuration}`);
   assert(b('ruis3a')?.scheduleDuration === 3, `(18d) 2.9999999999999996 komt terug als 3 — kreeg ${b('ruis3a')?.scheduleDuration}`);
   assert(b('ruis3b')?.scheduleDuration === 3, `(18d) 3.0000000000000004 komt terug als 3 (was 4) — kreeg ${b('ruis3b')?.scheduleDuration}`);
@@ -2235,17 +1590,14 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(dayLits.length > 0 && bad.length === 0,
     `(18d) elke dag-duur in het bestand is een kaal decimaal (≤ 6 decimalen, geen exponent) — afwijkend: ${JSON.stringify(bad)}`);
 
-  // (18e) Speling: negatief en fractioneel.
   assert(b('spel')?.totalFloat === -1.5, `(18e) totalFloat −1,5 round-trippt — kreeg ${b('spel')?.totalFloat}`);
   assert(b('spel')?.freeFloat === 0.25, `(18e) freeFloat 0,25 round-trippt — kreeg ${b('spel')?.freeFloat}`);
 
-  // (18f) Een fractionele dag-lag (de AI-bridge accepteert "+0.5d") en een fractionele lead ('-P1.5D').
   const idName = new Map(rt18.tasks.map(t => [t.id, t.name]));
   const lagOf = (p: string, s: string) => rt18.sequences.find(q => idName.get(q.predecessorId) === `FR-${p}` && idName.get(q.successorId) === `FR-${s}`)?.lagDays;
   assert(lagOf('2_5', '0_5') === 0.5, `(18f) lag 0,5 dag round-trippt (was 5) — kreeg ${lagOf('2_5', '0_5')}`);
   assert(lagOf('0_5', '1_25') === -1.5, `(18f) lead −1,5 dag round-trippt via '-P1.5D' (was −5) — kreeg ${lagOf('0_5', '1_25')}`);
 
-  // (18g) Idempotentie: een tweede ronde verschuift niets meer.
   const rt18b = readIFC(writeIFC(rt18));
   const keys = ['scheduleDuration', 'actualDuration', 'remainingTime', 'totalFloat', 'freeFloat'] as const;
   for (const t of frTasks) {
@@ -2255,8 +1607,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
     assert(JSON.stringify(one) === JSON.stringify(two), `(18g) ${id}: tweede round-trip identiek — ${JSON.stringify(one)} vs ${JSON.stringify(two)}`);
   }
 
-  // (18h) Hele dagen blijven byte-identiek aan vóór deze fix: de hoofd-fixture (alleen hele dagen)
-  //       levert uitsluitend gehele dag-duren, in exact de oude vorm.
   const ifcWhole = writeIFC(fixture);
   const wholeLits = ifcWhole.match(/'-?P[\dYMeE.+-]*D'/g) ?? [];
   assert(wholeLits.length > 0 && wholeLits.every(l => /^'-?P(?:0Y0M)?\d+D'$/.test(l)),
@@ -2264,9 +1614,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   assert(ifcWhole.includes("'P0Y0M5D'") && ifcWhole.includes("'P0Y0M3D'") && ifcWhole.includes("IFCDURATION('P2D')"),
     '(18h) hele dagen: P0Y0M5D / P0Y0M3D / P2D-lag ongewijzigd');
 
-  // (18i) Lees-gevallen uit een vreemd of ouder bestand, via de speling-slot (die de uur-modus-
-  //       post-pass niet herberekent, zodat we zuiver `parseDurationDays` zien). Geen kalender in het
-  //       bestand ⇒ de standaard 8 u/dag.
   const cases: [string, number, string][] = [
     ["'PT12.5H'", 1.5625, 'decimale uren exact: 12,5/8 werkdagen'],
     ["'-PT12.5H'", -1.5625, 'negatieve decimale uren met voorloopteken (was −1)'],
@@ -2305,11 +1652,6 @@ const hasP6BoundarySequence = (input: ImportResult) =>
   });
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// (19) Schemageldig. De fixture is een bron van de IFC-schemapoort (`check-ifc-schema.ts`): hij
-//      draagt wat de voorbeelden en het rijke schemaproject niet hebben (splits, contouren,
-//      timephased werk, P6-voortgang, …). De fixture kiest IFC4 (zie `project` hierboven); hier in
-//      elk schema dat de app schrijft (`IFC_SCHEMAS`), getoetst tegen de tabel van dat schema.
 for (const schema of IFC_SCHEMAS) {
   const result = checkIfcSchema(`round-trip-fixture (${schema})`, writeIFC({ ...fixture, project: { ...fixture.project, ifcSchema: schema } }), undefined, schema);
   assert(result.checks > 100, `(19) ${schema}: testvoorwaarde: de schematoets liep (${result.checks} entiteiten getoetst)`);
@@ -2317,8 +1659,6 @@ for (const schema of IFC_SCHEMAS) {
   if (result.failures.length === 0) assert(true, `(19) schemageldig in ${schema}`);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Knownbug 112: STEP-nummers veranderen bij een merge; inhoud en echte refs blijven behouden.
 {
   const calendarValues = (r: ImportResult) => [r.calendar, ...(r.resourceCalendars ?? [])]
     .map(c => ({ name: c.name, holidays: c.holidays, workingExceptions: c.workingExceptions ?? [] }));
@@ -2333,7 +1673,6 @@ for (const schema of IFC_SCHEMAS) {
     assert(written.includes("'WorkingExceptionKeysV1'"), '112: writer geeft inhoudssleutels uit');
     assert(JSON.stringify(calendarValues(readIFC(renumber(written)))) === JSON.stringify(expected),
       `112 ${schema}: vernummerde refs behouden feestdagen en werkende uitzonderingen`);
-    // Eerdere lezers gebruiken IDs; nieuwe lezers blijven ook oude ongemergde bestanden lezen.
     const legacy = written.split("'WorkingExceptionKeysV1'").join("'IgnoredWorkingExceptionKeysV1'");
     assert(JSON.stringify(calendarValues(readIFC(legacy))) === JSON.stringify(expected),
       `112 ${schema}: legacy-ids blijven leesbaar`);
@@ -2347,7 +1686,6 @@ for (const schema of IFC_SCHEMAS) {
     assert([rejected.calendar, ...(rejected.resourceCalendars ?? [])].every(c => !c.workingExceptions?.length),
       `112 ${schema}: corrupte V1 gebruikt niet alsnog mogelijk verouderde ids`);
   }
-  // Namen mogen quotes, Unicode en tekst lijken op STEP-refs bevatten; dat zijn geen verwijzingen.
   for (const bands of [undefined, [], [{ start: 0, end: 1440 }], [{ start: 1320, end: 1740 }]]) {
     const exception = { name: "Nacht 'één' #123", startDate: '2027-06-05', endDate: '2027-06-05', bands };
     const input = { ...fixture, calendar: { ...fixture.calendar, workingExceptions: [exception] } };

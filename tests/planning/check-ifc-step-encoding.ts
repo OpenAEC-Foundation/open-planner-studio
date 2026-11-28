@@ -1,13 +1,3 @@
-// Audit 2026-09-26 — STEP-tekstcodering in IFC (eigenaarsbesluit 2026-09-28).
-//
-// De writer schreef tekst letterlijk: `é`, `€`, `中`, emoji en regeleindes rauw, en een `\` enkel.
-// Onze eigen lezer las dat terug, maar ISO 10303-21 staat in een stringliteral alleen afdrukbaar
-// ASCII toe: andere IFC-pakketten tonen zulke namen verminkt, en een backslash (`C:\temp`) is voor
-// hen een ongeldige escape. Nu codeert de writer (`\X2\…\X0\`, `\X4\…\X0\`, `\\`) en markeert dat met
-// IFCAPPLICATION.Version '0.2'. De lezer decodeert zulke bestanden én bestanden van andere pakketten;
-// oude eigen bestanden ('0.1', letterlijk) leest hij precies zoals voorheen.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC, decodeStepText } from '@/services/ifc/ifcReader';
@@ -22,7 +12,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) fails.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-// 1. Encoder/decoder los: exact wat de norm voorschrijft, en verliesvrij heen en terug.
 eq('encode: accent en euro', encodeStepText('Café €5'), 'Caf\\X2\\00E9\\X0\\ \\X2\\20AC\\X0\\5');
 eq('encode: backslash en apostrof', encodeStepText("C:\\map 't"), "C:\\\\map ''t");
 eq('encode: emoji als \\X4\\', encodeStepText('a😀b'), 'a\\X4\\0001F600\\X0\\b');
@@ -34,7 +23,6 @@ eq('decode: \\X\\ en \\S\\ (ISO 8859-1)', decodeStepText('\\X\\E9 \\S\\i'), 'é 
 eq('decode: \\PA\\ weggelaten', decodeStepText('\\PA\\abc'), 'abc');
 eq('decode: onbekende reeks blijft staan', decodeStepText('a\\Qb'), 'a\\Qb');
 
-// 2. Echte keten: store → writeIFC → readIFC, met tekst op alle soorten plekken.
 S().newProject();
 S().setProject({ name: 'Café Zuidas €', description: 'Omschrijving met 中文 en C:\\pad' });
 const taskName = 'Stort 😀 fundering \\ "vloer" \'noord\'';
@@ -52,8 +40,6 @@ eq('taaknaam', back.tasks.find((t) => t.id === id)?.name, taskName);
 eq('notitie', back.tasks.find((t) => t.id === id)?.notes?.[0]?.text, 'regel 1\r\nregel 2 — ë');
 eq('baselinenaam (JSON-pset)', back.baselines?.map((b) => b.name), ['Basis \\ één']);
 
-// 3. Oud eigen bestand ('0.1', letterlijk geschreven): precies zoals voorheen gelezen. De JSON in een
-//    pset bevatte een ge-escapete backslash als `\\`; decoderen zou die halveren en de JSON breken.
 S().newProject();
 const oldId = S().addTask({ name: 'PLAATSHOUDER' });
 S().saveBaseline('BASISHOUDER');
@@ -65,7 +51,6 @@ const oldBack = readIFC(legacy);
 eq('oud bestand: letterlijke taaknaam', oldBack.tasks.find((t) => t.id === oldId)?.name, "C:\\temp\\né 't");
 eq('oud bestand: JSON met backslash intact', oldBack.baselines?.map((b) => b.name), ['a\\b']);
 
-// 4. Bestand van een ander pakket (geen OPS-kenmerken): gecodeerde tekst wordt gedecodeerd.
 const foreign = text
   .replace("'Open Planner Studio','OPS'", "'Ander Pakket','XYZ'")
   .replace(/'OPS_/g, "'XYZ_");
@@ -73,9 +58,6 @@ const foreignBack = readIFC(foreign);
 eq('ander pakket: taaknaam gedecodeerd', foreignBack.tasks.some((t) => t.name === taskName), true);
 eq('ander pakket: projectnaam gedecodeerd', foreignBack.project.name, 'Café Zuidas €');
 
-// 5. JSON-psets als ASCII-JSON (eigenaarsbesluit 2026-09-28, "beperken"): geen `\X2\` binnen JSON,
-//    zodat een app van vóór '0.2' (die letterlijk leest) het blok niet als ongeldige JSON weggooit.
-//    Onze lezer krijgt alles verliesvrij terug, ook emoji en een los surrogaat.
 {
   eq('asciiJson: accent en emoji', asciiJson(JSON.stringify('é😀')), '"\\u00e9\\ud83d\\ude00"');
   S().newProject();

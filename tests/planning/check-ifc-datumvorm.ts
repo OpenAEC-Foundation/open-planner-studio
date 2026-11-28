@@ -1,25 +1,4 @@
 import './domStub';
-// Datums in een property: één regel voor elke schrijver en lezer (`ifcDateValue` / `readIfcDate` in
-// ifcPsets.ts). Zie docs/ifc-round-trip.md, "Datums in een property".
-//
-// De writer schreef `ConstraintDate`, `ConstraintDate2`, `Deadline` en een eigen datumveld als
-// `IFCDATE('<waarde>')`, ook met een tijd erin (`IFCDATE('2013-04-27T00:00')`): een schemafout (IfcDate kent
-// geen tijd). Gemeten op main 8db05a95c: 47 waarden in 22 van de 88 corpusdocumenten (10 bestanden),
-// waarvan 4 in Roads. `StatusDate` schreef bij een onleesbare tijd `IFCDATETIME('2026-03-02T7:00')`, ook
-// een schemafout. Nu typt de writer alleen de vormen van de store met een datum die bestaat:
-// `YYYY-MM-DD` ⇒ IFCDATE, `YYYY-MM-DDTHH:mm` ⇒ IFCDATETIME met `:00`. Al het andere (seconden, een zone,
-// een onmogelijke datum, een onleesbare tijd) gaat letterlijk als IFCTEXT. De lezer neemt bij IFCDATETIME
-// de store-vorm `YYYY-MM-DDTHH:mm`; al het andere leest hij per veld precies zoals main.
-//
-//  §1 de helper: de vorm per soort waarde.
-//  §2 per veld (StatusDate, ProjectStartDate, ConstraintDate, ConstraintDate2, Deadline, eigen datumveld):
-//     de vorm in het bestand en de round-trip, voor een datum, een tijd, een onleesbare tijd, een spatie,
-//     seconden, een zone en een onmogelijke datum.
-//  §3 oude bestanden (de vorm van main) lezen zoals main ze las, ook IFCDATE met een tijd.
-//  §4 IFCDATETIME van een ander pakket: een onleesbare tijd geeft de datum, een zone de kloktijd.
-//  §5 de echte open- en opslaanroute: een urentaak met SNET 10:00 rekent na heropenen gelijk, ook met een
-//     SNET met zone (start blijft 08:00), met seconden, en op een onmogelijke datum (blijft genegeerd).
-//  §6 schemapoort in IFC4X3_ADD2, IFC4X3 en IFC4: 0 fouten.
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { ifcDateValue } from '@/services/ifc/ifcPsets';
@@ -45,9 +24,6 @@ function same(label: string, got: unknown, want: unknown): void {
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §1 De helper
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 for (const [value, want] of [
   ['2026-03-02', "IFCDATE('2026-03-02')"],
   ['2026-03-02T07:00', "IFCDATETIME('2026-03-02T07:00:00')"],
@@ -55,8 +31,6 @@ for (const [value, want] of [
   ['2026-03-02T23:59', "IFCDATETIME('2026-03-02T23:59:00')"],
   ['2028-02-29', "IFCDATE('2028-02-29')"],
   ['2028-02-29T12:00', "IFCDATETIME('2028-02-29T12:00:00')"],
-  // Geen vorm van de store, of een datum die niet bestaat: tekst, letterlijk. Als IFCDATETIME zou de
-  // lezer seconden en zone wegnemen en een onmogelijke datum doorrollen (2026-13-45 ⇒ 2027-02-14).
   ['2026-03-02T07:00:30', "IFCTEXT('2026-03-02T07:00:30')"],
   ['2026-03-02T07:00:00', "IFCTEXT('2026-03-02T07:00:00')"],
   ['2026-03-02T07:00:30.5', "IFCTEXT('2026-03-02T07:00:30.5')"],
@@ -81,9 +55,6 @@ for (const [value, want] of [
   same(`§1 ifcDateValue(${JSON.stringify(value)})`, ifcDateValue(value), want);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Testproject: één urentaak met constraint, tweede constraint, deadline en een eigen datumveld.
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 const bands = (s: number, e: number) => [{ start: s, end: e }];
 const WEEK: WorkTimeBands = { byWeekday: { 1: bands(420, 960), 2: bands(420, 960), 3: bands(420, 960), 4: bands(420, 960), 5: bands(420, 960), 6: [], 7: [] } };
 const CAL: WorkCalendar = {
@@ -116,7 +87,6 @@ function buildProject(d: Dates, schema?: 'IFC4X3_ADD2' | 'IFC4X3' | 'IFC4'): Imp
 const allAs = (v: string): Dates => ({ status: v, start: v, constraint: v, constraint2: v, deadline: v, field: v });
 
 const PROPS = ['StatusDate', 'ProjectStartDate', 'ConstraintDate', 'ConstraintDate2', 'Deadline', FIELD.name] as const;
-/** De ruwe STEP-waarde per property. */
 function propValues(ifc: string): Record<string, string | undefined> {
   return Object.fromEntries(PROPS.map((name) =>
     [name, new RegExp(`IFCPROPERTYSINGLEVALUE\\('${name}',\\$,(.*),\\$\\);$`, 'm').exec(ifc)?.[1]]));
@@ -129,23 +99,14 @@ function readBack(r: ImportResult): Record<string, unknown> {
   };
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §2 Per veld: vorm in het bestand en round-trip
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 for (const [value, typed, back] of [
-  // [waarde in de store, waarde in het bestand, terug per veld (StatusDate, ProjectStartDate, rest)]
   ['2026-03-04', "IFCDATE('2026-03-04')", ['2026-03-04', '2026-03-04', '2026-03-04']],
   ['2026-03-04T10:00', "IFCDATETIME('2026-03-04T10:00:00')", ['2026-03-04T10:00', '2026-03-04T10:00', '2026-03-04T10:00']],
   ['2026-03-04T00:00', "IFCDATETIME('2026-03-04T00:00:00')", ['2026-03-04T00:00', '2026-03-04T00:00', '2026-03-04T00:00']],
-  // Onleesbare tijd en spatie: tekst. StatusDate en de projectdatums nemen er de datum uit, zoals main;
-  // de andere velden houden de tekst letterlijk, zoals main.
   ['2026-03-04T7:00', "IFCTEXT('2026-03-04T7:00')", ['2026-03-04', '2026-03-04', '2026-03-04T7:00']],
   ['2026-03-04 10:00', "IFCTEXT('2026-03-04 10:00')", ['2026-03-04', '2026-03-04', '2026-03-04 10:00']],
-  // Seconden of zone: tekst. StatusDate neemt er de kloktijd uit (zoals main, die hier IFCDATETIME
-  // schreef), de projectdatums de datum, de rest blijft letterlijk.
   ['2026-03-04T10:00:30', "IFCTEXT('2026-03-04T10:00:30')", ['2026-03-04T10:00', '2026-03-04', '2026-03-04T10:00:30']],
   ['2026-03-04T10:00:00+02:00', "IFCTEXT('2026-03-04T10:00:00+02:00')", ['2026-03-04T10:00', '2026-03-04', '2026-03-04T10:00:00+02:00']],
-  // Een datum die niet bestaat: tekst, letterlijk. StatusDate en de projectdatums lezen hem zoals main.
   ['2026-13-45', "IFCTEXT('2026-13-45')", ['2026-13-45', '2026-13-45', '2026-13-45']],
 ] as const) {
   const ifc = writeIFC(buildProject(allAs(value)));
@@ -157,19 +118,13 @@ for (const [value, typed, back] of [
   same(`§2 ${value}: tweede round-trip`, readBack(twice), want);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §3 Oude bestanden: de vorm van main leest zoals main hem las
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const ifc = writeIFC(buildProject(allAs('2026-03-04T10:00')));
-  /** Zet de waarde van één property terug naar een oude vorm. */
   const withOld = (text: string, name: string, oldValue: string) => {
     const re = new RegExp(`(IFCPROPERTYSINGLEVALUE\\('${name}',\\$,)(.*)(,\\$\\);)$`, 'm');
     if (!re.test(text)) throw new Error(`property ${name} niet gevonden`);
     return text.replace(re, `$1${oldValue}$3`);
   };
-  // Main 8db05a95c schreef ConstraintDate/-2, Deadline en het eigen veld als IFCDATE('<waarde>'), en de
-  // projectstart vóór #344 als IFCDATE met tijd. StatusDate mét tijd uit IFCDATE las main mét tijd.
   let old = ifc;
   for (const name of PROPS) old = withOld(old, name, "IFCDATE('2026-03-04T10:00')");
   same('§3 controle: geen IFCDATETIME meer in het oude bestand', old.includes('IFCDATETIME('), false);
@@ -191,9 +146,6 @@ for (const [value, typed, back] of [
   });
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §4 IFCDATETIME van een ander pakket
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const ifc = writeIFC(buildProject(allAs('2026-03-04T10:00')));
   for (const [value, want] of [
@@ -207,9 +159,6 @@ for (const [value, typed, back] of [
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §5 De echte open- en opslaanroute: de motor rekent met de constraint
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
   const openInStore = (parsed: OpenedImport): DocumentPayload => {
@@ -230,15 +179,10 @@ for (const [value, typed, back] of [
     [t1.time.earlyStart, t1.time.earlyFinish, t1.time.lateStart, t1.time.lateFinish, t1.time.totalFloat, t1.time.isCritical],
     [t0.earlyStart, t0.earlyFinish, t0.lateStart, t0.lateFinish, t0.totalFloat, t0.isCritical]);
 
-  // Waarden die niet in de vorm van de store staan (uit een extensie of MCP) blijven letterlijk, en de
-  // motor rekent er na heropenen hetzelfde mee. Gemeten vóór deze regel: een SNET met zone startte na
-  // de rondgang om 10:00 in plaats van 08:00, en een onmogelijke datum werd een actieve SNET.
   for (const [label, constraint, field, start] of [
-    // De motor leest de zone: 10:00+02:00 is 08:00.
     ['SNET met zone', '2026-03-04T10:00:00+02:00', '2026-03-05T10:00:00+02:00', '2026-03-04T08:00'],
     ['SNET met zone zonder seconden', '2026-03-04T10:00+02:00', '2026-03-05T10:00Z', '2026-03-04T08:00'],
     ['SNET met seconden', '2026-03-04T10:00:30', '2026-03-05T10:00:30', '2026-03-04T10:00'],
-    // Een datum die niet bestaat: de motor negeert de SNET, de taak start op de projectstart.
     ['SNET op een onmogelijke datum', '2026-13-45T10:00', '2026-13-45', '2026-03-02T07:00'],
   ] as const) {
     const odd = openInStore(buildProject({ ...dates, constraint, field }));
@@ -253,9 +197,6 @@ for (const [value, typed, back] of [
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §6 Schemapoort in de drie schema's
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 for (const schema of ['IFC4X3_ADD2', 'IFC4X3', 'IFC4'] as const) {
   for (const value of ['2026-03-04', '2026-03-04T10:00', '2026-03-04T7:00', '2026-03-04 10:00', '2026-03-04T10:00:00+02:00', '2026-13-45T10:00', '']) {
     const dates = { ...allAs(value), start: value || '2026-03-04', status: value };
