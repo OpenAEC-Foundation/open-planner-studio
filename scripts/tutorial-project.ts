@@ -1,93 +1,4 @@
 import { normalizeTaskDates } from '@/state/migrations/minuteModel';
-// Tutorialproject *Aanbouw woning* / *House extension* — de kern van de generator (zonder
-// side-effects). Bouwt het doorlopende project van de zeven tutorials (ontwerp
-// `docs/superpowers/specs/2026-09-28-gebruikersdocumentatie-diataxis-design.md`, §3.1 en §5) stap
-// voor stap op via de ECHTE store-acties en de ECHTE motor, precies in de volgorde waarin een lezer
-// het in de app doet, en legt na elke tutorial een tussenstand vast als IFC (de echte `writeIFC`).
-//
-//   stand          = wat een lezer heeft NA die tutorial (stand N+1 = stand N + stappen van N+1)
-//   start-tut-1    leeg project met alleen projectinfo (wizard "Nieuw project", standaardkalender)
-//   na-tut-1       WBS (4 fasen), 20 taken met duur, start- en opleveringsmijlpaal, inspectie
-//   na-tut-2       + relaties (FS, twee met lag), berekend
-//   tussen-tut-3-bouwvak  na-tut-2 + bouwvak in de projectkalender, berekend
-//   na-tut-3       + bouwvak in de projectkalender, één constraint (SNET), één deadline
-//   na-tut-4       + stort, kanaalplaatvloer en dakelementen in uren
-//   tussen-tut-5-resources   na-tut-4 + de vijf resources (nog niets toegewezen)
-//   tussen-tut-5-toegewezen  + alle toewijzingen, berekend
-//   tussen-tut-5-werkregel   + werkregel "Vast werk" op het stucwerk met 2 stukadoors, berekend
-//                            (overbezet, vóór het nivelleren)
-//   na-tut-5       + resources, toewijzingen, werkregel "Vast werk" op het stucwerk, genivelleerd
-//   tussen-tut-6-baseline       na-tut-5 + basisplanning (baseline)
-//   tussen-tut-6-statusdatum    + statusdatum, NIET gerekend (zoals de lezer vóór Bereken)
-//   tussen-tut-6-voorbereiding  + voortgang van de voorbereiding (4 taken), niet gerekend
-//   tussen-tut-6-ontgraven      + het ontgraven (uitgelopen), niet gerekend
-//   tussen-tut-6-fundering      + wapening, keuring en stort, niet gerekend
-//   tussen-tut-6-metselwerk     + funderingsmetselwerk gestart, 50 %, niet gerekend
-//   na-tut-6       + basisplanning (baseline), statusdatum en voortgang, berekend
-//   na-tut-7       = na-tut-6 (tutorial 7 maakt een rapport; dat is geen projectdata)
-//
-// Waarom zo en niet declaratief via `gen-core.ts`: gen-core bouwt een project in één keer op. Een
-// tutorial heeft TUSSENSTANDEN nodig die exact de handelingen van de lezer volgen (wizard →
-// taken → relaties → kalenderdialoog → …), dus hier roepen we dezelfde store-acties aan die de
-// dialogen en het raster aanroepen, in de volgorde van de tutorials. Na elke berekenings-
-// relevante stap draait `runCPM()` zoals de knop Berekenen (F5) — planning is handmatig, niet
-// reactief (AGENTS.md).
-//
-// Vast jaar, geen relatief anker: de tutorialtekst noemt letterlijke datums, dus het project
-// ligt vast op 2027 (start maandag 7 juni 2027). De feestdagen komen uit de échte
-// feestdagengenerator van de app (`buildGeneratedCalendar`/`materializeHolidays`, zelfde route
-// als de wizard en de kalenderdialoog); de bouwvak is regio Midden 2027 (2 t/m 20 augustus, uit
-// de bouwvaktabel `NL_BOUWVAK`), die midden in de afbouw valt.
-//
-// ── DE GETALLEN PER STAND (voor de tutorialtekst) ──────────────────────────────────────────────
-// `tests/planning/check-tutorial-project.ts` pint ze (plus per taak vroege start/einde en speling),
-// zodat een motorwijziging die ze verandert rood wordt. Wijzig je ze bewust: pin, dit blok en de
-// tutorialtekst samen. Datums zijn vroege datums; "wd" = werkdagen; kritiek = totale speling 0.
-// `npm run gen:tutorial-project -- --report` drukt de volledige tabel per stand af.
-//
-//   start-tut-1  geen taken. Kalender "Bouwkalender NL": NL-feestdagen 2026–2030, geen bouwvak.
-//   na-tut-1     zonder relaties begint alles op ma 7 jun; laatste einde ma 14 jun (Buitenspouwblad
-//                metselen, 6 wd — de enige kritieke taak). Oplevering (mijlpaal) staat op 7 jun.
-//   na-tut-2     oplevering vr 6 aug 2027. Kritiek: de hele keten Start bouw … Binnenspouwblad →
-//                Dakelementen → Dakbedekking → Kozijnen … Tegelwerk → Opleverpunten → Oplevering.
-//                Niet kritiek: Buitenspouwblad (speling 2 wd) en Schilderwerk (6 wd). Lag 3 wd na
-//                het storten (vr 18 jun → Funderingsmetselwerk do 24 jun), lag 5 wd na de dekvloer.
-//   na-tut-3     bouwvak Midden ma 2 – vr 20 aug. Alleen de bouwvak: oplevering vr 27 aug (+15 wd,
-//                de droogtijd van de dekvloer loopt over de bouwvak heen). Dan SNET 14 jul op
-//                Kozijnen plaatsen (was vr 9 jul): oplevering wo 1 sep (+3 wd). Kritiek pad begint
-//                nu bij de constraint: Kozijnen → Achtergevel doorbreken → Installaties → Stucwerk →
-//                Dekvloer → Tegelwerk → Opleverpunten → Oplevering; alles daarvoor 3 wd speling.
-//                Deadline vr 10 sep op de oplevering: gehaald, 7 wd marge; verschuift geen balk.
-//   na-tut-4     einde blijft wo 1 sep (48 wd). Fundering storten vr 18 jun 07:00–14:00 (6 u, pauze
-//                12–13). In de dagenmaat begint een dagtaak direct na een urentaak, niet de volgende
-//                ochtend: Funderingsmetselwerk wo 23 jun 14:00 – vr 25 jun 14:00 (lag 3 wd na de stort),
-//                Kanaalplaatvloer vr 25 jun 14:00 – ma 28 jun 10:00 (5 u), binnen- en buitenspouwblad
-//                vanaf ma 28 jun 10:00, Dakelementen ma 5 jul 10:00 – di 6 jul 08:00 (6 u). Speling van
-//                alles vóór de kozijnen 3,875 wd, Buitenspouwblad 5,625 wd.
-//   tussen-tut-5-resources   planning = na-tut-4 (wo 1 sep, 48 wd); vijf resources, geen toewijzingen.
-//   tussen-tut-5-toegewezen  planning nog steeds wo 1 sep (48 wd, 8 kritieke taken); Metselaar 6 wd
-//                overbezet, ma 28 jun – ma 5 jul (belasting 1,25 / 2 / 2 / 2 / 2 / 1,375); Stucwerk 4 wd
-//                (23–28 jul), 1 stukadoor.
-//   tussen-tut-5-werkregel   Stucwerk "Vast werk" (een taak in uren), 2 stukadoors: 16 u (vr 23 – ma 26
-//                jul); oplevering ma 30 aug, 46 wd, 8 kritieke taken; Metselaar nog 6 wd overbezet.
-//   na-tut-5    na toewijzen + werkregel (Stucwerk "Vast werk", stukadoor 1 → 2: 32 → 16 u):
-//                oplevering ma 30 aug, Metselaar 6 wd overbezet. Nivelleren (dialoogstandaard) schuift
-//                Buitenspouwblad 5 wd op (ma 5 jul 10:00 – di 13 jul 10:00, houdt 0,625 wd speling);
-//                geen overbezetting meer; oplevering blijft ma 30 aug (de kozijnen wachten toch tot
-//                14 jul). Kritiek: Kozijnen … Oplevering (8 taken); alles vóór het binnenspouwblad
-//                houdt 0,625 wd speling, het binnenspouwblad zelf 3,875 wd.
-//   tussen-tut-6-*  in het bestand nog de planning van na-tut-5 (einde ma 30 aug, 46 wd, 8 kritieke
-//                taken): de lezer rekent pas in stap 8. De app rekent bij het OPENEN van een .ifc wel:
-//                geopend geeft statusdatum ma 20 sep 10:00 (alles niet-begonnen op 28 jun, 22 kritieke
-//                taken, deadline overschreden), voorbereiding di 14 sep 10:00 (deadline overschreden),
-//                ontgraven vr 10 sep 10:00, fundering wo 1 sep 12:00, metselwerk = na-tut-6.
-//   na-tut-6     basisplanning "Basisplanning" (oplevering ma 30 aug), statusdatum ma 28 jun.
-//                Werkelijk: Start bouw 7 jun, Bouwplaats 7–8 jun, Tuin 9 jun, Uitzetten 10 jun,
-//                Funderingssleuf ontgraven vr 11 – di 15 jun (3 i.p.v. 2 wd), Wapening 16–18 jun,
-//                Inspectie 18 jun, Fundering storten ma 21 jun 07:00–14:00; Funderingsmetselwerk
-//                gestart vr 25 jun, 50 %. Oplevering di 31 aug 12:00 (47 wd, 11 kritieke taken); het
-//                Variance-rapport telt op dagniveau en meldt +1 werkdag ten opzichte van de basisplanning.
-//   na-tut-7     = na-tut-6.
 import { useAppStore } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
@@ -113,12 +24,9 @@ export const STAGE_IDS = [
 ] as const;
 export type StageId = typeof STAGE_IDS[number];
 
-/** Projectstart: maandag 7 juni 2027. */
 export const PROJECT_START = '2027-06-07';
-/** Bouwvakregio (tutorial 3). Midden 2027 = 2 t/m 20 augustus (`NL_BOUWVAK`). */
 export const BOUWVAK_REGION = 'midden' as const;
 
-// ── Vertalingen (projectdata, geen UI-tekst: daarom hier en niet in src/i18n) ────────────────
 type Names = Record<TutorialLang, string>;
 const n = (nl: string, en: string): Names => ({ nl, en });
 
@@ -127,8 +35,6 @@ const PROJECT_DESCRIPTION = n(
   'Uitbouw van 4 bij 5 meter aan de achtergevel van een eengezinswoning — het oefenproject van de tutorials.',
   'A 4 by 5 metre extension at the rear of a family home — the practice project for the tutorials.',
 );
-/** De wizard noemt de nieuwe kalender hardgecodeerd "Bouwkalender NL" (geen t()); de Engelse
- *  variant krijgt op verzoek van het ontwerp een vertaalde naam. */
 const CALENDAR_NAME = n('Bouwkalender NL', 'Construction calendar NL');
 const BASELINE_NAME = n('Basisplanning', 'Baseline');
 
@@ -150,13 +56,11 @@ interface TaskDef {
   key: TaskKey;
   phase: PhaseKey;
   name: Names;
-  /** Werkdagen in tutorial 1 (mijlpaal: afwezig). */
   days?: number;
   milestone?: 'START' | 'FINISH';
   mandatory?: boolean;
 }
 
-/** Taaklijst in boomvolgorde. 20 taken + 3 mijlpalen in 4 fasen. */
 export const TASKS: TaskDef[] = [
   { key: 'msStart', phase: 'P1', name: n('Start bouw', 'Start of construction'), milestone: 'START' },
   { key: 'site', phase: 'P1', name: n('Bouwplaats inrichten', 'Set up site'), days: 2 },
@@ -183,7 +87,6 @@ export const TASKS: TaskDef[] = [
   { key: 'msHandover', phase: 'P4', name: n('Oplevering', 'Handover'), milestone: 'FINISH' },
 ];
 
-/** Tutorial 2: relaties. Allemaal Einde-Start; twee met lag (werkdagen). */
 export const LINKS: { pred: TaskKey; succ: TaskKey; lag?: number }[] = [
   { pred: 'msStart', succ: 'site' },
   { pred: 'site', succ: 'garden' },
@@ -192,7 +95,7 @@ export const LINKS: { pred: TaskKey; succ: TaskKey; lag?: number }[] = [
   { pred: 'excavate', succ: 'rebar' },
   { pred: 'rebar', succ: 'inspection' },
   { pred: 'inspection', succ: 'pour' },
-  { pred: 'pour', succ: 'foundBrick', lag: 3 }, // beton laten uitharden
+  { pred: 'pour', succ: 'foundBrick', lag: 3 },
   { pred: 'foundBrick', succ: 'floor' },
   { pred: 'floor', succ: 'innerLeaf' },
   { pred: 'floor', succ: 'outerLeaf' },
@@ -205,22 +108,19 @@ export const LINKS: { pred: TaskKey; succ: TaskKey; lag?: number }[] = [
   { pred: 'services', succ: 'plaster' },
   { pred: 'plaster', succ: 'screed' },
   { pred: 'plaster', succ: 'painting' },
-  { pred: 'screed', succ: 'tiling', lag: 5 }, // dekvloer laten drogen
+  { pred: 'screed', succ: 'tiling', lag: 5 },
   { pred: 'tiling', succ: 'cleaning' },
   { pred: 'painting', succ: 'cleaning' },
   { pred: 'cleaning', succ: 'msHandover' },
 ];
 
-/** Tutorial 3: constraint "Niet eerder beginnen dan" op het plaatsen van de kozijnen (ze worden
- *  pas op deze datum geleverd) en een deadline op de oplevering. */
 export const CONSTRAINT = { task: 'frames' as TaskKey, type: 'SNET' as const, date: '2027-07-14' };
 export const DEADLINE = { task: 'msHandover' as TaskKey, date: '2027-09-10' };
 
-/** Tutorial 4: taken die in uren gepland worden (werkminuten). */
 export const HOUR_TASKS: { task: TaskKey; hours: number }[] = [
-  { task: 'pour', hours: 6 },          // betonstort
-  { task: 'floor', hours: 5 },         // kraaninzet: kanaalplaten
-  { task: 'roofElements', hours: 6 },  // kraaninzet: dakelementen
+  { task: 'pour', hours: 6 },
+  { task: 'floor', hours: 5 },
+  { task: 'roofElements', hours: 6 },
 ];
 
 export type ResourceKey = 'crew' | 'bricklayer' | 'crane' | 'plasterer' | 'concrete';
@@ -234,11 +134,9 @@ export const RESOURCES: {
   { key: 'concrete', name: n('Beton', 'Concrete'), type: 'MATERIAL', maxUnits: 50, unitOfMeasure: 'm³' },
 ];
 
-/** Tutorial 5: toewijzingen. De metselaar staat bewust op binnen- én buitenspouwblad, die na de
- *  kanaalplaatvloer tegelijk starten ⇒ overbezetting (2 op capaciteit 1) die nivelleren oplost. */
 export const ASSIGNMENTS: { task: TaskKey; res: ResourceKey; units: number }[] = [
   { task: 'rebar', res: 'crew', units: 1 },
-  { task: 'pour', res: 'concrete', units: 8 },       // 8 m³ per dag
+  { task: 'pour', res: 'concrete', units: 8 },
   { task: 'foundBrick', res: 'bricklayer', units: 1 },
   { task: 'floor', res: 'crew', units: 1 },
   { task: 'floor', res: 'crane', units: 1 },
@@ -250,17 +148,9 @@ export const ASSIGNMENTS: { task: TaskKey; res: ResourceKey; units: number }[] =
   { task: 'breakThrough', res: 'bricklayer', units: 1 },
   { task: 'plaster', res: 'plasterer', units: 1 },
 ];
-/** Tutorial 5: werkregel. Het stucwerk krijgt "Vast werk"; daarna gaat de stukadoor van 1 naar 2
- *  man — het werk blijft gelijk, dus de duur halveert (4 → 2 werkdagen). */
 export const WORK_RULE = { task: 'plaster' as TaskKey, rule: 'FIXED_WORK' as const, unitsAfter: 2 };
 
-/** Tutorial 6: statusdatum en voortgang. */
 export const STATUS_DATE = '2027-06-28';
-/** Werkelijke datums die de lezer in tutorial 6 intypt, per stap (= per tussenstand), in de volgorde
- *  van de tutorial. Alles liep volgens de baseline, behalve het ontgraven: dat liep één werkdag uit
- *  (grondwater), en alles erna liep daardoor één werkdag later. De generator controleert dat
- *  tegen de baseline (`checkProgressAgainstBaseline`). Een mijlpaal krijgt alleen een werkelijk
- *  einde (de lezer typt er één datum; de app zet de start erbij). De stort is een urentaak: kloktijd. */
 export const PROGRESS_GROUPS: { stage: StageId; rows: { task: TaskKey; start: string; finish: string }[] }[] = [
   { stage: 'tussen-tut-6-voorbereiding', rows: [
     { task: 'msStart', start: '2027-06-07', finish: '2027-06-07' },
@@ -277,31 +167,18 @@ export const PROGRESS_GROUPS: { stage: StageId; rows: { task: TaskKey; start: st
     { task: 'pour', start: '2027-06-21T07:00', finish: '2027-06-21T14:00' },
   ] },
 ];
-/** De taak die uitliep (één werkdag langer dan gepland). */
 export const LATE_TASK = { task: 'excavate' as TaskKey, extraWorkdays: 1 };
-/** Taak die op de statusdatum loopt: gestart (één werkdag na zijn baseline, door de uitloop), voor
- *  de helft klaar. */
 export const IN_PROGRESS = { task: 'foundBrick' as TaskKey, start: '2027-06-25', completion: 0.5 };
 
-// ── Feiten per stand ──────────────────────────────────────────────────────────────────────────
 export interface StageFacts {
-  /** Vroege einddatum van de opleveringsmijlpaal. */
   finish: string;
-  /** Laatste vroege einde over alle bladtaken (zonder relaties is dat niet de oplevering). */
   projectFinish: string;
-  /** Kritieke taken en mijlpalen (bladniveau) in volgorde van vroege start, als taaksleutel. */
   critical: TaskKey[];
-  /** Totale speling in werkdagen per taaksleutel (bladniveau). */
   totalFloat: Partial<Record<TaskKey, number>>;
-  /** Vroege start/einde per taaksleutel (zoals de motor ze teruggeeft). */
   early: Partial<Record<TaskKey, { start: string; finish: string }>>;
-  /** Overbezette resources (sleutel → aantal overbezette werkdagen). Leeg = geen. */
   overallocated: Partial<Record<ResourceKey, number>>;
-  /** Statusdatum van het project (tutorial 6), anders null. */
   statusDate: string | null;
-  /** Einde van de oplevering in de actieve baseline (tutorial 6), anders null. */
   baselineFinish: string | null;
-  /** Tellingen. */
   counts: { tasks: number; milestones: number; sequences: number; resources: number; assignments: number; baselines: number };
 }
 
@@ -311,24 +188,16 @@ export interface TutorialStage {
   facts: StageFacts;
 }
 
-/** Tussenresultaten binnen een tutorial die de tekst nodig heeft (bijv. de einddatum na de
- *  bouwvak maar vóór de constraint). */
 export interface TutorialBuild {
   lang: TutorialLang;
   stages: TutorialStage[];
-  /** Tutorial 3: einde na alleen de bouwvak (vóór constraint en deadline). */
   finishAfterBouwvak: string;
-  /** Tutorial 3: bouwvakperiode zoals de generator hem maakte. */
   bouwvak: { name: string; startDate: string; endDate: string };
-  /** Tutorial 5: feiten vóór nivelleren (na toewijzen en werkregel). */
   beforeLeveling: StageFacts;
-  /** Tutorial 5: duur van het stucwerk vóór en na de werkregelstap (werkdagen). */
   plasterDays: { before: number; after: number };
-  /** Tutorial 5: taken die de nivelleerder verschoof, met de vertraging in werkdagen. */
   levelingDelays: Partial<Record<TaskKey, number>>;
 }
 
-// ── Opbouw ────────────────────────────────────────────────────────────────────────────────────
 class Builder {
   readonly ids = new Map<TaskKey, string>();
   readonly phaseIds = new Map<PhaseKey, string>();
@@ -350,7 +219,6 @@ class Builder {
     return undefined;
   }
 
-  /** Berekenen (F5), met een harde fout als de motor faalt. */
   calculate(context: string): void {
     S().runCPM();
     const r = S().cpmResult;
@@ -366,11 +234,6 @@ class Builder {
   }
 }
 
-/**
- * De feiten van het project dat NU in de store staat, herkend aan de (unieke) taak- en
- * resourcenamen van `lang`. Gedeeld door de generator en de planning-check, die er ook een
- * heropend .ifc-bestand mee leest.
- */
 export function collectStageFacts(lang: TutorialLang): StageFacts {
   const st = S();
   const byName = new Map(st.tasks.map(t => [t.name, t]));
@@ -426,22 +289,13 @@ function fail(lang: TutorialLang, msg: string): never {
   throw new Error(`tutorialproject [${lang}]: ${msg}`);
 }
 
-/**
- * Bouwt alle standen voor één taal. Gooit een fout zodra een beoogd effect uitblijft (bijv. de
- * bouwvak verschuift de einddatum niet, of er is vóór het nivelleren geen overbezetting) — de
- * generator schrijft dan niets weg. De exacte getallen pint `check-tutorial-project.ts`.
- */
 export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   const b = new Builder(lang);
   const stages: TutorialStage[] = [];
 
-  // ── Start tutorial 1: Bestand › Nieuw project (wizard) ──
-  // Schone lei: `newProject` zet de store terug, zodat `createNewProject` het (lege) tabblad
-  // hergebruikt, net als bij de eerste start van de app.
   S().newProject();
   S().setUI({ });
   const span = computeGenerateSpan(PROJECT_START, undefined);
-  // Wizardstandaard: land Nederland, geen bouwvak, generatiespanne startjaar−1 … startjaar+3.
   const wizardCalendar: WorkCalendar = buildGeneratedCalendar(
     { country: 'NL', region: undefined, bouwvak: 'geen' }, span, CALENDAR_NAME[lang],
   );
@@ -461,7 +315,6 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   if (S().tasks.length !== 0) fail(lang, 'start-tut-1 is niet leeg');
   stages.push(b.snapshot('start-tut-1'));
 
-  // ── Tutorial 1: fasen, taken met duur, mijlpalen ──
   for (const p of PHASES) {
     const id = S().addTask({ name: p.name[lang], time: createDefaultTaskTime(PROJECT_START, 5) });
     if (!id) fail(lang, `fase ${p.key} geweigerd`);
@@ -474,8 +327,6 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
       parentId,
       isMilestone: !!t.milestone,
       time: createDefaultTaskTime(PROJECT_START, t.milestone ? 0 : (t.days ?? 5)),
-      // Mijlpalen zoals de lezer ze maakt: Start › Taken › Mijlpaal (`MilestoneDropdown`) geeft een
-      // Start-/Eindmijlpaal het taaktype Overig en een Inspectiemoment het type Aanwezigheid.
       ...(t.milestone ? { milestoneKind: t.milestone, taskType: t.mandatory ? 'ATTENDANCE' as const : 'USERDEFINED' as const } : {}),
       ...(t.mandatory ? { mandatory: true } : {}),
     });
@@ -484,14 +335,12 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   }
   b.calculate('tut-1');
   const f1 = b.facts();
-  // Zonder relaties begint alles op de projectstart; de langste taak bepaalt het einde.
   for (const k of TASKS.map(t => t.key)) {
     if (f1.early[k]?.start.slice(0, 10) !== PROJECT_START) fail(lang, `tut-1: ${k} begint niet op de projectstart`);
   }
   if (f1.counts.sequences !== 0) fail(lang, 'tut-1 heeft al relaties');
   stages.push(b.snapshot('na-tut-1'));
 
-  // ── Tutorial 2: relaties + lag, Berekenen ──
   for (const l of LINKS) {
     const id = S().addSequence({
       predecessorId: b.id(l.pred), successorId: b.id(l.succ), type: 'FINISH_START', lagDays: l.lag ?? 0,
@@ -505,12 +354,8 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   if ((f2.totalFloat.painting ?? 0) <= 0) fail(lang, 'tut-2: schilderwerk heeft geen speling (bedoeld: parallelle tak)');
   stages.push(b.snapshot('na-tut-2'));
 
-  // ── Tutorial 3: Planning › Kalender: feestdagen opnieuw genereren mét bouwvak, dan constraint
-  // en deadline. Zelfde route als de kalenderdialoog (`CalendarDialog.commit`): de projectkalender
-  // in de bibliotheek, `materializeHolidays` over de projectspanne, `commitCalendarLibrary`, runCPM.
   S().ensureProjectCalendarInLibrary();
   const projectCalId = S().project.calendarId;
-  // Na tutorial 2 is het einde berekend: dezelfde update-spanne als de UI, niet de wizardspanne.
   const projectSpan = computeGenerateSpan(
     S().project.startDate, S().project.endDate || undefined, S().cpmResult?.projectEnd,
   );
@@ -525,9 +370,6 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   if (!bouwvak) fail(lang, 'tut-3: geen bouwvak 2027 in de projectkalender');
   const f3cal = b.facts();
   if (f3cal.finish <= f2.finish) fail(lang, 'tut-3: de bouwvak verschuift de einddatum niet');
-  // Tussenstand voor tutorial 3: bouwvak in de kalender en berekend, nog zonder constraint en
-  // deadline. "Toon mij"/"Opnieuw" van de kalenderstap openen deze stand, omdat een extensie de
-  // kalender niet zelf kan wijzigen.
   stages.push(b.snapshot('tussen-tut-3-bouwvak'));
 
   S().updateTask(b.id(CONSTRAINT.task), { constraint: { type: CONSTRAINT.type, date: CONSTRAINT.date } });
@@ -540,14 +382,12 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   if ((S().cpmResult?.missedDeadlineTaskIds ?? []).length !== 0) fail(lang, 'tut-3: motor meldt gemiste deadline');
   stages.push(b.snapshot('na-tut-3'));
 
-  // ── Tutorial 4: Duur in uren (Duur-veld "6h") ──
   S().setUI({ allowMixedDayHour: true });
   const calForHours = S().calendar;
   for (const h of HOUR_TASKS) {
     const t = b.task(h.task);
     const minutes = h.hours * 60;
     const hpd = effHoursPerDay(calForHours);
-    // Precies `TaskDurationField.apply` bij invoer "6h".
     S().updateTask(t.id, {
       time: { ...t.time, durationUnit: 'hours', durationMinutes: minutes, scheduleDuration: hpd > 0 ? minutes / (hpd * 60) : 0 },
     });
@@ -560,10 +400,6 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   }
   stages.push(b.snapshot('na-tut-4'));
 
-  // ── Tutorial 5: resources, toewijzen, werkregel, overbezetting, nivelleren ──
-  // Tussenstanden voor tutorial 5: een extensie kan geen resources, toewijzingen of werkregels
-  // schrijven, dus "Toon mij"/"Opnieuw" van die stappen openen deze standen. Een snapshot leest
-  // alleen de store; de stappen erna (en daarmee na-tut-5) blijven ongewijzigd.
   for (const r of RESOURCES) {
     b.resIds.set(r.key, S().addResource({
       name: r.name[lang], type: r.type, description: '', maxUnits: r.maxUnits,
@@ -571,7 +407,6 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
     }));
   }
   if (S().resources.length !== RESOURCES.length) fail(lang, 'tut-5: niet alle resources aangemaakt');
-  // Resources aanmaken verandert de planning niet: geen herberekening, zoals de lezer ook niet hoeft.
   stages.push(b.snapshot('tussen-tut-5-resources'));
   for (const a of ASSIGNMENTS) S().assignResource(b.id(a.task), b.resIds.get(a.res)!, a.units);
   if (S().assignments.length !== ASSIGNMENTS.length) fail(lang, 'tut-5: niet alle toewijzingen gelukt');
@@ -591,7 +426,6 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   if (overBefore.length !== 1 || overBefore[0] !== 'bricklayer') {
     fail(lang, `tut-5: vóór nivelleren hoort alleen de metselaar overbezet te zijn (is: ${overBefore.join(', ') || 'niemand'})`);
   }
-  // Resources › Nivelleren: dialoogstandaard (alle vernieuwbare resources, einddatum mag schuiven).
   const renewables = S().resources.filter(r => r.type !== 'MATERIAL').map(r => r.id);
   const leveling = S().levelResources({ constrainToFloat: false, resourceIds: renewables });
   if (Object.keys(leveling.unresolved).length !== 0) fail(lang, 'tut-5: nivelleren laat conflicten over');
@@ -607,18 +441,10 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   }
   stages.push(b.snapshot('na-tut-5'));
 
-  // ── Tutorial 6: basisplanning, statusdatum, voortgang — in de volgorde van de tutorial ──
-  // Tussenstanden voor tutorial 6: een extensie kan geen baseline, statusdatum of (via de
-  // app-regels) voortgang schrijven, dus "Toon mij"/"Opnieuw" van die stappen openen deze standen.
-  // De lezer rekent pas in stap 8, dus de generator ook: tot dan geen herberekening, en elke
-  // tussenstand draagt nog de berekende datums van na-tut-5 (zoals de lezer ze ziet vóór Bereken).
-  // Let op: de app rekent bij het OPENEN van een .ifc altijd; wat de lezer na "Toon mij" ziet, pint
-  // `check-tutorial-project.ts` apart ("geopend zoals de extensie").
   S().saveBaseline(BASELINE_NAME[lang]);
   stages.push(b.snapshot('tussen-tut-6-baseline'));
   S().setStatusDate(STATUS_DATE);
   stages.push(b.snapshot('tussen-tut-6-statusdatum'));
-  // Per taak eerst de start, dan het einde, zoals de tutorial vraagt; een mijlpaal alleen het einde.
   for (const group of PROGRESS_GROUPS) {
     for (const row of group.rows) {
       if (!b.task(row.task).isMilestone && !S().setActualStart(b.id(row.task), row.start)) {
@@ -640,13 +466,10 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   checkProgressAgainstBaseline(b);
   b.calculate('tut-6');
   const f6 = b.facts();
-  // Alleen uren §3.14: de dagenmaat telt het deel van een dag, dus de uitloop van een halve dag bij het
-  // ontgraven geeft een einde op di 31 augustus 12:00 (F2 hield hier nog hele dagen: ma 30 aug 16:00).
   if (f6.finish !== '2027-08-31T12:00') fail(lang, `tut-6: onverwacht einde ${f6.finish}`);
   if (f6.counts.baselines !== 1) fail(lang, 'tut-6: geen basisplanning');
   const s6 = b.snapshot('na-tut-6');
   stages.push(s6);
-  // Tutorial 7 maakt alleen een rapport: projectdata identiek aan stand 6.
   stages.push({ id: 'na-tut-7', ifc: s6.ifc, facts: s6.facts });
 
   return {
@@ -660,12 +483,6 @@ export function buildTutorialProject(lang: TutorialLang): TutorialBuild {
   };
 }
 
-/**
- * De voortgang van tutorial 6 is "de baseline, met één werkdag uitloop van het ontgraven": taken
- * vóór het ontgraven op hun baselinedatums, het ontgraven met een werkdag later einde, alles erna
- * (ook de start van de lopende taak) een werkdag later. Zo blijft de letterlijke invoer gekoppeld
- * aan de planning waar hij uit volgt; wijkt een van beide af, dan schrijft de generator niets.
- */
 function checkProgressAgainstBaseline(b: Builder): void {
   const st = S();
   const baseline = st.baselines.find(bl => bl.id === st.activeBaselineId);
@@ -691,8 +508,6 @@ function checkProgressAgainstBaseline(b: Builder): void {
     }
     late += extra;
   }
-  // T16: de exacte lag vanaf de urenstort geeft nu woensdag 14:00 als baselinestart.
-  // De geregistreerde start op vrijdag blijft een letterlijk feit (N0), ook na F3.
   const baselineStart = planned(IN_PROGRESS.task).start;
   const actualStart = normalizeTaskDates({ ...b.task(IN_PROGRESS.task), time: { ...b.task(IN_PROGRESS.task).time, actualStart: IN_PROGRESS.start } }, st).time.actualStart;
   if (baselineStart !== '2027-06-23T14:00' || actualStart !== '2027-06-25T07:00') {
@@ -700,13 +515,12 @@ function checkProgressAgainstBaseline(b: Builder): void {
   }
 }
 
-/** De datum `count` werkdagen ná `iso` op de projectkalender (werkdagen + feestdagen). */
 function nextWorkdays(iso: string, count: number, cal: WorkCalendar): string {
   const d = new Date(`${iso}T00:00:00Z`);
   let left = count;
   while (left > 0) {
     d.setUTCDate(d.getUTCDate() + 1);
-    const dow = ((d.getUTCDay() + 6) % 7) + 1; // 1=ma … 7=zo
+    const dow = ((d.getUTCDay() + 6) % 7) + 1;
     const day = d.toISOString().slice(0, 10);
     const holiday = cal.holidays.some(h => h.startDate <= day && day <= h.endDate);
     if (cal.workDays.includes(dow) && !holiday) left--;
