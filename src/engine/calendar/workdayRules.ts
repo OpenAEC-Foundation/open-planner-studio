@@ -3,51 +3,20 @@ import type { WorkCalendar } from '@/types/calendar';
 import { calendarForEngine } from '@/utils/effectiveWorkTime';
 import { formatDate, formatInstant, MS_PER_DAY, parseDate, parseInstant, utcDayIndex } from '@/utils/dateUtils';
 
-/**
- * De dagregels van de tijdas in minuten (spec `docs/superpowers/specs/2026-10-20-alleen-uren-design.md`,
- * §0 en §4.2):
- *
- *  - **werkdag van een moment** ({@link workdayOfInstant}): de datum waarop het werkblok begint waarin het
- *    moment valt; bij een eindmoment telt ook het werkblok dat op dat moment eindigt. Buiten elk werkblok:
- *    de datum van het moment, behalve een eindmoment om 00:00, dat bij de dag ervoor hoort (de 24:00-regel);
- *  - **D1** ({@link dayStartInstant}): een startachtige datum zonder tijd wordt het begin van het eerste
- *    werkblok dat op die datum begint;
- *  - **D2** ({@link dayEndInstant}): een eindachtige datum zonder tijd wordt het einde van het laatste
- *    werkblok dat op die datum begint (bij een nachtblok di 22:00–wo 06:00 dus wo 06:00);
- *  - **D4**: heeft de datum geen werkblok (weekend, feestdag), dan gelden de werkblokken van de typische
- *    werkdag op die datum (`CalendarEngine.typicalWorkdayBands`).
- *
- * Kalendertijd (ELAPSEDTIME) heeft dagranden 00:00 en 24:00: D1 is 00:00, D2 is 24:00 (00:00 van de dag
- * erna). De regels per taakveld (D3, D5–D7) staan in `src/state/migrations/minuteModel.ts`.
- *
- * F1 gebruikt deze regels bij voortgangsinvoer in het urenpad. De migratiefunctie en de
- * planningsharness gebruiken ze ook; F2 sluit de normalisatie aan op alle laad- en invoergrenzen.
- */
-
-/** Startkant `[blokbegin, blokeinde)` of eindkant `(blokbegin, blokeinde]` van een moment. */
 export type InstantSide = 'start' | 'end';
 
-/** De klok waarop de dagregels rekenen: de werkblokken van een kalender, of kalendertijd (24/7). */
 export type DayClock =
   | { readonly kind: 'blocks'; readonly engine: CalendarEngine; readonly calendar: WorkCalendar }
   | { readonly kind: 'elapsed' };
 
-/** Kalendertijd: elk uur telt; de dagranden zijn 00:00 en 24:00. */
 export const ELAPSED_CLOCK: DayClock = { kind: 'elapsed' };
 
-/** De kant van een beperkingsdatum (§4.2): een startbeperking (SNET, SNLT, MSO) is startachtig, een
- *  eindbeperking (FNET, FNLT, MFO) eindachtig; ASAP/ALAP hebben geen datum (`null`). Dezelfde indeling
- *  als `constraintDateField` in `state/migrations/minuteModel.ts` (gepind in check-f4b-datumweergave);
- *  hier zonder state-import, voor de taskGrid-engine. */
 export function constraintDateSide(type: string): InstantSide | null {
   if (type === 'SNET' || type === 'SNLT' || type === 'MSO') return 'start';
   if (type === 'FNET' || type === 'FNLT' || type === 'MFO') return 'end';
   return null;
 }
 
-/** De werkblokkenklok van een kalender. Een dagkalender krijgt zijn werkblokken uit zijn eigen velden
- *  (`calendarForEngine`), zoals de motor na F2. Een kalender zonder af te leiden werkblokken houdt een
- *  engine in dag-modus; dan valt D1/D2 terug op begin- en eindtijd van de kalender. */
 export function blocksClock(calendar: WorkCalendar): DayClock {
   return { kind: 'blocks', engine: new CalendarEngine(calendarForEngine(calendar)), calendar };
 }
@@ -56,17 +25,14 @@ const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
 const INSTANT_RE = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/;
 const MS_PER_MIN = 60_000;
 
-/** Een datum zonder tijd (`YYYY-MM-DD`). */
 export function isDateOnly(value: string): boolean {
   return DATE_ONLY_RE.test(value);
 }
 
-/** Een moment met tijd (`YYYY-MM-DDTHH:mm…`). */
 export function isInstant(value: string): boolean {
   return INSTANT_RE.test(value);
 }
 
-/** B4: een werkdaggrens toont alleen haar werkdag; een moment binnen de dag houdt zijn tijd. */
 export function workdayBoundaryLabel(clock: DayClock, value: string, side: InstantSide): string {
   if (!isInstant(value)) return value;
   const day = workdayOfInstant(clock, value, side);
@@ -79,12 +45,10 @@ function minuteOfDayIso(date: string, minutes: number): string {
   return formatInstant(new Date(ms), 'hour');
 }
 
-/** Werkblokken (minuten vanaf middernacht van `date`) die op `date` beginnen; leeg in dag-modus. */
 function blocksOn(clock: Extract<DayClock, { kind: 'blocks' }>, date: string) {
   return clock.engine.effectiveBandsOn(parseDate(date));
 }
 
-/** Begin- of eindtijd van de kalender zelf, als er geen werkblokken af te leiden zijn. */
 function scalarMinute(calendar: WorkCalendar, which: 'start' | 'end'): number | null {
   const start = calendar.workStartHour * 60;
   const end = calendar.workEndHour * 60;
@@ -92,11 +56,6 @@ function scalarMinute(calendar: WorkCalendar, which: 'start' | 'end'): number | 
   return which === 'start' ? start : end;
 }
 
-/**
- * D1 (startachtig): het begin van het eerste werkblok dat op `date` begint; zonder werkblok op die datum
- * de werkblokken van de typische werkdag (D4). Kalendertijd: 00:00. `null` als `date` geen datum zonder
- * tijd is, of als de kalender geen werkblokken en geen geldige begintijd heeft.
- */
 export function dayStartInstant(clock: DayClock, date: string): string | null {
   if (!isDateOnly(date) || Number.isNaN(parseDate(date).getTime())) return null;
   if (clock.kind === 'elapsed') return `${date}T00:00`;
@@ -108,11 +67,6 @@ export function dayStartInstant(clock: DayClock, date: string): string | null {
   return scalar === null ? null : minuteOfDayIso(date, scalar);
 }
 
-/**
- * D2 (eindachtig): het einde van het laatste werkblok dat op `date` begint. Een nachtblok eindigt op de
- * dag erna; een blok tot 24:00 eindigt om 00:00 van de dag erna. Zonder werkblok op die datum de typische
- * werkdag (D4). Kalendertijd: 24:00. `null` zoals bij {@link dayStartInstant}.
- */
 export function dayEndInstant(clock: DayClock, date: string): string | null {
   if (!isDateOnly(date) || Number.isNaN(parseDate(date).getTime())) return null;
   if (clock.kind === 'elapsed') return minuteOfDayIso(date, 1440);
@@ -124,36 +78,6 @@ export function dayEndInstant(clock: DayClock, date: string): string | null {
   return scalar === null ? null : minuteOfDayIso(date, scalar);
 }
 
-/**
- * De werkdag van het moment van een nulduur-mijlpaal (besluit B10 met de aanvulling "einde blijft einde",
- * spec §4.2): de datum waarvan de werkspanne het moment bevat. De werkspanne van een datum loopt van het
- * begin van zijn eerste werkblok tot het einde van zijn laatste (D1 tot D2, randen inbegrepen); een datum
- * zonder werkblok (weekend, feestdag) heeft de spanne van de typische werkdag (D4).
- *
- * Eerst de werkdag zoals de rest van de app een moment leest ({@link workdayOfInstant}: het werkblok aan de
- * kant `side`, daarbuiten de klokdatum met de 24:00-regel; zo leest main ook de statuscontrole):
- *  1. Heeft die datum eigen werkblokken en ligt het moment in haar werkspanne, randen inbegrepen, dan is het
- *     die datum. Een echte werkdag houdt zo haar begin en einde tegen een verzonnen D4-rand van een vrije
- *     dag (review ronde 5 van #724). Voorbeeld: ma 06:00–10:00, di–vr 22:00–06:00, weekend vrij; de typische
- *     werkdag is 22:00–06:00, dus D4 laat zo eindigen op ma 06:00. Een FINISH-mijlpaal op ma 06:00 staat op
- *     het echte begin van ma en is "ma", zoals op main.
- * Anders telt de spanne die het moment bevat (de nacht na middernacht, of een vrije dag met D4):
- *  2. Ligt het moment binnen de spanne van een datum met eigen werkblokken, dus niet op haar rand, dan telt
- *     geen datum zonder werkblok (D4) mee (review ronde 4 van #724). Voorbeeld: ma 04:00–08:00, di–vr
- *     22:00–06:00; ma 06:00 ligt midden in de echte maandagdienst en is "ma", niet "zo".
- *  3. Dan wint de rand van `side` (de soort van de mijlpaal: FINISH de eindkant, anders de startkant), dan
- *     de andere rand, dan een moment binnen de spanne; bij een gelijke stand gaat een datum met eigen
- *     werkblokken voor D4. Zo is za 00:00 na een 24-uursvrijdag bij START "za" (het begin van de typische
- *     werkdag, D4) en bij FINISH "vr" (regel 1), zoals op main.
- * Voorbeeld: ma–do 22:00–06:00, vr 22:00–02:00, weekend vrij. Za 02:00 is het einde van vr: "vr". Zo 06:00
- * is het einde van de typische werkdag op za (D4): "za". Za 05:00 ligt in geen spanne.
- *
- * Buiten elke spanne, en bij kalendertijd, geldt {@link workdayOfInstant} aan de kant `side` (de klokdatum,
- * met de 24:00-regel). Een datum zonder tijd komt ongewijzigd terug; onleesbare invoer geeft `''`.
- *
- * Eén regel voor de tabel (`momentLabel`), de statuscontrole (`isTaskActualPastStatusDate`) en het
- * afmelden ({@link milestoneMomentOn}). Een gewone taak gebruikt deze regel niet.
- */
 export function milestoneWorkdayOf(clock: DayClock, value: string, side: InstantSide): string {
   if (isDateOnly(value)) return value;
   if (!isInstant(value)) return '';
@@ -161,14 +85,11 @@ export function milestoneWorkdayOf(clock: DayClock, value: string, side: Instant
   if (Number.isNaN(t)) return '';
   const plain = workdayOfInstant(clock, value, side);
   if (clock.kind === 'blocks') {
-    // Regel 1: de gewone werkdag, als die eigen werkblokken heeft en het moment in haar spanne ligt.
     if (plain && blocksOn(clock, plain).length > 0) {
       const start = dayStartInstant(clock, plain);
       const end = dayEndInstant(clock, plain);
       if (start && end && parseInstant(start).getTime() <= t && t <= parseInstant(end).getTime()) return plain;
     }
-    // Een werkdag eindigt uiterlijk 2880 minuten na het begin van zijn datum (canonieke wrap-band), dus de
-    // spanne die `t` bevat, hoort bij de datum van `t` of bij een van de twee datums ervoor.
     const day0 = utcDayIndex(t) * MS_PER_DAY;
     const candidates: { date: string; rank: number; own: boolean }[] = [];
     let insideOwn = false;
@@ -188,7 +109,7 @@ export function milestoneWorkdayOf(clock: DayClock, value: string, side: Instant
     }
     let best: { date: string; rank: number } | null = null;
     for (const c of candidates) {
-      if (insideOwn && !c.own) continue; // regel 2: geen D4 tegen echte werktijd
+      if (insideOwn && !c.own) continue;
       if (!best || c.rank < best.rank) best = c;
     }
     if (best) return best.date;
@@ -196,8 +117,6 @@ export function milestoneWorkdayOf(clock: DayClock, value: string, side: Instant
   return plain;
 }
 
-/** De rand van werkdag `day` (D1 of D2, met D4) waarop moment `value` valt: `'start'`, `'end'`, of `null`
- *  als het moment op geen van beide randen valt. */
 export function workdayEdgeAt(clock: DayClock, day: string, value: string): InstantSide | null {
   if (!isInstant(value)) return null;
   const t = parseInstant(value).getTime();
@@ -208,46 +127,6 @@ export function workdayEdgeAt(clock: DayClock, day: string, value: string): Inst
   return null;
 }
 
-/**
- * Het moment van een mijlpaal die met alleen een datum wordt afgemeld (besluit B10 van Ethan, 2026-10-29,
- * met de aanvulling "einde blijft einde" van later die dag). `planned` is het moment uit de planning,
- * `date` de getypte werkdag, `side` de kant van de soort ({@link milestoneWorkdayOf}).
- *
- *  1. Staat de mijlpaal op het begin of het einde van zijn werkdag, dan komt hij op hetzelfde begin of
- *     einde van de getypte dag. Voorbeeld: ma–do 07:00–16:00, vr 07:00–12:00, "Oplevering" op ma 16:00,
- *     afgemeld op vr ⇒ vr 12:00.
- *  2. Daartussen geldt de geplande kloktijd: dezelfde afstand tot middernacht van zijn werkdag. Voorbeeld:
- *     ma 10:00, afgemeld op wo ⇒ wo 10:00.
- *  3. Tweede aanvulling van Ethan op B10 (2026-10-29, voorheen knownbug 450): eindigt de dienst van de
- *     getypte dag vóór die kloktijd, dan het einde van die dienst. Dat geldt overdag en 's nachts.
- *     Voorbeelden: ma–do 07:00–12:00 en 13:00–16:00, vr 07:00–12:00; ma 14:00, afgemeld op vr ⇒ vr 12:00.
- *     Ma–do 22:00–06:00, vr 22:00–02:00; di 05:00, afgemeld op vr ⇒ za 02:00.
- *  4. Besluit van Ethan, 2 november 2026 (knownbug 504; geen uitwerking meer): begint de dienst
- *     van de getypte dag na die kloktijd, dan het begin van die dienst. Voorbeeld: ma 04:00–08:00, een
- *     mijlpaal op ma 06:00, afgemeld op een dag met dienst 07:00–16:00 ⇒ 07:00 die dag. Valt de kloktijd in
- *     de spanne van de getypte dag maar in de dienst van een andere werkdag, dan de rand van de getypte dag
- *     die het dichtst bij ligt (uitwerking door de orkestrator, fixronde 3).
- *  Regel 3 en 4 gelden alleen midden in de dienst: binnen de werkspanne van de werkdag van de planning.
- *  6. Besluit van Ethan, 2 november 2026 (knownbug 503): lag het geplande moment buiten die spanne (een
- *     handmatig anker of een import), dan de dichtstbijzijnde rand van de dienst van de getypte dag: lag hij na
- *     de dienst, dan het einde; lag hij ervoor, dan het begin. Voorbeeld: ma–do 07:00–16:00, vr 07:00–12:00;
- *     "Oplevering" op ma 18:00, afgemeld op vr ⇒ vr 12:00; op ma 05:00 ⇒ vr 07:00.
- *  Regel 4 en 6 zijn besluiten van Ethan van 2 november 2026 (504 en 503), geen uitwerking meer.
- *
- * Eén geval dekken het besluit en de uitwerking niet (gemeld in PR #724, knownbug 501). Hier gaat ook "de dag
- * komt van wat je typt" voor, anders toont de tabel een andere dag en weigert de statuscontrole de statusdag:
- *  5. De rand van de getypte dag hoort bij een andere werkdag: de andere rand van de getypte dag. Dat gebeurt
- *     als de soort een gedeelde rand aan de buurdag geeft, of als de D4-rand van een getypte vrije dag midden
- *     in echte werktijd ligt. Voorbeeld: 24 uur ma–do, vr 00:00–12:00; een START-mijlpaal op vr 12:00
- *     (einde vr), afgemeld op ma ⇒ het einde van ma is di 00:00, en START leest dat als "di"; dus het begin
- *     van ma: ma 00:00. Op main geeft dezelfde invoer ook ma 00:00 (D7, START = begin).
- *
- * Kort: het moment uit 1 of 2 komt binnen de werkspanne van de getypte dag als het midden in de dienst lag
- * (3 en 4), en blijft staan als {@link milestoneWorkdayOf} er de getypte dag van maakt; anders de rand van de
- * getypte dag die er wel bij hoort (5).
- *
- * `null` als een van beide waarden onleesbaar is, of als de getypte dag geen rand heeft.
- */
 export function milestoneMomentOn(clock: DayClock, planned: string, date: string, side: InstantSide): string | null {
   if (!isInstant(planned) || !isDateOnly(date)) return null;
   const at = parseInstant(planned).getTime();
@@ -264,16 +143,13 @@ export function milestoneMomentOn(clock: DayClock, planned: string, date: string
     const moment = formatInstant(new Date(typedMs + (at - parseDate(plannedDay).getTime())), 'hour');
     const t = parseInstant(moment).getTime();
     const distance = (edgeAt: string | null) => edgeAt ? Math.abs(parseInstant(edgeAt).getTime() - t) : Infinity;
-    // Regel 3 en 4 gelden alleen midden in de dienst: binnen de werkspanne van de werkdag van de planning.
     const plannedStart = dayStartInstant(clock, plannedDay);
     const plannedEnd = dayEndInstant(clock, plannedDay);
     const inside = !!plannedStart && !!plannedEnd
       && parseInstant(plannedStart).getTime() < at && at < parseInstant(plannedEnd).getTime();
-    if (inside && end && t > parseInstant(end).getTime()) candidates = [end, start]; // 3: de dienst eindigt eerder
-    else if (inside && start && t < parseInstant(start).getTime()) candidates = [start, end]; // 4: hij begint later
+    if (inside && end && t > parseInstant(end).getTime()) candidates = [end, start];
+    else if (inside && start && t < parseInstant(start).getTime()) candidates = [start, end];
     else if (!inside && plannedStart && plannedEnd) {
-      // 5b: buiten de werkspanne (een handmatig anker, een import): de dichtstbijzijnde rand van de dienst van
-      // de getypte dag. Lag hij erna, dan het einde; lag hij ervoor, dan het begin.
       candidates = at >= parseInstant(plannedEnd).getTime() ? [end, start] : [start, end];
     } else candidates = [moment, ...(distance(end) < distance(start) ? [end, start] : [start, end])];
   }
@@ -281,14 +157,6 @@ export function milestoneMomentOn(clock: DayClock, planned: string, date: string
     ?? candidates.find(c => c !== null) ?? null;
 }
 
-/**
- * De werkdag van een moment (§0). Startkant: het werkblok `[begin, einde)` dat het moment bevat. Eindkant:
- * het werkblok `(begin, einde]`, zodat een eindmoment op een blokeinde bij dat blok hoort (nachtblok di
- * 22:00–wo 06:00, einde wo 06:00 ⇒ di). Buiten elk werkblok de klokdatum, met de 24:00-regel: een
- * eindmoment om 00:00 hoort bij de dag ervoor. Kalendertijd heeft geen blokken, alleen die regel.
- *
- * Een datum zonder tijd is al een werkdag en komt ongewijzigd terug. Onleesbare invoer geeft `''`.
- */
 export function workdayOfInstant(clock: DayClock, value: string, side: InstantSide): string {
   if (isDateOnly(value)) return value;
   if (!isInstant(value)) return '';
@@ -297,8 +165,6 @@ export function workdayOfInstant(clock: DayClock, value: string, side: InstantSi
   return formatDate(workdayDateOfInstant(clock.kind === 'blocks' ? clock.engine : null, new Date(t), side));
 }
 
-/** Dezelfde werkdagbepaling voor de motor, zonder omzetting van Date naar tekst en terug.
- *  `null` als engine betekent kalendertijd; de eindkant houdt ook dan de 24:00-regel. */
 export function workdayDateOfInstant(
   engine: Pick<CalendarEngine, 'effectiveBandsOn'> | null,
   instant: Date,
@@ -307,8 +173,6 @@ export function workdayDateOfInstant(
   const t = instant.getTime();
   const day0 = utcDayIndex(t) * MS_PER_DAY;
   if (engine) {
-    // Een werkblok mag tot 2880 minuten na het begin van zijn dag lopen (canonieke wrap-band), dus het
-    // blok dat `t` bevat, begint op de dag van `t` of op een van de twee dagen ervoor.
     for (let k = 0; k >= -2; k--) {
       const dayMs = day0 + k * MS_PER_DAY;
       for (const band of engine.effectiveBandsOn(new Date(dayMs))) {
