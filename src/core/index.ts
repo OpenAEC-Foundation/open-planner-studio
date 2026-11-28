@@ -1,11 +1,3 @@
-// De headless kern van Open Planner Studio: de publieke ingang van `@openaec/open-planner-core`.
-//
-// Grens (docs/headless-kern.md): deze module en `api.ts` zijn het hele publieke oppervlak. Alles
-// daaronder (store, solver, IFC-lezer/-schrijver) is intern en mag veranderen zonder dat het contract
-// verandert. De kern gebruikt GEEN React, geen DOM, geen Tauri en niet de app-singleton
-// `appStoreContext`: elk document krijgt een eigen `createAppStoreContext()`, en de berekening loopt
-// via dezelfde store-acties als de app (`openAsDocument` → `runCPM`), dus met werkregels en het
-// rekenprofiel van het project. `verify:store-boundaries` bewaakt dat hier geen singleton binnenkomt.
 import { createAppStoreContext, type AppState } from '@/state/appStoreFactory';
 import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { readIfcBytes } from '@/services/ifc/foreign/ifcBytesRoute';
@@ -30,13 +22,10 @@ export type {
   ScheduleWarning,
 } from './api';
 
-/** Versie van de kern; gelijk aan de appversie (CalVer). De bouw vervangt de waarde. */
 export const VERSION: string = typeof __OPS_CORE_VERSION__ === 'string' ? __OPS_CORE_VERSION__ : '0.0.0-dev';
 
 declare const __OPS_CORE_VERSION__: string | undefined;
 
-/** Het enige fouttype van de kern. `code` is vast (zie `CoreErrorCode`); `message` is Engels en
- *  bedoeld voor mensen, niet om op te parsen. */
 export class PlannerCoreError extends Error {
   readonly code: CoreErrorCode;
   readonly details: Readonly<Record<string, unknown>>;
@@ -48,22 +37,12 @@ export class PlannerCoreError extends Error {
   }
 }
 
-/** Een STEP-bestand begint (na een eventuele BOM en witruimte) met deze kop. */
 const STEP_HEADER = 'ISO-10303-21;';
 const STEP_HEADER_BYTES = new TextEncoder().encode(STEP_HEADER);
 const ASCII_WHITESPACE: ReadonlySet<number> = new Set([0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x20]);
 
 const BYTES_ROUTE_FLAGS: FeatureFlagValues = { ifcForeignContent: true };
 
-/**
- * Open een project uit IFC-tekst (IFC 4.3 / IFC4, zoals de app het opslaat of andere pakketten het
- * schrijven). Het document wordt geopend precies zoals Bestand → Openen in de app het doet. Dat
- * openen rekent al door; wijkt de uitkomst af van de datums in het bestand, dan kan de app (net als
- * hier) de datums uit het bestand tonen ("datums zoals opgeslagen"). `toIfc()` direct na `openIfc()`
- * schrijft dus de geopende stand, niet per se de datums uit de invoer. `schedule()` rekent opnieuw
- * door zoals F5 en verlaat die stand. Wat het openen veranderde of weglaat, staat meteen in
- * `openWarnings` (bijv. de omzetting van een oud bestand, B5), dus ook vóór de eerste `toIfc()`.
- */
 export async function openIfc(text: string): Promise<PlannerDocument> {
   if (typeof text !== 'string') {
     throw new PlannerCoreError('INVALID_INPUT', 'IFC input must be a string');
@@ -79,7 +58,6 @@ export async function openIfc(text: string): Promise<PlannerDocument> {
     throw new PlannerCoreError('IFC_READ_FAILED', `Could not read IFC: ${errorText(err)}`);
   }
   const opened = openParsed(parsed);
-  // T3: deze tekst-API bewaart nog geen vreemde bytes. Rekenen mag, verliesgevende IFC-uitvoer niet.
   const check = textWriteCheck(body);
   const atOpen = opened.state();
   let refusal: TextWriteRefusal | null | undefined = typeof check === 'function' ? undefined : check;
@@ -155,24 +133,18 @@ function openParsed(parsed: ImportResult, featureFlags?: FeatureFlagValues): Ope
     throw new PlannerCoreError('NO_TASKS', 'The IFC file contains no tasks');
   }
 
-  // Een onbruikbaar XER-bronarchief laat de lezer weg; de app meldt dat verlies. Hier wordt het een
-  // vaste waarschuwing in elke samenvatting, omdat `toIfc()` het archief niet meer kan meeschrijven.
   const importWarnings: ScheduleWarning[] = parsed.xerArchiveIssue
     ? [{ code: 'XER_ARCHIVE_DROPPED', ids: [], detail: parsed.xerArchiveIssue.code }]
     : [];
 
-  // Een eigen context per document, zonder host-events: extensies van een app bestaan hier niet.
   const ctx = createAppStoreContext({ emitHostEvents: false });
   if (featureFlags) ctx.store.setState(s => { s.ui.featureFlags = { ...featureFlags }; });
-  // De open-route van de app (Bestand → Openen) zonder opslagdoel: een naamloos document.
   let opened: ReturnType<AppState['openAsDocument']>;
   try {
     opened = ctx.store.getState().openAsDocument(parsed, { name: 'document.ifc', ref: null, saveTarget: false });
   } catch (err) {
     throw new PlannerCoreError('IFC_READ_FAILED', `Could not open IFC: ${errorText(err)}`);
   }
-  // B5: een oud bestand wordt bij het openen omgerekend. De app meldt dat via het meldingenkanaal; de
-  // kern heeft er geen, dus dezelfde telling en grootste verschuiving als vaste waarschuwing.
   for (const conversion of opened.minuteModelConversions) {
     importWarnings.push({ code: 'MINUTE_MODEL_CONVERTED', ids: [...conversion.shifted],
       maxShiftWorkdays: conversion.maxWorkdays });

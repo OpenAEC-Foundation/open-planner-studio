@@ -1,23 +1,14 @@
-/**
- * Release-vergelijking voor de "Je bent net geüpdatet"-dialoog.
- *
- * Bevat pure, headless-testbare functies (detectie, asset-keuze, dagen-tussen, vergelijking) plus
- * één fetch-wrapper (`fetchReleaseComparison`, zie onder) die de GitHub Releases-API bevraagt.
- * Desktop-only qua gebruik, maar de pure functies hebben geen Tauri-afhankelijkheid.
- */
 import type { InstallKind } from './updaterService';
 import { isTauri } from '@/utils/platform';
 import { GITHUB_REPO } from '@/services/githubRepo';
 
 const RELEASES_API = `https://api.github.com/repos/${GITHUB_REPO}/releases?per_page=30`;
 
-/** Minimale vorm van een GitHub-release-asset die we gebruiken. */
 export interface GhAsset {
   name: string;
   size: number;
 }
 
-/** Minimale vorm van een GitHub-release die we gebruiken. */
 export interface GhRelease {
   tag_name: string;
   published_at: string;
@@ -27,27 +18,14 @@ export interface GhRelease {
   assets: GhAsset[];
 }
 
-/** Resultaat dat de dialoog toont. Elk veld kan `null` zijn als de brondata ontbrak. */
 export interface ReleaseComparison {
   daysBetween: number | null;
   sizeDeltaBytes: number | null;
   currentSizeBytes: number | null;
 }
 
-/** OS-namen zoals `@tauri-apps/plugin-os` `platform()` ze teruggeeft (subset die we nodig hebben). */
 export type OsName = 'linux' | 'windows' | 'macos' | string;
 
-/**
- * Pure detectie: moeten we de "wat is er nieuw"-dialoog tonen? Geeft de versiesprong terug, of
- * `null` wanneer er niets te melden valt.
- * - `stored` ontbreekt én `welcomeSeenAtStartup` is onwaar (echte eerste start: ook de
- *   welkomstvlag ontbrak) → `null`. Eigenaarsbesluit 2026-09-28: "Net bijgewerkt" alleen als de app
- *   écht geüpdatet is, niet bij de allereerste start.
- * - `stored` ontbreekt maar de welkomst was al gezien (bestaande gebruiker van vóór de
- *   `lastVersion`-sleutel) → `{ from: null, to: current }`: tonen, zónder "van"-versie.
- * - `stored === current` (normale herstart) → `null` (niets tonen).
- * - anders → `{ from: stored, to: current }` (ook bij downgrade).
- */
 export function detectJustUpdated(
   stored: string | undefined,
   current: string,
@@ -58,16 +36,10 @@ export function detectJustUpdated(
   return { from: stored, to: current };
 }
 
-/** Normaliseer een versie/tag door een eventuele `v`-prefix te strippen. */
 function normalizeVersion(v: string): string {
   return v.replace(/^v/i, '');
 }
 
-/**
- * Kies de installer-asset die bij dit install-type + OS hoort, voor de grootteweergave.
- * Retourneert `null` als er geen passende asset is (bv. snap, of asset ontbreekt in de release).
- * `.sig`-bestanden worden altijd genegeerd.
- */
 export function pickInstallerAsset(
   assets: GhAsset[],
   installKind: InstallKind,
@@ -83,7 +55,7 @@ export function pickInstallerAsset(
     case 'deb':
       return endsWith('amd64.deb');
     case 'snap':
-      return null; // snap-installs krijgen geen GitHub-installer-asset
+      return null;
     case 'native':
       if (os === 'windows') return endsWith('-setup.exe');
       if (os === 'macos') return endsWith('.dmg');
@@ -93,7 +65,6 @@ export function pickInstallerAsset(
   }
 }
 
-/** Hele dagen tussen twee ISO-datums (previous → current). `null` bij een ongeldige datum. */
 export function daysBetween(previousIso: string, currentIso: string): number | null {
   const prev = Date.parse(previousIso);
   const cur = Date.parse(currentIso);
@@ -102,10 +73,6 @@ export function daysBetween(previousIso: string, currentIso: string): number | n
   return Math.max(0, Math.round(ms / (1000 * 60 * 60 * 24)));
 }
 
-/**
- * Vind in een (nieuw→oud gesorteerde) releaselijst de huidige release (op tag) en de release
- * die daarvóór is uitgebracht (eerste niet-draft/niet-prerelease met een oudere `published_at`).
- */
 export function findCurrentAndPrevious(
   releases: GhRelease[],
   currentVersion: string,
@@ -130,10 +97,6 @@ export function findCurrentAndPrevious(
   return { current, previous };
 }
 
-/**
- * Pure vergelijking: bouw het `ReleaseComparison`-resultaat uit de gevonden releases.
- * Ontbrekende data → het betreffende veld wordt `null` (nette degradatie in de UI).
- */
 export function computeComparison(
   current: GhRelease,
   previous: GhRelease | null,
@@ -159,11 +122,6 @@ export function computeComparison(
 
 export { RELEASES_API };
 
-/**
- * Detecteer het OS via `@tauri-apps/plugin-os` (dynamisch, achter `isTauri()`). Buiten Tauri of
- * bij een fout → `'linux'` (onschuldige default; de asset-keuze degradeert dan gewoon naar null
- * voor `native`).
- */
 export async function detectOs(): Promise<OsName> {
   if (!isTauri()) return 'linux';
   try {
@@ -174,13 +132,6 @@ export async function detectOs(): Promise<OsName> {
   }
 }
 
-/**
- * Haal de release-vergelijking op via de GitHub Releases-API. Vuurt alleen na een gedetecteerde
- * update (één call, ongeauthenticeerd — ruim binnen de 60/uur-ratelimit). Bij ELKE fout (offline,
- * ratelimit, JSON, huidige release niet gevonden) → `null`; de dialoog toont dan enkel de
- * versiesprong. Ontbrekende deelvelden (geen vorige release / geen asset) worden binnen
- * `computeComparison` `null` — nette degradatie.
- */
 export async function fetchReleaseComparison(
   currentVersion: string,
   installKind: InstallKind,
