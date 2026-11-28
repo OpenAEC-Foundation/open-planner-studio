@@ -23,26 +23,9 @@ import { createMoveCandidateLookup } from './moveCandidates';
 import { ensureThemeVisible, resourceDisplayColor } from '@/engine/renderer/resourcePalette';
 import { useResolvedUITheme } from '@/hooks/useResolvedUITheme';
 
-/** Pseudowaarden van de curve-dropdown voor de twee data-toestanden van de contour-engine:
- *  een opgeslagen contour (de dropdown is dan uitgeschakeld — loslaten gaat via het
- *  contourvenster, expliciet en niet als bijeffect van een curvekeuze) en een geïmporteerde exacte
- *  curve zonder OPS-vorm (kiesbaar: een nieuwe curvekeuze vervangt de importcurve, zie
- *  `resourceSlice.updateAssignment`). */
 const CONTOURED = '__contoured';
 const IMPORTED_CURVE = '__importedCurve';
 
-/**
- * Keuzelijst "verplaats naar…" die zijn opties pas bouwt als de gebruiker hem opent (focus of
- * muisklik). Op een groot project zijn dat duizenden opties per toewijzingsrij; die bij elke
- * render bouwen maakte selecteren en bewerken onbruikbaar (prestatiemeting rehab-2, 2026-10-07).
- * De eigen `Select` (nooit native, besluit eigenaar 2026-10-15) heeft geen open-event; de omhulling
- * luistert daarom zelf naar `pointerdown` en focus. `pointerdown` is een discreet React-event: de
- * state-update rendert synchroon, dus de opties staan er al als de klik de lijst openklapt.
- * Hermeting 2026-10-17 (rehab-2.xer, 6978 taken, 40 taken met toewijzingen selecteren): lui
- * mediaan 120–131 ms, met de lijst bij elke render 189 ms. De omhulling blijft dus.
- * `data-ops-assignment-move-options` telt de gebouwde opties; de browsertest toetst daarop dat er
- * vóór focus niets gebouwd is.
- */
 function MoveToSelect({ label, candidates, onMove }: {
   label: string; candidates: () => Task[]; onMove: (targetTaskId: string) => void;
 }) {
@@ -57,7 +40,6 @@ function MoveToSelect({ label, candidates, onMove }: {
       onFocus={() => setOpen(true)}
       onPointerDown={() => setOpen(true)}
       onBlur={e => {
-        // Het menu staat in een portal; React laat zijn events toch door deze omhulling bubbelen.
         if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setOpen(false);
       }}
       data-ops-assignment-move={open ? 'open' : 'closed'}
@@ -75,18 +57,6 @@ function MoveToSelect({ label, candidates, onMove }: {
   );
 }
 
-/**
- * Toewijzingen (incl. "verplaats naar…") — sectie van
- * `TaskPropertiesPanel`. RELATIONEEL/storeful: roept `assignResource`/
- * `updateAssignment`/`unassignResource`/`moveAssignment` rechtstreeks aan, identiek in paneel
- * én dialoog.
- *
- * Eén regel per resource in een raster met de kop erboven (CSS `.assignment-list`, zelfde opzet als de
- * relatielijst): naam, inzet, werk (alleen met "Taaktypes gebruiken" of een bestand met taaktypes) en verwijderen. De naam is
- * een uitklapknop; daaronder staan curve, de knop naar `ContourDialog` (urenverdeling per werkdag) en
- * "Verplaats naar…". Een afwijkende curve of een eigen urenverdeling blijft ook dichtgeklapt zichtbaar
- * als icoon naast de naam (indeling goedgekeurd door de eigenaar, 2026-10-19).
- */
 export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const { t, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
@@ -97,14 +67,9 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const updateAssignment = useAppStore(s => s.updateAssignment);
   const unassignResource = useAppStore(s => s.unassignResource);
   const moveAssignment = useAppStore(s => s.moveAssignment);
-  // Kolom "Werk" + slotjes op de beschermde hoek(en).
   const setAssignmentWork = useAppStore(s => s.setAssignmentWork);
-  // Bedrag van een kostenresource (#815): geen inzet, curve of werk.
   const setAssignmentCost = useAppStore(s => s.setAssignmentCost);
   const notify = useAppStore(s => s.notify);
-  // "1,500" in en of "1.500" in nl: 1500 of 1,5? Geen gok; de waarde blijft. De melding noemt het
-  // decimaalteken van de taal (de vertaling bouwt er het voorbeeld 1{{separator}}5 mee). Het is een
-  // weigering ("De waarde is niet gewijzigd."): rood en blijvend via refusalNotice (#375/#396).
   const notifyAmbiguous = (text: string) => notify(refusalNotice({
     messageKey: 'notifications.ambiguousThousands',
     params: { text, separator: decimalSeparatorOf(i18n.language) },
@@ -115,11 +80,8 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const projectCalendar = useAppStore(s => s.calendar);
   const darkTheme = useResolvedUITheme() === 'dark';
   const [contourAssignmentId, setContourAssignmentId] = useState<string | null>(null);
-  // Welke toewijzingen uitgeklapt staan (curve, urenverdeling, verplaatsen). Alleen voor deze weergave.
   const [expanded, setExpanded] = useState<ReadonlySet<string>>(() => new Set());
   const detailsIdBase = useId();
-  // Eén index per (taken, toewijzingen) — zie `moveCandidates.ts`. Vóór de vroege uitstap: hooks.
-  // Een kostenresource mag ook naar een mijlpaal (#815).
   const costResourceIds = useMemo(() => new Set(resources.filter(isCostResource).map(r => r.id)), [resources]);
   const moveLookup = useMemo(
     () => createMoveCandidateLookup(tasks, assignments, costResourceIds),
@@ -129,13 +91,9 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const task = tasks.find(t => t.id === taskId);
   if (!task) return null;
 
-  // Toewijzingen — leaf-only, geen samenvattingstaken; een mijlpaal alleen met kostenresources (#815).
   const taskAssignments = assignments.filter(a => a.taskId === taskId);
-  // Dezelfde weergaveregel als het resourcediagram (`curveState.ts`): contour > geïmporteerde curve > vorm.
-  // De koppellijst is zonder kostentoewijzingen, net als histogram en nivelleerder (#815).
   const contourList = contourSiblings(taskAssignments, costResourceIds);
   const contouredIds = contouredAssignmentIds(task, contourList);
-  // De gekoppelde contour zelf, voor het restwerk uit de `remaining`-periodes.
   const contourOf = matchContoursToAssignments(task.timephasedContours, contourList);
   const assignmentsDisabled = isSummaryTask(task);
   const milestone = !!task.isMilestone;
@@ -144,10 +102,8 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
   const rule = effectiveWorkRule(task, defaultWorkRule);
   const unitsProtected = rule === 'FIXED_DURATION_RATE' || rule === 'FIXED_RATE';
   const workProtected = ruleProtectsWork(rule);
-  // De werkkolom alleen waar de regel werkt (geen hangmat/ELAPSEDTIME — de kern zou stil weigeren).
   const showWork = unlocked && workRuleApplies(task);
   const hoursPerDay = taskCalendarHoursPerDay(task, calendars, projectCalendar);
-  /** Resterend werk in uren, zoals ook de melding over de uren van anderen het leest (`shownWork.ts`). */
   const remainingHoursOf = (assignmentId: string, unitsPerDay: number, stored: number | undefined): number =>
     shownWorkHours(shownRemainingWorkMinutes(task, { unitsPerDay, remainingWorkMinutes: stored }, contourOf.get(assignmentId), hoursPerDay));
   const lockTitle = t('properties.assignments.locked', { rule: t(`workRule.${rule}`) });
@@ -179,11 +135,6 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
           )}
           {taskAssignments.length > 0 && (
             <div className={`assignment-list !text-small${showWork ? '' : ' assignment-list--no-work'}`}>
-              {/* Kop in hetzelfde raster als de regels (subgrid): elke kop staat recht boven zijn kolom,
-                  en een lange vertaling maakt de kolom breder in plaats van af te breken. Is het paneel
-                  daar te smal voor, dan kapt de kop af met een ellips (`min-w-0` + `truncate`; de volle
-                  tekst staat in de tooltip) in plaats van de regels buiten het paneel te duwen: in 13
-                  talen gebeurde dat bij 200 px en 125 % (release v2026.10.0). */}
               <div className="assignment-header text-caption leading-3 uppercase tracking-wide" style={mutedStyle} data-ops-assignment-header>
                 <span className="assignment-name min-w-0 truncate ps-[16px]">{t('properties.assignments.resource')}</span>
                 <span
@@ -208,7 +159,6 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
               {taskAssignments.map(a => {
                 const res = resources.find(r => r.id === a.resourceId);
                 const resName = res?.name || '?';
-                // Alleen "is er een kandidaat?" per render; de lijst zelf bouwt `MoveToSelect` pas bij openen.
                 const canMove = moveLookup.has(taskId, a.resourceId);
                 const curveState = assignmentCurveState(a, contouredIds.has(a.id));
                 const contoured = curveState === 'contoured';
@@ -224,23 +174,15 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                   : importedCurve
                     ? t('properties.assignments.importedCurve')
                     : tCommon(CURVE_KEY[curveState]);
-                // Ook dichtgeklapt zichtbaar: alles behalve de gewone gelijkmatige verdeling.
                 const curveMarked = curveValue !== 'UNIFORM';
                 const open = expanded.has(a.id);
                 const detailsId = `${detailsIdBase}-${a.id}`;
                 const isMaterial = res?.type === 'MATERIAL';
-                // Kostenresource (#815): een bedragveld in de inzetkolom, werk "—", geen curve of urenverdeling.
                 const isCost = isCostResource(res);
-                // Opgeslagen werk dat afwijkt van inzet × restduur krijgt een markering (zelfde regel
-                // als de planningssuite toetst). Hij staat binnen het werkveld, zodat de kolom niet
-                // breder wordt.
                 const deviation = showWork && !isMaterial && !isCost
                   ? assignmentWorkDeviation(task, a.unitsPerDay, a.remainingWorkMinutes, hoursPerDay, contourOf.has(a.id))
                   : null;
                 return (
-                  // Eén regel in het raster van de lijst (subgrid): naam, inzet, werk, verwijderen. Op de
-                  // smalste rail (≤ 14rem) krijgt de naam een eigen regel en staan de getallen eronder.
-                  // Uitgeklapt volgt onder de regel: curve, urenverdeling en "Verplaats naar…".
                   <div key={a.id} className="assignment-row" data-ops-assignment-row={a.id}>
                     <button
                       type="button"
@@ -289,7 +231,6 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                       locale={i18n.language}
                       commitOnBlur
                       onAmbiguous={notifyAmbiguous}
-                      // De exacte opgeslagen waarde, met het decimaalteken van de taal.
                       title={`${t('properties.assignments.unitsPerDay')}: ${localizeDecimalPoint(String(a.unitsPerDay), i18n.language)}`}
                       ariaLabel={`${t('properties.assignments.unitsPerDay')} — ${res?.name ?? a.resourceId}`}
                       onCommit={n => updateAssignment(a.id, { unitsPerDay: n })}
@@ -300,11 +241,6 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                       <span className="assignment-work pe-1 text-right text-text-secondary" data-ops-assignment-work={isCost ? 'cost' : 'material'}>—</span>
                     ) : (
                       <span className="assignment-work relative flex items-center" data-ops-assignment-work={a.remainingWorkMinutes !== undefined ? 'stored' : 'derived'}>
-                        {/* Werk in uren: zelfde veld als de inzet. Het commit pas op Enter/blur —
-                            anders zou elke toetsaanslag ("6" op weg naar "64") een eigen
-                            driehoekstap, undo-stap en contour-nazorg afvuren. Opslag is in hele
-                            minuten: wat afrondt tot 0 minuten ("0,004" uur) is ongeldig, niet een
-                            stille weigering in `setAssignmentWork`. */}
                         <UnitsInput
                           value={remainingHoursOf(a.id, a.unitsPerDay, a.remainingWorkMinutes)}
                           title={t('properties.assignments.workHint')}
@@ -322,7 +258,6 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                             style={{ color: 'var(--theme-warning-text)' }}
                             title={t('properties.assignments.workDeviatesHint', {
                               ...deviation,
-                              // Slotzin per regel (besluit V10): dezelfde keuze als de tabel en de duurbewerking.
                               durationEffect: t(workDeviationEffectKey(task, defaultWorkRule)),
                             })}
                             aria-label={t('properties.assignments.workDeviates')}
@@ -366,10 +301,6 @@ export function TaskAssignmentsSection({ taskId }: { taskId: string }) {
                               aria-label={t('properties.assignments.curve')}
                               options={curveOptions}
                               onChange={v => {
-                                // Dezelfde keuze opnieuw komt hier niet: `Select` roept zonder
-                                // `onReselect` geen `onChange` aan. Belangrijk, want `updateAssignment` met
-                                // `curve` wist de geïmporteerde exacte curve (`curveValues`, P6/MSPDI); de
-                                // spec "dezelfde curve opnieuw" bewaakt dat.
                                 if (v === CONTOURED || v === IMPORTED_CURVE) return;
                                 updateAssignment(a.id, { curve: v as ResourceCurve });
                               }}

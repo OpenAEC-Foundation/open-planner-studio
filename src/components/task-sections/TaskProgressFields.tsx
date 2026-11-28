@@ -9,36 +9,8 @@ import { Field } from './shared';
 import { durationSuffixesFrom, formatRemainingDurationText } from '@/utils/taskDuration';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 
-// Uniek per slider-gebaar: coalesceKey per pointer-sleep ⇒ één undo-stap i.p.v. één per stap.
 let progressSeq = 0;
 
-/**
- * Voortgang/completion + werkelijke start/finish + resterend — sectie van
- * `TaskPropertiesPanel`.
- *
- * AFWIJKING van het pure `{ task, onChange }`-CalendarForm-patroon: het paneel roept NIET
- * de generieke patch-actie aan, maar drie dedicated store-acties (`setTaskProgress`/
- * `setActualStart`/`setActualFinish`) die de voortgangsinvarianten afdwingen (auto-actualStart bij
- * completion>0, actualFinish laten vallen bij terugdraaien, en — belangrijkst — actuals ná de
- * statusdatum WEIGEREN met een boolean-retourwaarde). Die invariant-logica zit in de store
- * (taskSlice.ts, `applyProgressInvariants`) en mag niet gedupliceerd worden. Deze sectie krijgt
- * daarom drie EXPLICIETE setter-props i.p.v. de generieke `onChange`: het paneel geeft de echte
- * store-acties door (instant-apply); de dialoog geeft lokale equivalenten door die op
- * de eigen draft werken (dezelfde invariantfuncties, maar pas gecommit op Save — zie
- * `state/taskDialogSave.ts`).
- *
- * VERZAMELTAAK (fase): alles in deze sectie is alleen-lezen. Haar voortgang en status worden bij
- * elke berekening afgeleid uit de bladtaken (`applyCpmResult`, dezelfde gewogen formule als het
- * WBS-rapport); `setTaskProgress`/`setActualStart`/`setActualFinish` weigeren een verzameltaak, net
- * als MCP en de voortgangsimport. De sectie toont dan de afgeleide waarde plus een uitleg.
- *
- * Voortgang INVULLEN (`engine/progressEntry.ts`): elke setter geeft een `ProgressEntryResult` terug.
- * Een weigering toont deze sectie zelf; `needsActualStart` (een taak die pas na de statusdatum
- * zou beginnen, nog zonder werkelijke start) beantwoordt ze met de startvraag
- * (`askActualStart`) en roept de setter opnieuw aan met het antwoord — annuleren verandert niets.
- * Tijdens een sleep met de schuif wordt pas bij het loslaten gevraagd; tot dan toont de schuif de
- * gesleepte waarde zonder iets toe te passen.
- */
 type EntryOpts = { coalesceKey?: string; actualStart?: string };
 type EntryRefusal = 'afterStatusDate' | 'actualFinishBeforeStart';
 
@@ -55,7 +27,6 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
   const derived = isSummaryTask(task);
   const releaseHold = useRef<(() => void) | null>(null);
   useEffect(() => () => { releaseHold.current?.(); }, []);
-  // Tijdens een sleep wacht de startvraag tot het loslaten; de schuif toont zolang de gesleepte waarde.
   const pendingQuestion = useRef<{ question: ActualStartQuestion; retry: (actualStart: string) => ProgressEntryResult } | null>(null);
   const [pendingPercent, setPendingPercent] = useState<number | null>(null);
 
@@ -67,15 +38,11 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
   const ask = async (question: ActualStartQuestion, retry: (actualStart: string) => ProgressEntryResult) => {
     const answers = await askActualStart([{ ...question, taskName: task.name }]);
     const answer = answers?.[question.taskId];
-    if (!answer) return; // Annuleren: er verandert niets.
+    if (!answer) return;
     const result = retry(answer);
     setActualError(result.ok || result.reason === 'needsActualStart' || result.reason === 'summaryTask' ? null : result.reason);
   };
 
-  /** Verwerk de uitkomst van een setter. `slidePercent`: de aanroep kwam van de schuif. */
-  // Geeft `false` bij elke niet-toegepaste invoer: een datumveld (`DateTextInput.onCommit`) valt dan
-  // terug op de opgeslagen waarde in plaats van de geweigerde datum te blijven tonen. Bij de
-  // startvraag geldt hetzelfde: na een antwoord volgt het veld de nieuwe opgeslagen waarde.
   const handle = (
     result: ProgressEntryResult,
     retry: (actualStart: string) => ProgressEntryResult,
@@ -87,7 +54,6 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
       return undefined;
     }
     if (result.reason !== 'needsActualStart') {
-      // `summaryTask`: de velden van een verzameltaak zijn al uitgeschakeld; niets te tonen.
       setActualError(result.reason === 'summaryTask' ? null : result.reason);
       return false;
     }
@@ -132,7 +98,6 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             value={pendingPercent ?? Math.round(task.time.completion * 100)}
             onPointerDown={() => {
               dragKey.current = `progress:${task.id}:${++progressSeq}`;
-              // Automatisch berekenen pas na het loslaten, niet bij elke stap van de schuif.
               releaseHold.current?.();
               releaseHold.current = holdAutoCalc();
             }}
@@ -156,8 +121,6 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
         </div>
       </Field>
 
-      {/* Werkelijke datums: mijlpaal ⇒ één "Werkelijke datum"; anders start+einde.
-          De acties dwingen de invarianten af en weigeren datums ná de statusdatum (toast). */}
       {task.isMilestone ? (
         <Field label={t('properties.progress.actualDate')}>
           <TaskDateTimeInput
@@ -209,7 +172,6 @@ export function TaskProgressFields({ task, onSetProgress, onSetActualStart, onSe
             </Field>
           </div>
           <Field label={t('properties.progress.remaining')}>
-            {/* Urentaak in uren/minuten, dagtaak in werkdagen — dezelfde tekst als de rasterkolom. */}
             <input
               value={formatRemainingDurationText(task, { suffixes: durationSuffixesFrom(tCommon), locale: i18n.language })}
               disabled

@@ -3,17 +3,8 @@ import type { ResourceCurve } from '@/types/resource';
 import type { CustomFieldDef, CustomFieldValue } from '@/types/structure';
 import { DateTextInput } from '@/components/common/DateTextInput';
 
-/**
- * Gedeelde primitieven voor de taak-sectie-componenten. Op een neutrale plek (niet in het
- * paneel-bestand) omdat zowel `TaskPropertiesPanel` als `TaskDialog` als `Ribbon.tsx`
- * (curve-labels in de rapportage-UI) ernaar verwijzen — een import vanuit het paneel zou een
- * cirkelvormige afhankelijkheid geven zodra het paneel zelf secties uit deze map importeert.
- */
-
 export { RESOURCE_CURVES } from '@/types/resource';
 
-/** ResourceCurve → i18n-key in de common-namespace (resource.curve.*). `as const` houdt de
- *  literal-keytypes zodat de getypeerde `t(...)` ze accepteert. */
 export const CURVE_KEY = {
   UNIFORM: 'resource.curve.uniform',
   FRONT_LOADED: 'resource.curve.frontLoaded',
@@ -25,7 +16,6 @@ export const CURVE_KEY = {
   TURTLE: 'resource.curve.turtle',
 } as const satisfies Record<ResourceCurve, string>;
 
-/** Getypeerd invoerveld voor één custom field op een taak. */
 export function CustomFieldInput({ def, value, onCommit }: {
   def: CustomFieldDef;
   value: CustomFieldValue | undefined;
@@ -60,7 +50,6 @@ export function CustomFieldInput({ def, value, onCommit }: {
       />
     );
   }
-  // number / integer / cost
   return (
     <input
       type="number"
@@ -99,15 +88,8 @@ export const Input = forwardRef<HTMLInputElement, {
   max?: number;
   step?: number;
   disabled?: boolean;
-  /**
-   * Verplicht tekstveld (taaknaam, WBS-code): een lege (of alleen-spaties) invoer gaat NIET naar
-   * `onChange` — het veld toont de lege invoer lokaal zolang de gebruiker bezig is en valt bij het
-   * verlaten terug op de huidige waarde. Zelfde regel als het raster (`required`) en de dialoog
-   * (Opslaan uitgeschakeld bij een lege naam).
-   */
   required?: boolean;
 }>(function Input({ value, onChange, type = 'text', min, max, step, disabled, required }, ref) {
-  // Alleen gezet zolang een verplicht veld leeg is gemaakt; `null` = toon de echte waarde.
   const [pendingEmpty, setPendingEmpty] = useState<string | null>(null);
   return (
     <input
