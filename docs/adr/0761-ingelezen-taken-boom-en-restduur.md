@@ -9,7 +9,7 @@ is. Behalve als de gepunte codes een volledige boom geven die de outline ergens 
 exports van OPS zelf schreven het niveau uit het aantal punten van de WBS-code, maar in de volgorde van de store
 (eerst de samenvattingen, dan de bladen); de outline hangt de bladen daar onder de laatste samenvatting, terwijl de
 codes de boom precies beschrijven. Gebruikers hebben die bestanden nog liggen, en ze moeten blijven lezen zoals ze
-altijd lazen. Bij een bestand van MS Project zelf of een huidige export geven beide bronnen dezelfde boom.
+altijd lazen. Volgen de WBS-codes de outline, dan geven beide bronnen dezelfde boom.
 
 `normalizeImportedProgress` houdt de restduur die het bestand van een lopende taak vastlegt, ook bij een IFC van een
 oudere versie die een dagenrest afgerond schreef. Het bestand zegt niet of een rest ingevoerd of afgeleid was, en een

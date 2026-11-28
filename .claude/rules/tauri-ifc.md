@@ -186,8 +186,9 @@ Besluiten van het register en de descriptors per taak: `docs/adr/0420-ifc-eigen-
 
 ### Losse services direct in `src/services/`
 
-Besluiten: `docs/adr/0760-fetch-met-een-tijdslimiet.md` (`fetchWithTimeout.ts`) en
-`0761-ingelezen-taken-boom-en-restduur.md` (`importNormalize.ts`).
+Besluiten: `docs/adr/0760-fetch-met-een-tijdslimiet.md` (`fetchWithTimeout.ts`),
+`0761-ingelezen-taken-boom-en-restduur.md` (`importNormalize.ts`) en `0762-xer-bronarchief-eerst-valideren.md`
+(`xerSourceArchive.ts`).
 
 ### Gedeelde helpers binnen een dag (`subdayIo.ts`)
 
