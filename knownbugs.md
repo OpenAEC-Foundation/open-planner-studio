@@ -5199,15 +5199,6 @@ en noem het in je rapport of PR-tekst.
       alleen de backupmap. Als bekende grens besloten bij de review van #1315 (ronde 2): op Linux kiest main
       het openprogramma al op deze manier. — B
 
-2651. **Op macOS kan een deny op een exact pad met een andere hoofdletterschrijfwijze worden omzeild.** Gezien in de
-      bron, niet op een Mac geprobeerd: tauri 2.12.3 matcht scopepatronen case-sensitief (glob `MatchOptions` default,
-      `tauri-2.12.3/src/scope/fs.rs:235-240`), en plugin-fs 2.7.1 toetst een deny zowel op het pad zoals meegegeven
-      als op het real path (`tauri-plugin-fs-2.7.1/src/commands.rs:1647-1653`), maar `std::fs::canonicalize` herstelt
-      op macOS de casing van een pad op een hoofdletterongevoelige schijf niet altijd; dan matcht de deny alleen de
-      schrijfwijze zoals meegegeven. Op zo'n schijf zou `rename` of `remove` van de backupmap
-      (`backupmap.json`, #1245) met een andere hoofdletterschrijfwijze van `ai-backups` dan toch kunnen lukken.
-      Op Windows dekt het real-path-check de variant af, want daar geeft `canonicalize` de casing op schijf terug. — S
-
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat
