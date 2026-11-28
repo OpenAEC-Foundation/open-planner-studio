@@ -9,7 +9,6 @@ terugkomst de door de rondleiding veranderde stand als begin vastleggen.
 
 ## Gevolgen
 
-- De rondleiding is modaal door een aparte onzichtbare laag over de hele pagina, los van de markering
-  (`TourSpotlight`, `pointer-events: none`). De dimming is een `box-shadow` rond een element ter grootte van het
-  anker, en een schaduw vangt geen klikken. De laag heeft bewust
-  geen `onClick`: een klik naast de kaart sluit de rondleiding niet per ongeluk.
+- Klikken naast de kaart vangt een aparte onzichtbare laag over de hele pagina, los van de markering
+  (`TourSpotlight`, `pointer-events: none`): de dimming is een `box-shadow` rond het anker, en een schaduw vangt geen
+  klikken. De laag heeft bewust geen `onClick`: een klik naast de kaart sluit de rondleiding niet per ongeluk.
