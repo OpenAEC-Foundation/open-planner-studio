@@ -7,8 +7,8 @@ bruikbaar op een groot project.
 
 ## Gevolgen
 
-- *Verplaats naar…* in `TaskAssignmentsSection` bouwt zijn opties pas als de gebruiker de lijst opent (`MoveToSelect`,
-  op `pointerdown` en focus, want `Select` heeft geen open-event; het menu staat in een portal, maar React laat zijn
+- *Verplaats naar…* in `TaskAssignmentsSection` bouwt zijn opties pas bij focus of `pointerdown` op de knop
+  (`MoveToSelect`, want `Select` heeft geen open-event; het menu staat in een portal, maar React laat zijn
   events door de omhulling bubbelen). Per render vraagt de sectie alleen of er een kandidaat is, via de index van
   `moveCandidates.ts`. Op `rehab-2.xer` (6.978 taken, 52.640 toewijzingen) kostte de oude regel per rij 47 s per
   selectie; met de index en de lijst bij elke render daarna nog 189 ms, lui 120 tot 131 ms (metingen 2026-10-07 en
@@ -20,11 +20,12 @@ bruikbaar op een groot project.
   tooltip hangt in een portal en bleef anders na Ctrl+Z, een pijltoets of een selectie door de AI-assistent zweven, ook
   boven dialogen. Een concept zou bij bevestigen op de nieuwe taak landen, en een variant draagt dezelfde taak-id's,
   zodat het in het andere document landde.
-- Kwamen er bij het vastleggen relaties bij, dan gaat de focus naar de bevestigknop: in het zoekveld zou Ctrl+Z alleen
+- Werd bij het vastleggen een deel van de relaties toegevoegd en een deel geweigerd, dan gaat de focus naar de
+  bevestigknop: in het zoekveld zou Ctrl+Z alleen
   de getypte tekst terugdraaien, omdat een tekstveld zijn eigen undo houdt.
 - `TaskDurationField` telt elke doorgegeven wijziging (`commitTick`) en zet het veld daarop terug naar de echte duur.
   Weigert de store de wijziging, dan verandert de duur niet en bleef zonder die teller het getypte getal staan.
-- Het i-icoon bij *Duur* toont zijn tooltip na het terugkomen van de eenheidsbediening pas na een echte muisbeweging of
+- Het i-icoon bij *Duur* toont bij hover zijn tooltip na het terugkomen van de eenheidsbediening pas na een echte muisbeweging of
   een leave. Uit het weggehaalde commentaar, niet nagegaan: een knop die onder een stilstaande muis terugkomt, krijgt
   van React of de browser opnieuw een mouseenter.
 - Het i-icoon bij *Werkregel* heeft een vaste hoogte (`h-9`, de hoogte van de trigger). Uit het weggehaalde commentaar,
