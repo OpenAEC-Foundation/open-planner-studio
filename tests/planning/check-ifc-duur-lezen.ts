@@ -7,7 +7,6 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { TASKTIME_SLOT } from '@/services/ifc/ifcTaskSlots';
 
-// Vast repositoryvoorbeeld, alleen de onderzochte slots veranderen; geen solve tussen lezen en meten.
 const source = readFileSync('public/examples/showcase-appartementencomplex.ifc', 'utf8');
 const line = source.split('\n').find(l => l.startsWith('#55='))!;
 assert.ok(line.includes('IFCTASKTIME'));

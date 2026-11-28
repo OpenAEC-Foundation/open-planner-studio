@@ -1,22 +1,3 @@
-// Knownbug 1026: een kalender die bij het openen `LiteralTimes` had, blijft letterlijk bij opslaan (besluit Trias, wrakko
-// 10 november 2026, optie a; `DocumentPayload.ifcLiteralCalendarIds`). Headless tegen de echte store en de echte
-// open-route. Bewaakt:
-//   1. `fixtures/1026-voor.ifc` (het bestand van de sessie IFCX): wis '1. Preparation' (met haar vijf kinderen) en sla op.
-//      `LiteralTimes` blijft staan, en de eindtijden (ScheduleFinish, EarlyFinish, LateFinish) van alle 51 taken die
-//      blijven zijn gelijk aan het bestand vóór het wissen, dus 16:00 en niet 07:00. Zonder het veld (zoals main)
-//      gaan ze naar 07:00: zo is te zien dat de check de bug vangt;
-//   2. over sessies heen: het opgeslagen bestand opnieuw openen geeft dezelfde letterlijke kalender, ook na nog een keer
-//      opslaan en openen (dan is opslaan byte-gelijk);
-//   4. een extensie die het project ongewijzigd terugzet (`loadExtensionProject`, lees-wijzig-laad) houdt de keuze;
-//   5. IFC Toepassen met een tekst zonder `LiteralTimes` maakt de keuze niet kleiner, ook niet na undo en redo (review
-//      #872 ronde 1, Sol en Terra; de keuze wordt nooit kleiner);
-//   6. letterlijk opgeslagen in deze sessie blijft letterlijk (Opslaan, undo, AutoSave), en letterlijk geworden maar
-//      nooit zo opgeslagen telt niet (besluit Trias, wrakko 10 november 2026);
-//   7. een IFC-export over het eigen bestand legt de keuze ook vast, een export naar een ander bestand niet (review #872
-//      ronde 3, Terra);
-//   3. zonder bewerking verandert het veld niets: voor elk voorbeeld in `public/examples/` en `examples/` is opslaan met
-//      en zonder het veld byte-gelijk, en een voorbeeld zonder `LiteralTimes` krijgt geen veld.
-// Exit 0 = alles groen.
 import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,22 +31,17 @@ async function open(name: string, content: string): Promise<Store> {
   return store;
 }
 const save = (store: Store) => writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'));
-/** Zoals main: zonder het nieuwe veld. */
 const saveWithoutField = (store: Store) => writeIFC(buildWriteIFCInput({ ...store.getState(), ifcLiteralCalendarIds: null }, 'planOnly'));
 
-/** Naam van de taak → [ScheduleFinish, EarlyFinish, LateFinish] uit de `IFCTASKTIME`-regels. */
 function finishes(ifc: string): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const m of ifc.matchAll(/IFCTASKTIME\('((?:[^']|'')*) Time',([^\n]*)\);/g)) {
     const slots = m[2].split(',');
-    // Na de naam: 1 DataOrigin, 2 UserDefined, 3 DurationType, 4 ScheduleDuration, 5 ScheduleStart, 6 ScheduleFinish,
-    // 7 EarlyStart, 8 EarlyFinish, 9 LateStart, 10 LateFinish.
     out.set(m[1], [slots[5], slots[7], slots[9]]);
   }
   return out;
 }
 
-// ── 1 en 2. 1026-voor.ifc: wissen, opslaan, heropenen ──────────────────────────────────────────────────────────────
 {
   const voor = readFileSync(join(ROOT, 'tests/planning/fixtures/1026-voor.ifc'), 'utf8');
   const store = await open('1026-voor.ifc', voor);
@@ -86,28 +62,22 @@ function finishes(ifc: string): Map<string, string[]> {
   eq('1026: de eindtijden van de 51 taken die blijven, zijn gelijk aan vóór het wissen', changed, []);
   const at16 = names.filter(n => after.get(n)?.[0]?.endsWith("T16:00:00'"));
   eq('1026: alle 51 ScheduleFinish staan op 16:00', at16.length, 51);
-  // Zonder het veld (main): de kalender wordt een ankerkalender en de eindtijden springen naar 07:00.
   const mainLike = finishes(saveWithoutField(store));
   eq('1026, controle zoals main: ScheduleFinish van "2. Earthworks & foundations" wordt 07:00',
     mainLike.get('2. Earthworks & foundations')?.[0], "'2027-03-05T07:00:00'");
-  // 2. Over sessies heen: het bestand draagt LiteralTimes weer, dus heropenen houdt de kalender letterlijk.
   const reopened = await open('1026-na.ifc', na);
   eq('1026, heropend: de kalender is weer letterlijk', reopened.getState().ifcLiteralCalendarIds, ['cal-default']);
   const second = save(reopened);
   eq('1026, heropend en opgeslagen: LiteralTimes staat er nog', second.includes("IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$)"), true);
-  // Het eerste heropenen rekent de planning opnieuw (na het wissen was ze niet herberekend; zo ook op main). Vanaf
-  // daar is opslaan en heropenen stabiel.
   const third = await open('1026-na-2.ifc', second);
   eq('1026, tweede keer heropend: de kalender is letterlijk en opslaan is byte-gelijk',
     [third.getState().ifcLiteralCalendarIds, save(third) === second], [['cal-default'], true]);
 }
 
-// ── 4 en 5. De keuze gaat niet verloren onderweg ──────────────────────────────────────────────────────────────────
 const LITERAL = "IFCPROPERTYSINGLEVALUE('LiteralTimes',$,IFCBOOLEAN(.T.),$)";
 const earthworksFinish = (store: Store) => finishes(save(store)).get('2. Earthworks & foundations')?.[0];
 const deletePrep = (store: Store) => store.getState().deleteTask(store.getState().tasks.find(t => t.name === '1. Preparation')!.id);
 {
-  // 4. Extensie: lees-wijzig-laad van hetzelfde project, zonder wijziging. Het publieke contract draagt de keuze niet.
   const voor = readFileSync(join(ROOT, 'tests/planning/fixtures/1026-voor.ifc'), 'utf8');
   const store = await open('1026-ext.ifc', voor);
   const S = () => store.getState();
@@ -121,8 +91,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
   eq('4 extensie: "2. Earthworks & foundations" blijft op 16:00', earthworksFinish(store), "'2027-03-05T16:00:00'");
 }
 {
-  // 5. IFC Toepassen met een tekst zonder LiteralTimes: de keuze wordt niet kleiner (besluit Trias: wat eenmaal letterlijk
-  //    in het bestand stond, blijft letterlijk), ook niet na undo en redo.
   const voor = readFileSync(join(ROOT, 'tests/planning/fixtures/1026-voor.ifc'), 'utf8');
   const store = await open('1026-apply.ifc', voor);
   const S = () => store.getState();
@@ -141,15 +109,9 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
   eq('5 undo, dan wissen: "2. Earthworks & foundations" blijft op 16:00', earthworksFinish(store), "'2027-03-05T16:00:00'");
 }
 
-// ── 6. Letterlijk opgeslagen in deze sessie ───────────────────────────────────────────────────────────────────────────
-// Besluit Trias (wrakko, 10 november 2026): staat een kalender eenmaal letterlijk in het bestand, dan blijft hij
-// letterlijk, ook als de app hem pas in deze sessie letterlijk opsloeg. Een kalender die letterlijk werd maar nooit zo is
-// opgeslagen, telt niet. Via de echte opslagroute (Opslaan naar een handle) en de AutoSave-vastlegging.
 {
   const enc = new TextEncoder();
   const dec = new TextDecoder();
-  /** Een bestand achter een handle, zoals de File System Access API het geeft. */
-  /** Haken voor 7c: na het sluiten van een schrijfbeurt, en vóór `isSameEntry` (de handle zelf bevriest in de store). */
   const hooks: { afterClose?: () => void; beforeSameEntry?: () => Promise<void> } = {};
   const fakeHandle = (name: string, initial: string) => {
     let data = initial;
@@ -177,7 +139,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     await store.getState().openOpenedFile({ name: 'eigen.ifc', content: showcase, ref: { kind: 'handle', handle: file.handle } });
     return { store, file, S: () => store.getState() };
   };
-  /** Een urentaak van vier uur: die maakt de projectkalender letterlijk (T17). */
   const addHourTask = (store: Store) => {
     const id = store.getState().addTask({ name: 'Uurtaak', time: { ...store.getState().tasks[0].time, durationUnit: 'hours', durationMinutes: 240 } });
     store.getState().runCPM();
@@ -191,8 +152,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     eq(`${label}: de eindtijden blijven gelijk`, names.filter(n => JSON.stringify(a.get(n)) !== JSON.stringify(b.get(n))), []);
   };
   {
-    // 6a. De test van Trias: open zonder LiteralTimes, maak een taak die het nodig heeft, sla op, wis die taak, sla
-    //     opnieuw op: alle eindtijden blijven gelijk.
     const { store, file, S } = await openOwn();
     eq('6a voorwaarde: het bestand heeft geen LiteralTimes, het document geen keuze', [showcase.includes("'LiteralTimes'"), S().ifcLiteralCalendarIds], [false, null]);
     const id = addHourTask(store);
@@ -206,11 +165,9 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     const second = file.text();
     eq('6a tweede opslag: LiteralTimes staat er nog', second.includes(LITERAL), true);
     sameFinishes('6a tweede opslag na het wissen', first, second, 'Uurtaak');
-    // Zonder de keuze (zoals main) zou de kalender een ankerkalender worden: zo is te zien dat de check de bug vangt.
     eq('6a controle zoals main: zonder de keuze geen LiteralTimes', saveWithoutField(store).includes(LITERAL), false);
   }
   {
-    // 6b. Undo maakt de keuze niet kleiner: opslaan, de nieuwe taak ongedaan maken, opnieuw opslaan.
     const { store, file, S } = await openOwn();
     addHourTask(store);
     await S().saveFile();
@@ -225,8 +182,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     sameFinishes('6b na undo opgeslagen', first, second, 'Uurtaak');
   }
   {
-    // 6c. AutoSave naar het bestand legt de keuze ook vast, via de echte ronde (#804 stap 6: voorbereiden, schrijven
-    //     en vastleggen in één schrijfbeurt).
     const { store, file, S } = await openOwn();
     const id = addHourTask(store);
     S().setAutoSaveToFile(true);
@@ -240,7 +195,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     sameFinishes('6c na AutoSave en wissen', written, save(store), 'Uurtaak');
   }
   {
-    // 6d. Letterlijk geworden, maar nooit zo opgeslagen: telt niet. Het bestand had de kalender nooit letterlijk.
     const { store, file, S } = await openOwn();
     const id = addHourTask(store);
     S().deleteTask(id);
@@ -249,21 +203,16 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     eq('6d nooit letterlijk opgeslagen: geen LiteralTimes en geen keuze', [file.text().includes(LITERAL), S().ifcLiteralCalendarIds], [false, null]);
   }
   {
-    // 6e. Een crashherstel-kopie of een export is geen opslag naar het eigen bestand: die legt niets vast.
     const { store, S } = await openOwn();
     addHourTask(store);
     save(store);
     eq('6e een losse schrijfbeurt legt niets vast', S().ifcLiteralCalendarIds, null);
   }
-  // 7. Review #872 ronde 3 (Terra, BLOKKEERT): een IFC-export over het eigen bestand schrijft dat bestand ook. Die legt
-  //    de keuze vast, zoals Opslaan; een export naar een ander bestand niet. Via de echte exportroutes (Exporteren en
-  //    Project met bibliotheek exporteren), met de bestandskiezer van de browser.
   const win = (globalThis as unknown as { window: Record<string, unknown> }).window;
-  win.showOpenFilePicker = () => { throw new Error('niet in deze test'); }; // de app ziet de File System Access API
+  win.showOpenFilePicker = () => { throw new Error('niet in deze test'); };
   for (const route of ['exportAs', 'exportProjectWithPool'] as const) {
     const run = (S: () => ReturnType<Store['getState']>) => (route === 'exportAs' ? S().exportAs('ifc') : S().exportProjectWithPool());
     {
-      // 7a. Over het eigen bestand: daarna wissen en opslaan, en alle eindtijden blijven gelijk.
       const { store, file, S } = await openOwn();
       const id = addHourTask(store);
       win.showSaveFilePicker = async () => file.handle;
@@ -278,7 +227,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       sameFinishes(`7a ${route}`, exported, file.text(), 'Uurtaak');
     }
     {
-      // 7b. Naar een ander bestand: de keuze van het open document blijft leeg.
       const { store, file, S } = await openOwn();
       addHourTask(store);
       const other = fakeHandle('ander.ifc', '');
@@ -288,10 +236,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         [other.text().includes(LITERAL), S().ifcLiteralCalendarIds, file.text() === showcase], [true, null, true]);
     }
     {
-      // 7c. Review #872 ronde 4 (Terra, BLOKKEERT, vermoed): export en AutoSave kruisen elkaar. De export heeft het eigen
-      //     bestand geschreven en kijkt nog of het het eigen bestand is (`isSameEntry`); in die opening wist de planner de
-      //     urentaak en draait AutoSave. AutoSave mag dan niet de ankertekst schrijven en het document als opgeslagen
-      //     markeren: daarna kwam er geen schrijfbeurt meer, en het bestand hield de verschoven eindtijden.
       const { store, file, S } = await openOwn();
       const id = addHourTask(store);
       S().setAutoSaveToFile(true);
@@ -327,9 +271,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       sameFinishes(`7c ${route} en AutoSave kruisen`, exported, file.text(), 'Uurtaak');
     }
     {
-      // 7d. Review #872 ronde 5 (Terra): de export maakt zijn tekst vóór hij op de schrijflock wacht. Een opslag houdt de
-      //     lock vast en het document verandert intussen: de export schrijft dan niets (geen oude inhoud over een nieuwere
-      //     opslag), meldt dat, en het document blijft gewijzigd.
       const { runProjectFileWrite } = await import('@/services/fileAccess/writeCoordinator');
       const { store, file, S } = await openOwn();
       addHourTask(store);
@@ -347,7 +288,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         [file.text() === before, 'cancelled' in result && result.cancelled === true,
           S().ui.notifications.some(n => n.messageKey === 'notifications.ifcExportChangedWhileWaiting'), S().isDirty],
         [true, true, true, true]);
-      // 7e. Wachten zonder wijziging: de export schrijft na de lock, en legt de keuze vast.
       let release2!: () => void;
       const hold2 = runProjectFileWrite(() => new Promise<void>(r => { release2 = r; }), () => undefined);
       const exporting2 = run(S);
@@ -361,9 +301,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         [true, true, true, [S().calendar.id]]);
     }
     {
-      // 7h. Review van #1027 (Sol): de export schreef het eigen bestand en kijkt nog of het het eigen bestand is
-      //     (`isSameEntry`); in die opening laadt een extensie een ander project in het tabblad. De kalenderkeuze hoort
-      //     bij de inhoud van de export: het nieuwe project krijgt haar niet, en de export telt niet als geslaagd.
       const { store, file, S } = await openOwn();
       addHourTask(store);
       let written = false, loaded = false;
@@ -386,9 +323,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         [true, true, 'ander-project-7h', null, true]);
     }
     {
-      // 7f. Review #872 ronde 5 (Sol): de opslag die de lock vasthoudt, legt tijdens het wachten de letterlijke keuze vast
-      //     (zoals een opslag met een urentaak doet). De export maakte zijn tekst daarvoor, zonder `LiteralTimes`: hij mag
-      //     die ankertekst nu niet meer over het eigen bestand schrijven.
       const { runProjectFileWrite } = await import('@/services/fileAccess/writeCoordinator');
       const { store, file, S } = await openOwn();
       S().addTask({ name: 'Gewone taak' });
@@ -406,9 +340,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
         [file.text() === before, 'cancelled' in result && result.cancelled === true], [true, true]);
     }
     {
-      // 7g. Review #872 ronde 6 (Terra): zonder bestandskiezer (Firefox, Safari) gaat de export als download, zonder doel.
-      //     Verandert het document terwijl de export op de lock wacht, dan geen download van de oude inhoud. Zonder
-      //     wijziging wel.
       const { runProjectFileWrite } = await import('@/services/fileAccess/writeCoordinator');
       const g = globalThis as unknown as Record<string, unknown>;
       const saved = { document: g.document, picker: win.showSaveFilePicker, open: win.showOpenFilePicker };
@@ -417,7 +348,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       const url = URL as unknown as Record<string, unknown>;
       const savedUrl = { create: url.createObjectURL, revoke: url.revokeObjectURL };
       url.createObjectURL = () => 'blob:test';
-      url.revokeObjectURL = () => { /* niets */ };
+      url.revokeObjectURL = () => { };
       delete win.showSaveFilePicker;
       delete win.showOpenFilePicker;
       try {
@@ -445,10 +376,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       }
     }
     {
-      // 7i. Review #872 ronde 7 (Terra): de bestandskiezer wacht, het document verandert, en daarna weigert de omgeving de
-      //     kiezer (`SecurityError`, zoals zonder gebruikersactivatie). De terugval naar een download mag de oude inhoud dan
-      //     niet downloaden. Zonder wijziging wel. `SecurityError` en niet `NotAllowedError`: die laatste onthoudt de
-      //     web-route voor de rest van de sessie, en dan liepen de volgende stappen niet meer langs de kiezer.
       const g = globalThis as unknown as Record<string, unknown>;
       const saved = { document: g.document, picker: win.showSaveFilePicker };
       let downloads = 0;
@@ -456,7 +383,7 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
       const url = URL as unknown as Record<string, unknown>;
       const savedUrl = { create: url.createObjectURL, revoke: url.revokeObjectURL };
       url.createObjectURL = () => 'blob:test';
-      url.revokeObjectURL = () => { /* niets */ };
+      url.revokeObjectURL = () => { };
       try {
         for (const change of [true, false]) {
           const { S } = await openOwn();
@@ -485,9 +412,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
     }
   }
   {
-    // 7h. Review #872 ronde 6 (Terra): project met bibliotheek over het eigen bestand, met een kalender die voor het eerst
-    //     letterlijk wordt. De eerste write legt de keuze vast; de bibliotheek (een ander bestand) moet daarna gewoon
-    //     geschreven worden.
     const { store, file, S } = await openOwn();
     addHourTask(store);
     store.setState(s => { s.project.companyId = 'bedrijf-1'; });
@@ -505,7 +429,6 @@ const deletePrep = (store: Store) => store.getState().deleteTask(store.getState(
   delete win.showOpenFilePicker;
 }
 
-// ── 3. Zonder bewerking verandert het veld niets ──────────────────────────────────────────────────────────────────
 {
   let withLiteral = 0;
   let without = 0;

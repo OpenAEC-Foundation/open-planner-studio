@@ -1,14 +1,3 @@
-// H7 — kalenderidentiteit door de IFC-round-trip (opslaan → heropenen via de echte openroute).
-//
-// Twee lekken in dezelfde kalendermapping, samen zichtbaar als een bibliotheekkopie die direct na
-// opslaan+heropenen op "wijkt af" stond in plaats van "in sync"/"loopt achter":
-//  (1) De lezer nam de scalar `workStartHour`/`workEndHour` uit de EERSTE `IFCTIMEPERIOD`. Staan er
-//      meerdere banden in het bestand — een uurkalender, of een scalaire kalender waarvoor de export
-//      de effectieve banden materialiseert — dan werd 07:00–16:00 zo 07:00–12:00.
-//  (2) Een SCALAIRE kalender die door een urentaak gebruikt wordt, kwam terug als uurkalender
-//      (`workTime` erbij): de export schrijft zijn effectieve lunchbanden (interop, bewust) en de lezer
-//      promoveerde die via discriminator (a) meer-banden / (c) sub-dag-taak. Scalair blijft scalair:
-//      `effectiveWorkTimeBands` materialiseert uitsluitend in het geheugen.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -28,7 +17,6 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// `import.meta.url`-relatief: de bundel draait vanuit tests/planning/ (zie check-adapters-hours.ts).
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 
 const failures: string[] = [];
@@ -40,7 +28,6 @@ function same(label: string, got: unknown, want: unknown): void {
   }
 }
 
-/** De kalendervelden die een round-trip ongeschonden moet laten (id's worden bij lezen hergenereerd). */
 function calendarShape(c: WorkCalendar) {
   return {
     workDays: c.workDays, workStartHour: c.workStartHour, workEndHour: c.workEndHour,
@@ -59,7 +46,6 @@ function taskShape(t: Task) {
 }
 const byName = (tasks: Task[], name: string) => tasks.find((t) => t.name === name)!;
 
-// ── §1–§4: scalaire projectkalender met een urentaak, via de store en de echte openroute ─────────
 async function scalarScenario(label: string, patch: Partial<WorkCalendar>): Promise<void> {
   const store = createAppStoreContext().store;
   const S = () => store.getState();
@@ -85,16 +71,13 @@ async function scalarScenario(label: string, patch: Partial<WorkCalendar>): Prom
   same(`${label}: dagtaak houdt zijn datums`, taskShape(byName(parsed.tasks, 'Dagtaak')), tasksBefore.dag);
   same(`${label}: urentaak houdt minuten en tijden`, taskShape(byName(parsed.tasks, 'Urentaak')), tasksBefore.uren);
 
-  // Idempotentie: een tweede ronde (write→read→write→read) verschuift niets.
   const again = readIFC(writeIFC({ ...buildWriteIFCInput(S(), 'planOnly'), calendar: parsed.calendar, tasks: parsed.tasks }));
   same(`${label}: tweede round-trip is identiek`, calendarShape(again.calendar), before);
 
-  // De pool beweegt ná het opslaan ⇒ de onbewerkte kopie "loopt achter" (stil verversen), niet "wijkt af".
   S().updatePoolCalendar(cid, poolId, { description: 'bijgewerkt in de bibliotheek' });
   same(`${label}: bibliotheekkopie loopt achter wanneer de pool bewoog`,
     classifyCalendarOnOpen(readIFC(ifc).calendar, S().pools[cid]), 'behind');
 
-  // De echte openroute (parseOpenedFile → applyOpenedImport, met herberekening).
   const opened = createAppStoreContext().store;
   opened.getState().applyOpenedImport(await parseOpenedFile({ name: 'h7.ifc', text: ifc }), {
     filePath: null, recompute: true, linkedOpen: true,
@@ -111,7 +94,6 @@ await scalarScenario('§4 07:30-16:00 + pauze 12:00/30m', {
   workStartHour: 7.5, workEndHour: 16, hoursPerDay: 8, simpleBreakStartMinute: 720, simpleBreakDurationMinutes: 30,
 });
 
-// De interop-export zelf blijft: een ander pakket ziet de lunchpauze als twee TimePeriods.
 {
   const store = createAppStoreContext().store;
   const S = () => store.getState();
@@ -122,7 +104,6 @@ await scalarScenario('§4 07:30-16:00 + pauze 12:00/30m', {
     ifc.includes("IFCTIMEPERIOD('07:00:00','12:00:00')") && ifc.includes("IFCTIMEPERIOD('13:00:00','16:00:00')"), true);
 }
 
-// ── §6: scalaire BIBLIOTHEEKkalender (task.calendarId) met een urentaak ─────────────────────────
 {
   const store = createAppStoreContext().store;
   const S = () => store.getState();
@@ -141,7 +122,6 @@ await scalarScenario('§4 07:30-16:00 + pauze 12:00/30m', {
     calendarShape((parsed.resourceCalendars ?? []).find((c) => c.name === 'Vroege ploeg')!), before);
 }
 
-// ── §7: echte uurkalenders houden hun scalar werktijd (lek 1 zonder urentaak) ────────────────────
 for (const [label, patch] of [
   ['§7a tweeploegenpreset 06-14 + 14-22 (scalar 06-22)', shiftPresetPatch('two-shift')],
   ['§7b bandeditor geseed uit 07-16/8', (() => {
@@ -165,7 +145,6 @@ for (const [label, patch] of [
   same(`${label}: bibliotheekkopie in sync`, classifyCalendarOnOpen(parsed.calendar, S().pools[cid]), 'in-sync');
 }
 
-// ── §8: gulden regel — waar de lezer het al goed afleidt, komt er niets bij in het bestand ───────
 {
   const project = { ...createDefaultProject(), calendarId: 'c', startDate: '2026-06-01' };
   const dayCal: WorkCalendar = {
@@ -185,10 +164,6 @@ for (const [label, patch] of [
     ['WorkStartHour', 'WorkEndHour'].filter((p) => h8Ifc.includes(`'${p}'`)), []);
 }
 
-// ── §9–§10: bestanden die OPS vóór de H7-markering schreef (eigenaarsbesluit: herkennen en
-//    herstellen, zonder melding) ──────────────────────────────────────────────────────────────────
-// De fixture is gegenereerd met de writer van origin/main 531940ac (vóór de H7-fix); de JSON ernaast
-// legt vast wat er vóór opslaan in het geheugen stond, plus de bibliotheekpool op dat moment.
 interface LegacyExpect {
   projectCalendar: ReturnType<typeof calendarShape>;
   libraryCalendars: Record<string, ReturnType<typeof calendarShape>>;
@@ -204,8 +179,6 @@ const legacyTask = (t: Task) => {
     ss: x.scheduleStart, sf: x.scheduleFinish, es: x.earlyStart, ef: x.earlyFinish };
 };
 
-// §9a. De oude writer markeerde de scalaire kalenders niet, maar schreef wél hun lunchbanden: zonder
-//      herkenning kwam 07:00–16:00 terug als uurkalender 07:00–12:00.
 same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'WorkEndHour', 'IFCBOOLEAN(.F.)']
   .filter((needle) => legacyIfc.includes(needle)), []);
 {
@@ -226,10 +199,6 @@ same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'Wo
     same(`§9a oud bestand: taak "${name}" houdt duur en tijden`, legacyTask(byName(parsed.tasks, name)), legacy.tasks[name]);
   }
 
-  // §9b. Echte uurkalenders uit hetzelfde oude bestand blijven uurkalenders (IsHourCalendar .T.): de
-  //      herkenning raakt ze niet. Hun scalar werktijd stond niet in het oude bestand; de lezer neemt
-  //      begin eerste / einde laatste periode (fix werkdag-einde, 2026-10) en geeft zo precies de
-  //      scalar van vóór opslaan terug (06-22, 07-16) — vroeger de eerste periode (06-14, 07-12).
   for (const [name, scalarDay] of [['Tweeploegen', [6, 22]], ['Bandeditor', [7, 16]]] as const) {
     const got = calendarShape(libCal(parsed, name));
     const want = legacy.libraryCalendars[name];
@@ -243,7 +212,6 @@ same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'Wo
     legacyTask(byName(parsed.tasks, 'Urentaak bandeditor')), legacy.tasks['Urentaak bandeditor']);
 }
 
-// §9c. De echte openroute op het oude bestand.
 {
   const opened = createAppStoreContext().store;
   opened.getState().applyOpenedImport(await parseOpenedFile({ name: 'oud.ifc', text: legacyIfc }), {
@@ -254,33 +222,21 @@ same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'Wo
     legacyTask(byName(opened.getState().tasks, 'Urentaak')), legacy.tasks.Urentaak);
 }
 
-// §9d. Grenzen van de herkenning — geen kenmerk of geen sluitende reconstructie ⇒ het oude pad.
 {
-  // Uurkalender zonder IsHourCalendar (OPS-bestanden van vóór die markering, eind augustus): geen
-  // HoursPerDay/SimpleBreak ⇒ niet herkend, blijft uurkalender via de meer-bandendiscriminator.
   const unmarked = readIFC(legacyIfc.split("'IsHourCalendar'").join("'GeenMarkering'"));
   same('§9d uurkalender zonder markering blijft uurkalender (Tweeploegen)', calendarShape(libCal(unmarked, 'Tweeploegen')).workTime,
     legacy.libraryCalendars.Tweeploegen.workTime);
   same('§9d uurkalender zonder markering blijft uurkalender (Bandeditor)', calendarShape(libCal(unmarked, 'Bandeditor')).workTime,
     legacy.libraryCalendars.Bandeditor.workTime);
-  // Zonder OPS-scalarkenmerk (zoals een bestand van een ander pakket): oud pad, dus uurkalender.
   const noMarks = readIFC(legacyIfc.split("'HoursPerDay'").join("'GeenKenmerk'"));
-  // Einde = einde van de laatste band (16), niet van de eerste (12): fix werkdag-einde.
   same('§9d twee banden zonder OPS-kenmerk volgen het oude pad', [
     noMarks.calendar.workTime !== undefined, noMarks.calendar.workEndHour,
   ], [true, 16]);
-  // Kenmerk aanwezig maar de banden passen niet bij de gereconstrueerde scalar: niet raden.
   const mismatch = readIFC(legacyIfc.replace(/(#81=IFCTIMEPERIOD\(')13:00:00'/, "$113:30:00'"));
   same('§9d banden die niet uit de scalar volgen worden niet als scalair gelezen',
     calendarShape(libCal(mismatch, 'Pauzekalender')).workTime !== null, true);
 }
 
-// §10. De herkenning van §9 draait alleen op een kalender ZONDER `IsHourCalendar`. Elke uurkalender
-//      draagt die markering (`.T.`), met of zonder urentaak, dus ziet §9 hem nooit:
-//       - SimpleBreak* krijgt een uurkalender nooit, ook niet met achtergebleven pauzevelden;
-//       - HoursPerDay alleen als `hoursPerDay` afwijkt van de modale dagsom van zijn blokken, zie
-//         docs/ifc-round-trip.md, "Uren per dag bij een blokkenkalender".
-//      Zo'n uurkalender met HoursPerDay leest terug als uurkalender met die waarde, niet als scalair.
 {
   const seeded = seedScalarWorkTime([1, 2, 3, 4, 5], 7, 16, 8);
   const hourCalendars: [string, Partial<WorkCalendar>][] = [
@@ -317,7 +273,6 @@ same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'Wo
       if (props.length > 0 || !ifc.includes("'IsHourCalendar',$,IFCBOOLEAN(.T.)")) {
         leaks.push(`${label}${tasks.length ? ' + urentaak' : ''}: ${props.join(',') || 'mist IsHourCalendar .T.'}`);
       }
-      // De kalender blijft een uurkalender met dezelfde blokken, en de hpd komt terug (apart getoetst).
       const rt = readIFC(ifc).calendar;
       const where = `${label}${tasks.length ? ' + urentaak' : ''}`;
       if (!rt.workTime) leaks.push(`${where}: terug als scalaire kalender`);
@@ -330,7 +285,6 @@ same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'Wo
   same('§10 opzet: precies één uurkalender met afwijkende hpd',
     hourCalendars.filter(([, p]) => { const c = { ...baseCal, ...p }; return c.hoursPerDay !== deriveHoursPerDay(c.workTime!, NaN); })
       .map(([label]) => label), ['uurkalender met oude pauzevelden en hpd 6']);
-  // En de oude writer deed hetzelfde: in de fixture dragen de twee uurkalenders er ook geen.
   const psetOfCalendar = (text: string, name: string): string[] => {
     const lines = new Map([...text.matchAll(/^#(\d+)=(.*);$/gm)].map((m) => [m[1], m[2]]));
     const calId = [...lines].find(([, l]) => l.startsWith('IFCWORKCALENDAR(') && l.includes(`'${name}'`))?.[0];
@@ -347,11 +301,6 @@ same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'Wo
     { vroeg: ['HoursPerDay'], pauze: ['HoursPerDay', 'SimpleBreakStart', 'SimpleBreakDuration'] });
 }
 
-// ── §11: werktijden als geldige IfcTime (`hh:mm:ss`, IFC 4.3 + XML Schema Part 2) ────────────────
-// De scalar-weg schreef `String(uur).padStart(2,'0') + ':00:00'`, dus 07:30 werd '7.5:00:00' — geen
-// IfcTime. Een bandeinde om 24:00 werd '00:00:00' (begin van de dag), wat IfcTimePeriods "start vóór
-// eind" breekt; OPS las het alleen via de middernacht-wrapregel terug. Nu: hh:mm:ss, en einde van de
-// dag als '24:00:00' (XML Schema staat 24:00:00 toe; de lezer leest het als 1440 minuten).
 {
   const project = { ...createDefaultProject(), calendarId: 'k', startDate: '2026-06-01' };
   const week = (bands: { start: number; end: number }[]) => ({ byWeekday: {
@@ -398,8 +347,6 @@ same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'Wo
   same('§11 elke IFCTIMEPERIOD is een geldige IfcTime met begin vóór eind', invalid, []);
 }
 
-// §11c. Oude bestanden (writer 531940ac) met '7.5:00:00', '7.25:00:00'/'15.75:00:00' en een bandeinde
-//       '00:00:00' blijven leesbaar — en de fractie komt nu exact terug in plaats van afgekapt.
 {
   const oldIfc = readFileSync(join(HERE, 'fixtures', 'h7-tijden-oude-writer.ifc'), 'utf8');
   const oldExpect = JSON.parse(readFileSync(join(HERE, 'fixtures', 'h7-tijden-oude-writer.json'), 'utf8')) as {
@@ -417,8 +364,6 @@ same('§9 fixture: oude writer schreef geen H7-markering', ['WorkStartHour', 'Wo
   for (const name of ['Halfuur netto', 'Kwartier', 'Avond dag']) {
     same(`§11c oud "${name}" exact terug`, scalar(libCal(parsed, name)), want(oldExpect.libraryCalendars[name]));
   }
-  // De band van de uurkalender eindigde in het oude bestand op '00:00:00'; de wrapregel leest dat nog
-  // steeds als 24:00. (Zijn scalar einde stond er niet in: bekend, dat blijft de oude afleiding.)
   const avond = libCal(parsed, 'Avond uur');
   same('§11c oud bandeinde 00:00 blijft einde van de dag', [avond.workTime?.byWeekday[1], avond.workStartHour],
     [oldExpect.libraryCalendars['Avond uur'].workTime?.byWeekday[1], 16]);

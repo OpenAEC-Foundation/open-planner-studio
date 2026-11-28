@@ -243,15 +243,14 @@ nieuw veld ook een plek in IFCX:
 
 ## Als een veld bewust níét round-trippt
 
-Dat mag, maar dan expliciet. `KNOWN_GAPS` is daarbij geen constante die je aanvult, maar de naam van
-een werkwijze in `tests/planning/check-ifc-roundtrip.ts`, in drie delen:
+Dat mag, maar dan expliciet, in `tests/planning/check-ifc-roundtrip.ts`, in twee delen:
 
 1. **Een `skip`-cel in de canon-tabel** van het type — `{ skip: '<classificatie + reden>' }`; de reden
-   is verplicht. Zo doet het veld niet mee in de round-trip-vergelijking.
-2. **Een assertie in blok (3)** (`// (3) KNOWN_GAPS — getest-als-bekend`) die bewijst dat het verlies er
-   echt is: de fixture draagt een waarde, het ingelezen resultaat niet.
-3. **Een regel in het `KNOWN_GAPS`-commentaar** bovenaan het bestand, met de classificatie: (a) echt
-   verlies, (b) bewuste normalisatie.
+   is verplicht, de classificatie is (a) echt verlies of (b) bewuste normalisatie. Zo doet het veld niet mee
+   in de round-trip-vergelijking.
+2. **Een assertie in het blok met de bekende verliezen**, met dezelfde classificatie vooraan in het label
+   (`'(a) …'` of `'(b) …'`), die bewijst dat het verlies er echt is: de fixture draagt een waarde, het
+   ingelezen resultaat niet.
 
 Het mechanisme is scherper dan een lijst met uitzonderingen. Elke gap-assertie bewijst dat het verlies
 er **nog steeds** is. Dicht iemand later de writer of de reader, dan **faalt** die assertie — en dat is
@@ -747,7 +746,7 @@ eigen besluit.
 | lezen | `src/services/ifc/ifcReader.ts` |
 | plekken per indeling (schema, oud, MergeProjects, IFC2X3) | `src/services/ifc/ifcWorkControlSlots.ts`; voor taak, resources en `IfcLagTime`: `taskSlots`, `resourceSlots`, `lagTimeSlots` in hun eigen tabelbestand |
 | schemageldigheid: de poort, de toets per bestand, de tabel, de bronnen | `tests/planning/check-ifc-schema.ts`, `ifcSchemaCheck.ts`, `ifcSchemaTable.ts`, `ifcSchemaFixture.ts` |
-| de poort, de canon-tabellen en de `KNOWN_GAPS`-asserties (blok 3) | `tests/planning/check-ifc-roundtrip.ts` |
+| de poort, de canon-tabellen en de asserties op de bekende verliezen | `tests/planning/check-ifc-roundtrip.ts` |
 | de maximaal gevulde fixture | `tests/planning/ifcRoundtripFixture.ts` |
 | IFCX: de velden per gebied, de typepoort en de volledigheidspoort | `src/services/ifc/ifcx/fields/`, `src/services/ifc/ifcx/saveKeyPlaces.ts`, `tests/planning/check-ifcx-velden.ts` |
 | werkblokken per weekdag (B7): groepen, geen terugvalweek, byte-identiek aan main, de lezer in beide indelingen | `tests/planning/check-ifc-werktijd-per-dag.ts` |

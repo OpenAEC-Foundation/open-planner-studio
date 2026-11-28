@@ -1,24 +1,4 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 import './domStub';
-// LOPEND OP 100 % OVERLEEFT IFC (eigenaarsbesluit 2026-10-14, optie 1). Een P6-taak `TK_Active` op 100 %
-// komt uit de XER-lezer binnen als status STARTED, `completion` 1 en zonder werkelijk einde. De IFC-lezer
-// liet zo'n taak door `normalizeImportedProgress` "Voltooid" maken, met het werkelijke einde op de
-// statusdatum. Na opslaan en heropenen veranderden daardoor status en datums (corpus: A3040 in torture,
-// 2026-03-02 werd 2026-01-26 – 2026-03-02).
-//
-// De writer schrijft nu `IfcTask.Status` = 'STARTED', alleen bij zo'n taak; de lezer houdt hem dan lopend.
-//   1. De vorm in het bestand: alleen de lopende taak op 100 % heeft 'STARTED', elke andere taak `$`.
-//   2. Round-trip via de echte openroute (doorrekenen): status, completion, actuals, restduur en alle
-//      datums na de solve gelijk; de voltooide taak ongewijzigd.
-//   3. Oud bestand (`$`) met dezelfde taak op 100 % ⇒ voltooid, zoals voorheen.
-//   4. 'STARTED' mét werkelijk einde ⇒ voltooid (het werkelijke einde wint).
-//   5. 'STARTED' bij een taak onder 100 % ⇒ zoals voorheen.
-//   6. Een andere of onbekende Status-tekst ⇒ genegeerd.
-//   7. Legacy 12-arg-IFCTASK (zonder WorkMethod): Status staat vóór WorkMethod en leest hetzelfde.
-//   8. `normalizeImportedProgress` direct: de uitzondering is smal (alleen de meegegeven id's) en houdt de
-//      vastgelegde restduur-minuten van een urentaak.
-//   9. Knownbug 116: fasen behouden hun bronwaarden, ook leeg/handmatig en met afwijkende actuals.
-// Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore, createAppStoreContext } from '@/state/appStore';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -49,7 +29,6 @@ const byName = (tasks: readonly Task[], name: string): Task => {
   return t;
 };
 
-/** Splits de argumentlijst van één STEP-regel op topniveau (respecteert quotes en haakjes). */
 function splitArgs(inner: string): string[] {
   const out: string[] = [];
   let depth = 0, quoted = false, cur = '';
@@ -64,7 +43,6 @@ function splitArgs(inner: string): string[] {
   return out;
 }
 const lineRe = (type: string) => new RegExp(`^(#\\d+=${type}\\()(.*)(\\);\\s*)$`);
-/** Argumenten van de STEP-regel van `type` waarvan arg 2 (Name) gelijk is aan `name`. */
 function argsOf(ifc: string, type: string, name: string): string[] {
   for (const line of ifc.split('\n')) {
     const m = line.match(lineRe(type));
@@ -74,7 +52,6 @@ function argsOf(ifc: string, type: string, name: string): string[] {
   }
   throw new Error(`geen ${type}-regel voor ${name}`);
 }
-/** Bewerk de STEP-regels van `type` waarvoor `pick(args)` klopt. */
 function editLines(ifc: string, type: string, pick: (args: string[]) => boolean, edit: (args: string[]) => string[]): string {
   let hits = 0;
   const out = ifc.split('\n').map((line) => {
@@ -92,16 +69,10 @@ const isTask = (name: string) => (args: string[]) => args[2] === `'${name}'`;
 const setTaskStatus = (ifc: string, name: string, value: string) =>
   editLines(ifc, 'IFCTASK', isTask(name), (a) => { a[STATUS] = value; return a; });
 
-// IfcTask: 7 Status, 8 WorkMethod. IfcTaskTime: 17 ActualFinish.
 const STATUS = 7;
 const WORK_METHOD = 8;
 const TT_ACTUAL_FINISH = 17;
 
-// ── Opzet ─────────────────────────────────────────────────────────────────────────────────────────
-// L: lopend op 100 % zonder werkelijk einde, zoals de XER-lezer een P6 `TK_Active` op 100 % aflevert.
-//    Statusdatum ná de start en vóór het geplande einde: de oude lezer zette AF op de statusdatum en
-//    verkortte L, en daarmee schoof opvolger B naar voren.
-// V: voltooid (werkelijk einde). H: lopend op 50 %. N: niet gestart.
 S().newProject();
 S().setProject({ startDate: '2015-01-05', statusDate: '2015-01-07' });
 const idL = S().addTask({ name: 'L', time: createDefaultTaskTime('2015-01-05', 10) });
@@ -145,13 +116,10 @@ const progress = (t: Task) => ({
 });
 const dates = (t: Task) => {
   const x = t.time;
-  // F3 (alleen uren §3.5, B3): de rest is exact, dus de opgerolde speling is geen geheel aantal dagen
-  // meer (2,99167 d). IfcTaskTime draagt dagen met zes decimalen; vergelijk de speling daarom op 10⁻⁶.
   const totalFloat = Math.round(x.totalFloat * 1e6) / 1e6;
   return [x.scheduleStart, x.scheduleFinish, x.earlyStart, x.earlyFinish, x.lateStart, x.lateFinish, totalFloat, x.isCritical];
 };
 
-// ── 1. Vorm in het bestand ────────────────────────────────────────────────────────────────────────
 {
   eq('1a L (lopend, 100 %): IfcTask.Status', argsOf(ifc, 'IFCTASK', 'L')[STATUS], "'STARTED'");
   for (const name of ['B', 'V', 'H', 'N']) {
@@ -163,11 +131,6 @@ const dates = (t: Task) => {
   eq('1d IFCTASK heeft 13 argumenten (spec-lay-out)', argsOf(ifc, 'IFCTASK', 'L').length, 13);
 }
 
-// ── 1e–1k. Fasen en een taak mét werkelijk einde houden `$` ───────────────────────────────────────
-// De fase-rollup (`summaryProgress.ts`) geeft STARTED op 1 zonder werkelijk einde in twee gevallen:
-// alle taken klaar plus een niet-gestarte mijlpaal (F1), en ≥ 99,95 % dat afrondt naar 1 (F2). Dat is
-// geen P6-status maar een afgeleide; de fase mag dus geen Status krijgen. W is STARTED op 100 % mét
-// werkelijk einde: ook `$`.
 {
   const store = createAppStoreContext().store;
   const G = () => store.getState();
@@ -205,9 +168,6 @@ const dates = (t: Task) => {
   eq('1j W (werkelijk einde): IfcTask.Status blijft $', argsOf(fIfc, 'IFCTASK', 'W')[STATUS], '$');
   eq('1k K2 (99,96 %, taak): IfcTask.Status blijft $', argsOf(fIfc, 'IFCTASK', 'K2')[STATUS], '$');
 
-  // Knownbug 116: test de opgeslagen rollup zónder solve; die kan de verzonnen faseactual anders
-  // wegpoetsen. F1: voltooid werk + niet-gestarte mijlpaal, F2: afgeronde 99,96 %, F3: lopend op
-  // 100 %; F4 heeft juist een echt einde. De solverstatus van F3 valt buiten deze lezerfix.
   eq('116-0 F3 rolt op naar 100 % zonder werkelijk einde',
     [at(f3).time.completion, at(f3).time.actualFinish ?? null], [1, null]);
   let round = fIfc;
@@ -230,7 +190,6 @@ const dates = (t: Task) => {
   }
 }
 
-// ── 2. Round-trip via de echte openroute ──────────────────────────────────────────────────────────
 const opened = await openIfc(ifc);
 const after = opened.doc;
 {
@@ -241,12 +200,10 @@ const after = opened.doc;
   eq('2c L blijft lopend', byName(after.tasks, 'L').status, 'STARTED');
   eq('2d V blijft voltooid met zijn eigen werkelijke einde', [byName(after.tasks, 'V').status, byName(after.tasks, 'V').time.actualFinish],
     ['COMPLETED', "2015-01-06T16:00"]);
-  // Nog een keer: opslaan na heropenen schrijft dezelfde Status.
   const again = opened.resave();
   eq('2e tweede ronde: L houdt Status STARTED', argsOf(again, 'IFCTASK', 'L')[STATUS], "'STARTED'");
 }
 
-// ── 3. Oud bestand: Status `$` ⇒ voltooid zoals voorheen ──────────────────────────────────────────
 const oud = setTaskStatus(ifc, 'L', '$');
 {
   const r = readIFC(oud);
@@ -259,7 +216,6 @@ const oud = setTaskStatus(ifc, 'L', '$');
     !== JSON.stringify(['L', 'B'].map(n => dates(byName(before.tasks, n)))));
 }
 
-// ── 4. 'STARTED' mét werkelijk einde ⇒ voltooid ───────────────────────────────────────────────────
 {
   const metAf = editLines(ifc, 'IFCTASKTIME', (a) => a[0] === "'L Time'",
     (a) => { a[TT_ACTUAL_FINISH] = "'2015-01-15T17:00:00'"; return a; });
@@ -270,7 +226,6 @@ const oud = setTaskStatus(ifc, 'L', '$');
     !!l.time.actualFinish && l.time.actualFinish.startsWith('2015-01-15'));
 }
 
-// ── 5. 'STARTED' onder 100 % ⇒ zoals voorheen ─────────────────────────────────────────────────────
 {
   const zonder = byName(readIFC(ifc).tasks, 'H');
   const met = byName(readIFC(setTaskStatus(ifc, 'H', "'STARTED'")).tasks, 'H');
@@ -280,7 +235,6 @@ const oud = setTaskStatus(ifc, 'L', '$');
   eq('5c N (0 %) met Status STARTED blijft niet gestart', [n.status, n.time.actualStart ?? null], ['NOT_STARTED', null]);
 }
 
-// ── 6. Andere of onbekende Status-tekst ⇒ genegeerd ───────────────────────────────────────────────
 {
   const oudL = byName(readIFC(oud).tasks, 'L');
   for (const tekst of ["'started'", "'ACTIVE'", "'IN PROGRESS'", "'COMPLETED'", "''"]) {
@@ -289,7 +243,6 @@ const oud = setTaskStatus(ifc, 'L', '$');
   }
 }
 
-// ── 7. Legacy 12-arg-IFCTASK (zonder WorkMethod) ──────────────────────────────────────────────────
 {
   const legacy = editLines(ifc, 'IFCTASK', () => true, (a) => { a.splice(WORK_METHOD, 1); return a; });
   eq('7a controle: L heeft nu 12 argumenten', argsOf(legacy, 'IFCTASK', 'L').length, 12);
@@ -302,7 +255,6 @@ const oud = setTaskStatus(ifc, 'L', '$');
   eq('7f legacy met $: L voltooid zoals voorheen', byName(readIFC(legacyOud).tasks, 'L').status, 'COMPLETED');
 }
 
-// ── 8. normalizeImportedProgress direct ──────────────────────────────────────────────────────────
 {
   const mk = (id: string, extra: Partial<Task['time']>, unit: 'days' | 'hours' = 'days'): Task => ({
     id, name: id, description: '', wbsCode: id, taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -311,15 +263,11 @@ const oud = setTaskStatus(ifc, 'L', '$');
       ...(unit === 'hours' ? { durationMinutes: 20 * 8 * 60 } : {}), ...extra },
   });
   const fysiek = mk('fysiek', { completion: 1, actualStart: '2015-01-05T08:00', remainingMinutes: 48000 }, 'hours');
-  // Dagtaak met vastgelegde restduur 5 (P6 "Physical 100 %" in een dagproject): de motor leest in
-  // dagmodus `remainingTime`, dus die moet ongewijzigd blijven (zonder de uitzondering werd hij 0).
   const duur = mk('duur', { completion: 1, actualStart: '2015-01-05', remainingTime: 5 });
   const ander = mk('ander', { completion: 1, actualStart: '2015-01-05' });
   const metAf = mk('metAf', { completion: 1, actualStart: '2015-01-05', actualFinish: '2015-01-20' });
   const half = mk('half', { completion: 0.5, actualStart: '2015-01-05' });
   normalizeImportedProgress([fysiek, duur, ander, metAf, half], '2015-01-07', new Set(['fysiek', 'duur', 'metAf', 'half']));
-  // `remainingTime` blijft leeg: de lezer leidt hem niet af uit `completion` (dat zou 0 geven, of bij
-  // een urentaak de dagfractie van de minuten).
   eq('8a urentaak in de set: lopend, geen werkelijk einde, restduur zoals vastgelegd',
     [fysiek.status, fysiek.time.actualFinish ?? null, fysiek.time.remainingMinutes, fysiek.time.remainingTime ?? null],
     ['STARTED', null, 48000, null]);
@@ -330,7 +278,6 @@ const oud = setTaskStatus(ifc, 'L', '$');
   eq('8e in de set onder 100 %: lopend zoals altijd', [half.status, half.time.completion], ['STARTED', 0.5]);
 }
 
-// ── 9. Bronfasen: niet normaliseren of uit kinderen herberekenen (knownbug 116) ──────────────────
 {
   const input = buildWriteIFCInput(createAppStoreContext().store.getState(), 'planOnly');
   const child: Task = {
