@@ -1,15 +1,3 @@
-// Toewijzingswijziging via MCP — `planner_manage_resources` delete (cascade) moet dezelfde
-// gevolgregels toepassen als `planner_manage_assignments` remove: `invalidateForAssignmentChange`
-// (`taskDefaults.ts`) op elke taak die daarmee een toewijzing kwijtraakt — laag 3/4 en de
-// nivelleerpauzes weg, importsplits blijven, verloren MSP-sturing op de lease geregistreerd zodat
-// `envelope.timephasedGuidanceLost` klopt (plus de eenmalige K8a-melding in de app).
-//
-// Vóór de fix verwijderde `draft.removeResource` (`purgeResource`) de toewijzingen zonder enige
-// invalidatie: nivelleerpauze en laag 3/4 bleven staan en de envelop zweeg.
-//
-// ECHTE dispatch: JSON-RPC `tools/call` via `handleMcpMessage` (schemapoort, runMutateTool, lease,
-// eind-runCPM) tegen de echte store. De store- en taakrasterroutes staan in
-// `tests/planning/check-assignment-invalidation.ts`.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -20,7 +8,6 @@ import type { Task, TaskSplitGap } from '@/types/task';
 const store = useAppStore;
 registerAllTools();
 
-// Warm-up (zelfde reden als cases-resource-crud.ts): het restore-pad promoot de projectkalender-cache.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
@@ -34,7 +21,6 @@ function makeCtx(): McpContext {
 }
 
 let rpcId = 0;
-/** Eén echte JSON-RPC-`tools/call` door de dispatcher; geeft het `McpToolResult` terug. */
 async function dispatch(name: string, args: unknown): Promise<any> {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: ++rpcId, method: 'tools/call', params: { name, arguments: args } }),
@@ -63,8 +49,6 @@ function notices(): unknown[] {
     .map((n) => n.params?.count);
 }
 
-/** Nivelleeruitvoer (+ optioneel MSP-sturing) rechtstreeks op de taak: wat een eerdere nivellering
- *  resp. een .mpp-import achterlaat — geen tool schrijft deze velden. */
 function seed(id: string, withMsp: boolean): void {
   store.setState((s) => {
     const t = s.tasks.find((x) => x.id === id)!;
@@ -77,9 +61,8 @@ function seed(id: string, withMsp: boolean): void {
   });
 }
 
-/** T1: alleen R1. T2: R1 + R2. T3: alleen R2 (bystander). T4: geen toewijzing (bystander). */
 function fixture(withMsp: boolean) {
-  store.getState().newProject(); // reset óók de eenmalige K8a-meldingsgate van dit document
+  store.getState().newProject();
   const S = () => store.getState();
   S().setProject({ startDate: '2026-06-01' });
   const mk = (name: string) => S().addTask({ name, time: createDefaultTaskTime('2026-06-01', 5) });
@@ -124,8 +107,6 @@ for (const withMsp of [true, false]) {
     assertEq(res.envelope.timephasedGuidanceLost, withMsp ? 2 : undefined,
       'envelope.timephasedGuidanceLost telt beide taken die MSP-sturing verloren');
     assertEq(notices(), withMsp ? [2] : [], 'één K8a-melding (count 2) alleen bij verloren MSP-sturing');
-    // De eind-runCPM van de transactie heeft de pauze al verrekend: T1 eindigt een werkdag eerder dan
-    // de bystanders (die hun nivelleerpauze nog dragen).
     assertEq([taskOf(f.t3).time.earlyFinish, taskOf(f.t4).time.earlyFinish], efBystanders, 'bystander-EF ongewijzigd');
     assert(taskOf(f.t1).time.earlyFinish < efBystanders[1],
       `T1 eindigt eerder zonder nivelleerpauze (T1 ${taskOf(f.t1).time.earlyFinish}, T4 ${efBystanders[1]})`);
@@ -142,8 +123,6 @@ for (const withMsp of [true, false]) {
 }
 
 
-// Kostenresource (issue #815, review punt 3): een kostentoewijzing erbij, een bedrag, verwijderen,
-// verplaatsen en de resource wissen raken geen sturing en maken de planning niet verouderd.
 test('kostenresource via MCP: add/update/move/remove/delete wissen geen sturing en zetten geen stale', async () => {
   const f = fixture(true);
   const S = () => store.getState();

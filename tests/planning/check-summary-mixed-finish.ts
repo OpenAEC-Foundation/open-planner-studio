@@ -1,14 +1,3 @@
-// Verzameltaak met een DAGkind en een URENkind: einde oprollen als tijdstip (audit weergaven, bevinding 10).
-//
-// AANLEIDING. `applyCpmResult` rolde `earlyFinish`/`lateFinish` van een fase op als STRING-max.
-// "2026-06-05T13:00" sorteert ná "2026-06-05", maar een dagtaak die op 05-06 eindigt loopt tot het
-// einde van die dag. De fase eindigde daardoor om 13:00 en haar balk was korter dan haar eigen kind.
-// Sindsdien vergelijkt de rollup einden als tijdstippen met de balkregel (`finishInstant`: datum
-// zonder tijd = einde van die dag), en leest de Gantt-balk een datum zonder tijd in een uur-balk ook
-// zo — anders tekende een fase met een uur-start en een dag-einde (ook vóór deze fix al mogelijk)
-// een dag te kort. De afgeleide faseduur rekent in een uur-projectkalender met hetzelfde einde.
-//
-// Draait via run.sh (ook in de tijdzone-matrix). Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
@@ -40,8 +29,6 @@ const hourCalendarFields = {
 };
 const taskOf = (id: string) => S().tasks.find(t => t.id === id)!;
 
-// De samenvattingsbalk is geen sleepbare balk (`getTaskBarRect` geeft er null voor), dus lees hem
-// uit de tekening: de afgeronde rechthoek in de samenvattingskleur.
 const SUMMARY_FILL = '#475569';
 function render() {
   const rects: { x: number; w: number; fill: string }[] = [];
@@ -68,7 +55,6 @@ function render() {
   return { renderer, summaryRight: summary ? summary.x + summary.w : undefined };
 }
 
-// ── 1. Dagkind en urenkind eindigen op dezelfde dag (het gerapporteerde geval) ──
 {
   S().newProject();
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [] } as WorkCalendar);
@@ -82,7 +68,6 @@ function render() {
     [taskOf(D).time.earlyFinish, taskOf(H).time.earlyFinish], ['2026-06-05T16:00', '2026-06-05T13:00']);
   const f = taskOf(F);
   eq('1a fase-einde = het einde van de dag van het dagkind', f.time.earlyFinish, '2026-06-05T16:00');
-  // Laatste einde: het latere van de twee late einden, als tijdstip.
   const lateD = taskOf(D).time.lateFinish;
   const lateH = taskOf(H).time.lateFinish;
   const latestLate = finishInstant(lateD) >= finishInstant(lateH) ? lateD : lateH;
@@ -93,8 +78,6 @@ function render() {
   near('1d fasebalk eindigt waar de balk van het dagkind eindigt', summaryRight, renderer.getTaskBarRect(D)?.right);
 }
 
-// ── 2. Fase met een uur-START en een dag-EINDE (ook vóór de fix al mogelijk) ──
-// H (1 werkdag op de uurkalender) op ma 01-06, D (4d) daarna. Fase: ES "…T08:00", EF = einde van D (zonder tijd).
 {
   S().newProject();
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [] } as WorkCalendar);
@@ -112,9 +95,6 @@ function render() {
   near('2a fasebalk eindigt waar de balk van het dagkind eindigt (niet een dag eerder)', summaryRight, renderer.getTaskBarRect(D)?.right);
 }
 
-// ── 3. Uur-PROJECTkalender, dagkind op een eigen dagkalender ─────────────────
-// De afgeleide faseduur rekent in de projectkalender (uren): tot het einde van de dag van het
-// dagkind is dat 5 × 8 = 40 uur, niet 37 (einde urenkind) en niet 32 (dag-einde als middernacht).
 {
   S().newProject();
   S().setCalendar({ ...S().calendar, ...hourCalendarFields } as WorkCalendar);

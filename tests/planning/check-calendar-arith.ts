@@ -1,10 +1,3 @@
-// Audit 2026-09-26 — `CalendarEngine.addWorkDaysChecked`, `subtractWorkDays` en `addWorkingDaysSigned`
-// liepen dag voor dag (de grootste kostenpost van elke solve en van de leveler). Nu rekenkundig op
-// dezelfde telling als `workDaysBetween`. Deze check vergelijkt ze met een letterlijke kopie van de
-// oude lussen (op `isWorkDay`) voor willekeurige kalenders: 0–7 werkdagen, feestdagblokken, werkende
-// uitzonderingen (ook op een zaterdag), fractionele/negatieve/nul/grote aantallen, NaN en ∞.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { addCalendarDays, formatDate, parseDate } from '@/utils/dateUtils';
 import type { WorkCalendar } from '@/types/calendar';
@@ -20,7 +13,6 @@ const rnd = () => {
 };
 const MAX_SCAN = 366, MAX_DAYS = 200_000;
 
-// ── De oude implementaties, letterlijk (op de publieke isWorkDay) ─────────────────────────────────
 function oldAddWorkDaysChecked(e: CalendarEngine, startDate: Date, workDays: number) {
   if (workDays <= 0) return { date: new Date(startDate.getTime()), capped: false };
   let current = new Date(startDate.getTime());
@@ -94,14 +86,12 @@ const AMOUNTS = () => {
   if (r < 0.0315) return Infinity;
   if (r < 0.1) return 0;
   if (r < 0.2) return -Math.floor(rnd() * 40);
-  if (r < 0.3) return Math.round(rnd() * 20 * 4) / 4;          // fractioneel
-  if (r < 0.35) return 2000 + Math.floor(rnd() * 3000);        // groot
+  if (r < 0.3) return Math.round(rnd() * 20 * 4) / 4;
+  if (r < 0.35) return 2000 + Math.floor(rnd() * 3000);
   return 1 + Math.floor(rnd() * 60);
 };
 
 let n = 0;
-// Kapotte kalender (geen enkele werkdag): de oude lussen kappen af op MAX_SCAN/MAX_DAYS — dat
-// randgedrag moet exact blijven, maar het is duur om te herhalen; daarom een handvol vaste gevallen.
 {
   const empty = new CalendarEngine({ ...randomCalendar(), workDays: [], workingExceptions: undefined } as WorkCalendar);
   for (const amount of [3, -3, 0.5]) {

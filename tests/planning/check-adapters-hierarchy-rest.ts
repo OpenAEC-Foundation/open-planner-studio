@@ -1,17 +1,3 @@
-// Issue #159, vervolg — de restanten uit het brede onderzoek naar dezelfde bugklasse in de andere
-// adapters (PR-2 na #161). Vier subklassen: (a) boom uit WBS-tekst, (b) store-volgorde i.p.v.
-// boomvolgorde, (c) samenvatting als mijlpaal, (d) project- i.p.v. taakkalender-uren.
-//
-//  1. P6-writer: `RemainingDuration` stond op de project-hpd naast `PlannedDuration` op de taak-hpd
-//     (d); de lezer spiegelde het, dus OPS↔OPS verborg het. Nu beide op `effHpd`.
-//  2. P6-lezer leverde "samenvattingen eerst, dan bladen" (b) — precies de store-volgorde waar de
-//     MSPDI-export in #159 op stukliep. Nu boomvolgorde; de writer schrijft `SequenceNumber` (P6 sorteert
-//     WBS-broers daarop) en WBS/activiteiten diepte-eerst.
-//  3. IFC-lezer: `parseDurationDays` deelde een kale `PT{n}H` hard door 8 (d). Nu de projectkalender-
-//     hpd voor duur/speling/actuals (en de effectieve taakkalender voor de duur via de post-pass).
-//  4. IFC-lezer normaliseert `isMilestone` BEWUST NIET (critreview PR #162) — zie sectie 4.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -60,7 +46,6 @@ const mk = (id: string, name: string, wbs: string, days: number, parentId: strin
   },
   resourceIds: [], ...extra,
 });
-// Store-volgorde "samenvattingen eerst, dan bladen" — de conditie uit #159.
 const treeTasks = (): Task[] => [
   mk('R', 'Project', 'PRJ', 20, null, ['S1', 'S2']),
   mk('S1', 'Voorbereiding', 'A', 10, 'R', ['a', 'b']),
@@ -72,7 +57,6 @@ const treeTasks = (): Task[] => [
 const WANT_ORDER_NAMES = ['Project', 'Voorbereiding', 'Bouwplaats', 'Vergunningen', 'Ruwbouw', 'Fundering'];
 const parentName = (tasks: readonly Task[], n: string) => { const t = tasks.find(x => x.name === n)!; return t.parentId ? tasks.find(x => x.id === t.parentId)!.name : null; };
 
-// ── 1. P6: PlannedDuration en RemainingDuration op dezelfde (taak)kalender ─────────────────
 {
   const tasks = [
     mk('p', 'Op projectkalender', '1', 5, null, [], { time: { ...mk('x', 'x', 'x', 5, null, []).time, remainingTime: 5 } }),
@@ -91,7 +75,6 @@ const parentName = (tasks: readonly Task[], n: string) => { const t = tasks.find
   eq('1d projectkalender-taak ongewijzigd: 5/5', [pb.time.scheduleDuration, pb.time.remainingTime], [5, 5]);
 }
 
-// ── 2. P6: boomvolgorde en SequenceNumber ─────────────────────────────────────────────────
 {
   const tasks = treeTasks();
   const xml = writeP6XML(project, H8, tasks, [], [], []);
@@ -108,7 +91,6 @@ const parentName = (tasks: readonly Task[], n: string) => { const t = tasks.find
   eq('2f flattenOrder van het resultaat is een no-op', flattenOrder(back.tasks).map(t => t.id), back.tasks.map(t => t.id));
 }
 
-// ── 3. IFC: kale `PT{n}H` op een 10-uurskalender ─────────────────────────────────────────
 {
   const tasks = [mk('t', 'Grondwerk', '1', 5, null, [])];
   const ifc = writeIFC({ project: { ...project, calendarId: 'cal-h10' }, calendar: H10, tasks, sequences: [], resources: [], assignments: [], resourceCalendars: [] });
@@ -121,9 +103,6 @@ const parentName = (tasks: readonly Task[], n: string) => { const t = tasks.find
   eq('3d …als uur-taak met 3000 minuten (bestaande identiteitsregel PT… = uren)', [t.time.durationUnit, t.time.durationMinutes], ['hours', 3000]);
 }
 
-// ── 4. IFC: het native formaat normaliseert NIET (critreview PR #162) ─────────────────────
-// De app staat een mijlpaal met kinderen toe (indent, updateTask); de writer schrijft de vlag rauw.
-// Een lezer-reset maakte schrijven≠lezen — de vlag verdween stil bij opslaan/openen en crashherstel.
 {
   const tasks = treeTasks();
   tasks.find(t => t.id === 'S2')!.isMilestone = true;
@@ -134,9 +113,6 @@ const parentName = (tasks: readonly Task[], n: string) => { const t = tasks.find
   eq('4b de boom is intact', WANT_ORDER_NAMES.map(n => parentName(back.tasks, n)), [null, 'Project', 'Voorbereiding', 'Voorbereiding', 'Project', 'Ruwbouw']);
 }
 
-// ── 5. IFC: speling en actuals met dezelfde kalender-hpd als de duur ──────────────────────
-// Critreview PR #162: `parseDurationDays` hield via de helpers een default 8 voor freeFloat/
-// totalFloat/actualDuration terwijl de duur al op de kalender stond — inconsistent binnen één record.
 {
   const tasks = [mk('t', 'Grondwerk', '1', 5, null, [], { time: { ...mk('x', 'x', 'x', 5, null, []).time, totalFloat: 3, freeFloat: 2 } })];
   const ifc = writeIFC({ project: { ...project, calendarId: 'cal-h10' }, calendar: H10, tasks, sequences: [], resources: [], assignments: [], resourceCalendars: [] });
@@ -147,12 +123,9 @@ const parentName = (tasks: readonly Task[], n: string) => { const t = tasks.find
   eq('5c freeFloat PT20H op 10 u/dag = 2 (was 3)', t.time.freeFloat, 2);
 }
 
-// ── 6. P6: SequenceNumber wordt ook GELEZEN (broer/zus-volgorde) ──────────────────────────
 {
   const tasks = treeTasks();
   const xml = writeP6XML(project, H8, tasks, [], [], []);
-  // Draai de documentvolgorde van de twee samenvattingen om, maar laat SequenceNumber staan —
-  // zoals een echt P6-bestand er kan uitzien.
   const wbsBlocks = xml.match(/<WBS>[\s\S]*?<\/WBS>/g)!;
   const voorb = wbsBlocks.find(b => b.includes('<Name>Voorbereiding</Name>'))!;
   const ruw = wbsBlocks.find(b => b.includes('<Name>Ruwbouw</Name>'))!;

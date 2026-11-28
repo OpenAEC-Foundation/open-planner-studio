@@ -56,8 +56,10 @@ Draai de planningssuite na elke wijziging aan planningscode. Tussenregels als "(
 
 De checks over werkregels, voortgang en het voortgangsblad, vastgelegde datums, het minutenmodel en de takentabel halen hun verwachting niet uit de code die ze toetsen en laten rondgangen door de echte schrijver en lezer lopen (deel 5 van `check-progress-import.ts` gebruikt de gedeelde kolomherkenning zonder de bestandslezer); de keuzes die daar verrassen (eigen "vandaag", vaste kopteksten, de oude voorbeelden van vóór het minutenmodel, asserties die niet leeg mogen lopen) staan in ADR 1270.
 
+Waarom de rekentests in `tests/planning/` kalenderwerk tellen in plaats van wandkloktijd, en waarom sommige fixtures hun prioriteit, kalender of datum zo kiezen: `docs/adr/1280-rekentests-kalenderwerk-tellen-en-fixtures-die-het-verschil-maken.md`.
+
 De IFC-tests in `tests/planning/` (eigen STEP-lezer als meetlat, uitvoer van een oudere writer, grenzen die niet van de machine afhangen): `docs/adr/1250-ifc-tests-eigen-step-lezer-oude-uitvoer-en-machinevrije-grenzen.md`.
 
 De tests van datums, werkdagen en CPM (eigen orakels, bronguards, gekozen grenzen, de tijdzonematrix voor `check-date-format.ts`): `docs/adr/1310-tests-van-datums-en-werkdagen-eigen-orakels-bronguards-en-gekozen-grenzen.md`.
 
-De tests van weergave, bediening en rapporten in `tests/planning/` (letterlijke orakels van oude code, fixtures die van de standaard afwijken, positieve controles bij bronscans, pins op besluiten van de eigenaar): `docs/adr/1290-weergavetests-letterlijke-orakels-fixtures-en-positieve-controles.md`.
+De tests van opslaan, crashherstel, de site, documenten en import (vaste orakels, een eigen proces per sessiestand, grenzen die tellen): `docs/adr/1300-tests-van-opslaan-herstel-en-import-orakels-processen-en-grenzen.md`.

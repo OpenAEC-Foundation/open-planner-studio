@@ -1,21 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// Issue #145 — de AFGELEIDE duur van een verzameltaak, headless tegen de ECHTE store.
-//
-// Gemeld gedrag: "on adding child task the summary task duration does not update. I used
-// Calculate but no changes". Oorzaak: een verzameltaak komt nooit in de CPM-graaf (de solver
-// krijgt alleen bladtaken), dus de rollup in `applyCpmResult` zette wél `earlyStart`/`earlyFinish`
-// — waar de Gantt-balk op tekent — maar liet `scheduleDuration` staan op de waarde die de taak
-// toevallig droeg (5 dagen uit `addTask`, of het getal uit het geïmporteerde `.mpp`).
-//
-// Onzichtbaar in een naïeve repropoging: een nieuwe taak én haar nieuwe kind krijgen allebei 5
-// dagen vanaf de projectstart, dus de span is óók 5 dagen en het getal klopt bij toeval. De
-// afwijking verschijnt pas bij een kind met een andere duur of start.
-//
-// De afleiding zelf is `duration.ts`s gedeelde `writeDerivedSpan` (ook de hammock-tak van
-// `CPMSolver` gebruikt 'm). De cases hieronder bewaken juist wat de VERZAMELTAAK-kant daaraan
-// toevoegt: welke kalender, welke rijen overgeslagen worden, en welke velden met rust blijven.
-//
-// Draait via run.sh, ook in de tijdzone-matrix (de afleiding telt werkdagen).
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { runGridMutation } from '@/state/gridTransaction';
@@ -46,7 +28,6 @@ const durationColumn = buildTaskColumnRegistry({
   projectId: 'issue-145', activityCodeTypes: [], customFieldDefs: [], baselines: [],
 }).find(descriptor => String(descriptor.id) === 'task.time.scheduleDuration')!;
 
-/** De tekst die de Duur-kolom daadwerkelijk toont — de exacte leesweg van het taakgrid. */
 function durationCellText(id: string): string {
   const t = task(id);
   const raw = durationColumn.read(t, {} as TaskColumnContext);
@@ -62,7 +43,6 @@ function reset(startDate = '2026-09-01'): void {
   S().setProject({ startDate });
 }
 
-/** Ouder met één kind van `days` werkdagen — het minimale gemelde scenario. */
 function parentWithChild(days: number): { parent: string; child: string } {
   const parent = S().addTask({ name: 'Fase' });
   const child = S().addTask({ name: 'Kind' });
@@ -71,7 +51,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
   return { parent, child };
 }
 
-// ── 1. De gemelde bug: een kind met een langere duur ─────────────────────────────────────────
 {
   reset();
   const { parent } = parentWithChild(10);
@@ -79,18 +58,15 @@ function parentWithChild(days: number): { parent: string; child: string } {
   eq('De verzameltaak toont de span van haar kind', durationCellText(parent), '10d');
 }
 
-// ── 2. Tweede kind dat later start: de span rekt, de duur moet mee ───────────────────────────
 {
   reset();
   const { parent } = parentWithChild(10);
   const second = S().addTask({ name: 'Kind2', parentId: parent });
   setTime(second, { scheduleStart: '2026-10-01' });
   S().runCPM();
-  // 2026-09-01 t/m 2026-10-07 = 27 werkdagen in de standaardkalender (ma-vr, geen feestdagen).
   eq('De verzameltaak spant beide kinderen', durationCellText(parent), '27d');
 }
 
-// ── 3. Geneste verzameltaken rollen van binnen naar buiten op ────────────────────────────────
 {
   reset();
   const outer = S().addTask({ name: 'Buiten' });
@@ -103,11 +79,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
     [durationCellText(inner), durationCellText(outer)], ['12d', '12d']);
 }
 
-// ── 4. De projectkalender wint van een eigen taakkalender ────────────────────────────────────
-// Een verzameltaak heeft geen eigen werk, dus haar taakkalender is betekenisloos (MS Project
-// biedt dat veld op een samenvattingstaak niet eens aan). Rekende de afleiding in de EIGEN
-// kalender, dan kreeg een fase met een 7-daagse kalender "14d" te zien terwijl haar enige kind
-// over exact hetzelfde datumbereik "10d" is.
 {
   reset();
   const sevenDay: WorkCalendar = { ...S().calendar, id: 'cal7', name: '7-daags', workDays: [1, 2, 3, 4, 5, 6, 7] };
@@ -119,15 +90,9 @@ function parentWithChild(days: number): { parent: string; child: string } {
     [durationCellText(parent), durationCellText(child)], ['10d', '10d']);
 }
 
-// ── 5. Uurproject: geen verdwenen werkdag ────────────────────────────────────────────────────
-// De afleiding dispatcht op de KALENDER-modus, nooit op de eenheid die de taak toevallig draagt.
-// Dat is een correctheidsvoorwaarde, geen stijlkeuze: `workMinutesBetween` telt half-open en mag
-// alleen op échte instants, `workDaysBetween` telt inclusief en hoort bij date-only datums. Een
-// eerdere versie van deze fix dispatchte op de taak-eenheid en liet daarmee stil één werkdag
-// vallen zodra een uur-ouder dag-kinderen had.
 {
   reset();
-  const band = [{ start: 480, end: 720 }, { start: 780, end: 1020 }]; // 08:00-12:00 + 13:00-17:00
+  const band = [{ start: 480, end: 720 }, { start: 780, end: 1020 }];
   useAppStore.setState(state => {
     state.calendar = {
       ...state.calendar,
@@ -146,10 +111,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
     [task(parent).time.durationMinutes, task(parent).time.durationUnit], [960, 'hours']);
 }
 
-// ── 6. ELAPSEDTIME telt klokdagen, niet werkdagen ────────────────────────────────────────────
-// Gepind tegen een BLADTAAK met dezelfde duur in plaats van tegen een met de hand geteld getal:
-// de 24/7-conventie van dit project (`duration.ts`s `signedElapsedSpan`: rauwe klokspanne, geen
-// inclusieve −1-correctie) hoort de norm te zijn, niet mijn hoofdrekenen.
 {
   reset();
   const { parent } = parentWithChild(10);
@@ -158,7 +119,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
   const derived = task(parent).time.scheduleDuration;
   const span: [string, string] = [task(parent).time.earlyStart, task(parent).time.earlyFinish];
 
-  // Dezelfde duur op een ELAPSEDTIME-BLADtaak moet exact dezelfde span opleveren.
   reset();
   const leaf = S().addTask({ name: 'Elapsed' });
   setTime(leaf, { durationType: 'ELAPSEDTIME', scheduleDuration: derived, scheduleStart: span[0] });
@@ -168,13 +128,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
   ok('ELAPSEDTIME-verzameltaak telt klokdagen, niet de 10 werkdagen van haar kind', derived !== 10);
 }
 
-// ── 7. Een mijlpaal mét kinderen houdt haar ruit ─────────────────────────────────────────────
-// `isZeroDurationMilestone` stuurt de ruit-tekening in `GanttRenderer`; een afgeleide duur zou die
-// markering stil in een balk veranderen. MS Project staat "markeer als mijlpaal" op een
-// samenvattingstaak gewoon toe, dus dit is geen onmogelijke toestand.
-// Sinds audit taakmutaties §6 maken de GEBRUIKERSroutes zo'n taak niet meer (een mijlpaal die
-// kinderen krijgt verliest zijn vlag; een fase wordt geen mijlpaal), maar een import kan hem nog
-// steeds aanleveren. Daarom hier als fixture, zoals een ingelezen bestand hem neerzet.
 {
   reset();
   const parent = S().addTask({ name: 'Fase' });
@@ -186,11 +139,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
   eq('Mijlpaal met kinderen houdt duur 0', task(parent).time.scheduleDuration, 0);
 }
 
-// ── 8. `scheduleStart`/`scheduleFinish` blijven ONAANGERAAKT ─────────────────────────────────
-// Die twee staan in `ifcTaskSlots.ts` geregistreerd als `RECORDED_INPUT_SLOT_KEYS` — "wat het
-// bestand zei" — en `captureRecordedDates` leest ze als de datumlaag van issue #63, terwijl
-// `applyRecordedTimesToTasks` ze niet herstelt. Ze hier meeschrijven laat "Datums zoals opgeslagen" op
-// verzameltaakrijen twee elkaar tegensprekende kolommen tonen. Deze case pint de afwezigheid.
 {
   reset();
   const { parent } = parentWithChild(10);
@@ -201,10 +149,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
   ok('…terwijl de duur wél is bijgewerkt', task(parent).time.scheduleDuration === 10);
 }
 
-// ── 9. Een handmatig geplande verzameltaak houdt haar eigen opgeslagen duur ──────────────────
-// Z9b: een manual verzameltaak rolt NIET op — haar datums komen uit het bestand. Dan is er ook
-// niets afgeleid, dus mag de afleiding haar duur niet overschrijven (de `.mpp`-fidelitypoort meet
-// alleen start/finish en zou zo'n regressie niet zien).
 {
   reset();
   const { parent } = parentWithChild(10);
@@ -218,9 +162,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
     [3, "2026-09-01T07:00", "2026-09-03T16:00"]);
 }
 
-// ── 10. De Duur-cel van een verzameltaak is niet bewerkbaar ──────────────────────────────────
-// Het eigenschappenpaneel wist dit al (`TaskDurationField`s `derived`-vlag zet het veld op
-// disabled); het taakgrid liep daarop achter en liet een afgeleide waarde overschrijven.
 {
   reset();
   const { parent, child } = parentWithChild(10);
@@ -239,9 +180,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
   eq('Een duurbewerking op een verzameltaak wordt geweigerd', rejected.ok, false);
 }
 
-// ── 11. `solveProject` levert dezelfde afleiding op een KLOON ────────────────────────────────
-// Het bezettingsoverzicht rekent slapende documenten efemeer door via `cloneTasksForSolve`. De
-// afleiding moet daar net zo goed landen — en het origineel onaangeraakt laten.
 {
   reset();
   const { parent } = parentWithChild(10);
@@ -255,8 +193,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
     [10, 5]);
 }
 
-// Een corrupte `childIds`-kring (R → A → R) mag de rollup niet in een eindeloze recursie sturen:
-// vóór de cyclusbewaking eindigde dit in "Maximum call stack size exceeded".
 {
   const base = S().tasks[0];
   const node = (id: string, parentId: string | null, childIds: string[]): Task => ({
@@ -281,8 +217,6 @@ function parentWithChild(days: number): { parent: string; child: string } {
   eq('De tussenlaag rolt het blad op', cyclic[1].time.earlyFinish, '2026-03-06');
 }
 
-// 168: terugkeer uit een tak blijft kinderen-vóór-ouders, ook bij gedeelde verwijzingen.
-// Een overgeslagen of handmatige fase blokkeert de rollup van haar kinderen niet.
 {
   const base = S().tasks[0];
   const node = (id: string, parentId: string | null, childIds: string[]): Task => ({

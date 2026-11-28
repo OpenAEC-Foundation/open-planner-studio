@@ -1,15 +1,3 @@
-// Import/export-audit, vervolg op bevinding 6: een ONTBREKENDE geplande start in een ingelezen bestand
-// werd in elke lezer de leesdatum ("vandaag"). Een wortel-taak gebruikt zijn eigen start als anker in
-// de forward pass, dus hij verhuisde naar vandaag — en een voltooide taak zonder actuals werd "vandaag
-// gedaan". Nu (één gedeelde regel, `resolveMissingScheduleDates` in services/importDates.ts, vóór
-// `normalizeImportedProgress`):
-//   - ontbrekende start ⇒ de projectstart (zoals `addTask`); ontbreekt die ook ⇒ de vroegste
-//     AANWEZIGE taakstart; pas bij een project zonder enige datum ⇒ vandaag;
-//   - ontbrekende finish ⇒ start + duur waar dat eenduidig is (nul-duur, of hele werkdagen op de
-//     effectieve kalender); anders blijft de plaatshouder van de lezer staan.
-// Per lezer getoetst: CSV, MSPDI, P6, IFC en MPP. Ankerjaar 2015 zodat "vandaag" nooit toevallig
-// klopt. Draait via run.sh. Exit 0 = alles groen.
-
 import { installDOMParser } from './xmldom-shim';
 import { useAppStore } from '@/state/appStore';
 import { readCSV } from '@/services/csv/csvReader';
@@ -54,8 +42,6 @@ const dates = (t: Task) => ({
   earlyStart: t.time.earlyStart.slice(0, 10), earlyFinish: t.time.earlyFinish.slice(0, 10),
 });
 
-/** Gedeelde verwachtingen voor een lezer: B (3 werkdagen, voltooid zonder actuals) en M (mijlpaal)
- *  droegen geen geplande start/finish; A wel. */
 function expectResolved(tag: string, parsed: ImportResult, anchor: string, bFinish: string): void {
   const b = byName(parsed.tasks, 'B');
   const m = byName(parsed.tasks, 'M');
@@ -69,18 +55,15 @@ function expectResolved(tag: string, parsed: ImportResult, anchor: string, bFini
     !parsed.tasks.some(t => t.time.scheduleStart.startsWith(THIS_YEAR) || t.time.scheduleFinish.startsWith(THIS_YEAR)));
 }
 
-// ── Bronproject in de store: projectstart ma 5-1-2015, A (5 d) start wo 7-1, B (3 d), M (mijlpaal). ──
 S().newProject();
 S().setProject({ startDate: '2015-01-05' });
 S().addTask({ name: 'A', time: createDefaultTaskTime('2015-01-07', 5) });
 const idB = S().addTask({ name: 'B', time: createDefaultTaskTime('2015-01-05', 3) });
 S().addTask({ name: 'M', time: createDefaultTaskTime('2015-01-05', 0) });
 S().runCPM();
-// B op 100 % zonder actuals (zoals updateTask/een extern bestand hem achterlaat).
 S().updateTask(idB, { time: { ...byName(S().tasks, 'B').time, completion: 1 } });
 const src = S();
 
-// ── 1. CSV: lege Start/Finish-cellen; CSV kent geen projectstart ⇒ vroegste aanwezige start (A). ──
 {
   const csv = [
     'WBS;Name;Duration;Start;Finish;Completion (%)',
@@ -92,7 +75,6 @@ const src = S();
   expectResolved('1 CSV', parsed, '2015-01-07', '2015-01-09');
   eq('1 CSV: projectstart = vroegste aanwezige taakstart, niet vandaag', parsed.project.startDate, '2015-01-07');
 
-  // Knownbug 128: de weigering van gevulde onherkende datums verandert lege/ontbrekende cellen niet.
   const blanks = readCSV([
     'WBS;Name;Duration;Start;Finish;Actual Start;Actual Finish;Completion (%)',
     '1;A;5;2015-01-07;2015-01-13;;;0',
@@ -115,8 +97,6 @@ const src = S();
   }
 }
 
-// ── 2. MSPDI: <Start>/<Finish> van B en M weg. ─────────────────────────────────────────────────────
-/** Verwijder in het blok `<tag>…<Name>naam</Name>…</tag>` de genoemde elementen. */
 function stripInBlock(xml: string, tag: string, name: string, elements: string[]): string {
   const re = new RegExp(`<${tag}>(?:(?!</${tag}>)[\\s\\S])*?<Name>${name}</Name>[\\s\\S]*?</${tag}>`);
   const m = xml.match(re);
@@ -135,7 +115,6 @@ function stripInBlock(xml: string, tag: string, name: string, elements: string[]
   eq('2 MSPDI zonder projectstart: projectstart = vroegste aanwezige taakstart', parsed.project.startDate, '2015-01-07');
 }
 
-// ── 3. P6: <PlannedStartDate>/<PlannedFinishDate> van B en M weg. ─────────────────────────────────
 {
   let xml = writeP6XML(src.project, src.calendar, src.tasks, src.sequences, src.resources, src.assignments, src.calendars);
   for (const n of ['B', 'M']) {
@@ -144,7 +123,6 @@ function stripInBlock(xml: string, tag: string, name: string, elements: string[]
     ]);
   }
   expectResolved('3 P6 (projectstart in bestand)', readP6XML(xml), '2015-01-05', '2015-01-07');
-  // Projectniveau: het eerste <PlannedStartDate> vóór de eerste <Activity> is dat van <Project>.
   const firstActivity = xml.indexOf('<Activity>');
   const head = xml.slice(0, firstActivity).replace(/<PlannedStartDate>[^<]*<\/PlannedStartDate>/, '');
   const parsed = readP6XML(head + xml.slice(firstActivity));
@@ -152,7 +130,6 @@ function stripInBlock(xml: string, tag: string, name: string, elements: string[]
   eq('3 P6 zonder projectstart: projectstart = vroegste aanwezige taakstart', parsed.project.startDate, '2015-01-07');
 }
 
-// ── 4. IFC: ScheduleStart/-Finish (en de rekenslots) van B en M op `$`. ───────────────────────────
 function splitArgs(inner: string): string[] {
   const out: string[] = [];
   let depth = 0, quoted = false, cur = '';
@@ -181,17 +158,13 @@ function blankTaskTimeSlots(ifc: string, name: string, slots: number[]): string 
 }
 {
   let ifc = writeIFC(buildWriteIFCInput(src, 'planOnly'));
-  // 5 ScheduleStart, 6 ScheduleFinish, 7-10 Early/Late, 16/17 ActualStart/-Finish.
   for (const n of ['B', 'M']) ifc = blankTaskTimeSlots(ifc, n, [5, 6, 7, 8, 9, 10, 16, 17]);
   const parsed = readIFC(ifc);
   expectResolved('4 IFC', parsed, '2015-01-05', '2015-01-07');
   eq('4 IFC: projectstart uit het bestand blijft', parsed.project.startDate, '2015-01-05');
 }
 
-// ── 5. MPP: één taak met een lege (null) ScheduledStart/-Finish. ──────────────────────────────────
 {
-  // Referentie: dezelfde taak MET datums, zodat de verwachting uit de lezer zelf komt (geen eigen
-  // MPP-epoch-rekenwerk in de test). 11328 = ma 5-1-2015 in MPP-dagen.
   const withDates = readMPP(mppBytes({ startDays: 11328, finishDays: 11330, projectStartDays: 11328 }));
   const ref = byName(withDates.tasks, 'B');
   eq('5 MPP referentie: projectstart en taakdatums zoals bedoeld',
@@ -203,9 +176,6 @@ function blankTaskTimeSlots(ifc: string, name: string, slots: number[]): string 
     [b.time.scheduleStart.slice(0, 10), b.time.scheduleFinish.slice(0, 10)], ['2015-01-05', '2015-01-07']);
 }
 
-// ── 6. XER: TASK zonder target_start_date (review PR #109, N1). Vroeger 1970-01-01 + projectstart
-// 1970, zonder melding. Nu de gedeelde regel: anker = statusdatum (last_recalc_date, of data_date als
-// die kolom ontbreekt), anders PROJECT.plan_start_date, anders de vroegste aanwezige taakstart. ──
 {
   const CAL = '(0||CalendarData()((0||DaysOfWeek()((0||1()())(0||2()((0||0(s|08:00|f|16:00)())))(0||3()((0||0(s|08:00|f|16:00)())))(0||4()((0||0(s|08:00|f|16:00)())))(0||5()((0||0(s|08:00|f|16:00)())))(0||6()((0||0(s|08:00|f|16:00)())))(0||7()())))(0||Exceptions()())))';
   const xer = (projectFields: string[], projectValues: string[], otherStart: string): Uint8Array => new TextEncoder().encode([

@@ -1,27 +1,3 @@
-// Aanval a06 na #600: een eigen dagenrecord in MSPDI en P6 XML blijft geldig na de afronding op zes decimalen,
-// en de standaardvelden houden de minuten uit de bron.
-//
-// Kalender ma–do 07:00–14:45 (465 min), vr 07:00–12:00 (300 min). Lopende taak C: dagenmaat, duur 3 d, rest
-// 5/6 d, begonnen ma 1 juni 2026 07:00, completion 13/18, statusdatum vr 5 juni. Taak D: 5/6 d. Relaties
-// A→B FS +5/6 d en B→D FS −1/6 d.
-// Fout 1 (aanval): de writer schreef het record [0.833333, 388] (388 = round(5/6 × 465)). De lezer rekent
-// 0,833333 × 465 = 387,4998 → 387, wees het eigen record af en maakte van C een urenmaat-taak; de lag kwam
-// terug als lagMinutes 388.
-// Fout 2 (review r1): de eerste fix rekende de minuten uit 0,833333 en schreef 387 in het standaardveld; een
-// taak of lag van 5/6 d werd een minuut korter. Nu draagt het record dagen die precies de bronminuten
-// verklaren (`recordDayValue`).
-//
-// Wat deze check vastlegt, voor beide formaten:
-//  (1) de standaardvelden (MSPDI `Duration`/`RemainingDuration`/`LinkLag`, P6 `PlannedDuration`/
-//      `RemainingDuration`/`Lag`) dragen de minuten uit de bron, voor alle taken en lags; elk dagenrecord
-//      verklaart zijn eigen minuten (record[1] = round(record[0] × 465));
-//  (2) na één en na twee rondgangen: C en D houden de dagenmaat, de lags blijven dagenmaat; de export is
-//      stabiel na één rondgang;
-//  (3) na inlezen en doorrekenen eindigt elke taak op hetzelfde moment als vóór de rondgang;
-//  (4) een echt gewijzigde kalender (14:45 → 15:45 in het bestand) wijst de records nog steeds af.
-// En voor IFC: een tweede export schrijft dezelfde duren, restduren en lags als de eerste, ook voor C.
-//
-// Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
 import { installDOMParser } from './xmldom-shim';
 import { freshPayload, payloadFromImport, type DocumentPayload } from '@/state/documentContract';
@@ -48,7 +24,6 @@ function ok(label: string, cond: boolean): void {
   checks++;
   if (!cond) errors.push(label);
 }
-/** De writers melden verliezen via console.warn; die horen niet bij deze check. */
 function quiet<T>(fn: () => T): T {
   const warn = console.warn;
   console.warn = () => {};
@@ -59,7 +34,6 @@ const LONG = [{ start: 420, end: 885 }];
 const SHORT = [{ start: 420, end: 720 }];
 const REST = 5 / 6;
 const NEG_LAG = -1 / 6;
-/** De minuten uit de bron: dagen × 465, op de hele minuut. */
 const src = (days: number) => Math.round(days * 465);
 
 function payload(): DocumentPayload {
@@ -94,9 +68,7 @@ interface Format {
   name: string;
   write: (q: DocumentPayload) => string;
   read: (xml: string) => ImportResult;
-  /** De kalender in het bestand één uur langer per lange dag. */
   changeCalendar: (xml: string) => string;
-  /** De standaardvelden in minuten: duur en rest per taaknaam, en de lags (op volgorde van grootte). */
   standard: (xml: string) => { duration: Record<string, number>; remaining: Record<string, number>; lags: number[] };
 }
 const isoMinutes = (iso: string | undefined) => {
@@ -143,7 +115,6 @@ for (const fmt of FORMATS) {
   const originalFinish = taskC(original.tasks)?.time.earlyFinish;
   const xml1 = quiet(() => fmt.write(original));
 
-  // (1) De standaardvelden dragen de bronminuten; elk dagenrecord verklaart zijn eigen minuten.
   const std = fmt.standard(xml1);
   const round = (n: number) => Math.round(n * 1000) / 1000;
   eq(`${L} standaardduur A B C D (min)`, ['A', 'B', 'C', 'D'].map(n => round(std.duration[n])), [src(3), src(1), src(3), src(REST)]);
@@ -153,7 +124,6 @@ for (const fmt of FORMATS) {
   ok(`${L} dagenrecords gevonden voor duur, rest en lags`, recordPairs.length >= 4);
   for (const [days, minutes] of recordPairs) eq(`${L} record [${days}, ${minutes}] verklaart zijn minuten`, Math.round(days * 465), minutes);
 
-  // (2) Eén en twee rondgangen: dagenmaat blijft dagenmaat, ook voor de lag.
   const first = quiet(() => fmt.read(xml1));
   const loaded = payloadFromImport(first, null);
   const xml2 = quiet(() => fmt.write(loaded));
@@ -173,18 +143,15 @@ for (const fmt of FORMATS) {
     eq(`${L} ${label}: lagMinutes`, result.sequences.map(seq => seq.lagMinutes), [undefined, undefined]);
   }
   const xml3 = quiet(() => fmt.write(payloadFromImport(second, null)));
-  // De project-id van P6 XML is per import nieuw; die telt niet mee.
   const sameId = (xml: string) => xml.replace(/<Id>OPS:proj-[^<]*<\/Id>/g, '<Id>OPS:proj</Id>');
   eq(`${L} derde export gelijk aan de tweede (stabiel na één rondgang)`, sameId(xml3) === sameId(xml2), true);
 
-  // (3) Het einde van elke taak na doorrekenen blijft gelijk.
   loaded.project = { ...loaded.project, schedulingProfile: source.project.schedulingProfile };
   const solved = quiet(() => prepareLoadedPayload(loaded, { recompute: true }));
   ok(`${L} oorspronkelijk einde van C is vr 5 juni 11:10, kreeg ${originalFinish}`, originalFinish === '2026-06-05T11:10');
   const finishes = (tasks: Task[]) => Object.fromEntries(tasks.map(t => [t.name, t.time.earlyFinish]));
   eq(`${L} einde van A B C D na inlezen en doorrekenen`, finishes(solved.tasks), finishes(original.tasks));
 
-  // (4) Een echt gewijzigde kalender: de afwijzing blijft werken.
   const changedXml = fmt.changeCalendar(xml1);
   ok(`${L} kalender in het bestand gewijzigd`, changedXml !== xml1);
   const changed = quiet(() => fmt.read(changedXml));
@@ -194,9 +161,6 @@ for (const fmt of FORMATS) {
   for (const lag of changed.sequences) ok(`${L} gewijzigde kalender: lag in urenmaat, kreeg ${JSON.stringify(lag)}`, typeof lag.lagMinutes === 'number');
 }
 
-// IFC (review r1): de eerste export schreef PT6H28M0S met [0.833333,388]; de lezer nam 0.833333 over en een
-// tweede export schreef PT6H27M0S. Nu blijven duren en lags gelijk, ook de rest van de lopende taak C: de
-// IFC-lezer houdt de rest uit het record (knownbug 357 is gesloten in #663).
 {
   const original = quiet(() => prepareLoadedPayload(payload(), { recompute: true }));
   const ifc1 = quiet(() => writeIFC(buildWriteIFCInput(original, 'planOnly')));

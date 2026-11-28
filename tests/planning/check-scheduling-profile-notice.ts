@@ -1,7 +1,3 @@
-// Melding bij openen (rekenprofielen, spec v3.1 §6; plan taak C6). Exit 0 = groen.
-// Asserties op messageKey/action/params — nooit op gerenderde tekst (de teksten komen uit baan D1).
-// Mutatiebewijs (plan C6 step 4): de wrapper in fileSlice weglaten (terug naar alleen
-// xerImportNotice) ⇒ 12 rood; `action` een functie geven ⇒ typecheck rood.
 import { createAppStoreContext } from '@/state/appStore';
 import { withSchedulingProfileNotice, OPEN_PROJECT_INFO_ACTION } from '@/state/schedulingProfileNotice';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
@@ -27,7 +23,6 @@ function importOf(profile: SchedulingProfile | undefined, suggested: BuiltInProf
   };
 }
 
-// 1. De pure regel.
 const mpp = withSchedulingProfileNotice([importOf(builtInProfile('msproject'), 'msproject')], undefined, 'doc-1');
 eq('01 .mpp-voorstel ⇒ profielmelding', mpp?.messageKey, 'notifications.schedulingProfileApplied');
 eq('02 profiel als merknaam', mpp?.params, { profile: 'Microsoft Project' });
@@ -54,7 +49,6 @@ eq('11 XER zonder profielvoorstel: ongewijzigd', withSchedulingProfileNotice([im
 eq('11b eigen profiel ⇒ zijn naam', withSchedulingProfileNotice(
   [importOf({ baseId: 'p6', id: 'eigen', name: 'Mijn P6', overrides: {} }, 'p6')], undefined, 'd')?.params, { profile: 'Mijn P6' });
 
-// 2. Store: applyOpenedImport meldt precies één keer per geopend bestand.
 const ctx = createAppStoreContext();
 const S = () => ctx.store.getState();
 const clear = () => { for (const n of [...S().ui.notifications]) S().dismissNotification(n.id); };

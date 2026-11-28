@@ -1,12 +1,3 @@
-// Een externe relatie op een fase (verzameltaak) geldt voor elke bladtaak eronder, net als een
-// gewone relatie op een fase (`expandSummaryRelations`, MS Project-semantiek). De solver kent
-// alleen bladtaken; vroeger telde een externe voorganger of opvolger op een fase daardoor niet mee,
-// terwijl de app hem wel liet toevoegen (Relatie ▾ › Externe relatie toevoegen… vraagt alleen één
-// geselecteerde taak).
-//
-// De check vergelijkt per richting en relatietype "koppeling op de fase" met "dezelfde koppeling
-// op elke bladtaak": de datums en de speling van de bladtaken moeten gelijk zijn. Daarnaast: het
-// nivelleerpad, het voorbeeld van "project verplaatsen" en het logica-rapport zien hetzelfde.
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { leafTasksForSolve } from '@/engine/scheduler/expandSummaryRelations';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
@@ -36,13 +27,10 @@ const task = (id: string, extra: Partial<Task> = {}): Task => ({
 });
 const link = (direction: ExternalLink['direction'], relType: ExternalLink['relType']): ExternalLink => ({
   id: `ext-${direction}-${relType}`, direction, relType, lagDays: 1, sourceMissing: true,
-  // Een voorganger duwt (anker ná de projectstart); een opvolger begrenst (anker vóór het
-  // natuurlijke einde, zodat er negatieve speling ontstaat).
   anchorDate: direction === 'predecessor' ? '2026-06-10T16:00' : '2026-06-03T08:00',
   sourceRef: { projectId: 'bron', taskId: 'extern' },
 });
 
-/** Fase F met de bladtaken A (2 d) en B (3 d) onder een tussenfase G, plus een losse taak C. */
 function project(where: 'phase' | 'leaves', l: ExternalLink): Task[] {
   const onPhase = where === 'phase' ? { externalLinks: [l] } : {};
   const onLeaf = where === 'leaves' ? { externalLinks: [l] } : {};
@@ -84,7 +72,6 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// De koppeling van de fase verandert de taakobjecten niet: de bladtaken dragen haar niet.
 {
   const tasks = project('phase', link('predecessor', 'FS'));
   const leaves = leafTasksForSolve(tasks);
@@ -100,7 +87,6 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   eq('leaf-5 na de berekening draagt de bladtaak nog steeds geen kopie', solveTasks[1].externalLinks, undefined);
 }
 
-// Het logica-rapport (planningsgezondheid) telt een geërfde externe voorganger als voorganger.
 {
   const tasks = project('phase', link('predecessor', 'FS'));
   const index = buildLogicIndex({ tasks, sequences: [] } as unknown as ReportContext);

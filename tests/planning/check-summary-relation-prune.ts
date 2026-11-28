@@ -1,20 +1,3 @@
-// Audit 2026-09-26 — samenvatting→samenvatting-relaties boven het uitklapbudget.
-//
-// `expandSummaryRelations` klapt een relatie tussen twee samenvattingen uit tot het kruisproduct van
-// hun bladen, met een plafond (MAX_EXPANDED_RELATIONS). Twee fasen van elk ~250 bladen gingen daar
-// al overheen en de relatie viel in haar geheel weg: de planning negeerde de fase-logica. Nu wordt
-// boven het budget eerst EXACT gesnoeid: een blad dat via een interne relatie (lag ≥ 0) altijd door
-// een ander blad van dezelfde tak wordt "ingehaald", voegt niets toe.
-//
-// Deze check dwingt de snoeitak af met een laag budget en vergelijkt de volledige solve met de
-// gesnoeide, op willekeurige takken (alle relatietypen, ook negatieve lag, mijlpalen, handmatige
-// taken, constraints, dag- en uurkalender), in de profielen ops, p6 en msproject. Een derde van de
-// gevallen mengt ook dag- en uurtaken, ELAPSEDTIME-duren en minuten- of ELAPSEDTIME-lags (review
-// 2026-09-28: daar was de snoei een dag mis; nu stapt hij daar terug). Elke taakdatum, elke speling,
-// de drijvende relaties, alle relatie-vrije-spelingen, de kritieke paden en de float-paden moeten
-// gelijk zijn.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { expandSummaryRelations, foldSyntheticSequenceIds } from '@/engine/scheduler/expandSummaryRelations';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
@@ -34,8 +17,6 @@ const BAND = [{ start: 480, end: 960 }];
 const HOUR = { ...DAY, id: 'h', workTime: { byWeekday: { 1: BAND, 2: BAND, 3: BAND, 4: BAND, 5: BAND, 6: [], 7: [] } } } as WorkCalendar;
 const TYPES: SequenceType[] = ['FINISH_START', 'START_START', 'FINISH_FINISH', 'START_FINISH'];
 
-// mulberry32: deterministisch en zonder de korte cyclus van een kale LCG (die herhaalde hier elke
-// ~116 projecten hetzelfde geval).
 let seed = 0x9e3779b9;
 const rnd = () => {
   seed = (seed + 0x6d2b79f5) | 0;
@@ -45,8 +26,8 @@ const rnd = () => {
 };
 const pick = <T,>(a: readonly T[]) => a[Math.floor(rnd() * a.length)];
 
-let mixed = false;      // gevallen met ELAPSEDTIME, minuten-lags en (soms) gemengde eenheden
-let mixedUnits = false; // binnen `mixed`: dag- en uurbladen door elkaar (⇒ snoei moet terugstappen)
+let mixed = false;
+let mixedUnits = false;
 function mk(id: string, dur: number, parentId: string | null, hoursIn: boolean): Task {
   const hours = mixed && mixedUnits ? rnd() < 0.3 : hoursIn;
   const time = createDefaultTaskTime('2026-06-01', hours ? dur * 8 : dur, hours ? 'hours' as never : undefined) as Task['time'];
@@ -59,7 +40,6 @@ function mk(id: string, dur: number, parentId: string | null, hoursIn: boolean):
   else if (r < 0.12) t.constraint = { type: 'SNET', date: '2026-06-08' };
   else if (r < 0.16) t.constraint = { type: 'MSO', date: '2026-06-03' };
   else if (r < 0.2) t.constraint = { type: 'ALAP' };
-  // ELAPSEDTIME-duur: in een fase (⇒ terugstappen) of alleen erbuiten (⇒ snoeibaar, maar wel in het project).
   if (mixed && (parentId === null || mixedUnits) && rnd() < 0.3) t.time.durationType = 'ELAPSEDTIME';
   return t;
 }
@@ -83,7 +63,6 @@ function project(hours: boolean) {
     for (let i = 0; i < n; i++) {
       const t = mk(`${prefix}${i}`, rnd() < 0.12 ? 0 : 1 + Math.floor(rnd() * 5), sid, hours);
       tasks.push(t); parent.childIds.push(t.id);
-      // Interne logica: vooral ketens, soms dwars, soms negatieve lag.
       if (i > 0 && rnd() < 0.8) {
         const from = `${prefix}${Math.floor(rnd() * i)}`;
         seqs.push(mixLag({ id: `${from}-${t.id}`, predecessorId: from, successorId: t.id, type: pick(TYPES), lagDays: rnd() < 0.2 ? -1 : Math.floor(rnd() * 3) }));
@@ -108,7 +87,6 @@ function solveWith(tasks: Task[], expanded: Sequence[], cal: WorkCalendar) {
   try {
     r = new CPMSolver(structuredClone(tasks.filter(isLeafTask)), expanded, cal, [DAY, HOUR], opts).solve();
   } catch (err) {
-    // Een fout in de motor zelf (bestaat los van de snoei) moet dan in beide routes gelijk zijn.
     return { thrown: String(err) };
   }
   foldSyntheticSequenceIds(r);
@@ -137,9 +115,9 @@ for (let rep = 0; rep < 900; rep++) {
   const full = expandSummaryRelations(tasks, seqs);
   const nP = tasks.filter(t => t.parentId === 'S1').length;
   const nQ = tasks.filter(t => t.parentId === 'S2').length;
-  const budget = nP * nQ - 1;                       // net te klein ⇒ de snoeitak MOET draaien
+  const budget = nP * nQ - 1;
   const small = expandSummaryRelations(tasks, seqs, budget);
-  if (small.droppedSequenceIds.includes('R')) { skipped++; continue; }   // niets te snoeien ⇒ als vanouds gedropt
+  if (small.droppedSequenceIds.includes('R')) { skipped++; continue; }
   pruned++;
   if (mixed) prunedMixed++;
   const a = solveWith(tasks, full.sequences, cal);
@@ -156,8 +134,6 @@ if (pruned < 200) diffs.push(`te weinig snoeigevallen om iets te bewijzen: ${pru
 checks++;
 if (prunedMixed < 20) diffs.push(`te weinig gemengde snoeigevallen: ${prunedMixed}`);
 
-// Vaste gevallen uit de review van 2026-09-28: hier week de gesnoeide uitkomst een dag af. De snoei
-// moet nu terugstappen (R valt dan als vanouds weg) of exact gelijk zijn.
 {
   const leaf = (id: string, parentId: string, dur: number, unit: 'days' | 'hours', durationType?: 'ELAPSEDTIME') => {
     const time = createDefaultTaskTime('2026-06-01', dur, unit as never, DAY) as Task['time'];
@@ -193,7 +169,7 @@ if (prunedMixed < 20) diffs.push(`te weinig gemengde snoeigevallen: ${prunedMixe
       const nQ = c.tasks.filter(t => t.parentId === 'S2').length;
       const small = expandSummaryRelations(c.tasks, c.seqs, nP * nQ - 1);
       checks++;
-      if (small.droppedSequenceIds.includes('R')) continue;   // teruggestapt: als vanouds gedropt
+      if (small.droppedSequenceIds.includes('R')) continue;
       const a = solveWith(c.tasks, expandSummaryRelations(c.tasks, c.seqs).sequences, DAY);
       const b = solveWith(c.tasks, small.sequences, DAY);
       if (JSON.stringify(a) !== JSON.stringify(b)) diffs.push(`vast geval (${base}) "${c.name}": gesnoeid ≠ volledig`);
@@ -201,7 +177,6 @@ if (prunedMixed < 20) diffs.push(`te weinig gemengde snoeigevallen: ${prunedMixe
   }
 }
 
-// Schaalgeval: twee fasen van 300 bladen (elk een keten) — vroeger 90.000 combinaties ⇒ gedropt.
 {
   mixed = false;
   opts = optsFor('ops');

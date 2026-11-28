@@ -1,32 +1,3 @@
-// Een afgemelde mijlpaal houdt de klokketijd uit de planning.
-//
-// Besluit van Ethan, 2026-10-29 (vloot-wiki, `besluiten/2026-10-29 afgemelde mijlpaal houdt de geplande
-// tijd.md`): "Meld je een mijlpaal af met alleen een datum, dan houdt hij de klokketijd die hij in de
-// planning had. De dag komt van wat je typt, de tijd uit de planning. Typ je zelf een tijd, dan geldt die."
-// Het vervangt regel D7 (spec `docs/superpowers/specs/2026-10-20-alleen-uren-design.md` §4.2) voor afmelden.
-// Voorbeelden uit het besluit: "Oplevering", gepland ma 1 jun 16:00, afgemeld op 3-6-2026 ⇒ wo 3 jun 16:00;
-// "Start bouw", gepland ma 1 jun 07:00, afgemeld op 2-6-2026 ⇒ di 2 jun 07:00.
-//
-// Deze check toetst de regel in elk profiel (OPS, P6, MSP), voor elke soort mijlpaal (START, FINISH, zonder
-// soort), op beide velden (werkelijke start en werkelijk einde) en langs elke invoerroute: de functie zelf,
-// het eigenschappenpaneel (store-setters), de UI-invoer (`enterTaskProgress`, ook contextmenu en Taak
-// bewerken), de tabel (celbewerking, de echte celeditor met getypte tekst, en plakken), Taak bewerken
-// (concept + Opslaan), MCP (`progress.applyProgressUpdate`) en de voortgangsimport. Een gewone taak houdt
-// D1/D2, en de laadgrens houdt D7. Sectie 5 toetst de nachtploeg met een statusdatum: afmelden op de
-// statuswerkdag mag, ook als het moment op de klokdag erna valt (`isTaskActualPastStatusDate`), ook als de
-// statusdag geen werkblok heeft (weekend, feestdag: D4), en het gezondheidsrapport meldt dan geen fout.
-// Sectie 8 toetst de aanvulling "einde blijft einde" (Ethan, later op 2026-10-29): het voorbeeld van Ethan, het
-// nachtvoorbeeld, de automatische route en de gevallen van review ronde 3, een compacte kalenderselectie met
-// letterlijk uitgeschreven verwachtingen (ook elk verschil met main), de berekende maandagroute van review
-// ronde 4 (echte werktijd gaat voor een verzonnen D4-rand), de tweede aanvulling van Ethan (de dienst van de
-// getypte dag eindigt vóór de geplande kloktijd, ook overdag) en de berekende SS-route van review ronde 5 (een
-// echt begin van ma gaat voor het verzonnen D4-einde van zo).
-//
-// Kalender: de standaardkalender, ma–vr 07:00–16:00 (sectie 5: 24 uur en nachtploeg 22:00–06:00; sectie 8:
-// per weekdag eigen werkblokken). Projectstart ma 1 jun 2026.
-//
-// Exit 0 = alles groen. De exitcode is het enige geldige oordeel.
-
 import './domStub';
 import { actualStartQuestionFor, planProgressEntry } from '@/engine/progressEntry';
 import { createAppStoreContext } from '@/state/appStore';
@@ -73,13 +44,9 @@ const PROFILES: Profile[] = ['ops', 'p6', 'msproject'];
 const FIELDS: Field[] = ['actualStart', 'actualFinish'];
 const KINDS: (MilestoneKind | undefined)[] = [undefined, 'START', 'FINISH'];
 const kindName = (kind: MilestoneKind | undefined) => kind ?? 'zonder soort';
-/** De statusdatum: na alle afmelddatums hieronder, zonder tijd. */
 const STATUS = '2026-06-05';
 
-/** Welke groepen `fixture` naast "Oplevering" en "Start bouw" bouwt; standaard alle. De opbouw kost de meeste
- *  tijd van deze check (ongeveer 2 ms per taak, knownbug 500); een sectie laat weg wat ze niet gebruikt. */
 interface Parts { midden?: boolean; los?: boolean; taak?: boolean }
-/** Een planning met de mijlpalen van het besluit en één per soort, in een vers project. */
 function fixture(profile: Profile, calendarOf?: (c: WorkCalendar) => WorkCalendar, parts: Parts = {}) {
   const context = createAppStoreContext();
   const S = () => context.store.getState();
@@ -95,13 +62,10 @@ function fixture(profile: Profile, calendarOf?: (c: WorkCalendar) => WorkCalenda
     return id;
   };
   const fs = (a: string, b: string) => S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
-  // "Oplevering": eindmijlpaal na een werkdag afbouw ⇒ ma 16:00 in elk profiel.
   const oplevering = milestone('Oplevering', 'FINISH');
   fs(hours('Afbouw', 8), oplevering);
-  // "Start bouw": startmijlpaal met een opvolger ⇒ ma 07:00 in elk profiel.
   const startBouw = milestone('Start bouw', 'START');
   fs(startBouw, hours('Grondwerk', 8));
-  // Midden op de dag door de logica: FS na één taak van 3 u ⇒ ma 10:00, per soort.
   const midden: Record<string, string> = {};
   if (parts.midden !== false) {
     const inspectie = hours('Inspectie 3 u', 3);
@@ -111,24 +75,18 @@ function fixture(profile: Profile, calendarOf?: (c: WorkCalendar) => WorkCalenda
       midden[kindName(kind)] = m;
     }
   }
-  // Losse mijlpaal per soort: in OPS aan het einde van de werkdag (B6); in P6 en MSP alleen de
-  // FINISH-mijlpaal, de andere aan het begin.
   const los: Record<string, string> = {};
   if (parts.los !== false) for (const kind of KINDS) los[kindName(kind)] = milestone('Los ' + kindName(kind), kind);
   const taak = parts.taak !== false ? hours('Metselwerk', 8) : '';
   S().runCPM();
-  // Zoals een planner werkt: eerst de planning, dan de statusdatum zetten en afmelden, daarna pas F5.
-  // (Na F5 met deze statusdatum staat niet-afgemeld werk in OPS en P6 op de statusdatum.)
   S().setStatusDate(STATUS);
   const calendar = () => resolveCalendar(undefined, S().calendars, S().calendar);
   return { context, S, taskOf, milestone, hours, fs, oplevering, startBouw, midden, los, taak, calendar };
 }
 type Fixture = ReturnType<typeof fixture>;
 
-/** De klokketijd (`HH:mm`) van een moment. */
 const clockOf = (moment: string | undefined) => moment?.slice(11, 16);
 
-// ── 0. Voorwaarden: de planning staat waar het besluit zegt ───────────────────────────────────────
 for (const profile of PROFILES) {
   const f = fixture(profile);
   eq(`${profile} voorwaarde: Oplevering gepland ma 1 jun 16:00`, f.taskOf(f.oplevering).time.earlyStart, '2026-06-01T16:00');
@@ -143,27 +101,20 @@ for (const profile of PROFILES) {
   eq(`${profile} voorwaarde: de statusdatum heeft geen tijd`, f.S().project.statusDate, STATUS);
 }
 
-// ── 1. De invoerroutes ───────────────────────────────────────────────────────────────────────────
 type Route = 'functie' | 'paneel' | 'UI-invoer' | 'tabel' | 'celeditor' | 'plakken' | 'dialoog' | 'MCP' | 'voortgangsimport';
 const ROUTES: Route[] = ['functie', 'paneel', 'UI-invoer', 'tabel', 'celeditor', 'plakken', 'dialoog', 'MCP', 'voortgangsimport'];
 
-/** Wat een planner in de celeditor typt (notatie dmy, 24 uur): `2026-06-03` ⇒ `03-06-2026`,
- *  `2026-06-03T09:30` ⇒ `03-06-2026 09:30`. */
 function typedText(iso: string): string {
   const day = `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}`;
   return iso.length > 10 ? `${day} ${iso.slice(11, 16)}` : day;
 }
 
-/** Meld `value` af op `field` van taak `id` langs `route`, met statusdatum `status` (staat ook in het
- *  project). Geeft het opgeslagen moment terug, of `'geweigerd'`. */
-/** Wat `enter` van een opstelling nodig heeft: de store, de taken en de kalender. */
 type Entry = Pick<Fixture, 'context' | 'S' | 'taskOf' | 'calendar'>;
 function enter(f: Entry, route: Route, id: string, field: Field, value: string, status = STATUS): string | undefined {
   const S = f.S;
   const task = f.taskOf(id);
   const calendar = f.calendar();
   if (route === 'functie') {
-    // De functie plus de statusregel, zoals elke invoerroute ze samen gebruikt.
     const moment = normalizeActualDate(task, field, value, status, calendar);
     return moment && isTaskActualPastStatusDate(task, field, moment, status, calendar) ? 'geweigerd' : moment;
   }
@@ -184,7 +135,6 @@ function enter(f: Entry, route: Route, id: string, field: Field, value: string, 
     return ok ? f.taskOf(id).time[field] : 'geweigerd';
   }
   if (route === 'celeditor') {
-    // De echte rastercommit: de tekst gaat door de parser van de cel en dan door `runGridMutation`.
     const adapter = createTaskGridAdapter({
       projectId: S().project.id, tasks: S().tasks,
       rows: S().tasks.map(t => ({ kind: 'task', rowKey: t.id, task: t, depth: 0, dimmed: false })),
@@ -209,7 +159,6 @@ function enter(f: Entry, route: Route, id: string, field: Field, value: string, 
     return ok ? f.taskOf(id).time[field] : 'geweigerd';
   }
   if (route === 'MCP') {
-    // De tool roept deze validatie aan op zijn geïsoleerde mutatiedraft.
     const draft = structuredClone({
       tasks: S().tasks, sequences: S().sequences, assignments: S().assignments, resources: S().resources,
       calendars: S().calendars, calendar: S().calendar, project: S().project,
@@ -218,7 +167,6 @@ function enter(f: Entry, route: Route, id: string, field: Field, value: string, 
     const result = progress.applyProgressUpdate(draft, id, update, status);
     return result.applied ? draft.tasks.find(t => t.id === id)!.time[field] : 'geweigerd';
   }
-  // voortgangsimport: één rij van een ingevuld voortgangsblad.
   const cell = { kind: 'value' as const, iso: value };
   const plan = S().applyProgressImport([field === 'actualStart'
     ? { rowNumber: 2, taskId: id, actualStart: cell }
@@ -231,31 +179,25 @@ for (const profile of PROFILES) for (const route of ROUTES) for (const field of 
   {
     const f = fixture(profile);
     const planned = (id: string) => f.taskOf(id).time.earlyStart;
-    // Het besluit, letterlijk.
     eq(`${tag}: Oplevering (ma 16:00) op 3-6-2026 ⇒ wo 3 jun 16:00`,
       enter(f, route, f.oplevering, field, '2026-06-03'), '2026-06-03T16:00');
     eq(`${tag}: Start bouw (ma 07:00) op 2-6-2026 ⇒ di 2 jun 07:00`,
       enter(f, route, f.startBouw, field, '2026-06-02'), '2026-06-02T07:00');
-    // Het nadeel uit het besluit: midden op de dag ⇒ de afgemelde datum krijgt die tijd.
     for (const kind of KINDS) {
       const id = f.midden[kindName(kind)];
       eq(`${tag}: Keuring ${kindName(kind)} (ma 10:00) op 3-6-2026 ⇒ 10:00`,
         enter(f, route, id, field, '2026-06-03'), '2026-06-03T10:00');
     }
-    // Elke soort, losse mijlpaal: de tijd die hij in de planning had (OPS 16:00, P6 en MSP 07:00).
     for (const kind of KINDS) {
       const id = f.los[kindName(kind)];
       const clock = clockOf(planned(id));
       eq(`${tag}: Los ${kindName(kind)} (${clock}) op 4-6-2026 ⇒ ${clock}`,
         enter(f, route, id, field, '2026-06-04'), `2026-06-04T${clock}`);
     }
-    // Een gewone taak houdt D1 (start 07:00) en D2 (einde 16:00).
     eq(`${tag}: gewone taak houdt ${field === 'actualStart' ? 'D1' : 'D2'}`,
       enter(f, route, f.taak, field, '2026-06-03'), field === 'actualStart' ? '2026-06-03T07:00' : '2026-06-03T16:00');
   }
   {
-    // Typ je zelf een tijd, dan geldt die — ook bij een mijlpaal met een andere geplande tijd. Alleen de
-    // mijlpalen die dit blok gebruikt (slank, knownbug 500).
     const f = fixture(profile, undefined, { midden: false, taak: false });
     eq(`${tag}: getypte tijd 09:30 gaat voor (Oplevering)`,
       enter(f, route, f.oplevering, field, '2026-06-03T09:30'), '2026-06-03T09:30');
@@ -268,10 +210,6 @@ for (const profile of PROFILES) for (const route of ROUTES) for (const field of 
   }
 }
 
-// ── 2. Een al afgemelde mijlpaal: zijn werkelijke datum is de planning ──────────────────────────
-// In P6 zet C5 de vroege start van een voltooide taak op de statusdatum. De regel leest daarom de
-// GETOONDE start (`shownStart`): een nieuwe datum zonder tijd houdt de afgemelde 09:30, niet de tijd van
-// de statusdatum.
 for (const profile of PROFILES) {
   const f = fixture(profile);
   f.S().setActualFinish(f.oplevering, '2026-06-03T09:30');
@@ -281,7 +219,6 @@ for (const profile of PROFILES) {
   eq(`${profile}: en via MCP op 5-6-2026 ook`, enter(f, 'MCP', f.oplevering, 'actualFinish', '2026-06-05'), '2026-06-05T09:30');
 }
 
-// ── 3. 100 % zonder datum: de mijlpaal houdt het oorspronkelijke geplande moment (#998).
 for (const profile of PROFILES) {
   const f = fixture(profile);
   const lone = f.los['zonder soort'];
@@ -296,7 +233,6 @@ for (const profile of PROFILES) {
     ['2026-06-01T16:00', '2026-06-01T16:00']);
 }
 
-// ── 4. De klem op het statusmoment blijft ───────────────────────────────────────────────────────
 for (const profile of PROFILES) {
   const f = fixture(profile);
   f.S().setStatusDate('2026-06-03T12:00');
@@ -309,7 +245,6 @@ for (const profile of PROFILES) {
   eq(`${profile}: paneel op de statuswerkdag ⇒ 12:00`, f.S().setActualFinish(f.oplevering, '2026-06-03') && f.taskOf(f.oplevering).time.actualFinish, '2026-06-03T12:00');
 }
 
-// ── 5. "De dag" is de dag die de tabel toont, ook bij een blokeinde na middernacht ────────────────
 const day24 = (c: WorkCalendar): WorkCalendar => ({
   ...c, workStartHour: 0, workEndHour: 24, hoursPerDay: 24, workTime: makeBands([1, 2, 3, 4, 5], [{ start: 0, end: 1440 }]),
 });
@@ -317,14 +252,11 @@ const night = (c: WorkCalendar): WorkCalendar => ({
   ...c, workStartHour: 22, workEndHour: 30, hoursPerDay: 8, workTime: makeBands([1, 2, 3, 4, 5], [{ start: 1320, end: 1800 }]),
 });
 {
-  // 5a. De regel zelf, zonder statusdatum. Een FINISH-mijlpaal na een volle werkdag staat op het
-  // blokeinde: om 00:00 (24 uur) of 06:00 (nachtploeg 22:00–06:00) van de klokdag erna. De tabel toont
-  // de werkdag zelf (ma 1 jun).
   for (const [name, cal, h, want] of [['24 uur', day24, 24, '2026-06-04T00:00'], ['nachtploeg', night, 8, '2026-06-04T06:00']] as const) {
     const f = fixture('ops', cal);
     const id = f.milestone('Oplevering ' + name, 'FINISH');
     f.fs(f.hours('Werkdag ' + name, h), id);
-    f.S().setStatusDate(undefined); // anders schuift F5 het niet-afgemelde werk naar de statusdatum
+    f.S().setStatusDate(undefined);
     f.S().runCPM();
     const calendar = f.calendar();
     eq(`${name}: voorwaarde: de tabel toont ma 1 jun`, taskDateLabel(f.taskOf(id), f.taskOf(id).time.earlyStart, 'end', calendar), '2026-06-01');
@@ -334,13 +266,6 @@ const night = (c: WorkCalendar): WorkCalendar => ({
   }
 }
 
-// 5b. Nachtploeg 22:00–06:00 mét statusdatum wo 3 jun (zonder tijd): afmelden met 03-06-2026 mag, voor
-// elke soort, op beide velden en langs elke invoerroute (voorheen knownbug 445). Een mijlpaal op di 2 jun
-// 06:00, het einde van de nacht van ma, toont "01-06-2026". Afmelden met 03-06-2026 geeft do 4 jun 06:00,
-// het einde van de nacht van wo; de tabel toont "03-06-2026". De statuscontrole las een mijlpaal zonder
-// soort of START eerst aan de startkant: klokdag do, dus ná de statusdatum, en weigerde. Nu telt de dag die
-// de tabel toont (`isTaskActualPastStatusDate`). Twee opstellingen: de losse mijlpaal in OPS (B6, berekend
-// op het einde van de werkdag) en een handmatig anker op di 06:00 in elk profiel.
 const NIGHT_STATUS = '2026-06-03';
 function nightFixture(profile: Profile, holiday?: string, base: (c: WorkCalendar) => WorkCalendar = night) {
   const f = fixture(profile, c => ({
@@ -352,17 +277,12 @@ function nightFixture(profile: Profile, holiday?: string, base: (c: WorkCalendar
     f.S().updateTask(id, { manuallyScheduled: true, time: { ...f.taskOf(id).time, scheduleStart: at, scheduleFinish: at, earlyStart: at, earlyFinish: at } });
     return { name: `anker ${kindName(kind)}`, id };
   });
-  f.S().setStatusDate(undefined); // anders schuift F5 het niet-afgemelde werk naar de statusdatum
+  f.S().setStatusDate(undefined);
   f.S().runCPM();
   f.S().setStatusDate(NIGHT_STATUS);
   const lone = profile === 'ops' ? KINDS.map(kind => ({ name: `los ${kindName(kind)} (B6)`, id: f.los[kindName(kind)] })) : [];
   return { ...f, cases: [...anchors, ...lone] };
 }
-/** Een slanke opstelling voor de routelussen (5b, 5d, 8b): alleen de mijlpalen van de nachtgevallen, met een
- *  eigen mijlpaal per veld (`field`), zodat één opstelling per profiel en route beide velden toetst (review
- *  ronde 4: niet voor elk veld dezelfde planning opnieuw opbouwen). Dezelfde gevallen als `nightFixture`: per
- *  soort een handmatig anker op di 2 jun 06:00 en, in OPS, een losse mijlpaal (B6, berekend op het einde van
- *  de dienst van ma). Statusdatum NIGHT_STATUS. */
 function nightFieldsFixture(profile: Profile, holiday?: string, base: (c: WorkCalendar) => WorkCalendar = night) {
   const anchors = FIELDS.flatMap(field => [
     ...KINDS.map(kind => ({ name: `anker ${kindName(kind)}`, kind, at: '2026-06-02T06:00', field })),
@@ -383,8 +303,6 @@ for (const profile of PROFILES) {
     const t = f.taskOf(c.id);
     eq(`nacht ${profile} voorwaarde: ${c.name} gepland di 2 jun 06:00`, shownStart(t), '2026-06-02T06:00');
     eq(`nacht ${profile} voorwaarde: ${c.name} toont 01-06-2026`, taskDateLabel(t, shownStart(t)!, 'start', calendar), '2026-06-01');
-    // Verschil met main (statusregel 4): het letterlijke moment di 06:00 is het einde van de nacht van ma en
-    // hoort bij ma, ook aan de startkant. De tabel toont ma (ook op main); main weigerde het met statusdatum ma.
     for (const field of FIELDS) {
       eq(`nacht ${profile} ${c.name} ${field}: letterlijk di 06:00, statusdatum ma ⇒ mag`,
         isTaskActualPastStatusDate(t, field, '2026-06-02T06:00', '2026-06-01', calendar) ? 'geweigerd' : 'mag', 'mag');
@@ -392,8 +310,6 @@ for (const profile of PROFILES) {
   }
 }
 for (const profile of PROFILES) for (const route of ROUTES) {
-  // Eén opstelling per profiel en route, met een eigen mijlpaal per veld (review ronde 4: niet voor elk
-  // veld dezelfde planning opnieuw opbouwen). Elk geval krijgt nog steeds elke route en beide velden.
   const f = nightFieldsFixture(profile);
   const calendar = f.calendar();
   for (const c of f.cases) {
@@ -406,9 +322,7 @@ for (const profile of PROFILES) for (const route of ROUTES) {
   }
 }
 
-// 5c. De grenzen van die regel, op dezelfde nachtploeg.
 for (const profile of PROFILES) {
-  // Het rapport (DCMA punt 9, `invalidDateReasons`) gebruikt dezelfde dag: geen "ná de statusdatum".
   const f = nightFixture(profile);
   const calendar = f.calendar();
   for (const c of f.cases) {
@@ -420,16 +334,12 @@ for (const profile of PROFILES) {
     eq(`nacht ${profile} ${c.name}: na F5 nog afgemeld op do 4 jun 06:00`, [t.time.actualStart, t.time.actualFinish, t.time.completion],
       ['2026-06-04T06:00', '2026-06-04T06:00', 1]);
     eq(`nacht ${profile} ${c.name}: DCMA meldt geen datum ná de statusdatum`, invalidDateReasons(t, NIGHT_STATUS, NIGHT_STATUS, false, calendar), []);
-    // Los van de invoer: dezelfde datums uit een bestand, rechtstreeks op de taak.
     const read: Task = { ...t, time: { ...t.time, actualStart: '2026-06-04T06:00', actualFinish: '2026-06-04T06:00', completion: 1 } };
     eq(`nacht ${profile} ${c.name}: DCMA, actuals do 06:00 uit een bestand ⇒ geen datum ná de statusdatum`,
       invalidDateReasons(read, NIGHT_STATUS, NIGHT_STATUS, false, calendar), []);
   }
 }
 for (const profile of PROFILES) {
-  // Een statusdatum mét tijd blijft een tijdstipcontrole. Datumloos op de statuswerkdag klemt op het
-  // statusmoment; een getypt moment ná het statusmoment wordt geweigerd, ook als de tabel het op de
-  // statusdag zou tonen.
   const f = nightFixture(profile);
   f.S().setStatusDate('2026-06-03T23:00');
   for (const c of f.cases) {
@@ -444,9 +354,6 @@ for (const profile of PROFILES) {
   }
 }
 for (const profile of PROFILES) {
-  // Een gewone taak verandert niet: haar werkelijke start op do 06:00 leest de startkant (klokdag do) en
-  // valt ná de statusdatum; haar werkelijke einde op do 06:00 is het einde van de nacht van wo en mag.
-  // Een mijlpaal op hetzelfde moment toont wo en mag (5b).
   const f = nightFixture(profile);
   for (const route of ['paneel', 'MCP', 'celeditor'] as const) {
     eq(`nacht ${profile} ${route}: gewone taak, werkelijke start do 06:00 ⇒ geweigerd`,
@@ -456,14 +363,10 @@ for (const profile of PROFILES) {
     enter(f, 'MCP', f.taak, 'actualFinish', '2026-06-04T06:00', NIGHT_STATUS), '2026-06-04T06:00');
   eq(`nacht ${profile}: gewone taak, werkelijke start 03-06-2026 ⇒ D1 wo 22:00`,
     enter(f, 'MCP', f.taak, 'actualStart', '2026-06-03', NIGHT_STATUS), '2026-06-03T22:00');
-  // De laadgrens houdt D7: een mijlpaal zonder soort krijgt D1 (wo 22:00), niet do 06:00.
   eq(`nacht ${profile}: laadgrens, mijlpaal zonder soort ⇒ D1 wo 22:00`,
     normalizeLoadedActualDate(f.taskOf(f.cases[0].id), 'actualFinish', '2026-06-03', NIGHT_STATUS, f.calendar()), '2026-06-03T22:00');
 }
 {
-  // De soort blijft gelden. Op een 24-uurskalender is di 00:00 het einde van ma én het begin van di; de
-  // tabel toont een START-mijlpaal daar als "di" en een FINISH-mijlpaal als "ma". Met statusdatum ma
-  // 1 jun mag FINISH daar dus wel, START niet.
   const f = fixture('ops', day24);
   f.S().setStatusDate('2026-06-01');
   eq('24 uur: START-mijlpaal op di 00:00 met statusdatum ma ⇒ geweigerd',
@@ -472,12 +375,6 @@ for (const profile of PROFILES) {
     enter(f, 'paneel', f.los.FINISH, 'actualFinish', '2026-06-02T00:00', '2026-06-01'), '2026-06-02T00:00');
 }
 
-// 5d. Een statusdag zonder werkblok (D4): zaterdag, zondag, of een feestdag op woensdag. Afmelden op die
-// dag mag, voor elke soort, op beide velden en langs elke invoerroute. De mijlpaal op di 2 jun 06:00 (het
-// einde van de nacht van ma) houdt zijn klokketijd: za 6 jun wordt zo 7 jun 06:00, het einde van de
-// typische nacht van za (D4). De tabel toont "06-06-2026". Eerst werd zo'n afmelding geweigerd: de tabel
-// en de statuscontrole herkenden het einde van een dag zonder werkblok niet en lazen de klokdag erna
-// (review ronde 2 van #724). Een FINISH-mijlpaal had dat al op main; dezelfde dagbepaling lost het mee op.
 const FREE_DAYS = [
   { name: 'za 6 jun', day: '2026-06-06', holiday: undefined, want: '2026-06-07T06:00', next: '2026-06-07' },
   { name: 'zo 7 jun', day: '2026-06-07', holiday: undefined, want: '2026-06-08T06:00', next: '2026-06-08' },
@@ -491,7 +388,6 @@ for (const free of FREE_DAYS) for (const profile of PROFILES) {
   for (const c of f.cases) {
     eq(`D4 ${free.name} ${profile} voorwaarde: ${c.name} gepland di 2 jun 06:00`, shownStart(f.taskOf(c.id)), '2026-06-02T06:00');
   }
-  // De dag erna blijft ná de statusdatum, ook als die dag ook geen werkblok heeft.
   for (const c of f.cases) {
     eq(`D4 ${free.name} ${profile} ${c.name}: de dag erna ⇒ geweigerd`,
       enter(f, 'paneel', c.id, 'actualFinish', free.next, free.day), 'geweigerd');
@@ -500,7 +396,6 @@ for (const free of FREE_DAYS) for (const profile of PROFILES) {
     taskDateLabel(f.taskOf(f.cases[0].id), free.want, 'start', calendar), free.day);
 }
 for (const free of FREE_DAYS) for (const profile of PROFILES) for (const route of ROUTES) {
-  // Eén opstelling per vrije dag, profiel en route, met een eigen mijlpaal per veld (zoals 5b).
   const f = nightFieldsFixture(profile, free.holiday);
   f.S().setStatusDate(free.day);
   const calendar = f.calendar();
@@ -514,10 +409,6 @@ for (const free of FREE_DAYS) for (const profile of PROFILES) for (const route o
   }
 }
 
-// 5e. Het gezondheidsrapport (`computeScheduleHealth`, de detaillijst én het foutenaantal) na een
-// afmelding die de invoer goedkeurt: geen "ná de statusdatum". Eerst gaf het rapport `invalidDateReasons`
-// geen taakkalender mee en las het de nachtdienst op de klokdag: twee fouten per mijlpaal (knownbug 316,
-// review ronde 2 van #724). Nu één definitie met de invoer en DCMA, met de kalender van de taak.
 const HEALTH_OPTS = { highFloatDays: 44, longDurationDays: 44, lagDays: 10, nearCriticalDays: 5 };
 const healthOf = (f: Fixture) => {
   const s = f.S();
@@ -530,7 +421,6 @@ const healthOf = (f: Fixture) => {
 };
 const progressExceptions = (f: Fixture, ids: string[]) => healthOf(f).checks.find(c => c.id === 'progressException')!.items
   .filter(item => ids.includes(item.taskId ?? '')).map(item => `${item.name}: ${item.detail.reason}`);
-/** De fouten (ernst `error`, ook in het foutenaantal) die het rapport bij deze taken meldt. */
 const errorsAt = (f: Fixture, ids: string[]) => healthOf(f).checks.filter(c => c.severity === 'error')
   .flatMap(c => c.items.filter(item => ids.includes(item.taskId ?? '')).map(item => `${c.id} ${item.name}`));
 for (const status of [{ name: 'wo 3 jun', day: NIGHT_STATUS, holiday: undefined as string | undefined }, ...FREE_DAYS])
@@ -547,7 +437,6 @@ for (const status of [{ name: 'wo 3 jun', day: NIGHT_STATUS, holiday: undefined 
     eq(`rapport ${status.name} ${profile} ${route}: geen fout bij de mijlpalen`, errorsAt(f, ids), []);
   }
 {
-  // In een project met alleen de mijlpalen is dat foutenaantal 0, zoals in de review gemeten.
   for (const profile of PROFILES) {
     const context = createAppStoreContext();
     const S = () => context.store.getState();
@@ -574,7 +463,6 @@ for (const status of [{ name: 'wo 3 jun', day: NIGHT_STATUS, holiday: undefined 
   }
 }
 
-// ── 6. De laadgrens houdt D7 ──────────────────────────────────────────────────────────────────────
 {
   const f = fixture('ops');
   const calendar = f.calendar();
@@ -583,13 +471,11 @@ for (const status of [{ name: 'wo 3 jun', day: NIGHT_STATUS, holiday: undefined 
     normalizeLoadedActualDate(lone, 'actualFinish', '2026-06-03', undefined, calendar), '2026-06-03T07:00');
   eq('laadgrens: FINISH ⇒ D2 (16:00)',
     normalizeLoadedActualDate(f.taskOf(f.midden.FINISH), 'actualFinish', '2026-06-03', undefined, calendar), '2026-06-03T16:00');
-  // De lezer (`normalizeImportedProgress`): voltooid, start met tijd, geen einde ⇒ het einde volgt D7.
   const read: Task = { ...structuredClone(lone), time: { ...structuredClone(lone.time), completion: 1, actualStart: '2026-06-01T16:00', actualFinish: undefined } };
   normalizeImportedProgress([read], '2026-06-03', undefined, calendar);
   eq('lezer: afgeleid einde volgt D7 (07:00)', read.time.actualFinish, '2026-06-03T07:00');
 }
 
-// ── 7. Zonder bruikbaar gepland moment: terugval op D7 ───────────────────────────────────────────
 {
   const f = fixture('ops');
   const calendar = f.calendar();
@@ -600,26 +486,12 @@ for (const status of [{ name: 'wo 3 jun', day: NIGHT_STATUS, holiday: undefined 
   eq('geen moment met tijd, FINISH ⇒ D2 (16:00)', normalizeActualDate(unplannedFinish, 'actualFinish', '2026-06-03', undefined, calendar), '2026-06-03T16:00');
 }
 
-// ── 8. Einde blijft einde (aanvulling op het besluit) ────────────────────────────────────────────
-// Aanvulling van Ethan, later op 2026-10-29 (vloot-wiki, `besluiten/2026-10-29 afgemelde mijlpaal houdt de
-// geplande tijd.md`, alinea "Aanvulling"): "Bij ongelijke werktijden past de geplande kloktijd soms niet in
-// de getypte dag. Dan geldt: einde blijft einde. Stond de mijlpaal op het begin of einde van zijn werkdag,
-// dan komt hij op hetzelfde begin of einde van de getypte dag. Daartussen geldt de geplande kloktijd."
-// Tweede aanvulling (zelfde bestand, alinea "Nog een aanvulling"): "Ligt de mijlpaal midden in een dienst, en
-// eindigt de dienst van de getypte dag vóór de geplande kloktijd, dan krijgt hij het einde van die dienst."
-// Dat geldt ook overdag (8a). Begint de dienst van de getypte dag na die kloktijd, dan het begin van die dienst
-// (uitwerking door de orkestrator, fixronde 5 van #724; 8h, kalender `vroeg`).
-// De regel staat in `milestoneMomentOn` en `milestoneWorkdayOf` (`src/engine/calendar/workdayRules.ts`);
-// de tabel en de statuscontrole lezen dezelfde werkdag. Elke kalender hier heeft per weekdag eigen blokken.
 type Band = { start: number; end: number };
 type Weekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 type Week = Partial<Record<Weekday, Band[]>>;
 const blocks = (...pairs: [number, number][]): Band[] => pairs.map(([start, end]) => ({ start, end }));
 const weekOf = (days: Weekday[], day: Band[], extra: Week = {}): Week =>
   ({ ...Object.fromEntries(days.map(d => [d, day])), ...extra });
-/** Een kalender met precies deze blokken per weekdag en precies deze feestdagen. `typical` is de typische
- *  werkdag (D4): de weekdag met de meest voorkomende dagsom, bij gelijke stand de hoogste som, dan de
- *  eerste weekdag. Sectie 8h toetst letterlijk dat de motor dezelfde dagranden ziet. */
 function weekCalendar(c: WorkCalendar, week: Week, typical: Weekday, holidays: string[] = []): WorkCalendar {
   const byWeekday = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } as Record<Weekday, Band[]>;
   for (const [day, list] of Object.entries(week)) byWeekday[Number(day) as Weekday] = list!.map(b => ({ ...b }));
@@ -631,34 +503,23 @@ function weekCalendar(c: WorkCalendar, week: Week, typical: Weekday, holidays: s
     holidays: holidays.map(d => ({ name: 'Feestdag', startDate: d, endDate: d })), workingExceptions: [],
   };
 }
-const DAY = blocks([420, 720], [780, 960]); // 07:00–12:00 en 13:00–16:00: 8 uur
-const NIGHT = blocks([1320, 1800]); // 22:00–06:00
+const DAY = blocks([420, 720], [780, 960]);
+const NIGHT = blocks([1320, 1800]);
 const MON_THU: Weekday[] = [1, 2, 3, 4];
-/** Het voorbeeld van Ethan: ma–do 07:00–16:00, vr 07:00–12:00. */
 const ETHAN_WEEK = weekOf(MON_THU, DAY, { 5: blocks([420, 720]) });
-/** Het nachtvoorbeeld: ma–do 22:00–06:00, vr 22:00–02:00 (ook de kalender van Sol in ronde 3). */
 const NIGHT_SHORT_FRI_WEEK = weekOf(MON_THU, NIGHT, { 5: blocks([1320, 1560]) });
 const ethanCal = (c: WorkCalendar) => weekCalendar(c, ETHAN_WEEK, 1);
 const nightShortFri = (c: WorkCalendar) => weekCalendar(c, NIGHT_SHORT_FRI_WEEK, 1);
-/** De kalender van Sol (review ronde 4): ma 04:00–08:00, di–vr 22:00–06:00, weekend vrij. De typische
- *  werkdag is de nacht van di (D4: de meest voorkomende dagsom, 8 u, en dan de eerste weekdag). */
 const solCal = (c: WorkCalendar) => weekCalendar(c, weekOf([2, 3, 4, 5], NIGHT, { 1: blocks([240, 480]) }), 2);
-/** De kalender van Sol (review ronde 5): ma 06:00–10:00, di–vr 22:00–06:00, weekend vrij. Typische werkdag
- *  de nacht van di, dus D4 laat zo eindigen op ma 06:00: precies het echte begin van ma. */
 const sol5Cal = (c: WorkCalendar) => weekCalendar(c, weekOf([2, 3, 4, 5], NIGHT, { 1: blocks([360, 600]) }), 2);
-/** Ma 04:00–08:00, di–vr 07:00–16:00, weekend vrij: het voorbeeld van de orkestrator (fixronde 5). */
 const earlyCal = (c: WorkCalendar) => weekCalendar(c, weekOf([2, 3, 4, 5], blocks([420, 960]), { 1: blocks([240, 480]) }), 2);
-/** Nachtploeg ma–vr 22:00–06:00 met een feestdag op wo 3 jun. */
 const holidayNight = (c: WorkCalendar) => weekCalendar(c, weekOf([1, 2, 3, 4, 5], NIGHT), 1, ['2026-06-03']);
-/** 24 uur ma–do, vr 00:00–12:00. */
 const day24ShortFri = (c: WorkCalendar) => weekCalendar(c, weekOf(MON_THU, blocks([0, 1440]), { 5: blocks([0, 720]) }), 1);
-/** 24 uur ma–vr: za 00:00 is het einde van een echte vr en het begin van een vrije za (D4). */
 const day24Full = (c: WorkCalendar) => weekCalendar(c, weekOf([1, 2, 3, 4, 5], blocks([0, 1440])), 1);
 const shiftDate = (date: string, days: number) => new Date(Date.parse(`${date}T00:00:00Z`) + days * 86_400_000).toISOString().slice(0, 10);
 const labelOf = (f: Entry, id: string, got: string | undefined) =>
   got && got !== 'geweigerd' ? taskDateLabel(f.taskOf(id), got, 'start', f.calendar()) : got;
 
-/** Een vers project met losse mijlpalen: met `at` een handmatig anker op dat moment, anders berekend. */
 function anchorFixture(
   profile: Profile, calendarOf: (c: WorkCalendar) => WorkCalendar, startDate: string,
   anchors: { name: string; kind: MilestoneKind | undefined; at?: string }[],
@@ -681,11 +542,8 @@ function anchorFixture(
   return { context, S, taskOf, calendar, ids };
 }
 
-// 8a. Het voorbeeld van Ethan, letterlijk, en de andere mijlpalen van de opstelling op dezelfde kalender.
-// Statusdatum vr 5 jun (STATUS).
 function ethanFixture(profile: Profile, calendarOf: (c: WorkCalendar) => WorkCalendar = ethanCal, laterBegin = false) {
   const f = fixture(profile, calendarOf, laterBegin ? { los: false, taak: false } : {});
-  // Midden op de dag na één taak van 6 u: ma 14:00, later dan het einde van de vrijdag (alleen 8a).
   const at14: Record<string, string> = {};
   if (!laterBegin) {
     const inspectie = f.hours('Inspectie 6 u', 6);
@@ -695,10 +553,9 @@ function ethanFixture(profile: Profile, calendarOf: (c: WorkCalendar) => WorkCal
       at14[kindName(kind)] = m;
     }
   }
-  // Een tweede startmijlpaal met een opvolger (ma 07:00), voor het tweede veld (alleen 8e).
   const startBouw2 = laterBegin ? f.milestone('Start bouw 2', 'START') : '';
   if (laterBegin) f.fs(startBouw2, f.hours('Grondwerk 2', 8));
-  f.S().setStatusDate(undefined); // anders schuift F5 het niet-afgemelde werk naar de statusdatum
+  f.S().setStatusDate(undefined);
   f.S().runCPM();
   f.S().setStatusDate(STATUS);
   return { ...f, at14, startBouw2 };
@@ -718,7 +575,6 @@ for (const profile of PROFILES) for (const route of ROUTES) for (const field of 
   const tag = `Ethan ${profile} ${route} ${field}`;
   const f = ethanFixture(profile);
   const planned = Object.fromEntries(Object.values(f.los).map(id => [id, f.taskOf(id).time.earlyStart]));
-  // Eerst met statusdatum do 4 jun: dan is vr 5 jun ná de statusdatum. Een weigering laat de taak staan.
   f.S().setStatusDate('2026-06-04');
   eq(`${tag}: statusdatum do 4 jun ⇒ Oplevering op vr geweigerd`, enter(f, route, f.oplevering, field, '2026-06-05', '2026-06-04'), 'geweigerd');
   eq(`${tag}: statusdatum do 4 jun ⇒ Keuring 14:00 op vr geweigerd`, enter(f, route, f.at14.FINISH, field, '2026-06-05', '2026-06-04'), 'geweigerd');
@@ -732,9 +588,6 @@ for (const profile of PROFILES) for (const route of ROUTES) for (const field of 
   for (const kind of KINDS) {
     const mid = enter(f, route, f.midden[kindName(kind)], field, '2026-06-05');
     eq(`${tag}: Keuring ${kindName(kind)} (ma 10:00) ⇒ vr 10:00, de geplande kloktijd`, mid, '2026-06-05T10:00');
-    // De opstelling van Sol (review ronde 5): taak van 6 u, FS-mijlpaal ma 14:00, statusdatum vr. Tweede
-    // aanvulling van Ethan: de vrijdagdienst eindigt om 12:00, vóór de geplande 14:00 ⇒ het einde van die
-    // dienst, vr 12:00 (fixronde 5; eerst vr 14:00, een uitwerking die met de aanvulling verviel).
     const lateId = f.at14[kindName(kind)];
     const late = enter(f, route, lateId, field, '2026-06-05');
     eq(`${tag}: Keuring 14:00 ${kindName(kind)} ⇒ vr 12:00, het einde van de vrijdagdienst`, [late, labelOf(f, lateId, late)], ['2026-06-05T12:00', '2026-06-05']);
@@ -744,13 +597,10 @@ for (const profile of PROFILES) for (const route of ROUTES) for (const field of 
     const want = planned[id] === '2026-06-01T16:00' ? '2026-06-05T12:00' : '2026-06-05T07:00';
     eq(`${tag}: Los ${kindName(kind)} (${clockOf(planned[id])}) ⇒ ${clockOf(want)}`, [lone, labelOf(f, id, lone)], [want, '2026-06-05']);
   }
-  // Een gewone taak houdt D1/D2: het begin en het einde van vr.
   eq(`${tag}: gewone taak houdt ${field === 'actualStart' ? 'D1 (07:00)' : 'D2 (12:00)'}`,
     enter(f, route, f.taak, field, '2026-06-05'), field === 'actualStart' ? '2026-06-05T07:00' : '2026-06-05T12:00');
 }
 
-// 8b. Het nachtvoorbeeld: ma–do 22:00–06:00, vr 22:00–02:00. De mijlpalen staan op di 2 jun 06:00, het einde
-// van de dienst van ma (handmatig anker in elk profiel, en de losse mijlpalen in OPS, B6).
 for (const profile of PROFILES) {
   const f = nightFixture(profile, undefined, nightShortFri);
   for (const c of f.cases) {
@@ -759,7 +609,6 @@ for (const profile of PROFILES) {
   }
 }
 for (const profile of PROFILES) for (const route of ROUTES) {
-  // Eén opstelling per profiel en route, met een eigen mijlpaal per veld (zoals 5b).
   const f = nightFieldsFixture(profile, undefined, nightShortFri);
   f.S().setStatusDate('2026-06-04');
   for (const c of f.cases) {
@@ -777,10 +626,6 @@ for (const profile of PROFILES) for (const route of ROUTES) {
   }
 }
 
-// 8c. De automatische route van Sol (review ronde 3): projectstart vr 5 jun, Berekenen, statusdatum za 6 jun,
-// `06-06-2026` typen. In OPS staat een losse mijlpaal op het einde van de werkdag (B6): za 02:00, het einde
-// van de vrijdagdienst; in P6 en MSP alleen FINISH, de andere op het begin (vr 22:00). Einde blijft einde:
-// za heeft geen werkblok, dus de typische nacht (D4): einde zo 06:00, begin za 22:00. De tabel toont za.
 for (const profile of PROFILES) for (const route of ROUTES) for (const field of FIELDS) {
   const f = anchorFixture(profile, nightShortFri, '2026-06-05', KINDS.map(kind => ({ name: 'Los ' + kindName(kind), kind })));
   f.S().setStatusDate('2026-06-06');
@@ -796,9 +641,6 @@ for (const profile of PROFILES) for (const route of ROUTES) for (const field of 
   }
 }
 
-// 8d. De gevallen uit de meting van ronde 3 (`meet-gevallen.ts`), op dezelfde kalender, met de uitkomst van
-// optie 2 (`gevallen-proto-E.txt`) als verwachting, voor elke soort. Het veld wisselt per mijlpaal, zodat elk
-// geval en elke soort beide velden krijgt.
 const CASES_R3 = [
   { name: 'A', planned: '2026-06-06T02:00', typed: '2026-06-06', status: '2026-06-06', want: '2026-06-07T06:00', label: '2026-06-06' },
   { name: 'A-', planned: '2026-06-06T02:00', typed: '2026-06-06', status: '2026-06-05', want: 'geweigerd', label: 'geweigerd' },
@@ -825,8 +667,6 @@ for (const profile of PROFILES) for (const route of ROUTES) {
   }));
 }
 
-// 8e. Een beginmijlpaal op het begin van zijn werkdag, afgemeld op een dag die later begint: het begin van
-// de getypte dag. Kalender ma–do 07:00–16:00, vr 09:00–13:00.
 const laterFri = (c: WorkCalendar) => weekCalendar(c, weekOf(MON_THU, DAY, { 5: blocks([540, 780]) }), 1);
 for (const profile of PROFILES) for (const route of ROUTES) {
   const f = ethanFixture(profile, laterFri, true);
@@ -842,19 +682,8 @@ for (const profile of PROFILES) for (const route of ROUTES) {
   eq(`later begin ${profile} ${route}: Keuring FINISH (ma 10:00) ⇒ vr 10:00`, enter(f, route, f.midden.FINISH, 'actualStart', '2026-06-05'), '2026-06-05T10:00');
 }
 
-// 8f. De uitwerking door de orkestrator, de aanvulling van Ethan voor een dienst die vóór de geplande kloktijd
-// eindigt (voorheen knownbug 450, geval 1; zie ook 8j) en het geval dat besluit en uitwerking niet dekken
-// (knownbug 501, gemeld in PR #724). Steeds geldt "de dag komt van wat je typt": het moment hoort bij de getypte
-// werkdag.
 {
-  // Uitwerking (fixronde 3): de kloktijd valt in de dienst van een andere werkdag ⇒ de dichtstbijzijnde rand.
-  // Ma–do 22:00–06:00, vr 22:00–02:00, za 04:00–12:00; di 05:00 (midden in de nacht van ma) op vr. Za 05:00 ligt
-  // in de dienst van za én na het einde van de vrijdagdienst; sinds fixronde 5 beslist daar eerst de tweede
-  // aanvulling van Ethan (het einde van die dienst). De uitkomst blijft za 02:00.
   const satShift = (c: WorkCalendar) => weekCalendar(c, weekOf(MON_THU, NIGHT, { 5: blocks([1320, 1560]), 6: blocks([240, 720]) }), 1);
-  // Aanvulling van Ethan: de dienst van vr eindigt vóór de geplande kloktijd (za 05:00) ⇒ het einde van vr.
-  // Knownbug 501 (ook zo op main): 24 uur ma–do, vr 00:00–12:00; START op vr 12:00, afgemeld op ma ⇒ di 00:00
-  // leest START als di, dus het begin van ma.
   const SPECIAL = [
     { name: 'uitwerking: za-dienst', cal: satShift, kind: undefined, planned: '2026-06-02T05:00', typed: '2026-06-05', want: '2026-06-06T02:00', label: '2026-06-05' },
     { name: 'uitwerking: za-dienst FINISH', cal: satShift, kind: 'FINISH' as const, planned: '2026-06-02T05:00', typed: '2026-06-05', want: '2026-06-06T02:00', label: '2026-06-05' },
@@ -863,8 +692,6 @@ for (const profile of PROFILES) for (const route of ROUTES) {
     { name: 'knownbug 501: START op het einde van een 24-uursvrijdag', cal: day24ShortFri, kind: 'START' as const, planned: '2026-06-05T12:00', typed: '2026-06-08', want: '2026-06-08T00:00', label: '2026-06-08' },
     { name: 'knownbug 501: FINISH houdt het einde', cal: day24ShortFri, kind: 'FINISH' as const, planned: '2026-06-05T12:00', typed: '2026-06-08', want: '2026-06-09T00:00', label: '2026-06-08' },
   ];
-  // De gevallen van één kalender staan samen in één opstelling per profiel en route (review ronde 4: niet
-  // voor elk geval dezelfde planning opnieuw opbouwen); ze hebben per kalender dezelfde getypte dag.
   const groups = [...new Set(SPECIAL.map(c => c.cal))].map(cal => SPECIAL.flatMap((c, ci) => c.cal === cal ? [{ c, ci }] : []));
   for (const profile of PROFILES) for (const [ri, route] of ROUTES.entries()) for (const group of groups) {
     const f = anchorFixture(profile, group[0].c.cal, '2026-06-01', group.map(({ c }) => ({ name: c.name, kind: c.kind, at: c.planned })));
@@ -881,8 +708,6 @@ for (const profile of PROFILES) for (const route of ROUTES) {
   }
 }
 
-// 8g. De 48-uursrand (de proef `dagranden` van Sol toetste die op de verwijderde helper `freeDayEndingAt`):
-// een blok ma 22:00–wo 00:00, de rest vrij. Het einde van za (D4) is ma 00:00; 23:59 en 00:01 zijn geen rand.
 {
   const c48 = weekCalendar(createAppStoreContext().store.getState().calendar, { 1: blocks([1320, 2880]) }, 1);
   const clock = calendarClock(c48);
@@ -893,26 +718,6 @@ for (const profile of PROFILES) for (const route of ROUTES) {
     [milestoneWorkdayOf(ELAPSED_CLOCK, '2026-06-07T06:00', 'end'), workdayEdgeAt(ELAPSED_CLOCK, '2026-06-06', '2026-06-07T06:00')], ['2026-06-07', null]);
 }
 
-// 8h. Een compacte kalenderselectie met vaste verwachtingen. Elke waarde hieronder is met de hand uit de
-// regel afgeleid en letterlijk uitgeschreven; de test rekent niets na met een kopie van de zoeklus (review
-// ronde 4 van #724: het vorige orakel speelde de productieregel na en bleef zo groen bij een fout). Per geval:
-// de tabel bij de planning, het moment na afmelden, de tabel daarna, en de statuscontrole (de dag vóór de
-// getypte dag geweigerd, de getypte dag zelf mag). Op helperniveau één veld en per kant één soort: START en
-// zonder soort lezen allebei de startkant, en een nulduur-mijlpaal geeft beide velden dezelfde kant
-// (`actualDateSide`). De routes hieronder toetsen alle soorten en beide velden.
-//  - sol: ma 04:00–08:00, di–vr 22:00–06:00, weekend vrij (`solCal`); D4 geeft zo een verzonnen nacht tot
-//    ma 06:00, midden in de echte maandagdienst;
-//  - nacht: ma–do 22:00–06:00, vr 22:00–02:00;
-//  - dag: ma–do 07:00–12:00 en 13:00–16:00, vr 07:00–12:00 (het voorbeeld van Ethan);
-//  - 24u: ma–do 00:00–24:00, vr 00:00–12:00;
-//  - 24u vol: ma–vr 00:00–24:00 (za 00:00 is een rand van een echte vr en een vrije za);
-//  - sol5: ma 06:00–10:00, di–vr 22:00–06:00 (`sol5Cal`, review ronde 5): het D4-einde van zo valt op het echte
-//    begin van ma;
-//  - vroeg: ma 04:00–08:00, di–vr 07:00–16:00 (`earlyCal`, het voorbeeld van de orkestrator in fixronde 5);
-//  - feestdag: ma–vr 22:00–06:00 met een feestdag op wo 3 jun (`holidayNight`).
-// Elk verschil met main uit de vergelijking van fixronde 5 (main `14020335b`, alle kalenders hierboven, elke soort,
-// de tabeldag van een geplande mijlpaal en de statuscontrole van een letterlijk getypte tijd) staat hieronder als
-// vaste uitkomst, gemerkt "verschil met main" met de regel die het vraagt.
 const FIXED_CALS = {
   sol: solCal, nacht: nightShortFri, dag: ethanCal, '24u': day24ShortFri, '24u vol': day24Full,
   sol5: sol5Cal, vroeg: earlyCal, feestdag: holidayNight,
@@ -920,7 +725,6 @@ const FIXED_CALS = {
 type FixedCal = keyof typeof FIXED_CALS;
 const fixedCalendar = Object.fromEntries(Object.entries(FIXED_CALS)
   .map(([name, of]) => [name, of(createAppStoreContext().store.getState().calendar)])) as Record<FixedCal, WorkCalendar>;
-/** De dagranden die de motor ziet (D1/D2, en D4 op een vrije dag), letterlijk. */
 const FIXED_EDGES: [FixedCal, string, string, string][] = [
   ['sol', '2026-05-31', '2026-05-31T22:00', '2026-06-01T06:00'],
   ['sol', '2026-06-01', '2026-06-01T04:00', '2026-06-01T08:00'],
@@ -983,7 +787,6 @@ const FIXED: FixedCase[] = [
   { cal: 'vroeg', side: 'end', planned: '2026-06-02T15:00', plannedLabel: '2026-06-02T15:00', typed: '2026-06-08', want: '2026-06-08T08:00', label: '2026-06-08', why: 'tweede aanvulling van Ethan, overdag: de dienst van ma eindigt om 08:00, vóór 15:00 ⇒ het einde van die dienst' },
   { cal: 'feestdag', side: 'start', planned: '2026-06-02T06:00', plannedLabel: '2026-06-01', typed: '2026-06-03', want: '2026-06-04T06:00', label: '2026-06-03', why: 'einde van de nacht van ma ⇒ het D4-einde van de feestdag wo (fixronde 2)' },
 ];
-/** Letterlijk getypte momenten met een statusdatum zonder tijd. */
 const FIXED_LITERAL: { cal: FixedCal; side: 'start' | 'end'; value: string; status: string; want: 'mag' | 'geweigerd'; label?: string; why: string }[] = [
   { cal: 'sol', side: 'start', value: '2026-06-01T06:00', status: '2026-05-31', want: 'geweigerd', why: 'ma 06:00 is ma, niet het D4-einde van de vrije zo' },
   { cal: 'sol', side: 'end', value: '2026-06-01T06:00', status: '2026-05-31', want: 'geweigerd', why: 'idem, FINISH' },
@@ -999,11 +802,9 @@ const FIXED_LITERAL: { cal: FixedCal; side: 'start' | 'end'; value: string; stat
   { cal: '24u vol', side: 'start', value: '2026-06-06T00:00', status: '2026-06-05', want: 'geweigerd', label: '2026-06-06', why: 'START op za 00:00 is za (D4), zoals op main' },
   { cal: '24u vol', side: 'end', value: '2026-06-06T00:00', status: '2026-06-05', want: 'mag', label: '2026-06-05', why: 'FINISH op za 00:00 is het einde van de echte vr, zoals op main: hier beslist de soort' },
   { cal: '24u vol', side: 'end', value: '2026-06-01T00:00', status: '2026-05-31', want: 'mag', why: 'FINISH op ma 00:00 is zo (D4), zoals op main' },
-  // Review ronde 5: het echte begin van ma gaat voor het D4-einde van zo, zoals op main.
   { cal: 'sol5', side: 'end', value: '2026-06-01T06:00', status: '2026-05-31', want: 'geweigerd', label: '2026-06-01', why: 'FINISH op ma 06:00 is het echte begin van ma, niet het D4-einde van zo' },
   { cal: 'sol5', side: 'start', value: '2026-06-01T06:00', status: '2026-05-31', want: 'geweigerd', label: '2026-06-01', why: 'idem, startkant' },
   { cal: 'sol5', side: 'end', value: '2026-06-01T06:00', status: '2026-06-01', want: 'mag', why: 'op de statusdag ma' },
-  // De verschillen met main. Statusregel 4: de tabel, het afmelden en de statuscontrole lezen één werkdag.
   { cal: 'nacht', side: 'start', value: '2026-06-02T06:00', status: '2026-06-01', want: 'mag', label: '2026-06-01', why: 'verschil met main: het echte einde van de nacht van ma is ma, ook aan de startkant; de tabel toont ma, ook op main, maar main weigerde (fixronde 1, knownbug 445)' },
   { cal: 'nacht', side: 'start', value: '2026-06-07T06:00', status: '2026-06-06', want: 'mag', label: '2026-06-06', why: 'verschil met main: het D4-einde van de vrije za is za; main toonde "07-06-2026 06:00" en weigerde (B10, fixronde 2)' },
   { cal: 'nacht', side: 'end', value: '2026-06-07T06:00', status: '2026-06-06', want: 'mag', label: '2026-06-06', why: 'idem, FINISH' },
@@ -1015,7 +816,6 @@ const FIXED_LITERAL: { cal: FixedCal; side: 'start' | 'end'; value: string; stat
   { cal: '24u', side: 'end', value: '2026-06-06T00:00', status: '2026-06-05', want: 'geweigerd', label: '2026-06-06', why: 'verschil met main: FINISH op za 00:00 ligt buiten de korte vr (00:00–12:00) en is het begin van de vrije za (D4); de tabel toont za, ook op main, maar main las vr' },
   { cal: '24u', side: 'end', value: '2026-06-06T00:00', status: '2026-06-06', want: 'mag', why: 'op de statusdag za' },
 ];
-/** Een mijlpaal per soort als sjabloon; per geval krijgt hij het geplande moment. */
 const milestoneTemplates = (() => {
   const context = createAppStoreContext();
   const S = () => context.store.getState();
@@ -1027,7 +827,6 @@ const milestoneTemplates = (() => {
 const plannedAt = (template: Task, at: string): Task => ({
   ...template, time: { ...template.time, scheduleStart: at, scheduleFinish: at, earlyStart: at, earlyFinish: at, actualStart: undefined, actualFinish: undefined },
 });
-/** Zonder soort voor de startkant, FINISH voor de eindkant. */
 const helperTask = (side: 'start' | 'end', at: string) => plannedAt(milestoneTemplates[side === 'end' ? 2 : 0], at);
 for (const c of FIXED) {
   const cal = fixedCalendar[c.cal];
@@ -1048,10 +847,6 @@ for (const c of FIXED_LITERAL) {
     isTaskActualPastStatusDate(task, 'actualFinish', c.value, c.status, fixedCalendar[c.cal]) ? 'geweigerd' : 'mag', c.want);
   if (c.label) eq(`${tag}: de tabel`, taskDateLabel(task, c.value, 'start', fixedCalendar[c.cal]), c.label);
 }
-// Dezelfde vaste gevallen langs vijf echte routes. Per kalender en route één berekende opstelling met alle
-// gevallen van die kalender: per geval een anker per soort (de startkant: zonder soort en START; de eindkant:
-// FINISH) en per statusdatum (de getypte dag: mag; de dag ervoor: geweigerd). Het profiel wisselt per
-// kalender en route, zodat elke kalender alle drie de profielen krijgt; het veld wisselt per mijlpaal.
 const FIXED_ROUTES: Route[] = ['celeditor', 'paneel', 'dialoog', 'MCP', 'voortgangsimport'];
 let fixedRouteCases = 0;
 for (const [ci, name] of (Object.keys(FIXED_CALS) as FixedCal[]).entries()) {
@@ -1074,16 +869,6 @@ for (const [ci, name] of (Object.keys(FIXED_CALS) as FixedCal[]).entries()) {
   }
 }
 
-// 8i. Echte werktijd gaat voor een verzonnen D4-rand (review ronde 4 van #724, de berekende route van Sol).
-// Kalender `solCal`: ma 04:00–08:00, di–vr 22:00–06:00, weekend vrij. Projectstart ma 1 jun, een taak van
-// 2 u met FS-opvolgers als nulduur-mijlpaal, Berekenen. De voorganger begint ma 04:00; de mijlpalen staan
-// ma 06:00, midden in de echte maandagdienst. De tabel toont "01-06-2026 06:00" (eerst "31-05-2026": D4 laat
-// de vrije zo tot ma 06:00 lopen, en die rand won). Met statusdatum zo wordt `01-06-2026 06:00` geweigerd.
-// Afgemeld met `02-06-2026` (statusdatum di) wordt het di 22:00: de dienst van di begint na de geplande 06:00,
-// dus het begin van die dienst (uitwerking door de orkestrator, fixronde 5; eerst di 06:00). Elk profiel, elke
-// soort, beide velden, elke route, en het gezondheidsrapport.
-/** Een slanke opstelling: één voorganger van 2 u, en per soort en veld een nulduur-mijlpaal als opvolger
- *  (`type`); per element van `purposes` een eigen set. Projectstart ma 1 jun, Berekenen. */
 function mondayFixture(
   profile: Profile, calendarOf: (c: WorkCalendar) => WorkCalendar, type: 'FINISH_START' | 'START_START', purposes: string[] = [''],
 ) {
@@ -1104,8 +889,6 @@ function mondayFixture(
   const calendar = () => resolveCalendar(undefined, S().calendars, S().calendar);
   return { context, S, taskOf, calendar, pred, pairs };
 }
-/** DCMA en het gezondheidsrapport: dezelfde actuals `at` uit een bestand, rechtstreeks op de taak, daarna
- *  Berekenen. Met statusdatum zo liggen ze ná de statusdatum, met statusdatum ma niet. */
 function mondayHealth(name: string, profile: Profile, make: () => ReturnType<typeof mondayFixture>, at: string) {
   for (const status of ['2026-05-31', '2026-06-01']) {
     const f = make();
@@ -1156,16 +939,6 @@ for (const profile of PROFILES) for (const route of ROUTES) {
 }
 for (const profile of PROFILES) mondayHealth('maandag', profile, () => mondayFixture(profile, solCal, 'FINISH_START'), '2026-06-01T06:00');
 
-// 8j. Tweede aanvulling van Ethan op B10 (2026-10-29, vloot-wiki, alinea "Nog een aanvulling"; voorheen knownbug
-// 450, geval 1): "Ligt de mijlpaal midden in een dienst, en eindigt de dienst van de getypte dag vóór de geplande
-// kloktijd, dan krijgt hij het einde van die dienst. Voorbeeld: nachtdienst 22:00–06:00, op vrijdag 22:00–02:00.
-// Een mijlpaal op dinsdag 05:00, afgemeld met "vrijdag", wordt zaterdag 02:00." (Het daggeval staat in 8a.)
-// Kalender ma–do 22:00–06:00, vr 22:00–02:00, weekend vrij. De mijlpaal staat op di 2 jun 05:00 (handmatig
-// anker, midden in de nacht van ma). Afgemeld met 05-06-2026: za 6 jun 02:00, het einde van de vrijdagdienst
-// (letterlijk zou het za 05:00 zijn). De tabel toont "05-06-2026". Statusdatum do 4 jun ⇒ geweigerd; statusdatum
-// vr 5 jun ⇒ geaccepteerd. Elk profiel, elke soort, beide velden, elke route (ook de celeditor met getypte tekst
-// en het paneel, de setter). Eén opstelling per profiel en route, met een eigen mijlpaal per soort en veld.
-/** De tekst van een cel in de tabel, zoals de planner hem ziet (notatie dmy, 24 uur). */
 function cellText(f: Entry, id: string, field: string): string | undefined {
   const S = f.S;
   const adapter = createTaskGridAdapter({
@@ -1198,21 +971,9 @@ for (const profile of PROFILES) for (const route of ROUTES) {
     const got = enter(f, route, id, a.field, '2026-06-05', '2026-06-05');
     eq(`${tag}: statusdatum vr 5 jun, 05-06-2026 ⇒ za 6 jun 02:00, het einde van de vrijdagdienst`, got, '2026-06-06T02:00');
     eq(`${tag}: de tabel toont 05-06-2026`, labelOf(f, id, got), '2026-06-05');
-    // MCP schrijft op een losse kopie; daar toont de echte tabel niets nieuws.
     if (route !== 'MCP' && route !== 'functie') eq(`${tag}: de cel ${a.field} toont 05-06-2026`, cellText(f, id, `task.time.${a.field}`), '05-06-2026');
   });
 }
-// 8k. Een echt begin van ma gaat voor het verzonnen D4-einde van zo (review ronde 5 van #724, de berekende
-// SS-route van Sol). Kalender `sol5Cal`: ma 06:00–10:00, di–vr 22:00–06:00, weekend vrij. Een taak van 2 u
-// begint ma 06:00; nulduur-mijlpalen als SS-opvolger staan na Berekenen ma 06:00, ook FINISH, in elk profiel.
-// Dat is het begin van ma en ook het D4-einde van de vrije zo. De tabel, de rapportformatter en de
-// PDF-tekenroute tonen "01-06-2026" (B4: alleen de datum op het begin van de werkdag), zoals op main; eerst
-// toonde FINISH "31-05-2026". Met statusdatum zo wordt `01-06-2026 06:00` geweigerd (eerst bij FINISH
-// geaccepteerd), met statusdatum ma mag het. Afgemeld met `08-06-2026` wordt het ma 8 jun 06:00: begin blijft
-// begin (eerst bij FINISH 10:00, het einde). Elk profiel, elke soort, beide velden, elke route, het
-// gezondheidsrapport.
-/** De datums die de PDF-tekenroute (`renderReport`, ook het afdrukvoorbeeld) in de tabelrij van elke taak
- *  tekent, per taak-id, van links naar rechts. */
 function reportRowDates(f: Pick<Entry, 'S' | 'calendar'>): Map<string, string[]> {
   const texts: { text: string; x: number; y: number }[] = [];
   const state: Record<string | symbol, unknown> = { font: '', fillStyle: '', strokeStyle: '', lineWidth: 0, textAlign: 'left', textBaseline: 'alphabetic' };
@@ -1267,7 +1028,6 @@ for (const profile of PROFILES) for (const route of ROUTES) {
     const tag = `gedeelde rand ${profile} ${route} ${p.name}`;
     const got = enter(f, route, p.id, p.field, SHARED_EDGE, '2026-06-01');
     eq(`${tag}: statusdatum ma, letterlijk 01-06-2026 06:00 ⇒ mag, de tabel toont 01-06-2026`, [got, labelOf(f, p.id, got)], [SHARED_EDGE, '2026-06-01']);
-    // MCP schrijft op een losse kopie; daar toont de echte tabel niets nieuws.
     if (route !== 'MCP' && route !== 'functie') eq(`${tag}: de cel ${p.field} toont 01-06-2026`, cellText(f, p.id, `task.time.${p.field}`), '01-06-2026');
   }
   f.S().setStatusDate('2026-06-08');
@@ -1280,15 +1040,12 @@ for (const profile of PROFILES) for (const route of ROUTES) {
 for (const profile of PROFILES) mondayHealth('gedeelde rand', profile, () => mondayFixture(profile, sol5Cal, 'START_START'), SHARED_EDGE);
 console.log(`Vaste gevallen: ${FIXED.length} op helperniveau, ${FIXED_LITERAL.length} letterlijk, ${fixedRouteCases} langs de routes`);
 
-// Knownbug 317: de startvraag gebruikt de werkdagzijde van de mijlpaalsoort.
 for (const [label, cal, predecessorHours, moment, nextStart] of [
   ['24 uur', day24, 72, '2026-06-04T00:00', '2026-06-04T00:00'],
   ['nacht', night, 24, '2026-06-04T06:00', '2026-06-04T22:00'],
 ] as const) {
   const f = fixture('ops', cal, { midden: false, los: false, taak: false });
   const id = f.milestone('Test einde', 'FINISH');
-  // Laat de voorganger de mijlpaal echt op de eindrand van woensdag plaatsen. Een los startanker
-  // op donderdag 00:00 plant een losse FINISH-mijlpaal in OPS op het einde van donderdag.
   f.fs(f.hours('Werk voor de eindmijlpaal', predecessorHours), id);
   f.S().setStatusDate(undefined);
   f.S().runCPM();

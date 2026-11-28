@@ -1,12 +1,3 @@
-// Taaktypes-etappe, bouwstap 7 — de werkregel en het resterende werk via de bridge
-// (spec docs/superpowers/specs/2026-09-04-spec-taaktypes-opgeslagen-werk.md §5/§10).
-//
-// Drie ingangen, allemaal door de ECHTE dispatch (schemapoort + guards):
-//   1. planner_update_tasks `fields.workRule` (zetten, wissen, ongeldig, op een mijlpaal);
-//   2. planner_manage_assignments `update.remainingWorkMinutes` (duur volgt onder FIXED_WORK,
-//      inzet volgt onder FIXED_DURATION_RATE; ongeldig/afwezig zacht geweigerd);
-//   3. planner_update_project `defaultWorkRule` (zetten/wissen; leesbaar via get_project_info).
-// Plus: één undo-stap per call, en planner_batch met typewissel + inzetwijziging in één draaiboek.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
@@ -26,7 +17,6 @@ function makeCtx(over: McpContextOverrides = {}): McpContext {
   return makeMcpContext(appStoreContext, { expectedDocId: store.getState().activeDocumentId, ...over });
 }
 let nextId = 1;
-/** Via de ECHTE dispatch-weg (schemavalidatie inbegrepen). */
 async function call(name: string, args: unknown, ctx: McpContext = makeCtx()): Promise<McpToolResult> {
   const id = nextId++;
   const raw = await handleMcpMessage(JSON.stringify({ jsonrpc: '2.0', id, method: 'tools/call', params: { name, arguments: args } }), ctx);
@@ -57,7 +47,6 @@ function seed(days = 4): { t: string; r: string } {
   return { t, r };
 }
 
-// 1) update_tasks.fields.workRule
 test('update_tasks: workRule zetten legt het restwerk vast, wissen zet terug naar de projectstandaard', async () => {
   const { t, r } = seed();
   const events0 = store.getState().historyEvents.length;
@@ -99,8 +88,6 @@ test('update_tasks: calendarId + duration in één call (review F2) — het verr
   store.getState().setTaskWorkRule(t, 'FIXED_WORK');
   assertEq(asg(t, r).remainingWorkMinutes, 5 * slot(), 'voorwaarde: restwerk 5 d × 8 u');
   okData(await call('planner_update_tasks', { updates: [{ id: t, fields: { calendarId: sixId, duration: 8 } }] }));
-  // Alleen uren B1a (spec §3.2, §3.12): vast werk is urenmaat. Verricht blijft 40 u; "8 d" op de
-  // 6-urenkalender is 48 u, dus rest 8 u = 4/3 d en completion 40/48.
   assertEq([task(t).calendarId, task(t).time.scheduleDuration, task(t).time.durationMinutes, task(t).time.remainingMinutes, task(t).time.remainingTime, task(t).time.completion],
     [sixId, 8, 48 * 60, 8 * 60, 4 / 3, 5 / 6], 'kalender 6 u, duur 8 d = 48 u, rest 8 u (40 u verricht), completion volgt: 5/6');
   assertEq(asg(t, r).remainingWorkMinutes, 5 * 480, 'werk 40 u blijft (Vast werk)');
@@ -110,9 +97,6 @@ test('update_calendar: uren per dag wijzigen laat de werkregel per taak beslisse
   const { t, r } = seed(4);
   const six = store.getState().addCalendar({ ...store.getState().calendar, id: 'cal-6h-b', name: '6 uur', hoursPerDay: 6 } as never);
   const sixId = typeof six === 'string' ? six : 'cal-6h-b';
-  // Alleen uren B1a (spec §3.2): vast werk is urenmaat en houdt bij een kalenderwissel zijn minuten; de
-  // regel verandert dan geen duur. K2 wordt daarom getoetst met Vaste inzet, die de duur in dagen uit het
-  // werk haalt. T14: 32 u op 6 u/dag is exact 16/3 d.
   store.getState().setTaskWorkRule(t, 'FIXED_RATE');
   store.getState().setTaskCalendar(t, sixId);
   assertEq(task(t).time.scheduleDuration, 16 / 3, 'voorwaarde: 32 u op 6 u/dag = 16/3 d');
@@ -130,7 +114,6 @@ test('add_tasks: workRule op een nieuwe taak is een kaal veld', async () => {
   assertEq(task(id).workRule, 'FIXED_RATE', 'workRule bij aanmaak gezet');
 });
 
-// 2) manage_assignments.update.remainingWorkMinutes
 test('manage_assignments: remainingWorkMinutes onder FIXED_WORK verandert de duur; onder de standaardregel de inzet', async () => {
   const { t, r } = seed();
   store.getState().setTaskWorkRule(t, 'FIXED_WORK');
@@ -142,7 +125,6 @@ test('manage_assignments: remainingWorkMinutes onder FIXED_WORK verandert de duu
   assertEq(asg(t, r).unitsPerDay, 1, 'inzet blijft');
   assertEq(store.getState().historyEvents.length - events0, 1, 'één undo-stap');
   assertEq(store.getState().scheduleStale, false, 'de transactie heeft herrekend');
-  // Standaardregel: duur beschermd ⇒ inzet = W / R.
   store.getState().setTaskWorkRule(t, 'FIXED_DURATION_RATE');
   okData(await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: a, remainingWorkMinutes: 4 * slot() }] }));
   assertEq(task(t).time.scheduleDuration, 8, 'duur blijft 8');
@@ -156,8 +138,6 @@ test('manage_assignments: unitsPerDay onder FIXED_WORK verkort de taak; remainin
   okData(await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: a, unitsPerDay: 2 }] }));
   assertEq(task(t).time.scheduleDuration, 2, 'inzet 1→2: duur 4→2');
   const bad = await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: a, remainingWorkMinutes: 0 }] });
-  // Diepte-regel van de schemapoort (docs/recepten/mcp-tool.md): de BINNENKANT van een bulk-item is
-  // aan de handler — dus een zachte weigering met reden, geen harde VALIDATION-fout.
   const rej0 = rejections(bad);
   assert(rej0.length === 1 && rej0[0].reason.includes('strictly positive'), `0 zacht geweigerd met reden: ${rej0[0]?.reason}`);
   const bad2 = await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: a }] });
@@ -177,7 +157,6 @@ test('manage_assignments: resource erbij onder FIXED_WORK verdeelt het werk en v
   assertEq(task(t).time.scheduleDuration, 4, 'eraf: terug naar 4');
 });
 
-// 3) update_project.defaultWorkRule
 test('update_project: defaultWorkRule zetten/wissen, zichtbaar in get_project_info', async () => {
   const { t, r } = seed();
   const res = await call('planner_update_project', { defaultWorkRule: 'FIXED_DURATION_WORK' });
@@ -186,7 +165,6 @@ test('update_project: defaultWorkRule zetten/wissen, zichtbaar in get_project_in
   assertEq(data.project.defaultWorkRule, 'FIXED_DURATION_WORK', 'respons toont de regel');
   assertEq(store.getState().project.defaultWorkRule, 'FIXED_DURATION_WORK', 'gezet');
   assertEq(okData(await call('planner_get_project_info', {})).project.defaultWorkRule, 'FIXED_DURATION_WORK', 'get_project_info toont hem');
-  // De projectstandaard werkt op taken zonder eigen regel: inzet → 0,5 laat de duur staan en legt werk vast.
   okData(await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: asg(t, r).id, unitsPerDay: 0.5 }] }));
   assertEq([task(t).time.scheduleDuration, asg(t, r).remainingWorkMinutes], [4, 2 * slot()], 'FIXED_DURATION_WORK via de projectstandaard');
   okData(await call('planner_update_project', { defaultWorkRule: null }));
@@ -195,7 +173,6 @@ test('update_project: defaultWorkRule zetten/wissen, zichtbaar in get_project_in
   assert(!bad.ok, 'ongeldige waarde is een harde fout');
 });
 
-// 4) planner_batch: typewissel + inzet in één draaiboek = één undo-stap
 test('batch: workRule + unitsPerDay in één draaiboek ⇒ één undo-stap, duur volgt de nieuwe regel', async () => {
   const { t, r } = seed();
   const events0 = store.getState().historyEvents.length;
@@ -212,7 +189,6 @@ test('batch: workRule + unitsPerDay in één draaiboek ⇒ één undo-stap, duur
   assertEq([task(t).workRule, task(t).time.scheduleDuration, asg(t, r).unitsPerDay], [undefined, 4, 1], 'undo zet alles in één keer terug');
 });
 
-// 5) add mét werk (reviewbevinding: binnen een batch is het nieuwe assignmentId niet tempId-resolveerbaar)
 test('manage_assignments: add met remainingWorkMinutes zet het werk in dezelfde stap; hangmat/ELAPSEDTIME zacht geweigerd', async () => {
   const { t, r } = seed();
   store.getState().setTaskWorkRule(t, 'FIXED_WORK');
@@ -223,9 +199,6 @@ test('manage_assignments: add met remainingWorkMinutes zet het werk in dezelfde 
     ],
   });
   assert(res.ok, `batch ok: ${res.ok ? '' : (res as McpToolErr).error}`);
-  // r1 had 4 slots vastgelegd; r2 erbij verdeelt eerst (2 + 2, duur 2) en zet dan expliciet 4 slots op r2
-  // ⇒ R = max(2/1, 4/1) = 4 dagen; r1 houdt haar 2 slots en loopt over de hele restduur (besluit 10)
-  // ⇒ inzet 0,5.
   assertEq(asg(t, r2).remainingWorkMinutes, 4 * slot(), 'werk op de nieuwe toewijzing gezet');
   assertEq(task(t).time.scheduleDuration, 4, 'duur volgt het grootste restwerk (4 d)');
   assertEq([asg(t, r).unitsPerDay, asg(t, r).remainingWorkMinutes], [0.5, 2 * slot()], 'r1: werk 2 slots blijft, inzet volgt (0,5)');
@@ -237,7 +210,6 @@ test('manage_assignments: add met remainingWorkMinutes zet het werk in dezelfde 
 });
 
 
-// Kostenresource (issue #815): stuurt de duur nooit, ook niet onder FIXED_WORK; nivelleren weigert hem.
 test('manage_assignments: kostenresource erbij/eraf onder FIXED_WORK laat duur en werk staan; level weigert COST', async () => {
   const { t, r } = seed();
   store.getState().setTaskWorkRule(t, 'FIXED_WORK');

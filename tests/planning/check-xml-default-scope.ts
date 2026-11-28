@@ -1,4 +1,3 @@
-// 332: ongeprefixte XML-nesting mag niet per element de hele namespace-ouderketen doorlopen.
 import assert from 'node:assert/strict';
 import { XmlDomParser } from '../../headless/mcp-server/src/xmlDom';
 
@@ -9,7 +8,6 @@ for (const depth of [100, 1000, 8000]) {
   let defaultLookups = 0;
   let doc: ReturnType<XmlDomParser['parseFromString']>;
   try {
-    // Tel werk, geen onbetrouwbare wandkloktijd; de echte parser en Map blijven hun werk doen.
     Map.prototype.get = function (this: Map<unknown, unknown>, key: unknown) {
       if (key === '') defaultLookups++;
       return originalGet.call(this, key);
@@ -24,7 +22,6 @@ for (const depth of [100, 1000, 8000]) {
   assert.ok(defaultLookups <= depth, `hoogstens lineair werk: ${defaultLookups} op diepte ${depth}`);
 }
 
-// De optimalisatie mag bindingen en verboden declaraties niet overslaan.
 for (const xml of [
   '<r xmlns="urn:root"><child xmlns=""/></r>',
   '<r xmlns:p="urn:p"><p:child p:a="1"/></r>',

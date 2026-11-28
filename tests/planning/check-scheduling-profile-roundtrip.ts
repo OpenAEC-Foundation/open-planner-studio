@@ -1,13 +1,3 @@
-// Rekenprofielen — IFC-round-trip van `OPS_SchedulingProfile`, de legacy-migratie na het lezen,
-// vijandige pset-JSON, byte-identiteit zonder profiel, en de opslag van eigen profielen
-// (`ops-schedulingProfiles`). Spec docs/superpowers/specs/2026-09-22-rekenprofielen-design.md.
-//
-// Sinds taak C2 (plan 2026-09-22) schrijft en leest writeIFC/readIFC het profiel zelf, en draagt het
-// optieblok alleen nog projectopties (+ A22/A23 als true). Oude bestanden (legacy-blob met p6Source en
-// conventiesleutels, geen profiel-pset) maakt `legacyIfc` hieronder na door de opties-JSON van een
-// vers geschreven bestand te vervangen.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen; faalregels beginnen met "XX".
 import { selectProfile } from '@/state/schedulingProfileDraft';
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -48,7 +38,6 @@ const canon = (value: unknown): string => JSON.stringify(value, (_k, v: unknown)
 const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got), canon(want));
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-// ── Fixture ─────────────────────────────────────────────────────────────────────────────────────
 function mkTask(id: string, wbs: string): Task {
   return {
     id, name: id, description: '', wbsCode: wbs, taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -75,13 +64,9 @@ function fixture(projectExtra: Partial<Project> = {}): ImportResult {
 const PROFILE_LINE = /IFCPROPERTYSINGLEVALUE\('SchedulingProfile',\$,IFCTEXT\('[^']*'\),\$\)/;
 const withProfileJson = (ifc: string, json: string) =>
   ifc.replace(PROFILE_LINE, `IFCPROPERTYSINGLEVALUE('SchedulingProfile',$,IFCTEXT('${json}'),$)`);
-/** Sinds C2 schrijft writeIFC het profiel zelf (de naam blijft voor de leesbaarheid van de secties). */
 const writeWithProfile = (input: ImportResult): string => writeIFC(input);
-/** Het profiel na lezen via readIFC: pset wint, anders migratie van het gelezen optieblok. */
 const readProfile = (ifc: string): SchedulingProfile | undefined => readIFC(ifc).project.schedulingProfile;
 const OPTIONS_LINE = /IFCPROPERTYSINGLEVALUE\('SchedulingOptions',\$,IFCTEXT\('([^']*)'\),\$\)/;
-/** Een bestand zoals een versie vóór de rekenprofielen het schreef: het OPS_SchedulingOptions-blok is
- *  letterlijk `blob` (incl. p6Source/conventies). Optioneel mét profiel-pset (voor "pset wint"). */
 function legacyIfc(blob: LegacySchedulingOptions, profile?: SchedulingProfile): string {
   const ifc = writeIFC(fixture({ schedulingProfile: profile, schedulingOptions: { nearCriticalThreshold: 1 } }));
   if (!OPTIONS_LINE.test(ifc)) throw new Error('legacyIfc: geen optie-anker');
@@ -92,7 +77,6 @@ const CUSTOM: SchedulingProfile = {
   overrides: { resumeFromActualElapsed: true, p6OpenLoeTargetSpan: false },
 };
 
-// ── 0) Sinds C2 gekoppeld aan writeIFC/readIFC ──────────────────────────────────────────────────
 {
   const plain = writeIFC(fixture({ schedulingProfile: builtInProfile('p6') }));
   ok('00 writeIFC schrijft OPS_SchedulingProfile', plain.includes("'OPS_SchedulingProfile'"));
@@ -102,7 +86,6 @@ const CUSTOM: SchedulingProfile = {
     readIFC(legacyIfc({ p6Source: 'XER' })).project.schedulingProfile?.baseId, 'p6');
 }
 
-// ── 1) Round-trip: drie ingebouwde + één eigen profiel ──────────────────────────────────────────
 {
   for (const id of ['p6', 'msproject'] as const) {
     const ifc = writeWithProfile(fixture({ schedulingProfile: builtInProfile(id) }));
@@ -125,11 +108,7 @@ const CUSTOM: SchedulingProfile = {
   eq('09 eigen profiel: idempotent (tweede write, zelfde profielregel)', profileLine(writeWithProfile(reread)), profileLine(customIfc));
 }
 
-// ── 2) Byte-identiteit zonder profiel ───────────────────────────────────────────────────────────
 {
-  // De schrijver zet de klok in de kop (FILE_NAME), in IFCWORKPLAN/IFCWORKSCHEDULE en in IFCOWNERHISTORY.
-  // Twee schrijfacties aan weerszijden van een secondegrens verschilden daardoor alleen daarin (CI faalde er
-  // zo op); vergelijk zonder klok. De fixturedatums liggen in 2026-06, dus de klok valt er niet mee samen.
   const withoutClock = (ifc: string) => {
     const stamp = /^FILE_NAME\('[^']*','([^']*)'/m.exec(ifc)?.[1];
     return (stamp ? ifc.split(`'${stamp}'`).join("'<klok>'") : ifc)
@@ -140,7 +119,6 @@ const CUSTOM: SchedulingProfile = {
   eq('11a alle vier klokplekken gevonden (anders vergelijkt 11 te veel weg of te weinig)', withoutClock(bare).split('<klok>').length - 1, 4);
   eq('11 standaardprofiel schrijft byte-identiek aan geen profiel',
     withoutClock(writeWithProfile(fixture({ schedulingProfile: builtInProfile('ops') }))), withoutClock(bare));
-  // De gecommitte voorbeeldbestanden (gemaakt vóór de rekenprofielen): na lezen geen profiel.
   const dir = join(ROOT, 'public', 'examples');
   const files = readdirSync(dir).filter(f => f.endsWith('.ifc'));
   ok('12 er zijn voorbeeldbestanden om tegen te meten', files.length > 0);
@@ -151,14 +129,12 @@ const CUSTOM: SchedulingProfile = {
   }
 }
 
-// ── 3) De vier migratierijen (§3.4) na het lezen ────────────────────────────────────────────────
 {
   eq('20 geen pset + geen opties ⇒ ops (afwezig)', readProfile(writeWithProfile(fixture())), undefined);
   const opts2: SchedulingOptions = { lagCalendar: 'successor', clampNegativeFreeFloat: true, p6UseTaskPlannedStartFloor: true };
   const ifc2 = legacyIfc(opts2);
   same('21 opties zonder p6Source ⇒ ops + niet-gepoorte afwijking; gepoorte vlag weg',
     readProfile(ifc2), { ...builtInProfile('ops'), overrides: { clampNegativeFreeFloat: true } });
-  // C2: na lezen draagt het project alleen de projectopties (conventies en p6Source gestript).
   same('22 C2: schedulingOptions alleen projectopties', readIFC(ifc2).project.schedulingOptions, { lagCalendar: 'successor' });
   eq('23 alleen optie-sleutels ⇒ ops zonder afwijking (afwezig)',
     readProfile(legacyIfc({ nearCriticalThreshold: 2 })), undefined);
@@ -167,9 +143,6 @@ const CUSTOM: SchedulingProfile = {
     builtInProfile('msproject'));
   const opts3: LegacySchedulingOptions = { p6Source: 'XER', totalFloatMode: 'finish', clampNegativeFreeFloat: false, preserveActualDatesInBackwardPass: true };
   const ifc3 = legacyIfc(opts3);
-  // Spec v3: een A-conventie die de blob niet noemt, rekende vandaag als uit ⇒ afwijking van p6.
-  // A17 staat sinds 2026-09-23 (§1d-7) ook in P6 uit, dus "ontbrekend ⇒ uit" is daar geen afwijking meer;
-  // B3/B4 volgen hun P6-waarde (uit) en zijn evenmin een afwijking.
   same('25 p6Source ⇒ p6; genoemde én ontbrekende A-conventies volgen de blob, B-set op P6-waarde', readProfile(ifc3), {
     ...builtInProfile('p6'),
     overrides: {
@@ -179,8 +152,6 @@ const CUSTOM: SchedulingProfile = {
   });
   same('26 C2: p6Source en conventies gestript uit schedulingOptions', readIFC(ifc3).project.schedulingOptions, { totalFloatMode: 'finish' });
   same('27 pset wint van de legacy-migratie', readProfile(legacyIfc(opts3, builtInProfile('msproject'))), builtInProfile('msproject'));
-  // X12 brok 2, 3 en 4 (critreview must-fix 1): C1–C9, C11, C12 en C14 (C9: brok 6, C14: brok 10) via de echte IFC-leesroute. Een oud XER-IFC zonder
-  // C-sleutels rekent C1–C9, C11, C12 en C14 op de P6-profielwaarde; een expliciete false in het blok blijft false.
   const C_KEYS = [
     'p6CompletedPredecessorAtDataDate', 'p6FreeFloatOnOwnCalendar', 'p6CompletedRemainingLag',
     'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6InProgressStartLagElapsed',
@@ -200,32 +171,25 @@ const CUSTOM: SchedulingProfile = {
   for (const key of C_KEYS) eq(`28b oud XER-IFC met ${key}=false ⇒ blijft false`, oldXerFalse[key], false);
 }
 
-// ── 4) Vijandige pset-JSON: valt terug zonder throw ─────────────────────────────────────────────
 {
   const LEGACY_BLOB: LegacySchedulingOptions = { p6Source: 'XER' };
   const base = legacyIfc(LEGACY_BLOB, CUSTOM);
-  // Waar de pset onbruikbaar is valt de lezer terug op de migratie van het legacy-blok.
   const FALLBACK = legacyOptionsToProfile(LEGACY_BLOB).profile;
   ok('30b anker: de terugval is herkenbaar (p6-basis)', FALLBACK.baseId === 'p6');
   ok('30 anker: pset aanwezig', PROFILE_LINE.test(base));
   const readWith = (json: string) => readProfile(withProfileJson(base, json));
-  // Onbekende baseId ⇒ ops; ontbrekende conventies ⇒ legacyValue (ops) ⇒ geen afwijkingen.
   same('31 onbekende baseId ⇒ ops', readWith('{"id":"x","baseId":"primavera","conventions":{}}'),
     { baseId: 'ops', id: 'x', name: '', overrides: {} });
-  // Ongeldig getypeerd ⇒ legacyValue (uit), nooit de p6-basis (aan); onbekende sleutels genegeerd.
   const hostile = readWith('{"baseId":"p6","conventions":{"clampNegativeFreeFloat":"ja","p6OpenLoeTargetSpan":1,"onzin":true}}');
   eq('32 ongeldig getypeerd ⇒ legacyValue (clampNegativeFreeFloat uit)', hostile && resolveConventions(hostile).clampNegativeFreeFloat, false);
   same('32b ongeldig/ontbrekend ⇒ alle conventies op legacy (uit)', hostile, { ...builtInProfile('p6'), overrides: diffAgainstLegacyForP6() });
   same('33 conventions geen object ⇒ legacy-waarden', readWith('{"id":"p6","baseId":"p6","conventions":[1,2]}'),
     { ...builtInProfile('p6'), overrides: diffAgainstLegacyForP6() });
-  // Ingebouwde id met een andere basis ⇒ de basis-id.
   eq('34 id "p6" op msproject-basis ⇒ id msproject', readWith('{"id":"p6","baseId":"msproject","conventions":{}}')?.id, 'msproject');
-  // Naam: te lang ⇒ leeg (profiel blijft); geen string ⇒ leeg.
   const longName = 'x'.repeat(MAX_PROFILE_NAME_LENGTH + 1);
   eq('35 te lange naam ⇒ leeg', readWith(`{"id":"eigen","baseId":"ops","name":"${longName}","conventions":{}}`)?.name, '');
   eq('36 naam precies op de grens blijft', readWith(`{"id":"eigen","baseId":"ops","name":"${'y'.repeat(MAX_PROFILE_NAME_LENGTH)}","conventions":{}}`)?.name.length, MAX_PROFILE_NAME_LENGTH);
   eq('37 te lange id ⇒ basis-id', readWith(`{"id":"${'i'.repeat(65)}","baseId":"msproject","conventions":{}}`)?.id, 'msproject');
-  // 10 MB naam: de rauwe JSON overschrijdt de bovengrens ⇒ pset genegeerd ⇒ legacy-migratie (p6Source ⇒ p6).
   const huge = `{"id":"eigen","baseId":"ops","name":"${'z'.repeat(10 * 1024 * 1024)}","conventions":{}}`;
   let hugeResult: SchedulingProfile | undefined;
   let threw = false;
@@ -239,7 +203,6 @@ const CUSTOM: SchedulingProfile = {
   same('41 JSON-array ⇒ legacy-migratie', safeRead('[1,2,3]'), FALLBACK);
   eq('42 sanitize(null) ⇒ undefined', sanitizeSchedulingProfile(null), undefined);
 }
-/** Verwachte afwijkingen van p6 als alle conventies op hun legacyValue (uit) vallen. */
 function diffAgainstLegacyForP6(): Partial<Record<string, boolean>> {
   const p6 = builtInConventions('p6');
   const out: Record<string, boolean> = {};
@@ -249,16 +212,14 @@ function diffAgainstLegacyForP6(): Partial<Record<string, boolean>> {
   return out;
 }
 
-// ── 5) Missende sleutel ⇒ legacyValue, niet de basiswaarde ──────────────────────────────────────
 {
   const p6 = builtInConventions('p6');
   const partial = { ...p6 } as Record<string, boolean>;
-  delete partial.p6OpenLoeTargetSpan; // een bestand van vóór deze conventie
+  delete partial.p6OpenLoeTargetSpan;
   const read = sanitizeSchedulingProfile({ id: 'p6', baseId: 'p6', conventions: partial });
   same('50 ontbrekende conventie ⇒ legacyValue (uit), dus afwijking van p6', read?.overrides, { p6OpenLoeTargetSpan: false });
 }
 
-// ── 6) Opslag van eigen profielen ───────────────────────────────────────────────────────────────
 {
   const memory = (initial?: string): ProfileStorage & { value: string | null } => {
     const s = {
@@ -299,7 +260,6 @@ function diffAgainstLegacyForP6(): Partial<Record<string, boolean>> {
     eq('71 na verwijderen leeg', loadCustomProfiles(store), []);
     saveCustomProfiles([CUSTOM, { ...CUSTOM, id: '' }], store);
     same('72 save filtert ongeldige items', loadCustomProfiles(store), [CUSTOM]);
-    // Een opslag die gooit (QuotaExceededError bij schrijven, SecurityError bij lezen): nooit een throw.
     const quota: ProfileStorage = {
       getItem: () => JSON.stringify([CUSTOM]),
       setItem: () => { throw new DOMException('vol', 'QuotaExceededError'); },
@@ -311,7 +271,6 @@ function diffAgainstLegacyForP6(): Partial<Record<string, boolean>> {
     eq('74 upsert bij QuotaExceeded: false', upserted, false);
     eq('75 save bij QuotaExceeded: false', saveCustomProfiles([CUSTOM], quota), false);
     eq('76 delete bij QuotaExceeded: false', deleteCustomProfile('eigen-1', quota), false);
-    // Critreview #169 B9: de UI meldt WAAROM opslaan mislukt. Mutant: 'limit' als 'storage' teruggeven ⇒ 76b rood.
     eq('76a uitkomst bij QuotaExceeded: storage', upsertCustomProfileResult({ ...CUSTOM, id: 'nieuw' }, quota), 'storage');
     {
       const full = memory(JSON.stringify(Array.from({ length: MAX_CUSTOM_PROFILES }, (_, i) => ({ ...CUSTOM, id: `p-${i}` }))));
@@ -335,9 +294,6 @@ function diffAgainstLegacyForP6(): Partial<Record<string, boolean>> {
   }
 }
 
-// ── C2: het optieblok in het eindmodel ──────────────────────────────────────────────────────────
-// Verwachte JSON met de hand (spec v3.1 §3.3). Mutatiebewijs (plan C2 step 5): de strip in de lezer
-// weglaten ⇒ 22, 26 en C2-04 rood (gemeten).
 const optionsJsonOf = (ifc: string): string | undefined => OPTIONS_LINE.exec(ifc)?.[1];
 function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSchedulingOptions | SchedulingOptions | undefined) {
   const base = freshPayload();
@@ -364,8 +320,6 @@ function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSch
   eq('C2-08 OPS leest terug zonder profiel', [read.schedulingProfile, read.schedulingOptions], [undefined, { lagCalendar: 'successor' }]);
 }
 {
-  // H5: de catch in extractSchedulingOptions (corrupte optie-JSON) — geen throw, opties en profiel
-  // blijven op de default (ops).
   const corrupt = writeIFC(fixture({ schedulingOptions: { nearCriticalThreshold: 1 } }))
     .replace(OPTIONS_LINE, `IFCPROPERTYSINGLEVALUE('SchedulingOptions',$,IFCTEXT('{"lagCalendar":'),$)`);
   let corruptRead: Project | 'THROW';
@@ -373,14 +327,6 @@ function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSch
   eq('C2-11 corrupte optie-JSON ⇒ geen throw, geen opties, geen profiel',
     corruptRead === 'THROW' ? 'THROW' : [corruptRead.schedulingOptions, corruptRead.schedulingProfile], [undefined, undefined]);
 }
-// ── C2-aanvulling: afwijkingen op een ingebouwd id overleven een opslag letterlijk ─────────────────
-// Besluit 2026-09-22 (review baan D): P6{A13 uit} → OPS → opslaan → heropenen → P6 = het origineel.
-// De pset draagt daarvoor naast `conventions` ook `overrides` letterlijk. Verwachtingen met de hand.
-// Mutatiebewijs: `overrides` niet wegschrijven (schedulingProfileToJson) ⇒ C2b-01/03 rood; de
-// letterlijke overlay in sanitizeSchedulingProfile weglaten ⇒ C2b-01 rood; carriesProfile terug naar
-// isDefaultProfile ⇒ C2b-02 rood. Sinds review #350 loopt de wissel via de echte app-weg (`selectProfile`,
-// dezelfde functie als de keuzelijst in Projectinfo, met de "(aangepast)"-bron zoals de UI die geeft):
-// breekt de app B14, dan wordt C2b-01 rood.
 {
   const p6Adjusted: SchedulingProfile = { ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: false } };
   const underOps = selectProfile(p6Adjusted, 'builtin:ops', [], p6Adjusted);
@@ -392,8 +338,6 @@ function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSch
   ok('C2b-02 OPS met alleen een basisgelijke letterlijke afwijking schrijft tóch een pset', written.includes("'OPS_SchedulingProfile'"));
   const json = JSON.parse(written.match(/IFCTEXT\('(\{"id":"[^']*)'\)/)?.[1] ?? '{}') as Record<string, unknown>;
   same('C2b-03 de pset draagt overrides letterlijk', json.overrides, { clampNegativeFreeFloat: false });
-  // Vijandige letterlijke afwijkingen: onbekend/niet-boolean ⇒ genegeerd; in strijd met de opgeloste
-  // conventions ⇒ genegeerd (de opgeloste set is waarmee het bestand rekende).
   const hostile = sanitizeSchedulingProfile({
     id: 'ops', baseId: 'ops', conventions: builtInConventions('ops'),
     overrides: { clampNegativeFreeFloat: false, preserveActualDatesInBackwardPass: true, onzin: true, p6OpenLoeTargetSpan: 'ja' },
@@ -403,16 +347,6 @@ function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSch
     sanitizeSchedulingProfile({ id: 'ops', baseId: 'ops', conventions: builtInConventions('ops') }), builtInProfile('ops'));
 }
 
-// ── A19 in de P6-basis (eigenaarsbesluit 2026-09-24 "a") ─────────────────────────────────────────
-// De oude XER-lezer schreef een Y-bestand als p6 + override {A19: true} weg; een leeg/N-bestand als
-// kale p6 (A19 uit). Nu is A19 AAN in de P6-basis. Verwachtingen met de hand:
-//  - override true onder p6 ⇒ geen afwijking meer (resolved gelijk aan de basis, diff leeg);
-//  - expliciete false onder p6 ⇒ blijft een echte afwijking;
-//  - oud pset-bestand (vóór A19 aan) met conventions.A19 = false: de oude lezer liet A19 uit bij een
-//    leeg/N-bestand. Zo'n bestand rekende zonder A19; dat blijft een afwijking (bestandswaarde wint);
-//  - legacy XER-blok zonder A19-sleutel ⇒ A19 op de P6-waarde (aan), expliciete false blijft staan.
-// Mutatiebewijs (gemeten 2026-09-24): A19 uit LEGACY_XER_ALWAYS_ON halen ⇒ 25, A19-05 en A19-05b rood;
-// A19 in het register terug op NONE ⇒ A19-02, A19-03, A19-05 en A19-06 rood.
 {
   const p6WithOldOverride: SchedulingProfile = { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } };
   const reread = readIFC(writeIFC(fixture({ schedulingProfile: p6WithOldOverride }))).project.schedulingProfile;
@@ -432,13 +366,9 @@ function roundTripC2(profile: SchedulingProfile | undefined, options: ProjectSch
   same('A19-05b …en dus geen afwijking', legacyOptionsToProfile({ p6Source: 'XER' }).profile.overrides.p6UseRemainingStartForProgress, undefined);
   eq('A19-06 legacy XER-blok met expliciete A19 false ⇒ afwijking uit',
     legacyOptionsToProfile({ p6Source: 'XER', p6UseRemainingStartForProgress: false }).profile.overrides.p6UseRemainingStartForProgress, false);
-  // Achterdeur (critreview x12-a19-basis): de oude letterlijke A19-override mag niet als herkomst
-  // blijven staan, anders zet een wissel P6 → OPS A19 onder OPS aan. Mutatie: de A19-uitzondering in
-  // sanitizeSchedulingProfile weghalen ⇒ A19-07, A19-08, A19-09 en A19-10 rood.
   same('A19-07 oude Y-override: na heropenen geen letterlijke afwijking meer', reread?.overrides, {});
   eq('A19-08 oude Y-override → heropenen → wissel naar OPS ⇒ A19 uit',
     resolveConventions(switchProfile(reread, 'ops')).p6UseRemainingStartForProgress, false);
-  // Crashherstel: de snapshot gaat via buildWriteIFCInput (auto-save) en terug via readIFC.
   const rbase = freshPayload();
   const recovered = readIFC(writeIFC(buildWriteIFCInput({
     ...rbase, project: { ...rbase.project, schedulingProfile: p6WithOldOverride },

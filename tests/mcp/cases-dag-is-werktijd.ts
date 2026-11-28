@@ -1,15 +1,3 @@
-// Eén dag is de werktijd van de taakkalender (eigenaarsbesluit 2026-10-15, optie 2).
-//
-// Een urentaak bewaart haar duur in `durationMinutes`. Het verborgen dagengetal `scheduleDuration` is
-// overal: werkminuten ÷ de werktijd per dag van de taakkalender (`effHoursPerDay`, bij een
-// blokkenkalender de modale dagsom van de blokken). De opgeslagen `hoursPerDay` (P6 `day_hr_cnt`) blijft
-// bewaard voor export, maar telt hier niet. Bron: docs/superpowers/plans/2026-10-07-review-pr109-uitkomsten.md
-// op `claude/review-pr109-log` ("een dag", #354).
-//
-// Hier de MCP-routes, met een kalender van 8 u/dag en blokken van 10 u (zoals Roads_Project_TEC.xer):
-//   A. planner_add_tasks met een urenduur, los en via planner_batch;
-//   B. planner_update_tasks met een urenduur;
-//   C. planner_update_calendar die de blokken van de taakkalender wijzigt.
 import { appStoreContext, makeMcpContext, useAppStore, test, assertEq, run } from './harness';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import { batchTools } from '@/services/mcp/tools/batchTool';
@@ -21,7 +9,6 @@ import type { WorkTimeBands } from '@/types/calendar';
 
 const store = useAppStore;
 
-// Warm-up (zelfde reden als de andere case-bestanden): een verse store heeft `calendars: []`.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
@@ -44,12 +31,10 @@ function okData(res: McpToolResult): any {
 const taskById = (id: string) => store.getState().tasks.find((t) => t.id === id)!;
 
 const block = (start: number, end: number) => [{ start, end }];
-/** Ma–vr één blok `start`–`end` (minuten na middernacht). */
 const week = (start: number, end: number): WorkTimeBands => ({
   byWeekday: { 1: block(start, end), 2: block(start, end), 3: block(start, end), 4: block(start, end), 5: block(start, end), 6: [], 7: [] },
 });
 
-/** Schone store; de projectkalender krijgt 8 u/dag en blokken van 10 u (07:00–17:00). */
 function reset(): void {
   store.getState().newProject();
   store.setState((s) => {
@@ -63,9 +48,6 @@ function reset(): void {
   });
 }
 
-// =================================================================================================
-// A. planner_add_tasks
-// =================================================================================================
 test('add_tasks: urentaak van 1870 u op 8 u/dag met blokken van 10 u ⇒ dagengetal 187 (niet 233,75)', async () => {
   reset();
   const created = okData(await call('planner_add_tasks', {
@@ -88,9 +70,6 @@ test('add_tasks via planner_batch: zelfde dagengetal 187', async () => {
   assertEq(task.time.scheduleDuration, 187, 'dagengetal via batch');
 });
 
-// =================================================================================================
-// B. planner_update_tasks
-// =================================================================================================
 test('update_tasks: een dagtaak wordt urentaak van 40 u ⇒ dagengetal 4', async () => {
   reset();
   const created = okData(await call('planner_add_tasks', { tasks: [{ tempId: 'tmp-d', name: 'Dagtaak', duration: 3 }] }));
@@ -99,9 +78,6 @@ test('update_tasks: een dagtaak wordt urentaak van 40 u ⇒ dagengetal 4', async
   assertEq([taskById(id).time.durationMinutes, taskById(id).time.scheduleDuration], [2400, 4], 'minuten en dagengetal');
 });
 
-// =================================================================================================
-// C. planner_update_calendar
-// =================================================================================================
 test('update_calendar: blokken van 10 u naar 8 u ⇒ dagengetal 187 wordt 233,75; minuten en 8 u/dag blijven', async () => {
   reset();
   const created = okData(await call('planner_add_tasks', {

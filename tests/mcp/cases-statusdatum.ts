@@ -1,16 +1,3 @@
-// Statusdatum-semantiek + voltooid-werk-in-onwerkbare-tijd — de twee bevindingen uit het eerste
-// praktijkgebruik van de bridge door een echte AI-agent.
-//
-// Bevinding 1: `update_project({statusDate})` op een planning ZONDER enige voortgang verschoof de hele
-//   planning drie weken vooruit terwijl de respons alleen `updated:["statusDate"]` meldde. Het gedrag
-//   is correct (data-date-semantiek uit P6/MSP: niet-gestart werk mag niet vóór de peildatum liggen),
-//   de VERZWIJGING was de bug. Deze batterij pint vast dat het gevolg nu voor/ná wordt gerapporteerd
-//   en dat de beschrijvingen het mechanisme benoemen.
-//
-// Bevinding 2: een voltooide taak met een `actualFinish` in het bouwvak toonde een `earlyFinish` die
-//   drie werkdagen eerder lag dan de eigen actual, zonder één woord uitleg. De terugsnap zelf is het
-//   gevolg van de werkdag-invariant van de solver; het stilzwijgen was de bug. `get_task` meldt het
-//   verschil nu expliciet.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
@@ -37,7 +24,6 @@ async function callOk(name: string, args: unknown = {}): Promise<any> {
   return (res as McpToolOk).data;
 }
 
-/** Ketting van drie taken vanaf ma 27 juli 2026 op een ma-vr-kalender, ZONDER enige voortgang. */
 function planningZonderVoortgang(holidays: WorkCalendar['holidays'] = []): string[] {
   S().newProject();
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays } as WorkCalendar);
@@ -53,10 +39,6 @@ function planningZonderVoortgang(holidays: WorkCalendar['holidays'] = []): strin
   return ids;
 }
 
-// =================================================================================================
-// Bevinding 1 — de statusdatum verschuift niet-gestart werk, en dat wordt nu GEMELD
-// =================================================================================================
-
 test('statusdatum op nul voortgang: de planning schuift ECHT op en de respons meldt voor/ná', async () => {
   const ids = planningZonderVoortgang();
   const eindVoor = S().cpmResult!.projectEnd;
@@ -66,13 +48,11 @@ test('statusdatum op nul voortgang: de planning schuift ECHT op en de respons me
 
   const data = await callOk('planner_update_project', { statusDate: '2026-08-17' });
 
-  // Het gedrag zelf (data-date-vloer): zelfs de mijlpaal met completion 0 schuift naar de peildatum.
   assertEq(S().tasks.find((t) => t.id === ids[0])!.time.earlyStart, '2026-08-17T07:00',
     'de niet-gestarte mijlpaal is naar de statusdatum geschoven');
   assertEq(S().project.startDate, '2026-07-27', 'project.startDate blijft ongemoeid');
   assertEq(S().cpmResult!.projectEnd, '2026-09-18T16:00', 'het projecteinde is drie weken opgeschoven');
 
-  // En dát is precies wat de respons nu meldt — het echte voor/ná-verschil, niet alleen `updated`.
   assert(data.statusDateEffect, 'de respons mist `statusDateEffect`');
   assertEq(data.statusDateEffect.projectEndBefore, eindVoor, 'projectEndBefore = de stand vóór de call');
   assertEq(data.statusDateEffect.projectEndAfter, '2026-09-18T16:00', 'projectEndAfter = de nieuwe stand');
@@ -123,10 +103,6 @@ test('beschrijvingen: update_project én get_project_info benoemen de data-date-
   assert(/DATA DATE/.test(gi), 'get_project_info noemt de data-date niet');
 });
 
-// De datumcontrole van update_project liet alles door dat met JJJJ-MM-DD begon (ook een tijd of een
-// willekeurige staart), terwijl de melding alleen JJJJ-MM-DD noemde. Nu zegt de melding precies wat
-// de controle accepteert: statusDate is een datum of (uurplanning) een datum-tijd tot op de minuut,
-// startDate/endDate zijn datums — en de datum moet bestaan.
 async function callErr(name: string, args: unknown): Promise<string> {
   const res = (await def(name).handler(args, makeCtx())) as McpToolResult;
   assert(!res.ok, `tool ${name} had moeten weigeren: ${JSON.stringify(args)}`);
@@ -156,13 +132,8 @@ test('update_project: de datummelding noemt precies wat de controle accepteert',
   assert(/YYYY-MM-DDTHH:mm/.test(sd), `het statusDate-schemaveld noemt de datum-tijdvorm niet: ${sd}`);
 });
 
-// =================================================================================================
-// Bevinding 2 — voltooid werk waarvan de actualFinish in onwerkbare tijd valt
-// =================================================================================================
-
 const BOUWVAK = [{ name: 'Bouwvak', startDate: '2026-08-03', endDate: '2026-08-21' }];
 
-/** Voltooide taak (actuals 29 juli → 4 augustus) met een opvolger, bouwvak 3–21 augustus. */
 function voltooidInBouwvak(actualStart: string, actualFinish: string): { asbest: string; nieuwbouw: string } {
   S().newProject();
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: BOUWVAK } as WorkCalendar);
@@ -188,11 +159,9 @@ test('get_task meldt het verschil tussen de gerekende finish en de actualFinish'
   const { asbest } = voltooidInBouwvak('2026-07-29', '2026-08-04');
   const data = await callOk('planner_get_task', { taskId: asbest });
 
-  // Het gedrag zelf (ongewijzigd): de finish is de laatste werkdag op-of-vóór het feit.
   assertEq(data.schedule.earlyFinish, '2026-07-31T16:00', 'de gerekende finish snapt terug naar vr 31 juli');
   assertEq(data.progress.actualFinish, '2026-08-04T16:00', 'de actual zelf blijft ongewijzigd bewaard');
 
-  // Nieuw: het verschil wordt niet meer verzwegen.
   const adj = data.progress.actualFinishAdjusted;
   assert(adj, 'get_task verzwijgt nog steeds dat earlyFinish ≠ actualFinish');
   assertEq(adj.actualFinish, '2026-08-04T16:00', 'het effect noemt het feit');
@@ -202,7 +171,6 @@ test('get_task meldt het verschil tussen de gerekende finish en de actualFinish'
 });
 
 test('valt de actualFinish gewoon op een werkdag, dan is er niets te melden', async () => {
-  // Zelfde opzet, maar de actualFinish (vr 31 juli) ligt vóór het bouwvak ⇒ geen snap, geen ruis.
   const { asbest } = voltooidInBouwvak('2026-07-29', '2026-07-31');
   const data = await callOk('planner_get_task', { taskId: asbest });
   assertEq(data.schedule.earlyFinish, '2026-07-31T16:00', 'gerekende finish = de actual');
@@ -210,9 +178,6 @@ test('valt de actualFinish gewoon op een werkdag, dan is er niets te melden', as
 });
 
 test('een voltooide taak landt NOOIT ná zijn actualFinish, ook niet als het hele venster onwerkbaar is', async () => {
-  // Het inversie-randgeval: afgemeld 5–10 augustus, midden in het bouwvak. Er is geen werkdag binnen
-  // het feit; vroeger tilde de solver het paar dan naar ma 24 augustus — een week ná de statusdatum,
-  // dus afgerond werk in de TOEKOMST, plus een dag vertraging voor de opvolger.
   const { asbest, nieuwbouw } = voltooidInBouwvak('2026-08-05', '2026-08-10');
   const t = S().tasks.find((x) => x.id === asbest)!;
   assertEq(t.time.earlyStart, '2026-07-31T16:00', 'de start is meegetrokken naar de laatste werkdag vóór het feit');

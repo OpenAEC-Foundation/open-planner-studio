@@ -1,17 +1,3 @@
-// Audit-bevindingen K3/K4/K5/M1/H1/H2/L3 — STILLE FAALGEVALLEN in de taak- en relatietools.
-//
-// Gemene deler: de tool antwoordde `ok` terwijl er niets (of iets anders) gebeurde. Dat is de ergste
-// bug die deze bridge kan hebben — een AI-agent kan er niet omheen werken, want de tool liegt dat het
-// gelukt is. Deze suite pint elk geval vast op de HANDLER-weg (dus óók geldig binnen `planner_batch`,
-// waar de dispatcher-schemapoort uit `cases-schemavalidatie.ts` niet langskomt).
-//
-//   K3  update_tasks.progress was schemaloos: `{ percent: 50 }` ⇒ ok + `updated:['t1']`, taak op 0%.
-//   K4  add_dependencies: een niet-numerieke `lag` werd STIL 0.
-//   K5  undo/redo meldden `ok` op een LEGE stack — drie identieke ok's, nul effect.
-//   M1  delete_tasks onderrapporteerde de cascade en weigerde een al-gecascadeerd id.
-//   H1  de leeskant geeft `FS`/`SS`/`FF`/`SF`; de schrijfkant eiste FINISH_START.
-//   H2  de leeskant geeft lag als string (`"+2d"`, `"+50%"`); de schrijfkant eiste een number.
-//   L3  move_task gooide een niet-numerieke `position` stil weg.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
@@ -45,9 +31,6 @@ function taskById(id: string) {
   return store.getState().tasks.find((t) => t.id === id);
 }
 
-// =================================================================================================
-// K3 — `progress` heeft nu een allowlist (was: onbekende sleutel ⇒ ok + niets gebeurd)
-// =================================================================================================
 test('K3: progress { percent: 50 } ⇒ ZACHTE weigering met hint, NIET in `updated`, taak blijft 0%', async () => {
   reset();
   const id = store.getState().addTask({ name: 'k3-percent' });
@@ -77,7 +60,6 @@ test('K3: leeg progress-object ⇒ weigering (was: touchesProgress=false ⇒ app
 test('K3: leeg progress-object omzeilt de STATUSDATUM-guard niet meer', async () => {
   reset();
   const id = store.getState().addTask({ name: 'k3-geen-statusdatum' });
-  // GEEN statusdatum: elk voortgangspad hoort geweigerd te worden.
   const res = await call('planner_update_tasks', { updates: [{ id, progress: {} }] });
   assertEq(okData(res).updated, [], 'niets bijgewerkt');
   assertEq(rejections(res).length, 1, 'één weigering');
@@ -117,9 +99,6 @@ test('K3: onzin-datum in progress ⇒ weigering met reden (geen stille verdampin
   assert(/ISO date/.test(rejections(res)[0].reason), `reden: ${rejections(res)[0].reason}`);
 });
 
-// =================================================================================================
-// K4 + H2 — lag: nooit meer stil 0
-// =================================================================================================
 async function twoTasks(): Promise<[string, string]> {
   reset();
   const a = store.getState().addTask({ name: 'A' });
@@ -147,10 +126,6 @@ test('H2: leeskant-lagvormen "+2d" / "-1d" / "2d" worden omgezet', async () => {
   }
 });
 
-// H2 (HERZIEN bij planner_update_dependencies): procent-lag was de énige leeskant-vorm die de
-// schrijfkant niet sprak, en werd daarom expliciet geweigerd — een gedocumenteerd gat, geen
-// eindstation. Nu de gedeelde relatie-veldlaag (`sequenceFields.ts`) hem kent, is de eerlijke uitkomst
-// niet "nette weigering" maar "hij landt echt".
 test('H2: procent-lag "+50%" wordt GEZET als lagPercent (leeskant-vorm is nu terugschrijfbaar)', async () => {
   const [a, b] = await twoTasks();
   const res = await call('planner_add_dependencies', {
@@ -162,8 +137,6 @@ test('H2: procent-lag "+50%" wordt GEZET als lagPercent (leeskant-vorm is nu ter
 });
 
 test('K4: onzin-lag ("morgen", true, {}) ⇒ zachte weigering per item', async () => {
-  // Bewust de LANGE typenotatie: zo is de lag de ENIGE mogelijke weigeringsgrond en kan deze test
-  // niet per ongeluk om de verkeerde reden slagen.
   for (const bad of ['morgen', true, {}] as unknown[]) {
     const [a, b] = await twoTasks();
     const res = await call('planner_add_dependencies', {
@@ -182,9 +155,6 @@ test('K4: lag weglaten blijft 0 (default ongewijzigd)', async () => {
   assertEq(store.getState().sequences[0].lagDays, 0, 'default 0');
 });
 
-// =================================================================================================
-// H1 — korte relatietypes van de leeskant
-// =================================================================================================
 test('H1: de KORTE typenotatie van de leeskant (FS/SS/FF/SF) wordt geaccepteerd en vertaald', async () => {
   const pairs: [string, string][] = [
     ['FS', 'FINISH_START'],
@@ -217,12 +187,8 @@ test('H1: een écht onbekend type blijft geweigerd, mét de geldige verzameling 
   assert(reason.includes('FINISH_START') && reason.includes('FS'), `reden noemt beide notaties: ${reason}`);
 });
 
-// =================================================================================================
-// K5 — undo/redo op een lege stack
-// =================================================================================================
 test('K5: undo op een LEGE stack ⇒ ok maar `undone: false` + reden', async () => {
   reset();
-  // newProject zet een verse store neer; leeg de stacks expliciet zodat de precondities hard staan.
   store.setState((s) => { s.historyEvents = []; s.nextHistorySequence = 1; });
   const res = await call('planner_undo', {});
   const data = okData(res);
@@ -263,9 +229,6 @@ test('K5: undo rapporteert de resterende stackdiepte van BEIDE stacks', async ()
   assertEq(data.redoDepth, 1, 'en één stap vooruit');
 });
 
-// =================================================================================================
-// M1 — delete_tasks: cascade eerlijk rapporteren
-// =================================================================================================
 test('M1: een verzameltaak wissen rapporteert de VOLLEDIGE cascade, niet alleen het gevraagde id', async () => {
   reset();
   const parent = store.getState().addTask({ name: 'ouder' });
@@ -273,11 +236,6 @@ test('M1: een verzameltaak wissen rapporteert de VOLLEDIGE cascade, niet alleen 
   const kid2 = store.getState().addTask({ name: 'kind2', parentId: parent });
   const grand = store.getState().addTask({ name: 'kleinkind', parentId: kid1 });
   const outsider = store.getState().addTask({ name: 'buitenstaander' });
-  // kid2 (niet kid1): kid1 heeft zelf een kind (`grand`) en is dus een verzameltaak. Een
-  // verzameltaak-eindpunt is sinds 2026-08-15 op zich geen weigergrond meer (relationRules.ts,
-  // `isAncestorRelation`), maar kid1→outsider zou hier ALSNOG geen bruikbare fixture zijn geweest:
-  // de cascade-telling hieronder is onafhankelijk van welk kind de relatie draagt, dus kid2 (een
-  // gewoon blad, geen bijzonderheden) houdt deze test simpel.
   store.getState().addSequence({ predecessorId: kid2, successorId: outsider, type: 'FINISH_START', lagDays: 0 });
 
   const data = okData(await call('planner_delete_tasks', { ids: [parent] }));
@@ -331,9 +289,6 @@ test('M1: toewijzingen van de subboom worden geteld', async () => {
   assertEq(data.removedAssignmentCount, 1, 'de meegewiste toewijzing wordt geteld');
 });
 
-// =================================================================================================
-// L3 — move_task position
-// =================================================================================================
 test('L3: move_task met een niet-numerieke `position` ⇒ VALIDATION, niet stil genegeerd', async () => {
   reset();
   const a = store.getState().addTask({ name: 'a' });
@@ -352,7 +307,6 @@ test('L3: een geldige `position` blijft gewoon werken (en klemt stil)', async ()
 
   okData(await call('planner_move_task', { id: los, newParentId: p, position: 0 }));
   assertEq(store.getState().tasks.find((t) => t.id === p)!.childIds[0], los, 'op index 0 ingevoegd');
-  // Ver buiten bereik ⇒ stille klem naar het einde (gedocumenteerd gedrag, blijft ongewijzigd).
   okData(await call('planner_move_task', { id: k1, newParentId: p, position: 99 }));
   const kids = store.getState().tasks.find((t) => t.id === p)!.childIds;
   assertEq(kids[kids.length - 1], k1, 'geklemd naar de laatste positie');

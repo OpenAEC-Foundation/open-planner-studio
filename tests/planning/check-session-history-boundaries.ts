@@ -31,7 +31,6 @@ function resetActiveProject(): void {
   });
 }
 
-// Een geneste bulk gebruikt uitsluitend de buitenste grens.
 resetActiveProject();
 withTransaction(() => {
   S().addTask({ name: 'Buiten' });
@@ -43,8 +42,6 @@ eq('Geneste withTransaction registreert precies één event', S().historyEvents.
 S().undo();
 eq('Eén undo draait zowel de buitenste als binnenste mutatie terug', S().tasks.length, 0);
 
-// withTransaction belooft geen rollback. Ook bij een throw moet de werkelijk bereikte tussenstand
-// met één event ongedaan te maken zijn en mag de suppressiediepte niet blijven hangen.
 resetActiveProject();
 let threw = false;
 try {
@@ -66,7 +63,6 @@ S().addTask({ name: 'Na throw' });
 eq('Na de throw registreert een gewone mutatie weer zelfstandig history',
   S().historyEvents.filter(event => event.state === 'applied').length, 1);
 
-// MCP heeft juist wél rollbacksemantiek: data en sessieledger blijven exact staan zoals ervoor.
 resetActiveProject();
 const historyBeforeMcp = JSON.stringify(S().historyEvents);
 const mcpResult = runInMcpTransaction(() => {
@@ -77,7 +73,6 @@ eq('MCP meldt de callbackfout als geweigerde transactie', mcpResult.ok, false);
 eq('MCP-rollback laat geen taak achter', S().tasks.length, 0);
 eq('MCP-rollback laat geen history-event achter', JSON.stringify(S().historyEvents), historyBeforeMcp);
 
-// Een niet-undoable bibliotheekrefresh wist alleen redo dat met het geraakte document botst.
 resetActiveProject();
 const documentA = S().activeDocumentId;
 const companyId = S().addCompany('Historygrens BV');
@@ -113,8 +108,6 @@ S().redo();
 eq('Het bewaarde redo-event van B blijft werkelijk toepasbaar',
   S().tasks.map(task => task.name), ['Redo B']);
 
-// Sluiten van A verwijdert ieder event dat A raakt. Een data+grid-compound mag niet als half
-// globaal event achterblijven; een los grid-event blijft wel bestaan.
 S().switchDocument(documentA);
 const beforeCompound = createSnapshot(S());
 S().addTask({ name: 'Compound A' });
