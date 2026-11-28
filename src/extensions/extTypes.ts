@@ -1,65 +1,30 @@
-/**
- * PUBLIEK EXTENSIE-CONTRACT — de datavormen die extensies via `api.data.*`, de importer-handlers
- * en `sdk.factory.*` te zien krijgen.
- *
- * Waarom een aparte laag i.p.v. de interne `Task`/`Project`/… uit `src/types/`?
- * Die interne typen zijn het domeinmodel van de app en veranderen vrij mee met refactors; als de
- * extensie-API ze rechtstreeks zou lekken, breekt elke interne rename het publieke contract. Deze
- * `Ext*`-DTO's staan daar bewust los van: ze worden VERSTABILISEERD. Een interne rename raakt
- * alleen de mappers in `extMappers.ts`, nooit extensie-code.
- *
- * NB: de vormen SPIEGELEN vandaag nog grotendeels de interne velden — dat is
- * prima; het punt is de ONTKOPPELING, niet een andere gedaante. Voeg je hier een veld toe, dan
- * dwingt `extMappers.ts` (expliciete, veld-voor-veld return-types) af dat je het ook mapt.
- */
-
-// ── Project ──
-
-/** Ext-facing projectkop. Spiegelt {@link import('@/types/project').Project}. */
 export interface ExtProject {
   id: string;
   name: string;
   description: string;
-  /** ISO 8601 (date-only in dag-modus). */
   startDate: string;
-  /** ISO 8601; leeg tot het schema berekend is. */
   endDate: string;
-  /** Id van de projectkalender in de kalenderbibliotheek. */
   calendarId: string;
-  /** ISO datetime — aanmaakmoment. */
   createdAt: string;
-  /** ISO datetime — laatst gewijzigd. */
   modifiedAt: string;
   author: string;
   company: string;
-  /** WBS-codes automatisch nummeren (1.2.3) i.p.v. vrije tekst. undefined ⇒ vrije tekst. */
   wbsAutoNumber?: boolean;
-  /** P6 "data date" (grens verleden/toekomst). undefined ⇒ geen statusdatum. */
   statusDate?: string;
-  /** Voortgangs-scheduling-modus. undefined ⇒ RETAINED_LOGIC. */
   progressMode?: 'RETAINED_LOGIC' | 'PROGRESS_OVERRIDE';
-  /** Projectstandaard voor handmatig aangemaakte taken. Oudere extensies mogen dit weglaten. */
   defaultTaskDurationUnit?: 'days' | 'hours';
-  /** Sinds 1.3.0: projectstandaard-werkregel; afwezig ⇒ FIXED_DURATION_RATE. */
   defaultWorkRule?: 'FIXED_DURATION_RATE' | 'FIXED_DURATION_WORK' | 'FIXED_WORK' | 'FIXED_RATE';
-  /** Project-scoped reken-opties (P6-geavanceerd). undefined ⇒ alle defaults. */
   schedulingOptions?: ExtSchedulingOptions;
-  /** Sinds 1.2.0 — het opgeloste rekenprofiel. Alleen-lezen. */
   schedulingProfile?: ExtSchedulingProfile;
 }
 
-/** Rekenprofiel van het project, alleen-lezen (contractversie 1.2.0). `fromExtProject` en
- *  `fromExtImportResult` nemen dit veld NOOIT over: een extensie-import rekent als OPS. */
 export interface ExtSchedulingProfile {
   id: string;
   baseId: 'p6' | 'msproject' | 'ops';
-  /** Leeg bij een ingebouwd profiel (de app toont dan de vertaalde naam). */
   name: string;
-  /** De negenentwintig opgeloste conventies (sleutel = conventie-id). */
   conventions: Record<string, boolean>;
 }
 
-/** Ext-facing reken-opties. Spiegelt {@link import('@/types/project').SchedulingOptions}. */
 export interface ExtSchedulingOptions {
   lagCalendar?: 'predecessor' | 'successor' | '24hour' | 'projectDefault';
   criticalDefinition?: { mode: 'totalFloat' | 'longestPath'; threshold?: number };
@@ -69,75 +34,49 @@ export interface ExtSchedulingOptions {
   floatPaths?: { enabled: boolean; method: 'FREE_FLOAT' | 'TOTAL_FLOAT'; maxPaths: number };
 }
 
-// ── Kalender ──
-
-/** Werktijd-banden per ISO-weekdag (1=ma..7=zo). Spiegelt `WorkTimeBands`. */
 export interface ExtWorkTimeBands {
   byWeekday: Record<1 | 2 | 3 | 4 | 5 | 6 | 7, { start: number; end: number }[]>;
 }
 
-/** Eén feestdag/uitzonderingsbereik. Spiegelt `Holiday`. */
 export interface ExtHoliday {
   name: string;
-  startDate: string; // ISO date
-  endDate: string;   // ISO date
+  startDate: string;
+  endDate: string;
 }
 
-/** Eén dag-uitzondering die een dag WERKEND maakt (MS Project: "werkende uitzondering"). Spiegelt
- *  `WorkingException`. Moet op `ExtCalendar` staan: anders wist een kalender-round-trip via
- *  `toExtCalendar`/`fromExtCalendar` stilzwijgend elke workingException. */
 export interface ExtWorkingException {
   name: string;
-  startDate: string; // ISO date
-  endDate: string;   // ISO date
-  /** Banden in minuten-vanaf-middernacht. Leeg/afwezig ⇒ de weekdag-standaardbanden gelden. */
+  startDate: string;
+  endDate: string;
   bands?: { start: number; end: number }[];
 }
 
-/** Ext-facing werkkalender. Spiegelt {@link import('@/types/calendar').WorkCalendar}. */
 export interface ExtCalendar {
   id: string;
   name: string;
   description: string;
-  /** Werkdagen als ISO-weekdagnummers (1=ma .. 7=zo). */
   workDays: number[];
   workStartHour: number;
   workEndHour: number;
-  /** Netto werkuren per dag. */
   hoursPerDay: number;
-  /** Optioneel eenvoudig scalar-pauzepatroon, in minuten vanaf middernacht / minuten duur. */
   simpleBreakStartMinute?: number;
   simpleBreakDurationMinutes?: number;
   holidays: ExtHoliday[];
-  /** Per-weekdag werktijd-banden. Aanwezig ⇒ uur-kalender; afwezig ⇒ dag-kalender. */
   workTime?: ExtWorkTimeBands;
-  /** Ploeg-classificatie. undefined ⇒ FIRST. */
   shift?: 'FIRST' | 'SECOND' | 'THIRD' | 'USERDEFINED';
-  /** Dag-uitzonderingen die een dag WERKEND maken. Afwezig ⇒ geen. */
   workingExceptions?: ExtWorkingException[];
-  /** Alleen-lezen P6/XER-herkomststempel. `toExtCalendar` toont hem voor analyse;
-   *  `fromExtCalendar` accepteert hem nooit als generieke solverinvoer. */
   p6Source?: 'XER';
-  /** Alleen-lezen P6/XER-vrije-dagprojecties. Een extensie-import kan ze niet activeren. */
   p6NonWorkPenaltyDates?: string[];
 }
 
-// ── Taak ──
-
-/** Ext-facing taaktijd (planning + CPM-uitkomst). Spiegelt {@link import('@/types/task').TaskTime}. */
 export interface ExtTaskTime {
   durationType: 'WORKTIME' | 'ELAPSEDTIME';
-  /** Blijvende invoereenheid; oudere extensies mogen dit veld weglaten. */
   durationUnit?: 'days' | 'hours';
-  /** Duur in werkdagen. */
   scheduleDuration: number;
-  /** Canonieke duur in integer minuten (uur-modus). Afwezig ⇒ dag-modus. */
   durationMinutes?: number;
-  /** ISO 8601 — date-only in dag-modus, datetime in uur-modus. */
   scheduleStart: string;
   scheduleFinish: string;
 
-  // CPM-uitkomst (alleen zinvol na recalculate()).
   earlyStart: string;
   earlyFinish: string;
   lateStart: string;
@@ -149,29 +88,22 @@ export interface ExtTaskTime {
   isNearCritical?: boolean;
   floatPath?: number;
 
-  // Voortgang / tracking.
   actualStart?: string;
   actualFinish?: string;
   actualDuration?: number;
   remainingTime?: number;
   remainingMinutes?: number;
-  /** 0.0 – 1.0. */
   completion: number;
-  /** MSP's eigen hervattingsinstant voor een out-of-sequence-taak. Spiegelt
-   *  {@link import('@/types/task').TaskTime}.resume. */
   resume?: string;
-  /** Hoort bij `resume`. Spiegelt {@link import('@/types/task').TaskTime}.stop. */
   stop?: string;
 }
 
-/** Datum-constraint. Spiegelt {@link import('@/types/task').TaskConstraint}. */
 export interface ExtTaskConstraint {
   type: 'ASAP' | 'ALAP' | 'SNET' | 'SNLT' | 'FNET' | 'FNLT' | 'MSO' | 'MFO';
   date?: string;
   hard?: boolean;
 }
 
-/** Externe (cross-project) dependency. Spiegelt {@link import('@/types/task').ExternalLink}. */
 export interface ExtExternalLink {
   id: string;
   direction: 'predecessor' | 'successor';
@@ -183,14 +115,12 @@ export interface ExtExternalLink {
   sourceMissing: boolean;
 }
 
-/** Vrije aantekening/checklist-item per taak. */
 export interface ExtTaskNote {
   id: string;
   text: string;
   done: boolean;
 }
 
-/** Ext-facing taak. Spiegelt {@link import('@/types/task').Task}. */
 export interface ExtTask {
   id: string;
   name: string;
@@ -206,207 +136,106 @@ export interface ExtTask {
     | 'RENOVATION'
     | 'MAINTENANCE'
     | 'USERDEFINED';
-  /** OPS-customclassificatie. Id is stabiel; name is de projectsnapshot die een importer meegeeft. */
   customTaskType?: { id: string; name?: string };
   status: 'NOT_STARTED' | 'STARTED' | 'COMPLETED';
   isMilestone: boolean;
   milestoneKind?: 'START' | 'FINISH';
   mandatory?: boolean;
-  /** Leveling-prioriteit (0–1000, default 500). */
   priority: number;
   levelingDelay?: number;
-  /** Subdag-precisie van `levelingDelay` (MSP-tienden-van-minuut, hier hele minuten).
-   *  Aanwezig ⇒ bron van waarheid; afwezig ⇒ `levelingDelay` (hele werkdagen) blijft de bron. */
   levelingDelayMinutes?: number;
-  /** Begeleidt `levelingDelayMinutes`: true = kloktijd (ELAPSED) i.p.v. werktijd. */
   levelingDelayElapsed?: boolean;
-  /** Werkonderbrekingen (MS Project "split"), offset-gebaseerd t.o.v. de taakstart.
-   *  Spiegelt {@link import('@/types/task').TaskSplitGap}. */
   splitGaps?: { afterMinutes: number; gapMinutes: number }[];
-  /** Handmatig geplande taak (MS Project "Manually Scheduled"): de solver respecteert
-   *  `time.scheduleStart`/`scheduleFinish` dan RAUW (geen kalendersnap/relatiedruk/constraints). */
   manuallyScheduled?: boolean;
-  /** MSP's eigen Task Type bij .mpp-import. Puur data. Reist mee door de VOLLEDIGE vertaling
-   *  (`fromExtTask`, contract-poort `check-ext-contract.ts`); alleen de create-/update-paden
-   *  (`fromExtTaskInput`) en de MCP-zetbaarheid (`taskFields.ts`'s `REJECT_HINTS`) laten het buiten. */
   mspTaskType?: 'FIXED_UNITS' | 'FIXED_DURATION' | 'FIXED_WORK';
-  /** MSP's "Effort Driven"-vlag bij .mpp-import. Puur data; voor de vertaal-/zetbaarheidsnuance zie
-   *  `mspTaskType`. */
   effortDriven?: boolean;
-  /** Sinds 1.3.0. De neutrale werkregel van de taak (welke hoeken van werk = duur × inzet beschermd
-   *  zijn bij een bewerking). Volledige-round-trip-veld zoals `mspTaskType`; niet zetbaar via de
-   *  create-/update-paden van de extensie-API, wél via de MCP-bridge (`taskFields.ts`). */
   workRule?: 'FIXED_DURATION_RATE' | 'FIXED_DURATION_WORK' | 'FIXED_WORK' | 'FIXED_RATE';
-  /** P6's eigen Duration Type bij .xer-import. Uitsluitend read-model voor extensies:
-   *  `toExtTask` toont het, maar geen enkel generiek from-extensionpad mag het terugschrijven. */
   p6DurationType?: 'DT_FixedDrtn' | 'DT_FixedDUR2' | 'DT_FixedRate' | 'DT_FixedQty';
-  /** P6's eigen Activity Type bij .xer-import. Zelfde read-onlygrens als `p6DurationType`. */
   p6ActivityType?: 'TT_Task' | 'TT_Rsrc' | 'TT_LOE' | 'TT_Mile' | 'TT_FinMile' | 'TT_WBS';
   p6ProjectId?: string;
   p6TaskId?: string;
-  /** Read-only XER-provenance: de bron-TASK droeg een expliciet target start-/finishvenster. */
   p6ExplicitTargetWindow?: boolean;
   p6CompletePctType?: 'CP_Drtn' | 'CP_Phys' | 'CP_Units';
   p6ExpectedFinish?: string;
-  /** Read-only herkomstvlag voor `time.resume`/`time.stop`: signaleert P6-suspend/
-   *  resume-herkomst (XER `suspend_date`/`resume_date`) i.p.v. de MSP-conventie. Alleen native
-   *  XER-/IFC-paden zetten haar intern. Spiegelt {@link import('@/types/task').Task}.p6SuspendResume. */
   p6SuspendResume?: boolean;
-  /** Rauwe, gedecodeerde .mpp-contourperiodes; de bron ONDER `splitGaps`, blijft ALTIJD staan (ook ná
-   *  een bewerking die het werkvenster invalideert). Puur
-   *  data; voor de vertaal-/zetbaarheidsnuance zie `mspTaskType`. Spiegelt {@link import('@/types/task').
-   *  TaskTimephasedContour}. */
   timephasedContours?: { resourceUid: number | null; resourceId?: string; periods: { afterMinutes: number; minutes: number; workMinutes: number; kind: 'actual' | 'remaining' }[] }[];
-  /** Volledige-round-trip-velden: de drie afgeleide-sturing-velden uit
-   *  de .mpp-import reizen mee door de VOLLEDIGE Ext-vertaling zodat een extensie-round-trip geen
-   *  data vernietigt (zelfde principe als de IFC-round-trip). Ze zijn géén invoer voor de create-/
-   *  update-paden — daar blijven ze bewust buiten (zie `fromExtTaskInput`). ISO-instants. */
   timephasedFinishFloor?: string;
-  /** Zie `timephasedFinishFloor`. */
   timephasedStartAnchor?: string;
-  /** Zie `timephasedFinishFloor`. */
   timephasedDurationWalks?: { anchor: string; resourceCalendarId: string; workMinutes?: number }[];
-  /** WBS-ouder; null = top-level. */
   parentId: string | null;
-  /** WBS-kinderen. */
   childIds: string[];
-  /** Expliciete samenvattingsidentiteit voor een lege WBS. `true` maakt ook zonder kinderen een
-   *  summary; `false` verwijdert alleen die expliciete marker (taken mét kinderen blijven summary).
-   *  Afwezig bij create/update laat de bestaande waarde en child-afleiding ongemoeid. */
   isSummary?: boolean;
   time: ExtTaskTime;
   resourceIds: string[];
   color?: string;
-  /** Activity-code-toewijzingen: codetype-id → waarde-id. */
   activityCodes?: Record<string, string>;
-  /** Custom-field-waarden: velddefinitie-id → waarde. */
   customFields?: Record<string, string | number | boolean>;
   constraint?: ExtTaskConstraint;
   constraint2?: ExtTaskConstraint;
   isHammock?: boolean;
   externalLinks?: ExtExternalLink[];
   deadline?: string;
-  /** Id in de kalenderbibliotheek; undefined ⇒ projectkalender. */
   calendarId?: string;
   notes?: ExtTaskNote[];
 }
 
-// ── Relatie ──
-
-/** Ext-facing relatie (precedence-link). Spiegelt {@link import('@/types/sequence').Sequence}. */
 export interface ExtSequence {
   id: string;
   predecessorId: string;
   successorId: string;
   type: 'FINISH_START' | 'FINISH_FINISH' | 'START_START' | 'START_FINISH';
-  /** Vaste lag in dagen (positief = uitloop, negatief = lead). */
   lagDays: number;
-  /** Vaste lag in integer minuten (uur-modus). Afwezig ⇒ lagDays is de bron. */
   lagMinutes?: number;
-  /** Lag-eenheid; afwezig ⇒ WORKTIME. */
   lagUnit?: 'WORKTIME' | 'ELAPSEDTIME';
-  /** Procentuele lag (% van voorgangerduur). Sluit lagDays uit. */
   lagPercent?: number;
-  /** P6/XER-nul-lag-FS behoudt een expliciete voorganger-finishgrens als startrepresentatie.
-   *  Leesmetadata: gewone extensies mogen dit niet via import of mutatie activeren. */
   readonly p6StartAtPredecessorFinishBoundary?: boolean;
 }
 
-// ── Resource ──
-
-/** Effective-dated capaciteitsstap. Spiegelt `AvailabilityStep`. */
 export interface ExtAvailabilityStep {
   from: string;
   maxUnits: number;
 }
 
-/** Ext-facing resource. Spiegelt {@link import('@/types/resource').Resource}. */
 export interface ExtResource {
   id: string;
   name: string;
-  /** `COST` sinds 1.6.0: een kostenresource met een bedrag per toewijzing (`ExtAssignment.costAmount`). */
   type: 'LABOR' | 'EQUIPMENT' | 'MATERIAL' | 'SUBCONTRACTOR' | 'CREW' | 'COST';
   description: string;
   costPerHour?: number;
-  /** Capaciteit per werkdag (1 = 100%). */
   maxUnits: number;
   calendarId?: string;
   availabilitySteps?: ExtAvailabilityStep[];
   unitOfMeasure?: string;
   parentId?: string;
-  /** Optionele weergavekleur voor resource-accenten en resourcegekleurde balken. */
   color?: string;
 }
 
-/** Ext-facing resource-toewijzing. Spiegelt {@link import('@/types/resource').ResourceAssignment}. */
 export interface ExtAssignment {
   id: string;
   taskId: string;
   resourceId: string;
-  /** Eenheden per werkdag (1 = 100%). */
   unitsPerDay: number;
   curve?: 'UNIFORM' | 'FRONT_LOADED' | 'BACK_LOADED' | 'BELL' | 'EARLY_PEAK' | 'LATE_PEAK' | 'DOUBLE_PEAK' | 'TURTLE';
-  /** Werkvenster (.mpp-import) — volledige-round-trip-velden, zie `ExtTask.timephasedFinishFloor`. */
   workWindowStart?: string;
-  /** Zie `workWindowStart`. */
   workWindowFinish?: string;
-  /** Exacte 21-punts curve (P6/MSPDI), zie `ResourceAssignment.curveValues`. */
   curveValues?: number[];
-  /** Sinds 1.3.0: begroot werk in werkminuten; afwezig ⇒ afgeleid. */
   plannedWorkMinutes?: number;
-  /** Sinds 1.3.0: verricht werk in werkminuten; afwezig ⇒ afgeleid. */
   actualWorkMinutes?: number;
-  /** Sinds 1.3.0: resterend werk in werkminuten; afwezig ⇒ restduur × inzet. */
   remainingWorkMinutes?: number;
-  /** Sinds 1.6.0: begroot bedrag, alleen op een toewijzing aan een kostenresource (`type: 'COST'`). */
   costAmount?: number;
 }
 
-// ── UI-contract: ribbontabbladen ──
-
-/**
- * Ext-facing ribbontabblad. Spiegelt {@link import('@/state/slices/types').RibbonTab}.
- *
- * Waarom een eigen unie en niet gewoon `RibbonTab` importeren: dan
- * is het interne tabblad-id ONDERDEEL VAN HET PUBLIEKE CONTRACT. Hernoemt de app ooit `'beeld'`
- * naar `'view'` — een puur interne opruiming — dan breekt elke geïnstalleerde extensie die een knop
- * op dat tabblad zet, zonder dat iemand dat als contractwijziging herkent. Met deze unie ertussen
- * verhuist zo'n rename naar {@link import('./extMappers').fromExtRibbonTab} en merkt extensie-code
- * er niets van.
- *
- * `'ai'` staat er bewust in, ook al verschijnt dat tabblad alleen met AI-modus aan: het weglaten zou
- * een bestaand manifest ongeldig maken en de zichtbaarheid is sowieso een UI-beslissing, geen
- * contract-beslissing.
- */
 export type ExtRibbonTab =
   | 'file' | 'start' | 'planning' | 'resources' | 'relations'
   | 'beeld' | 'instellingen' | 'table' | 'ifc' | 'report' | 'ai';
 
-// ── PDF-fontproviders ──
-
-/**
- * Ext-facing font-provider voor de vector-PDF-export (permissie `pdf-fonts`). Spiegelt
- * {@link import('@/services/pdf/fontRegistry').CjkFontProvider}.
- *
- * Zelfde reden als hierboven: `CjkFontProvider` is een intern service-type dat mag veranderen —
- * bijvoorbeeld doordat de pagineerder een extra gewicht of een andere dekkingsvraag nodig heeft.
- * De grens ligt in {@link import('./extMappers').fromExtFontProvider}.
- */
 export interface ExtFontProvider {
-  /** Stabiele identiteit (diagnose/dedup). Twee providers met dezelfde `id` ⇒ de laatste wint. */
   id: string;
-  /** True als dit font een echte glyph heeft voor `codepoint`. Snelle voorfilter; de pagineerder
-   *  verifieert de daadwerkelijke glyph-aanwezigheid daarna zelf. */
   covers(codepoint: number): boolean;
-  /** Rauwe glyf-TTF-bytes van het Regular-gewicht (lazy; mag cachen). */
   getRegularBytes(): Promise<Uint8Array>;
-  /** Optioneel: idem voor Bold. Ontbreekt hij ⇒ Regular wordt hergebruikt. */
   getBoldBytes?(): Promise<Uint8Array>;
 }
 
-// ── Importresultaat ──
-
-/** Maximaal aantal records dat één broncataloguspagina teruggeeft. */
 export const EXT_IMPORT_SOURCE_PAGE_SIZE_MAX = 500;
 
 export type ExtImportSourceCollection =
@@ -436,25 +265,11 @@ export type ExtImportSourceCollection =
   | 'metadataSourceUnknownUdfTypeRows'
   | 'taskSourceRows';
 
-/** Een record in een broncataloguspagina. De vorm is collection-specifiek en blijft een publieke
- *  DTO: er zit geen intern store-object of class-instance achter. */
 export type ExtImportSourceRecord = Readonly<Record<string, unknown>>;
 
 export interface ExtImportSourcePageOptions {
-  /** Nulgebaseerde positie; default 0. */
   offset?: number;
-  /** Aantal records; default 100, maximum `EXT_IMPORT_SOURCE_PAGE_SIZE_MAX`. */
   limit?: number;
-  /**
-   * Fail-closed documentdriftbewaking: geef het `sourceProjectId` mee dat je
-   * van een eerdere `getImportSourceInfo()`/`getImportSourceCatalogPage()`-aanroep kreeg. Wijkt de
-   * bronselector van het ACTIEVE document af — bijvoorbeeld omdat de gebruiker tussen twee
-   * paginaverzoeken met `switchDocument` gewisseld is — dan gooit de aanroep een
-   * `ExtImportSourceDriftError` in plaats van stil een lege of verkeerde pagina terug te geven.
-   * Zonder deze optie is er GEEN driftbewaking: elke aanroep leest gewoon het actieve document,
-   * en een pagineersessie die "klaar" lijkt (een lege pagina) kan in werkelijkheid halverwege naar
-   * een ander project zijn gewisseld.
-   */
   expectedSourceProjectId?: string;
 }
 
@@ -566,19 +381,10 @@ export interface ExtImportSourceCatalogCounts {
   };
 }
 
-/**
- * Waarom `getImportSourceInfo()` `null` geeft terwijl het document WEL een XER-bron had: het
- * IFC droeg een XER-bronarchief dat bij het openen niet valideerde en daarom is weggelaten
- * ("openen met melding"). Het project zelf is volledig; alleen de
- * bronroute ontbreekt. Spiegelt `XerArchiveIssue` in `src/services/importTypes.ts` — alleen de code:
- * de technische reden bevat bestandsgestuurde namen en hoort niet in het publieke contract.
- */
 export interface ExtImportSourceIssue {
   code: 'schema-version' | 'hash-mismatch' | 'truncated' | 'bytes-missing' | 'metadata-invalid' | 'structure';
 }
 
-/** Read-only XER-bronroute. Samenvatting en cataloguspagina's zijn verse DTO-kopieën; voor exact
- * herstel gebruikt een extensie `getImportSourceChunk` met de digest uit `archive`. */
 export interface ExtImportSourceInfo {
   sourceFormat: 'primavera-p6-xer';
   sourceProjectId: string;
@@ -591,11 +397,6 @@ export interface ExtImportSourceInfo {
   catalogs: ExtImportSourceCatalogCounts;
 }
 
-/**
- * Ext-facing importresultaat — wat een importer-handler oplevert en wat `api.data.loadProject`
- * verwacht. Alleen de kernvelden; de host mapt dit naar zijn interne (rijkere) `ImportResult`
- * op de importer-/loadProject-grens (zie `extMappers.fromExtImportResult`).
- */
 export interface ExtImportResult {
   project: ExtProject;
   calendar: ExtCalendar;
@@ -603,6 +404,5 @@ export interface ExtImportResult {
   sequences: ExtSequence[];
   resources: ExtResource[];
   assignments: ExtAssignment[];
-  /** Per-projectcatalogus voor USERDEFINED-taken; wordt niet automatisch app-breed opgeslagen. */
   customTaskTypes?: { id: string; name: string }[];
 }

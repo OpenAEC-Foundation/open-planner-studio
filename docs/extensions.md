@@ -637,6 +637,7 @@ Alles wat via `api.data.*`, de importer-handlers en `sdk.factory.*` de extensie 
 - `api.data.addTask` met een niet-gestarte urentaak (`time.durationUnit: 'hours'` of `time.durationMinutes`) zonder `time.scheduleFinish`: de app leidt het geplande einde af uit start + duur op de taakkalender, net als bij een taak die de gebruiker toevoegt; een meegegeven `earlyFinish`/`lateFinish` telt dan niet (rekenuitvoer, de volgende berekening zet ze). Geef je zelf een `scheduleFinish` mee, dan wint dat. `sdk.factory.createTask` leidt niets af (geen document, geen kalender).
 - `api.data.getTasks()` (en de andere `get*`) leveren **verse, muteerbare kopieën**: je mag het teruggegeven object gerust muteren, dat raakt de store niet. Schrijf terug via `addTask`/`updateTask`/`addSequence` en roep `recalculate()` aan. (Vóór P16 waren dit Immer-*bevroren* objecten die je niet mocht muteren — die beperking is vervallen.)
 - Een importer-handler retourneert een `ExtImportResult` (bouw 'm met `sdk.factory.emptyImportResult()`); de host mapt dat intern.
+- Eenheden: `scheduleStart` en `scheduleFinish` zijn ISO 8601 (alleen een datum in dag-modus); `completion` loopt van 0 tot 1; een negatieve `lagDays` is een lead en `lagPercent` een percentage van de voorgangerduur; werktijdbanden staan in minuten vanaf middernacht, per ISO-weekdag (1 = maandag tot 7 = zondag).
 
 ## Host-SDK: `require('open-planner-studio')`
 
