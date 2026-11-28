@@ -126,21 +126,24 @@ meldt niets.
 
 De samenvatting (`formatVersion: 1`) bevat alleen gewone JSON-waarden:
 
-- `project`: id, naam, rekenprofiel (bijv. `ops`, `p6`, `msp`), de projectstart zoals in het bestand
-  vastgelegd, het berekende einde en de projectduur in werkdagen;
+- `project`: id, naam, rekenprofiel (bijv. `ops`, `p6`, `msp`), de projectstart uit het bestand (bij
+  een extern IFC kan die uit de taakdatums afgeleid zijn), het berekende einde en de projectduur in werkdagen;
 - `counts`: taken, samenvattingstaken, mijlpalen, relaties, resources, toewijzingen, kritieke taken;
 - `tasks`: per taak id, naam, WBS, ouder (`parentId`, `null` op het hoogste niveau), samenvatting ja/nee
-  (`true` als de taak kindtaken heeft), mijlpaal ja/nee, vroege start en einde, late start en einde,
+  (`true` als de taak kindtaken heeft of als samenvatting gemarkeerd is), mijlpaal ja/nee, vroege start en einde, late start en einde,
   totale speling (werkdagen, fractioneel bij urenplanning) en kritiek ja/nee, in de volgorde van het bestand;
-- `criticalPath`: de taak-id's van het kritieke pad, in padvolgorde;
+- `criticalPath`: de taak-id's van de kritieke taken, in topologische volgorde (parallelle takken kunnen erin
+  staan);
 - `warnings`: waarschuwingen; de planning is dan wel doorgerekend. Elke waarschuwing heeft een vaste
   `code` en `ids`: de betrokken taak-id's, of relatie-id's bij `OUT_OF_SEQUENCE` en `RELATION_IGNORED`.
   `detail` is een korte vaste reden, alleen bij codes die er een hebben. De codes van de berekening:
-  - `CONSTRAINT_VIOLATED`: de logica overschrijdt een late-zijde-constraint (negatieve speling);
+  - `CONSTRAINT_VIOLATED`: een datumbeperking wordt geschonden, meestal met negatieve speling; bij een harde
+    beperking kan de taak nul speling houden;
   - `DEADLINE_MISSED`: de vroege einddatum valt na de deadline;
   - `OUT_OF_SEQUENCE`: voortgang die de relatielogica tegenspreekt;
   - `CALENDAR_CAPPED`: een kalender maakt het taakvenster onwerkbaar; de datum is afgekapt;
-  - `RELATION_IGNORED`: een relatie wees naar een onbekende taak en is genegeerd;
+  - `RELATION_IGNORED`: een relatie is genegeerd, omdat ze naar een onbekende taak wees of omdat de uitbreiding
+    van een samenvattingsrelatie de limiet overschreed;
   - `HAMMOCK_WITHOUT_FINISH_DRIVER`: een hamertaak zonder finish-driver; de duur valt terug op nul.
 
   Daarbij komen de waarschuwingen van het openen (ook in `openWarnings`): `XER_ARCHIVE_DROPPED` en
