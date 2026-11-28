@@ -1,6 +1,3 @@
-// Knownbugs 153/154: onleesbare taakdatums mogen MSPDI/P6 XML niet laten crashen.
-// Vergelijk ieder veld met hetzelfde bestand waarin alleen die datum ontbreekt. Een aparte,
-// geldige taak houdt de uurkalender actief, ook als de onderzochte start/finish onleesbaar is.
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import type { ImportResult } from '@/services/importTypes';
@@ -75,7 +72,6 @@ for (const format of ['mspdi', 'p6xml'] as const) {
       ['hours', 'hours']);
     eq(`${tag}: geldige geplande datums blijven exact`,
       [valid.tasks[0]?.time.scheduleStart, valid.tasks[0]?.time.scheduleFinish],
-      // Sinds F5b (I8) is 08:00 in een bestand zonder OPS-markering een echte tijd, ook op een scalaire kalender.
       hour ? ['2015-01-07T09:00', '2015-01-07T12:00'] : ['2015-01-07T08:00', '2015-01-07T08:00']);
     for (const field of fields[format]) {
       const reference = snapshot(read(fixture(format, hour, field, '')));
@@ -89,8 +85,6 @@ for (const format of ['mspdi', 'p6xml'] as const) {
         }
       }
     }
-    // Zonder leesbare plandatums of rekenuitvoer krijgt alleen de invoer haar gewone terugval.
-    // Die afleiding mag niet als oorspronkelijke uitvoer in "Datums zoals opgeslagen" belanden.
     const absent = fixture(format, hour, '', '').replace(/<(Task|Activity)>[\s\S]*?<\/\1>/g,
       block => block.replace(
         /<(Start|Finish|PlannedStartDate|PlannedFinishDate|EarlyStart|EarlyFinish|LateStart|LateFinish|EarlyStartDate|EarlyFinishDate|StartDate|FinishDate|LateStartDate|LateFinishDate)>[^<]*<\/\1>/g,
@@ -99,7 +93,6 @@ for (const format of ['mspdi', 'p6xml'] as const) {
     const noSource = read(absent);
     eq(`${tag}: ontbrekende start gebruikt projectanker`, noSource.tasks[0]?.time.scheduleStart, '2015-01-05');
     eq(`${tag}: afgeleide datums worden geen bronuitvoer`, noSource.recordedTimes?.[noSource.tasks[0]!.id], undefined);
-    // Ook met voortgang moeten onleesbare actuals dezelfde invarianten volgen als ontbrekende.
     const actuals = format === 'mspdi' ? ['ActualStart', 'ActualFinish'] : ['ActualStartDate', 'ActualFinishDate'];
     for (const completion of [50, 100]) {
       for (const field of actuals) {

@@ -6619,6 +6619,12 @@ en noem het in je rapport of PR-tekst.
       op een PR rood worden (ADR 0001). Voorstel: de herpinregels als gegevens bewaren (een string of een JSON-bestand)
       in plaats van als commentaar. — S
 
+2811. **Een logisch kapotte herstelkopie van een document dat bij herstel niet actief is, komt als slapend document terug
+     en valt pas om bij een latere documentwissel.** Bij herstel rekent `restoreDocuments` alleen het actieve document
+     door (ADR 0475); een slapend document waarvan de payload wel opgebouwd kan worden, wordt niet op zijn inhoud
+     getoetst. Gelezen in het commentaar bij geval 8n van `check-recovery-integrity.ts` (weggehaald in de opruiming
+     van de opslagtests); niet nagespeeld. — S
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.

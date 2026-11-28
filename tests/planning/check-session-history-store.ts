@@ -29,8 +29,6 @@ const cloneGrid = (value: TaskGridSurfacePreferences): TaskGridSurfacePreference
   scrollX: value.scrollX,
 });
 
-// A1, B1 en globale G1 blijven één chronologische sessie, maar documentevents zijn alleen
-// toepasbaar wanneer hun eigen document actief is.
 const chronology = createAppStore();
 const C = () => chronology.getState();
 C().newProject();
@@ -73,8 +71,6 @@ eq('Redo met B actief herstelt B1 vóór de later ongedane G1', C().tasks.map(ta
 C().redo();
 eq('Daarna herstelt redo de globale voorkeur', C().taskGridSurfaces['full-task-grid'], gridAfter);
 
-// Document-view en persoonlijke gridvoorkeuren lopen via hetzelfde eventmodel, maar maken het
-// project niet dirty. De view-publicatie moet ook de afgeleide rijen meteen laten kloppen.
 const presentation = createAppStore();
 const P = () => presentation.getState();
 P().newProject();
@@ -124,8 +120,6 @@ P().undo();
 eq('Grid-undo herstelt de persoonlijke voorkeur', P().taskGridSurfaces['gantt-task-grid'], preferenceBefore);
 eq('Grid-undo raakt dirty niet', P().isDirty, false);
 
-// De bestaande mutatorgrens maakt één documentdata-event per gewone mutatie; keyed updates
-// vervangen alleen de after-zijde van het compatibele laatste event.
 const compatibility = createAppStore();
 const K = () => compatibility.getState();
 K().newProject();

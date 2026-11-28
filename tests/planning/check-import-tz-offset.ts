@@ -1,9 +1,3 @@
-// Datum-tijden met een tijdzone-aanduiding uit een BESTAND lezen als wandklok. Het model rekent in
-// lokale wandkloktijd; `hasNonAnchorTime` (dag-/uurmodusbeslissing) negeerde de offset al, maar het
-// inlezen ging via `parseInstant`, dat hem toepaste: `09:30+01:00` werd als uurtaak herkend en om
-// 08:30 ingelezen, en een tijd kort na middernacht landde op de vorige dag.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { installDOMParser } from './xmldom-shim';
 import { useAppStore } from '@/state/appStore';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
@@ -20,7 +14,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) fails.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-// ── Unit ──
 const h = (s: string) => formatInstant(parseImportedInstant(s), 'hour');
 eq('+01:00 genegeerd', h('2026-03-09T09:30:00+01:00'), '2026-03-09T09:30');
 eq('-05:00 genegeerd', h('2026-03-09T09:30:00-05:00'), '2026-03-09T09:30');
@@ -32,7 +25,6 @@ eq('importDateTime uur', importDateTime('2026-03-09T00:30:00+01:00', true), '202
 eq('importDateTime dag (prefix, ongewijzigd)', importDateTime('2026-03-09T00:30:00+01:00', false), '2026-03-09');
 eq('importStatusDate', importStatusDate('2026-03-09T17:00:00+01:00'), '2026-03-09T17:00');
 
-// ── End-to-end: MSPDI met offsettijden ──
 S().newProject();
 const a = S().addTask({ name: 'Offsettaak' });
 void a;

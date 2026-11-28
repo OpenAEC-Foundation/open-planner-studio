@@ -1,11 +1,3 @@
-// Twee-store-bewijs voor de per-context StoreRuntime (onderhoudbaarheidsprogramma 2, taak 2).
-//
-// Deze batterij gebruikt uitsluitend verse AppStoreContext-instanties. Documentstate vergelijken we
-// via het canonieke documentcontract; uitvoeringsstate bewijzen we met undo-/redo-dieptes en de
-// zichtbare batchstatus. Zo kan een gedeelde modulevariabele zich niet achter twee onafhankelijke
-// Zustand-state-objecten verstoppen.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
 import { capturePayload } from '@/state/documentContract';
@@ -87,7 +79,6 @@ function documentState(context: AppStoreContext) {
   return document;
 }
 
-// ── 1. Dezelfde coalesceKey blijft per store een eigen reeks ────────────────────────────────
 {
   const a = fixture('coalesce-A');
   const b = fixture('coalesce-B');
@@ -113,7 +104,6 @@ function documentState(context: AppStoreContext) {
   eq('4a de B-reeks coalescet na een gewone A-mutatie verder', depths(b.context), { undo: 1, redo: 0 });
 }
 
-// ── 2. Documentwissel en undo/redo resetten uitsluitend hun eigen runtime ───────────────────
 {
   const a = fixture('wissel-A');
   const b = fixture('wissel-B');
@@ -153,7 +143,6 @@ function documentState(context: AppStoreContext) {
   eq('6a undo/redo in A breekt de B-reeks niet', depths(b.context), { undo: 1, redo: 0 });
 }
 
-// ── 3. Geneste en vervlochten batches delen alleen runtime binnen dezelfde context ───────────
 {
   const a = fixture('batch-A');
   const b = fixture('batch-B');
@@ -194,7 +183,6 @@ function documentState(context: AppStoreContext) {
   eq('10a na afloop krijgt een gewone B-mutatie weer een snapshot', depths(b.context), { undo: 2, redo: 0 });
 }
 
-// ── 4. Een batchthrow behoudt gedeeltelijke B-mutaties en raakt A nooit ──────────────────────
 {
   const a = fixture('throw-A');
   const b = fixture('throw-B');
@@ -238,7 +226,6 @@ function documentState(context: AppStoreContext) {
     depths(b.context), { undo: 1, redo: 0 });
 }
 
-// ── Uitslag ────────────────────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: store-runtime-isolatie — ${checks} checks groen`);
   process.exit(0);

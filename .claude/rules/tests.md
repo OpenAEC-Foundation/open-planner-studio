@@ -61,3 +61,5 @@ Waarom de rekentests in `tests/planning/` kalenderwerk tellen in plaats van wand
 De IFC-tests in `tests/planning/` (eigen STEP-lezer als meetlat, uitvoer van een oudere writer, grenzen die niet van de machine afhangen): `docs/adr/1250-ifc-tests-eigen-step-lezer-oude-uitvoer-en-machinevrije-grenzen.md`.
 
 De tests van datums, werkdagen en CPM (eigen orakels, bronguards, gekozen grenzen, de tijdzonematrix voor `check-date-format.ts`): `docs/adr/1310-tests-van-datums-en-werkdagen-eigen-orakels-bronguards-en-gekozen-grenzen.md`.
+
+De tests van opslaan, crashherstel, de site, documenten en import (vaste orakels, een eigen proces per sessiestand, grenzen die tellen): `docs/adr/1300-tests-van-opslaan-herstel-en-import-orakels-processen-en-grenzen.md`.

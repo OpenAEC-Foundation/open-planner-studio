@@ -1,6 +1,3 @@
-// Documenttab-navigatie (X11): twaalf projecten moeten via de zichtbare tabstrip bereikbaar
-// blijven. Deze check bewaakt de pure kern die DocumentTabBar werkelijk gebruikt voor
-// pijlnavigatie én het naar beeld brengen van de actieve tab.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { createElement, isValidElement, type ReactElement, type ReactNode } from 'react';
@@ -29,9 +26,6 @@ import {
   projectOverviewCloseFocusTarget,
 } from '@/components/layout/DocumentChrome/projectOverviewFocus';
 
-// shortcutRegistry importeert de i18n-config, die bij initialisatie document/localStorage leest.
-// Zet alleen voor deze headless check het minimale DOM-contract neer vóór de dynamische import;
-// de productiehelpers zelf blijven DOM-vrij.
 const deferredAnimationFrames: FrameRequestCallback[] = [];
 Object.assign(globalThis, {
   document: { documentElement: {} },
@@ -55,7 +49,6 @@ function eq(label: string, got: unknown, want: unknown): void {
 
 const ids = Array.from({ length: 12 }, (_, index) => `doc-${index + 1}`);
 
-// Tab 10–12 mogen geen onbereikbare staart van een Ctrl/Cmd-1..9-reeks zijn.
 eq('LTR tab 9 → pijltje rechts bereikt tab 10', documentTabKeyDestination(ids, 'doc-9', 'ArrowRight', 'ltr'), 'doc-10');
 eq('LTR tab 10 → pijltje rechts bereikt tab 11', documentTabKeyDestination(ids, 'doc-10', 'ArrowRight', 'ltr'), 'doc-11');
 eq('LTR tab 11 → pijltje rechts bereikt tab 12', documentTabKeyDestination(ids, 'doc-11', 'ArrowRight', 'ltr'), 'doc-12');
@@ -68,8 +61,6 @@ eq('End bereikt bewust de laatste tab in RTL', documentTabKeyDestination(ids, 'd
 eq('andere toets verandert de actieve tab niet', documentTabKeyDestination(ids, 'doc-10', 'Enter', 'ltr'), null);
 eq('een niet-bestaande actieve id veroorzaakt geen gok', documentTabKeyDestination(ids, 'verdwenen', 'ArrowRight', 'ltr'), null);
 
-// Volledig eventcontract dat DocumentTabBar rechtstreeks gebruikt. Een guard in de component
-// vanaf index 9 moet deze reeks niet buiten de geteste productiehandler kunnen afkappen.
 function runTabKey(
   cardId: string,
   key: string,
@@ -118,8 +109,6 @@ eq('child-event wordt niet als tabtoets afgehandeld', runTabKey('doc-9', 'ArrowR
   result: null, effects: [],
 });
 
-// Ctrl/Cmd-contract: dit is bewust een aparte sectie van pijlnavigatie. Alleen 1–9 zijn globale
-// sneltoetsen; tab 10–12 zijn via de tablist bereikbaar, niet via een verzonnen Ctrl/Cmd+10.
 const documentShortcuts = SHORTCUTS.filter(shortcut => shortcut.id.startsWith('nav.switchDocument'));
 eq('Ctrl/Cmd-contract bevat precies negen entries', documentShortcuts.length, 9);
 eq('Ctrl/Cmd-contract is exact 1–9', documentShortcuts.map(shortcut => shortcut.combo.key), ['1', '2', '3', '4', '5', '6', '7', '8', '9']);
@@ -127,9 +116,6 @@ eq('Ctrl+1 matcht de eerste entry', matchesCombo({ key: '1', ctrlKey: true, meta
 eq('Cmd+1 matcht de eerste entry', matchesCombo({ key: '1', ctrlKey: false, metaKey: true, shiftKey: false, altKey: false } as KeyboardEvent, documentShortcuts[0]?.combo), true);
 eq('Ctrl+10 heeft geen entry', documentShortcuts.some(shortcut => shortcut.combo.key === '10'), false);
 
-// Close-focuskern: focus ontstaat pas wanneer de aangevraagde id in de nieuwe, gecommitteerde
-// kaartenlijst verdwenen is. Daardoor zijn schoon sluiten en dirty save/don't-save gelijkwaardig,
-// terwijl annuleren geen focusbeweging veroorzaakt.
 const before = [{ id: 'doc-1', isActive: true }, { id: 'doc-2', isActive: false }];
 eq('schoon actief sluiten focust het nieuwe actieve document', documentTabCloseFocusTarget(
   before.map(doc => doc.id),
@@ -167,8 +153,6 @@ eq('onbekende verwijdering veroorzaakt geen focusgok', documentTabCloseFocusTarg
   null,
 ), null);
 
-// Overzicht-focuspolicy: bij een gecommitteerde verwijdering blijft focus in de zichtbare overlay.
-// Dezelfde index wint, anders de vorige; een vervangend vers document is de nieuwe kaart op index 0.
 eq('overview schoon actief sluiten focust dezelfde zichtbare index', projectOverviewCloseFocusTarget(
   ['doc-1', 'doc-2', 'doc-3'], ['doc-1', 'doc-3'], 'doc-2',
 ), 'doc-3');
@@ -204,9 +188,6 @@ eq('actieve tab wordt zonder concurrerende smooth-scroll direct naar beeld gebra
   block: 'nearest', inline: 'nearest', behavior: 'instant',
 }]);
 
-// Kleinste passende renderharness: React render-to-string test de geproduceerde interactieve DOM
-// zonder een nieuw testframework. Toetsnavigatie en focusdoel hierboven gebruiken de letterlijke
-// productiehelpers; de browserproef dekt vervolgens echte events, focus en scroll.
 const renderedTab = renderToStaticMarkup(createElement(DocumentTabControl, {
   card: {
     id: 'doc-7', title: 'Project zeven', fileName: null, code: 'PZ', color: '#123456',
@@ -225,8 +206,6 @@ eq('gerenderde tab koppelt aan het tabpanel', /role="tab"[^>]*aria-controls="ops
 eq('gerenderde tabnaam bevat geen sluitnaam', /role="tab"[^>]*aria-label="Project zeven"/.test(renderedTab), true);
 eq('gerenderde sluitknop is een sibling van de tab', /role="tab"[\s\S]*?<\/button><button[^>]*class="ops-tab-close"[^>]*aria-label="Sluiten Project zeven"/.test(renderedTab), true);
 
-// Productieactiehelper: de test voert de echte branches uit; callbacks leggen alleen de zichtbare
-// store-/focus-effecten vast. Een verkeerde Cancel/Discard-branch kan daardoor niet groen blijven.
 function closeActionHarness(options?: {
   pendingId?: string;
   activeId?: string;
@@ -335,9 +314,6 @@ function findControl(
   return null;
 }
 
-// Werkelijke componentroute: DocumentTabList maakt twaalf echte DocumentTabControl-elementen.
-// De test vuurt hun echte keyhandlers zonder pauzes af en rendert na iedere synchrone storewissel
-// opnieuw. Een indexguard vóór de productiehelper blokkeert dan zichtbaar tab 10–12.
 const routeCards = (activeId: string): DocumentCard[] => ids.map((id, index) => ({
   id,
   title: `Project ${index + 1}`,
@@ -474,9 +450,6 @@ eq('pending Save schakelt alle drie knoppen uit', [
   busyCancel?.props.disabled, busyDiscard?.props.disabled, busySave?.props.disabled,
 ], [true, true, true]);
 
-// Supplementaire wiring-scan: de renderharness hierboven is de componentdekking. Deze kleine
-// scan bewaakt uitsluitend de App-grens, waar de gedeelde actieve werkruimte het panel daadwerkelijk
-// aan de tablist hangt.
 const tabControlSource = readFileSync(resolve(
   process.cwd(),
   'src/components/layout/DocumentChrome/DocumentTabControl.tsx',
