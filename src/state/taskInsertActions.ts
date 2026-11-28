@@ -4,28 +4,10 @@ import type { Task } from '@/types/task';
 import { lastTaskRow } from '@/engine/taskGrid/ghostRow';
 import { refusalNotice } from '@/state/refusalNotice';
 
-/**
- * Waar landt een NIEUWE taak?
- *
- * Eén module voor álle invoegroutes — lintknop "+ Taak", de Mijlpaal-dropdown, het contextmenu
- * ("Taak toevoegen" én "Invoegen boven/onder"), de Insert-, Ctrl+I- en Ctrl+M-sneltoets — zodat dezelfde
- * handeling via elke route dezelfde uitkomst heeft.
- *
- * Bewust in `src/state/` en niet in de component-boom (naar het model van `relationActions.ts`):
- * lint, canvas, tabel én de headless regressiebatterij draaien zo letterlijk dezelfde functies.
- * DOM- en JSX-vrij, dus headless testbaar — zie `tests/planning/check-context-menu-scope.ts`.
- */
-
 export type InsertWhere = 'above' | 'below';
 
-/** Wat een nieuwe taak minimaal nodig heeft; verder alles wat `addTask` accepteert. */
 export type NewTaskInput = Partial<Task> & { name: string };
 
-/**
- * Rond elke gewone taak-toevoegactie identiek af: de nieuwe taak is de enige selectie, de
- * bestaande Gantt-focusroute toont rij en datum zonder de zoomkeuze te wijzigen, en het
- * eigenschappenpaneel zet de naam klaar om meteen te overschrijven.
- */
 function finishNewTask(id: string): string {
   const store = useAppStore.getState();
   store.focusOnTask(id, { preserveZoom: true });
@@ -33,40 +15,6 @@ function finishNewTask(id: string): string {
   return id;
 }
 
-/**
- * Het ANKER voor "Invoegen boven/onder" over een reikwijdte: de BOVENSTE
- * (`above`) respectievelijk ONDERSTE (`below`) taak van de reikwijdte, in de volgorde ZOALS DE
- * GEBRUIKER ZE OP HET SCHERM ZIET (`viewRows`).
- *
- * Waarom de zichtbare volgorde en niets anders. Bij een meervoudige selectie zijn er drie
- * kandidaat-volgordes, en twee daarvan zijn onvoorspelbaar voor de gebruiker:
- *  - de KLIKVOLGORDE (`selectedTaskIds`) — Ctrl+klik duwt achteraan aan (`selectTask`), dus wie
- *    van onder naar boven selecteert krijgt een ander anker dan wie van boven naar beneden
- *    selecteert, en de nieuwe taak landt dan midden IN de selectie.
- *  - de RAUWE `tasks`-array — dat is de documentvolgorde, die na indent/outdent en boomopbouw niet
- *    één-op-één met het scherm loopt.
- * Alleen "bovenste/onderste zoals getoond" is voorspelbaar, en het is dezelfde volgorde die de
- * Gantt en de tabel renderen.
- *
- * Randgevallen, bewust zo:
- *  - NIET-AANEENGESLOTEN selectie (taak 1, 3 en 5): dezelfde regel, geen uitzondering — `above`
- *    landt boven 1, `below` onder 5. De nieuwe taak omsluit de hele selectie; dat is de enige
- *    uitkomst die niet van een willekeurig "gat" afhangt.
- *  - Selectie over MEERDERE OUDERS: het anker is altijd een taak die de gebruiker écht selecteerde,
- *    dus de nieuwe taak erft de ouder en het inspringniveau van die uiterste taak (`addTask` doet
- *    dat al). `above` en `below` kunnen dan in verschillende takken landen — dat is correct: dat is
- *    letterlijk waar de bovenste en de onderste selectieregel staan. We raden geen
- *    gemeenschappelijke ouder; dat zou de taak op een plek zetten die niemand aanwees.
- *  - Een geselecteerde taak die NIET zichtbaar is (ingeklapte ouder, actief filter) heeft geen
- *    schermpositie. Zijn er zichtbare taken in de reikwijdte, dan tellen alleen die mee; is er
- *    geen enkele zichtbaar, dan valt de rangschikking terug op de documentvolgorde van `tasks`.
- *  - Gegroepeerde weergave kan één taak in meerdere banden tonen; dan telt de EERSTE rij, net als
- *    bij de relatiepijlen (`firstRowIndexByTask`). In die weergave wordt positioneel invoegen
- *    overigens sowieso geweigerd — zie `canInsertRelative` hieronder.
- *
- * Geeft `undefined` bij een lege reikwijdte — de aanroeper voegt dan achteraan toe (`addTask`
- * zonder `position`), exact het bestaande "geen selectie"-gedrag van de Insert-sneltoets.
- */
 export function insertAnchorForScope(ids: string[], where: InsertWhere): string | undefined {
   if (ids.length === 0) return undefined;
   if (ids.length === 1) return ids[0];
@@ -93,49 +41,16 @@ export function insertAnchorForScope(ids: string[], where: InsertWhere): string 
   return best;
 }
 
-/**
- * Mag er, gegeven de HUIDIGE weergave, ten opzichte van een anker ingevoegd worden?
- *
- * Alleen in pure boommodus (geen filter, geen groepering, geen sortering) is de getoonde volgorde
- * ook de documentvolgorde. Wordt er gegroepeerd of gesorteerd, dan verschuift een structureel
- * "boven taak X" ingevoegde taak naar de band/positie die de weergave hem toewijst — de gebruiker
- * ziet hem dus ergens ánders verschijnen dan waar hij hem neerzette (bv. bij groepering op taaktype
- * een selectie in band LOGISTIC, nieuwe taak in band CONSTRUCTION).
- *
- * Dit is exact dezelfde poort (`isTreeMode`) die in-/uitspringen (`COMMANDS.indent`/`outdent` in
- * `state/commands.ts`, gedeeld door sneltoets en lint) en de rijsleep in het taakraster
- * (`useTableRowDrag`, `enabled` in `FullTaskGrid.tsx`) al hanteren; de Insert-toets van dat raster
- * loopt via `insertTaskRelativeToScope` hieronder en passeert deze poort dus zelf — één regel voor
- * alle structuurmutaties, zodat er geen route overblijft die het stiekem tóch doet.
- */
 export function canInsertRelative(): boolean {
   return isTreeMode(useAppStore.getState().view);
 }
 
-/**
- * Meld dat de weergave positioneel invoegen WEIGERT (route 2: *Invoegen boven/onder*, Insert,
- * Ctrl+I). De handeling gebeurt niet.
- *
- * Dezelfde melding als in-/uitspringen en rijslepen: de strook `StructureLockedNotice` ("Niet
- * beschikbaar tijdens filteren/groeperen/sorteren"), met de knop die filter/groepering/sortering in
- * één klik wist. Route 1 (*Taak*) gebruikt hem NIET: daar komt de taak er wél, zie
- * {@link meldAchteraan}.
- */
 function meldGeblokkeerd(): void {
   useAppStore.getState().notifyStructureLocked();
 }
 
-/** Samenvouwsleutel: herhaald *Taak* onder dezelfde weergave geeft één regel met een teller. */
 const TASK_ADDED_AT_END_KEY = 'task-added-at-end';
 
-/**
- * Meld dat *Taak* de nieuwe taak achteraan zette in plaats van onder de selectie (route 1, buiten
- * boommodus). Eigenaarsbesluit 2026-10-19 5a: GEEN strook, want "Niet beschikbaar" klopt hier niet
- * (de taak komt er wél), maar een rode weigeringstoast. De plaatsing is geweigerd, dus "weigering =
- * rood" (besluit 2026-10-17): blijft tot het kruisje, weg bij een documentwissel of undo/redo
- * (5b). De knop *Wissen* (`clearViewArrangement`) zet filter, groepering en sortering uit, net als
- * op de strook.
- */
 function meldAchteraan(): void {
   useAppStore.getState().notify(refusalNotice({
     messageKey: 'notifications.taskAddedAtEnd',
@@ -144,23 +59,6 @@ function meldAchteraan(): void {
   }));
 }
 
-/**
- * Route 1 — "voeg een taak toe" (lintknop **+ Taak**, de **Mijlpaal**-dropdown, contextmenu-item
- * "Taak toevoegen"):
- *
- *   1. is er een taak geselecteerd ⇒ de nieuwe taak komt direct ONDER de selectie;
- *   2. is er niets geselecteerd ⇒ achteraan, zoals altijd.
- *
- * Bij een meervoudige selectie is "onder de selectie" de ONDERSTE taak in schermvolgorde (zie
- * `insertAnchorForScope`) — niet de laatst aangeklikte, en niet ergens midden in de selectie.
- *
- * Buiten pure boommodus valt hij terug op regel 2 (achteraan) plus een rode toast die dat zegt
- * ({@link meldAchteraan}, eigenaarsbesluit 2026-10-19 5a). Bewust géén volledige weigering zoals bij
- * route 2 hieronder: "+ Taak" is een TOEVOEG-actie met een positie-voorkeur, niet een
- * positie-commando. Weigeren zou betekenen dat je in een gegroepeerde weergave helemaal geen taak
- * meer kunt aanmaken. Wat er wegvalt is alleen de plaatsing, en dát is wat de toast uitlegt. De
- * toast komt ná `addTask`: de taak staat er al als de gebruiker hem leest.
- */
 export function addTaskNearSelection(partial: NewTaskInput): string {
   const store = useAppStore.getState();
   const scope = store.selectedTaskIds;
@@ -174,17 +72,6 @@ export function addTaskNearSelection(partial: NewTaskInput): string {
   return finishNewTask(store.addTask(anchorId ? { ...partial, position: { anchorId, where: 'below' } } : partial));
 }
 
-/**
- * Route 2 — expliciet "Invoegen boven/onder" (contextmenu-items + de Insert- en Ctrl+I-sneltoets).
- * Deze acties bestaan uitsluitend uit hun positie, dus buiten pure boommodus worden ze GEWEIGERD
- * met de structuurmelding — dezelfde poort als in-/uitspringen. Een terugval op "achteraan" zou
- * hier ronduit misleidend zijn: "Invoegen boven" die onderaan uitkomt.
- *
- * Zonder anker (lege selectie) is er niets positioneels aan en voegt hij gewoon achteraan toe; dat
- * is het bestaande gedrag van de Insert-sneltoets zonder selectie en werkt in elke weergave.
- *
- * Geeft de id van de nieuwe taak, of `null` als de weergave hem tegenhield.
- */
 export function insertTaskRelativeToScope(
   scope: string[],
   where: InsertWhere,
@@ -200,15 +87,6 @@ export function insertTaskRelativeToScope(
   return finishNewTask(store.addTask({ ...partial, position: { anchorId, where } }));
 }
 
-/**
- * Route 3 — "Nieuwe taak" / "Nieuwe mijlpaal" uit het rechtsklikmenu op LEGE ruimte (review vader
- * 2026-10-06, punt 1): de taak komt onderaan de lijst, op het niveau van de laatste zichtbare taak
- * (dezelfde plek als de spookregel van het taakraster). Buiten de boomweergave is "onderaan" geen
- * vaste plek; dan gewoon achteraan, zoals `addTask` zonder positie.
- *
- * Geeft alleen de positie; de aanroeper kiest zelf hoe de naam klaargezet wordt (de Gantt via het
- * eigenschappenpaneel, het taakraster in de naamcel).
- */
 export function endOfListPosition(): { position?: { anchorId: string; where: InsertWhere } } {
   const { viewRows, view } = useAppStore.getState();
   if (!isTreeMode(view)) return {};
@@ -216,7 +94,6 @@ export function endOfListPosition(): { position?: { anchorId: string; where: Ins
   return last ? { position: { anchorId: last.task.id, where: 'below' } } : {};
 }
 
-/** Nieuwe taak onderaan (zie `endOfListPosition`), afgerond zoals elke andere toevoegroute. */
 export function addTaskAtEnd(partial: NewTaskInput): string {
   const id = useAppStore.getState().addTask({ ...partial, ...endOfListPosition() });
   return id ? finishNewTask(id) : id;

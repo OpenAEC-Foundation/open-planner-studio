@@ -11,24 +11,9 @@ import type { ViewRow } from '@/engine/view/visibleRows';
 
 export const MAX_SESSION_HISTORY_EVENTS_PER_SCOPE = 100;
 
-/**
- * Geheugenplafond voor de hele sessiehistorie (eigenaarsbesluit 2026-09-28): boven deze GESCHATTE
- * omvang vallen de oudste stappen weg, ook binnen de honderd per scope. De nieuwste
- * `MIN_SESSION_HISTORY_EVENTS_PER_SCOPE` van elke scope blijven altijd staan, zodat een grote
- * bewerking nooit de laatste stappen onbereikbaar maakt. Daardoor is het GEEN harde bovengrens: met
- * veel open documenten of één stap groter dan het plafond blijft er meer staan; en één zware stap in
- * het ene document knipt de historie van de andere documenten terug tot hun nieuwste tien.
- */
 export const MAX_SESSION_HISTORY_BYTES = 200 * 1024 * 1024;
 export const MIN_SESSION_HISTORY_EVENTS_PER_SCOPE = 10;
 
-/**
- * Schatting per gewijzigd element, gemeten (Node, 2000 taken, 20 stappen): een naam op alle taken
- * ≈ 280 B per taak; een bewerking met herberekening ≈ 1550 B per taak (nieuwe taakobjecten plus een
- * nieuw `cpmResult`); een baseline ≈ 176 B per vastgelegde taak (review 2026-09-28). Overige
- * elementen zijn niet gemeten en krijgen de taakschatting; `recordedDates` en de contourperiodes op
- * een taak tellen niet apart mee en worden dus onderschat.
- */
 const BYTES_PER_CHANGED_ITEM = 300;
 const BYTES_PER_CPM_TASK = 1250;
 const BYTES_PER_BASELINE_TASK = 176;
@@ -42,9 +27,6 @@ function snapshotChangeBytes(before: Snapshot, after: Snapshot): number {
     const b = before[key];
     if (a === b) continue;
     if (Array.isArray(a)) {
-      // Alleen elementen die niet al (als hetzelfde object) in de vorige versie zaten tellen als nieuw.
-      // (Het echte vasthouden is ruimer: `after` komt uit `current()` en deelt voor gewijzigde objecten
-      // niets met de volgende `before`; de geijkte constanten hierboven vangen dat op.)
       const old = new Set<unknown>(Array.isArray(b) ? b : []);
       let changed = 0;
       let baselineTasks = 0;
@@ -64,10 +46,7 @@ function snapshotChangeBytes(before: Snapshot, after: Snapshot): number {
 }
 
 const eventBytesCache = new WeakMap<SessionHistoryEvent, number>();
-/** Geschatte geheugenomvang die dit event vasthoudt bovenop zijn buren (events zijn onveranderlijk). */
 export function estimateSessionHistoryEventBytes(draftOrEvent: SessionHistoryEvent): number {
-  // Binnen een producer is het event een Immer-proxy: elke producer een nieuwe (de cache mist dan
-  // altijd) en elke lezing een trap. Events zelf veranderen nooit, dus het origineel volstaat.
   const event = isDraft(draftOrEvent) ? (original(draftOrEvent) as SessionHistoryEvent) : draftOrEvent;
   const cached = eventBytesCache.get(event);
   if (cached !== undefined) return cached;
@@ -93,9 +72,6 @@ export type SessionHistoryDelta =
       documentId: string;
       before: Snapshot;
       after: Snapshot;
-      /** Het event was GEEN bewerking (F5 of "toon opgeslagen datums" in de modus): undo/redo ervan
-       *  laat `isDirty` en `importPristine` staan. Afwezig ⇒
-       *  een gewone bewerking, en undo/redo markeert het document als bewerkt. */
       nonEdit?: true;
     }
   | {
@@ -103,7 +79,6 @@ export type SessionHistoryDelta =
       documentId: string;
       before: ViewLayoutHistoryState;
       after: ViewLayoutHistoryState;
-      /** Een layoutklik die ook de app-brede overlays zette. */
       overlays?: { before: LayoutOverlays; after: LayoutOverlays };
     }
   | {
@@ -121,12 +96,6 @@ export interface SessionHistoryEvent {
   label: string;
   state: 'applied' | 'undone';
   deltas: readonly [SessionHistoryDelta, ...SessionHistoryDelta[]];
-  /**
-   * Herkomst binnen een BEWERKSESSIE (de taakdialoog, `historyMark`). Alleen de
-   * interactieve UI-route (`finishUndoable` buiten batch en MCP-lease) stempelt hem; een MCP-,
-   * batch- of extensie-event dat tijdens de open dialoog landt blijft ongestempeld, zodat
-   * `revertHistorySince`/`squashHistorySince` het nooit meenemen.
-   */
   sessionKey?: string;
 }
 
@@ -145,7 +114,6 @@ export type MaterializedHistoryTarget =
       viewRows: ViewRow[];
       resourceLoadResult: ResourceLoadResult | null;
       isDirty: true;
-      /** `false` alleen voor een `nonEdit`-delta: dan wist het toepassen "ongewijzigd sinds import" niet. */
       clearImportPristine: boolean;
     }
   | {
@@ -163,7 +131,6 @@ export type MaterializedHistoryTarget =
       isDirty: false;
     };
 
-/** Leg uitsluitend de undoable viewsubset vast; tijdelijke focus-/fit-/scrollY-state blijft erbuiten. */
 export function captureViewLayoutHistoryState(view: Readonly<ViewState>): ViewLayoutHistoryState {
   return {
     filter: view.filter == null ? null : JSON.parse(JSON.stringify(view.filter)) as ViewState['filter'],
@@ -173,18 +140,11 @@ export function captureViewLayoutHistoryState(view: Readonly<ViewState>): ViewLa
     scrollX: view.scrollX,
     timeScale: view.timeScale,
     collapsedGroupKeys: [...view.collapsedGroupKeys],
-    // Beide sleutels staan er ALTIJD (ook als `undefined`), zodat undo van een layoutklik
-    // ze via Object.assign terugzet; rauw overgenomen, zodat een ontbrekend veld ontbrekend blijft.
     showRelations: view.showRelations,
     layoutSession: view.layoutSession,
   };
 }
 
-/**
- * Bouw het volledige doel buiten de live store. Datahistory herstelt eerst alle snapshotbronnen en
- * de kalendercache op een ondiepe geïsoleerde state; pas daarna worden rijen en belasting afgeleid.
- * De handmatig berekende CPM-uitkomst en stale-vlag komen letterlijk uit het snapshot.
- */
 export function materializeHistoryTarget(
   state: Readonly<AppState>,
   delta: SessionHistoryDelta,
@@ -234,17 +194,10 @@ export function materializeHistoryTarget(
   };
 }
 
-/**
- * Een event is de kleinste undo-eenheid. Twee documenten in hetzelfde event zouden nooit atomair
- * toepasbaar zijn wanneer maar één document actief kan zijn, en zijn daarom ongeldige input.
- */
 export function assertValidSessionHistoryEvent(event: SessionHistoryEvent): void {
   if (event.deltas.length === 0) {
     throw new Error(`History-event ${event.id || '<zonder id>'} bevat geen deltas`);
   }
-  // `sequence` is een oplopende sessieteller, geen willekeurig ranggetal. Met NaN zouden zowel
-  // hoogste-undo als laagste-redo stil afhankelijk worden van arrayvolgorde; onveilige integers
-  // kunnen bij het ophogen bovendien gelijk gaan lijken door IEEE-754-afronding.
   if (!Number.isSafeInteger(event.sequence) || event.sequence <= 0) {
     throw new Error(
       `History-event ${event.id || '<zonder id>'} heeft een ongeldige sequence: ${String(event.sequence)}`,
@@ -262,7 +215,6 @@ export function assertValidSessionHistoryEvent(event: SessionHistoryEvent): void
   }
 }
 
-/** De enige afleiding van scopes. Events bewaren bewust geen tweede scopes-array. */
 export function scopeKeysOf(event: SessionHistoryEvent): HistoryScopeKey[] {
   assertValidSessionHistoryEvent(event);
   const seen = new Set<HistoryScopeKey>();
@@ -279,7 +231,6 @@ export function scopeKeysOf(event: SessionHistoryEvent): HistoryScopeKey[] {
   return scopes;
 }
 
-/** Grid-only events zijn globaal; ieder event met documentdata hoort bij het actieve document. */
 export function isSessionHistoryEventApplicable(
   event: SessionHistoryEvent,
   activeDocumentId: string | null,
@@ -317,17 +268,14 @@ export function selectRedoHistoryEvent(
 
 type SessionHistoryProjectionState = Pick<AppState, 'historyEvents' | 'activeDocumentId'>;
 
-/** Puur beschikbaarheidssignaal voor lint, titelbalk en sneltoetsen. */
 export function canUndo(state: SessionHistoryProjectionState): boolean {
   return selectUndoHistoryEvent(state.historyEvents, state.activeDocumentId) !== null;
 }
 
-/** Puur beschikbaarheidssignaal voor lint, titelbalk en sneltoetsen. */
 export function canRedo(state: SessionHistoryProjectionState): boolean {
   return selectRedoHistoryEvent(state.historyEvents, state.activeDocumentId) !== null;
 }
 
-/** Alleen werkelijk toepasbare events tellen mee; history van slapende documenten blijft buiten beeld. */
 export function historyDepthsForActiveScope(
   state: SessionHistoryProjectionState,
 ): SessionHistoryDepths {
@@ -341,7 +289,6 @@ export function historyDepthsForActiveScope(
   return { undoDepth, redoDepth };
 }
 
-/** Laatste toegepaste documentdatasprong voor gerichte contract-/sharingtests. */
 export function latestAppliedDocumentDataDelta(
   state: SessionHistoryProjectionState,
 ): DocumentDataHistoryDelta | null {
@@ -357,10 +304,6 @@ export function latestAppliedDocumentDataDelta(
   return selected?.delta ?? null;
 }
 
-/**
- * Een nieuwe wijziging wist alleen undone events met een overlappende scope. Bij een botsing
- * verdwijnt het hele oude event, zodat een compound nooit half opnieuw toepasbaar wordt.
- */
 export function invalidateUndoneHistoryForEvent(
   events: readonly SessionHistoryEvent[],
   newEvent: SessionHistoryEvent,
@@ -375,18 +318,6 @@ export function invalidateUndoneHistoryForEvent(
   });
 }
 
-/**
- * Behoud de nieuwste honderd events per scope. Een compound blijft staan zolang het nog tot de
- * nieuwste honderd van minimaal één eigen scope behoort; pas buiten al zijn scopes valt het weg.
- *
- * Daarbovenop het geheugenplafond: van nieuw naar oud opgeteld, valt alles vanaf het eerste event
- * dat `maxBytes` zou overschrijden weg (één snede in de tijd, zodat binnen een scope geen gat ontstaat;
- * een compound-event over meerdere scopes kan, net als bij de honderd-regel, blijven staan terwijl
- * oudere events van een andere scope wegvallen: dan ontbreken tussentoestanden, geen foute toestand),
- * behalve de nieuwste `MIN_SESSION_HISTORY_EVENTS_PER_SCOPE` van elke scope en alles vanaf het eerste
- * event van een open bewerkingssessie.
- * De geretourneerde array behoudt de oorspronkelijke opslagvolgorde.
- */
 export function pruneSessionHistory(
   events: readonly SessionHistoryEvent[],
   maxBytes: number = MAX_SESSION_HISTORY_BYTES,
@@ -398,10 +329,6 @@ export function pruneSessionHistory(
   const keep = new Set<number>();
   let bytes = 0;
   let overBudget = false;
-  // Een open bewerkingssessie (de taakdialoog, `historyMark`) moet bij Annuleren terug kunnen: alles
-  // vanaf haar eerste event blijft buiten de geheugensnede (de honderd-per-scope-regel hierboven geldt
-  // wel). Alleen een open sessie draagt `sessionKey`: afsluiten, annuleren, opslaan en een nieuwe mark
-  // halen hem weg (`historySlice`).
   let sessionFloor = Infinity;
   for (const event of events) {
     if (event.sessionKey !== undefined && event.sequence < sessionFloor) sessionFloor = event.sequence;
@@ -424,7 +351,6 @@ export function pruneSessionHistory(
   return events.filter((_event, index) => keep.has(index));
 }
 
-/** Gemeenschappelijke pure registratiegrens. */
 export function appendSessionHistoryEvent(
   events: readonly SessionHistoryEvent[],
   newEvent: SessionHistoryEvent,
@@ -434,9 +360,6 @@ export function appendSessionHistoryEvent(
     throw new Error(`Nieuw history-event ${newEvent.id || '<zonder id>'} moet toegepast zijn`);
   }
   if (events.some(event => event.id === newEvent.id)) {
-    // Alleen de actuele ledger hoeft uniek te zijn: een gepruned event is niet meer selecteerbaar
-    // en heeft nergens een blijvende verwijzing. Ids komen van de sessiegenerator;
-    // `nextHistorySequence` blijft juist onafhankelijk van pruning oplopen.
     throw new Error(`History-event-id bestaat al: ${newEvent.id}`);
   }
   if (events.some(event => event.sequence === newEvent.sequence)) {
@@ -455,10 +378,6 @@ export function appendSessionHistoryEvent(
   ]);
 }
 
-/**
- * Storegerichte maar synchrone registratieprimitief. De teller blijft oplopen wanneer pruning oude
- * events verwijdert; ids zijn daardoor sessie-uniek zonder een tweede moduleglobale generator.
- */
 export function recordSessionHistoryDeltas(
   state: AppState,
   label: string,
@@ -499,7 +418,6 @@ function sameGridSurfacePreferences(
   return left.scrollX === right.scrollX && sameTaskGridColumns(left.columns, right.columns);
 }
 
-/** Registreer één persoonlijke gridwijziging; gelijke voor- en nastaat leveren bewust geen event. */
 export function recordGridPreferenceHistoryDelta(
   state: AppState,
   label: string,
@@ -516,7 +434,6 @@ export function recordGridPreferenceHistoryDelta(
   }]);
 }
 
-/** Registreer één voorbereide documentdatasprong zonder dat de aanroeper zelf de deltavorm bouwt. */
 export function recordDocumentDataHistoryDelta(
   state: AppState,
   label: string,
@@ -529,8 +446,6 @@ export function recordDocumentDataHistoryDelta(
   }])!;
 }
 
-/** Wis de redo-historie van één document: een niet-undoable wijziging aan dat document maakt zijn
- *  ongedaan gemaakte events onherstelbaar (ze zouden op een andere toestand terugvallen). */
 export function invalidateDocumentRedo(
   state: { historyEvents: SessionHistoryEvent[] },
   documentId: string,
@@ -539,7 +454,6 @@ export function invalidateDocumentRedo(
   state.historyEvents = invalidateUndoneHistoryForScopes(state.historyEvents, new Set([scope]));
 }
 
-/** Verwijder undone events die één van de opgegeven scopes raken; compounds verdwijnen geheel. */
 export function invalidateUndoneHistoryForScopes(
   events: readonly SessionHistoryEvent[],
   scopes: ReadonlySet<HistoryScopeKey>,
@@ -548,7 +462,6 @@ export function invalidateUndoneHistoryForScopes(
     event.state !== 'undone' || !scopeKeysOf(event).some(scope => scopes.has(scope)));
 }
 
-/** Verwijder ieder atomair event dat naar het document wijst; een compound verdwijnt als geheel. */
 export function removeSessionHistoryForDocument(
   events: readonly SessionHistoryEvent[],
   documentId: string,
@@ -564,13 +477,6 @@ export function removeSessionHistoryForDocumentFromState(
   state.historyEvents = removeSessionHistoryForDocument(state.historyEvents, documentId);
 }
 
-/**
- * Dezelfde historie, met `rewrite` op elke vóór- en na-momentopname van `documentId`. Voor een wijziging
- * die bewust geen stap is, maar die een oudere momentopname anders bij ongedaan maken zou terugdraaien
- * (de stille naam van een ongebruikte werksoort, #804 keuze 7). `rewrite` geeft dezelfde snapshot terug
- * als er niets verandert; dan blijft ook het event hetzelfde object. Een snapshot die in twee deltas
- * staat, wordt één keer herschreven. Werkt op gewone (geen Immer-draft) events.
- */
 export function rewriteDocumentHistorySnapshots(
   events: readonly SessionHistoryEvent[],
   documentId: string,
@@ -608,11 +514,6 @@ export function replaceSessionHistoryState(
   state.nextHistorySequence = nextHistorySequence;
 }
 
-/**
- * Materialiseer alle deltas in eventvolgorde tegen één geïsoleerd voortschrijdend doel. Dit houdt
- * ook een toekomstig data+view-compound correct: de viewrijen worden dan tegen de herstelde data
- * afgeleid, niet tegen de oude live bron.
- */
 export function materializeHistoryEventTargets(
   state: Readonly<AppState>,
   event: SessionHistoryEvent,

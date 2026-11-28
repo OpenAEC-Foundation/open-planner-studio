@@ -4,10 +4,6 @@ import {
 } from '@/utils/settingsStore';
 import { saveBarColorSelection } from '@/utils/barColorSettings';
 
-/**
- * Bewaar de overlay-schermopties — dezelfde `ops-`-sleutels die het lint altijd al
- * schreef. Gedeeld door `setOverlays`, het toepassen van een layout en undo/redo van een layoutklik.
- */
 export function persistOverlays(overlays: Partial<LayoutOverlays>): void {
   if (overlays.baseline !== undefined) void saveShowBaselineOverlay(overlays.baseline);
   if (overlays.progressLine !== undefined) void saveShowProgressLine(overlays.progressLine);

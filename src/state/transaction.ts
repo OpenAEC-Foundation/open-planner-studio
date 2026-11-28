@@ -1,5 +1,3 @@
-// Compatibele importplek voor beleid en runtime-types. Alle mutable uitvoeringsmetadata leeft in
-// de per-AppStoreContext-closure uit `createStoreRuntime`.
 export {
   MAX_UNDO,
   createStoreRuntime,

@@ -1,5 +1,3 @@
-// Eén bewaakte voorbereiding voor documentopslag en IFC-export (#804 fase 1c).
-// Geen bestandsactie of documentcommit: alleen de documentroute legt een geslaagde opslag vast.
 import { plainWriteLiteralCalendarIds, writeIFCWithChoices, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { prepareIfcWrite } from '@/services/ifc/foreign/mergeWriter';
 import { hasForeignContent, type IfcSource, type PreparedIfcWrite } from '@/services/ifc/foreign/ifcSource';
@@ -16,19 +14,13 @@ import { ifcFullWriteBlocked, ifcSaveBlocked } from './ifcForeignGuard';
 import type { IFCSaveSource, IFCWriteInput } from './ifcSaveInput';
 
 export type IfcOutput =
-  /** `bytes`: de UTF-8 van `content`, als het rekenen die al maakte (de opslagworker, #804 stap 4). Dezelfde tekst. */
   | { readonly content: string; readonly bytes?: Uint8Array; readonly sha256?: string; readonly literalCalendarIds: readonly string[]; readonly prepared?: never }
   | { readonly content?: never; readonly bytes?: never; readonly sha256?: never; readonly literalCalendarIds: readonly string[]; readonly prepared: PreparedIfcWrite };
 
-/** De twee gevallen van `prepareIfcOutput` die rekenen, nadat de bewaking hieronder besliste welk. */
 export type IfcSaveJob =
   | { readonly kind: 'writer'; readonly input: IFCWriteInput; readonly hashBytes?: true; readonly format?: 'ifcx' }
   | { readonly kind: 'merge'; readonly input: IFCWriteInput; readonly source: IfcSource };
 
-/** Rekent één beslist geval. Standaard op deze thread (`computeIfcOutputHere`); de opslagworker
- *  (`services/ifc/saveWorker/ifcSaveWorker.ts`) geeft dezelfde uitkomst uit de achtergrond. `stop` (#804 stap 8, alleen
- *  Automatisch opslaan): gaat het af, dan breekt de worker dit ene verzoek af en faalt de belofte met `stop.reason`;
- *  op deze thread valt er niets af te breken en controleert de aanroeper het signaal na afloop. */
 export type IfcOutputCompute = (job: IfcSaveJob, stop?: AbortSignal) => Promise<IfcOutput>;
 
 async function writeIfcxOutput(input: WriteIFCInput): Promise<IfcOutput> {
@@ -101,8 +93,6 @@ export function prepareDocumentWrite(
     documentSaveCompute(state.ui.featureFlags, worker, format));
 }
 
-/** Moet deze route eerst "alleen de planning" vragen? Alleen met de flag aan. Bij een ontbrekend gebouwmodel alleen
- *  Opslaan als (besluit eigenaar, 14 november 2026); de twee exports alleen met een aanwezig gebouwmodel. */
 export function planOnlyQuestionApplies(
   state: Parameters<typeof ifcFullWriteBlocked>[0] & Pick<IFCSaveSource, 'ifcxReferences'>, reason: PlanOnlyReason,
 ): boolean {
@@ -115,9 +105,6 @@ export function planOnlyQuestionApplies(
     : !missing && hasForeignContent(state.ifcSource);
 }
 
-/** De modus beslist hier, vóór I/O. planOnly met een vreemd deel of een ontbrekende bron gaat alleen door met een
- *  ongebruikt ja op de vraag voor precies deze toestand; zonder dat ja blijft hij geweigerd. `compute` rekent alleen:
- *  de beslissing blijft hier, ook als de opslagworker rekent. */
 export async function prepareIfcOutput(
   state: GuardState, input: IFCWriteInput, planOnly?: PlanOnlyConfirmation, compute: IfcOutputCompute = computeIfcOutputHere,
 ): Promise<IfcOutput> {

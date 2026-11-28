@@ -1,16 +1,9 @@
-// De melding "dit project rekent als …" bij het openen van een bestand.
-// Puur: de store roept hem aan in `applyOpenedImport`. Eén melding per geopend BESTAND: een XER met N
-// projecten geeft er één, samengevoegd met de bestaande XER-openingsmelding; andere formaten met een
-// voorstel ≠ 'ops' krijgen een eigen melding. Heropenen uit eigen IFC (geen voorstel) en crashherstel
-// (loopt niet door applyOpenedImport) melden niets.
 import type { BuiltInProfileId, SchedulingProfile } from '@/types/project';
 import type { ImportResult } from '@/services/importTypes';
 import type { NotificationAction, NotifyInput } from '@/state/slices/types';
 import { builtInProfile, isBuiltInProfileId } from '@/engine/scheduler/conventions/registry';
 import { SCHEDULING_PROFILE_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
-/** Merknamen — bewust onvertaald (ook `profiles.builtIn.*` in de locales zijn deze merknamen). De
- *  store heeft geen `t()`, en een merknaam hoort niet per taal te verschillen. */
 export const BUILT_IN_PROFILE_BRANDS: Readonly<Record<BuiltInProfileId, string>> = {
   p6: 'Primavera P6', msproject: 'Microsoft Project', ops: 'Open Planner Studio',
 };

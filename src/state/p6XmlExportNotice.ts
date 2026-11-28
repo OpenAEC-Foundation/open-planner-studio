@@ -22,17 +22,10 @@ export interface P6XmlLossInput {
   readonly baselineCount: number;
 }
 
-/** XER-broninformatie die geen writer terugschrijft: één regel, net als bij de XER-export. */
 const SOURCE_ONLY: ReadonlySet<XerExportLossCategory> = new Set<XerExportLossCategory>([
   'exact-source-bytes', 'unknown-tables-and-fields', 'typed-diagnostics', 'raw-curves-and-assignment-quantities',
 ]);
 
-/**
- * De melding na een geslaagde P6 XML-export: wat niet, of niet precies, mee kon, gemeten tegen
- * `p6xmlWriter.ts`. Dezelfde vorm als de XER-melding (`exportXerLossNotice`), met de regels van dit formaat.
- * Onderbrekingen, ingekorte namen en ongeldige tekens hebben hun eigen melding in `exportAs`. Niets verloren ⇒
- * geen melding.
- */
 export function exportP6XmlLossNotice(
   input: P6XmlLossInput,
   categories: readonly XerExportLossCategory[] = [],
@@ -50,8 +43,6 @@ export function exportP6XmlLossNotice(
 
   const advised = exportProfileAdvice('p6', project.schedulingProfile) !== null;
   fact('notifications.exportXerLossItem.schedulingRules', advised);
-  // De schrijver zet de rekenopties in `<ScheduleOptions>`, net als de XER-schrijver in SCHEDOPTIONS (#775). Alleen
-  // wat P6 niet kent, gaat verloren: dezelfde toets als de XER-export.
   fact('notifications.exportP6XmlLossItem.schedulingOptions', !advised
     && p6SchedulingRulesDiffer(project, effectiveSchedulingOptions(project), tasks));
   item('notifications.exportP6XmlLossItem.baselines', input.baselineCount);
