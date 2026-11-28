@@ -9,24 +9,14 @@ import { runsEmbedded } from '@/services/fileAccess/siteHost';
 import { appLog } from '@/services/debug/appLog';
 import { useSiteHostPreferences } from './useSiteHostPreferences';
 
-// Geen welkomstvenster (en dus geen taalvraag en geen rondleiding) als de tool ingebed draait (#716:
-// een host of de platformbouw), of als hij niet kan onthouden dat het al gezien is: zonder
-// localStorage (sandbox-iframe zonder `allow-same-origin`, #706) kwam het anders bij elke start terug.
 const skipWelcomeReason = (): string | null =>
   runsEmbedded() ? 'ingebed' : !localStorageAvailable() ? 'geen localStorage' : null;
 
-/** Uitkomst van de welkomstcontrole in de app-log (DebugTerminal); de browsertests wachten hierop. */
 const logWelcomeCheck = (outcome: string) => appLog.emit('event', 'welkomst', `welkomstcontrole: ${outcome}`);
 
-// Bootstrap bij het opstarten: extensies, recente bestanden en taakgridvoorkeuren, en de eerste-keer
-// welkomstdialoog (de instellingen zelf staan er al vóór de eerste render, `startup/initialSettings.ts`). De welkomstcheck hangt af van de recovery-flow (zie hieronder).
 export function useSettingsBootstrap(recoveryResolved: boolean, recovery: RecoveryState | null): void {
   const setUI = useAppStore(s => s.setUI);
   const taskGridChecked = useRef(false);
-  // Ingebed (#818): taal en thema van de host live volgen, en instellingen toepassen die pas na de start
-  // van de host kwamen. Liep de taakgridbootstrap hieronder al, dan leest die de voorkeuren opnieuw (nu
-  // van de host); het bewaren gaat pas aan als dat klaar is. Vóór die bootstrap niet: hij wacht bewust
-  // op de herstelkeuze en leest dan zelf.
   const reloadLateTaskGrid = useCallback(async (keys: ReadonlySet<string>) => {
     if (!taskGridChecked.current || !keys.has('ops-taskGridPreferences')) return;
     try {
@@ -38,31 +28,17 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
   useSiteHostPreferences(setUI, reloadLateTaskGrid);
 
   useEffect(() => {
-    // Eerste start? Hier, bij mount, vastgelegd — vóórdat de welkomstdialoog `ops-welcomeSeen` kan
-    // zetten (zie `welcomeSeenAtStartup`). Komt de welkomst nog, dan wacht "Update beschikbaar"
-    // daarop (`welcomePending`, `isOnboardingActive`). Slaan we de welkomst over (`skipWelcomeReason`),
-    // dan komt ze niet en wacht er dus ook niets.
     if (!welcomeSeenAtStartup() && skipWelcomeReason() === null) setUI({ welcomePending: true });
-    // Taal (`initLocale`) en de overige app-instellingen (`loadSettingsBeforeFirstRender`) laadt main.tsx
-    // al vóór de eerste render (#895), zodat de eerste weergave het gekozen uiterlijk heeft.
-    // Platformbouw (#311): geen extensies, dus ook niets uit IndexedDB laden of uitvoeren.
     if (EXTENSIONS_ENABLED) {
       void loadAllExtensions().catch(error => {
         console.error('Extensies laden mislukt:', error);
       });
     }
-    // Recente bestanden leven in IndexedDB (async, met eenmalige localStorage-migratie) —
-    // één keer bij opstart in de store hydrateren.
     void useAppStore.getState().hydrateRecentFiles().catch(error => {
       console.error('Recente bestanden laden mislukt:', error);
     });
   }, [setUI]);
 
-  // Taakgridvoorkeuren wachten bewust tot de recoverykeuze volledig is afgehandeld. Bij mount is
-  // de store nog het lege startdocument; direct lezen zou daardoor de dynamische defaults en een
-  // eventuele oude actieve `view.columns` vastleggen uit het verkeerde document. Na herstel staat
-  // hier eerst het werkelijk actieve document in de store; bij afwijzen/uitstellen blijft het lege
-  // document terecht de bron. De ref (bovenaan) maakt deze migratie exact eenmalig.
   useEffect(() => {
     if (taskGridChecked.current || !recoveryResolved || recovery !== null) return;
     taskGridChecked.current = true;
@@ -72,26 +48,13 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
     });
   }, [recoveryResolved, recovery]);
 
-  // First-startup-ervaring: toont de WelcomeDialog bij een verse
-  // `!loadWelcomeSeen()`. Eigen ref-guard (`welcomeChecked`) naar het recovery-/update-check-
-  // patroon, maar reageert op de REACTIEVE `recoveryResolved`-state (niet de `recoveryChecked`-
-  // ref, die synchroon al waar is vóórdat de async detectie/dialoogkeuze daadwerkelijk is
-  // afgerond) — zo vuurt dit effect pas nadat de recovery-flow ECHT klaar is (geen data gevonden,
-  // of de gebruiker heeft hersteld/verworpen/uitgesteld), nooit gelijktijdig met een zichtbare
-  // `RecoveryDialog`. Werkt zowel in Tauri als browser-build — de `welcomeSeen`-vlag leeft in
-  // localStorage; zonder localStorage komt er geen venster (`skipWelcomeReason`).
   const welcomeChecked = useRef(false);
   useEffect(() => {
     if (welcomeChecked.current) return;
-    if (!recoveryResolved) return; // wacht tot de recovery-flow (incl. eventuele keuze) echt klaar is
-    if (recovery !== null) return; // RecoveryDialog is zichtbaar — welkomstdialoog wacht
+    if (!recoveryResolved) return;
+    if (recovery !== null) return;
     welcomeChecked.current = true;
 
-    // Overslaan (`skipWelcomeReason`): opnieuw kijken, want de host kan intussen gezet zijn. Dan alleen de
-    // wachtvlag uit en geen dialoog. Bewust GEEN `saveWelcomeSeen`: de host beslist per start, en
-    // zonder host (of later in een gewone browser) hoort het venster nog één keer te komen.
-    // Zonder welkomst start ook de rondleiding niet (die opent alleen vanuit het venster), en dus
-    // ook de tutorialvraag niet; de handmatige ingangen blijven werken.
     const skipReason = skipWelcomeReason();
     if (skipReason) {
       setUI({ welcomePending: false });
@@ -99,8 +62,6 @@ export function useSettingsBootstrap(recoveryResolved: boolean, recovery: Recove
       return;
     }
 
-    // Eén patch: `welcomePending` gaat pas uit terwijl de dialoog tegelijk opengaat (regel 3 in
-    // `state/onboarding.ts`); was hij intussen toch gezien, dan alleen de wachtvlag uit.
     void loadWelcomeSeen().then(seen => {
       setUI(seen ? { welcomePending: false } : { welcomePending: false, showWelcomeDialog: true });
       logWelcomeCheck(seen ? 'al gezien' : 'getoond');

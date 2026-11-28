@@ -2,17 +2,6 @@ import { useEffect, useState, type PointerEvent as ReactPointerEvent } from 'rea
 import { useLatestRef } from '@/hooks/useLatestRef';
 import { listenWindowDrag } from '@/hooks/listenWindowDrag';
 
-// Generieke sleep-splitter — hetzelfde patroon dat door de app werd gedupliceerd
-// (rechterpaneel-rand in App, tabel/chart-rand in GanttCanvas): losse drag-state,
-// window-listeners voor move/up, klem tussen min/max, en pas persisteren bij loslaten.
-//
-// Parametrisch zodat elke consument de geometrie zelf bepaalt:
-//   - computeSize(e): rauwe grootte uit de muispositie. Voor een horizontale rand via
-//     `panelWidthAtPointer` hieronder, die ook de gespiegelde shell in ar/fa kent;
-//   - min / max: klem-grenzen. `max` mag een functie zijn wanneer de bovengrens dynamisch
-//     is (bv. 60% van het venster — het venster kan tussen sessies resizen);
-//   - onResize(size): pas de geklemde grootte toe (meestal een store-setter);
-//   - onCommit(): optioneel, aangeroepen bij mouseup — meestal persisteren (localStorage).
 export interface UseSplitterOptions {
   min: number;
   max: number | (() => number);
@@ -27,32 +16,18 @@ export interface Splitter {
   startPointer: (event: ReactPointerEvent<HTMLElement>) => void;
 }
 
-// ── Horizontale paneelranden in ltr én rtl ─────────────────────────────────────────────────────
-// De shell spiegelt in ar/fa (`dir="rtl"` op <html>): de rechterrail staat dan links, de takenlijst
-// rechts van de Gantt en de rapportinstellingen rechts van de preview. Een paneel ligt dus niet vast
-// LINKS of RECHTS maar aan de logische begin- of eindkant van zijn container. Elke horizontale
-// splitter rekent zijn breedte hier, met één regel voor muis en toetsenbord: de rand gaat de kant op
-// van de muis (of de pijl). Wie `clientX - rect.left` los opschrijft, neemt stil aan dat het paneel
-// links staat — zo werd de takenlijst in ar/fa breder als je de grens naar RECHTS sleepte.
-
-/** Aan welke kant van zijn container een paneel ligt: `inline-start` is links in ltr en rechts in
- *  rtl, `inline-end` omgekeerd. */
 export type PanelSide = 'inline-start' | 'inline-end';
 export type InlineDirection = 'ltr' | 'rtl';
 
-/** De richting waarin de layout van `element` loopt (berekend, dus ook via `dir` op een voorouder).
- *  Lees hem van het element waarvan de flex/grid de panelen plaatst. */
 export function inlineDirectionOf(element: Element | null | undefined): InlineDirection {
   const target = element ?? document.documentElement;
   return getComputedStyle(target).direction === 'rtl' ? 'rtl' : 'ltr';
 }
 
-/** Ligt het paneel fysiek links in zijn container (en is zijn RECHTERrand de sleeprand)? */
 function panelOnLeft(side: PanelSide, direction: InlineDirection): boolean {
   return (side === 'inline-start') === (direction === 'ltr');
 }
 
-/** Breedte van een paneel aan kant `side` van `bounds` wanneer zijn sleeprand op `clientX` ligt. */
 export function panelWidthAtPointer(
   clientX: number,
   bounds: { left: number; right: number },
@@ -62,8 +37,6 @@ export function panelWidthAtPointer(
   return panelOnLeft(side, direction) ? clientX - bounds.left : bounds.right - clientX;
 }
 
-/** Pijltoets op dezelfde sleeprand: de rand schuift de kant van de pijl op. `1` = paneel breder,
- *  `-1` = smaller. */
 export function panelWidthStepForArrow(
   key: 'ArrowLeft' | 'ArrowRight',
   side: PanelSide,
@@ -97,8 +70,6 @@ export function useSplitter(opts: UseSplitterOptions): Splitter {
       if (typeof dragOwner === 'number' && event.pointerId === dragOwner) finish();
     };
     if (dragOwner === 'mouse') {
-      // Een documentwissel stopt de sleep zoals loslaten (review #1004, ronde 15): de verhouding van de
-      // gesplitste Gantt hoort bij de weergave van het document waarin de sleep begon.
       return listenWindowDrag({ onMove: handleMouseMove, onUp: finish, onDocumentSwitch: finish });
     }
     window.addEventListener('pointermove', handlePointerMove);

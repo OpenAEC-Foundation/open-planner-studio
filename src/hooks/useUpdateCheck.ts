@@ -9,10 +9,6 @@ import { appLog } from '@/services/debug/appLog';
 import { isOnboardingActive } from '@/state/onboarding';
 import { getGuideView, subscribeGuideView } from '@/extensions/guideRuntime';
 
-/**
- * Stel de automatische updatedialoog uit tot welkomst/rondleiding/tutorialvraag én begeleiding
- * klaar zijn. Handmatig openen blijft mogelijk. Store en gids hebben ieder hun eigen abonnement.
- */
 export function openUpdateDialogWhenIdle(): void {
   let opened = false;
   let scheduled = false;
@@ -20,7 +16,6 @@ export function openUpdateDialogWhenIdle(): void {
     scheduled = false;
     if (opened) return;
     const ui = useAppStore.getState().ui;
-    // Een handmatig geopende dialoog heeft het verzoek al afgehandeld: later niet nóg eens tonen.
     if (!ui.showUpdateDialog && (isOnboardingActive(ui) || getGuideView() !== null)) return;
     opened = true;
     unsubscribeStore();
@@ -30,7 +25,6 @@ export function openUpdateDialogWhenIdle(): void {
   const schedule = () => {
     if (opened || scheduled) return;
     scheduled = true;
-    // Een gids vervangen is synchroon stop → start. Beoordeel de eindstand, niet dat korte gat.
     queueMicrotask(tryOpen);
   };
   const unsubscribeStore = useAppStore.subscribe(schedule);
@@ -38,18 +32,12 @@ export function openUpdateDialogWhenIdle(): void {
   tryOpen();
 }
 
-// Stille opstart-update-check (Tauri-only) — spiegelt het auto-save-patroon:
-// dynamische import binnen de service, niet-blokkerend. Is er een update, dan
-// openen we de update-dialog zodat de gebruiker het ziet. Fouten worden in
-// stille modus genegeerd.
 export function useUpdateCheck(): void {
   const updateChecked = useRef(false);
   useEffect(() => {
     if (updateChecked.current) return;
     updateChecked.current = true;
     if (!UPDATES_AVAILABLE || !isTauri()) return;
-    // Snap- en AUR-builds werkt de pakketbeheerder zelf bij (snapd, pacman) — de in-app
-    // auto-check overslaan zodat we de gebruiker niet lastigvallen.
     getInstallKind()
       .then(kind => {
         if (kind === 'snap' || kind === 'aur') return;
@@ -57,14 +45,9 @@ export function useUpdateCheck(): void {
           if (info) openUpdateDialogWhenIdle();
         });
       })
-      .catch(() => { /* stille check — fouten negeren */ });
+      .catch(() => { });
   }, []);
 
-  // "Wat is er nieuw"-detectie (Tauri-only): vergelijk de opgeslagen laatst-gestarte versie met de
-  // huidige. Verschillen ze, dan tonen we JustUpdatedDialog via `ui.justUpdated`. Ontbreekt de
-  // opgeslagen versie, dan alleen bij een bestaande gebruiker (welkomst al gezien bij het opstarten);
-  // een echte eerste start toont niets (`detectJustUpdated`). Daarna schrijven we de huidige versie weg.
-  // Uitkomst én fouten gaan naar de app-log-bus zodat dit in de DebugTerminal te diagnosticeren is.
   const justUpdatedChecked = useRef(false);
   useEffect(() => {
     if (justUpdatedChecked.current) return;
