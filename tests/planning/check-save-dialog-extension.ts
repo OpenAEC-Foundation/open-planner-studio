@@ -1,4 +1,4 @@
-// Bron: tauri 2.12.3 en de plugins dialog 2.7.0 en fs 2.5.0/2.7.1 als referentie voor de nagebootste scope en het opslagvenster (Apache-2.0 OR MIT, github.com/tauri-apps).
+// Bron: tauri 2.12.3, plugins dialog 2.7.0 en fs 2.5.0/2.7.1 en rfd 0.16.0 (GTK) als referentie voor de nagebootste scope en het opslagvenster (Apache-2.0 OR MIT, github.com/tauri-apps; rfd: MIT, github.com/PolyMeilex/rfd).
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';

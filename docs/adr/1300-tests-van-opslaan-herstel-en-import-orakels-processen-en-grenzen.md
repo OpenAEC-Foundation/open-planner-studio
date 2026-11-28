@@ -9,8 +9,9 @@ tijd te meten. Maak ze niet korter of "netter" zonder die reden mee te wegen.
 
 - Vaste orakels. `check-zip.ts` bouwt zijn archieven met een eigen ruwe bouwer (`rawZip`) en niet met `writeZip`: de
   lezertests hebben archieven nodig die `writeZip` nooit maakt (Zip64-sentinels, maten die liegen, te veel entries).
-  De CRC-32-verwachtingen zijn vaste, bekende controlewaarden (`0xCBF43926` voor `123456789`), niet uitgerekend met de
-  eigen `crc32`. Of `select` een entry overslaat, telt de check op het aanmaken van een `DecompressionStream`, want een
+  De drie losse CRC-32-proeven (leeg, `123456789` met `0xCBF43926`, en de zin over de bruine vos) verwachten vaste,
+  bekende controlewaarden, niet uitgerekend met de eigen `crc32`; de controle van de central directory van de schrijver
+  rekent haar verwachting wel met die `crc32`. Of `select` een entry overslaat, telt de check op het aanmaken van een `DecompressionStream`, want een
   lezer die alles uitpakt en daarna filtert geeft dezelfde uitkomst.
   `check-xml-adapter-fidelity.ts` vergelijkt de geschreven MSPDI letterlijk, omdat de DOM-shim van de tests
   (`xmldom-shim.ts`) geen parseerfout meldt: alleen opnieuw inlezen ziet een kale `&` of een losse `<` niet. Zijn
@@ -38,9 +39,10 @@ tijd te meten. Maak ze niet korter of "netter" zonder die reden mee te wegen.
 - `check-auto-calc-cpm.ts` volgt de voorwaarde van `useAutoCalcCPM` in een synchrone kopie (`maybeScheduleRun`,
   `drain`) om de herhaling te kunnen tellen zonder timers. De echte hook toetst `tests/browser/auto-calc-stale.spec.ts`;
   wie de voorwaarde in de hook verandert, past de kopie mee aan.
-- Bestanden zoeken vanaf de bundel. `check-adapters-hours.ts` (`HERE`) en `check-external-source-load.ts` (`root`)
-  vinden hun voorbeeldbestanden via `import.meta.url` en niet via `process.cwd()`: `run.sh` gaat niet naar de
-  repo-root, dus de werkmap is die van de aanroeper.
+- Bestanden zoeken vanaf de bundel. `check-adapters-hours.ts` vindt het vaste Zuidas-bestand via `HERE` en
+  `check-external-source-load.ts` zijn voorbeelden via `root`, allebei via `import.meta.url` en niet via
+  `process.cwd()`: `run.sh` gaat niet naar de repo-root, dus de werkmap is die van de aanroeper. Het
+  appartementencomplex in `check-adapters-hours.ts` leest nog relatief aan de werkmap (knownbug 1044).
 - Grenzen. `check-xml-default-scope.ts` telt de opzoekingen van de standaardnaamruimte (`Map.prototype.get` met `''`)
   tegen de nestdiepte, en geen tijd. `check-adapters-hours.ts` (f) is de uitzondering: daar keurt een tijdgrens van
   2000 ms `readMSPDI` met `MAX_CALENDAR_EXCEPTIONS` wekelijkse uitzonderingen. Die toets bewaakt dat
