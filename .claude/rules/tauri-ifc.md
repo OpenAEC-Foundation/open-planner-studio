@@ -90,6 +90,10 @@ link noemt; `place_file_fs_default_verbiedt_zelf` toont wat `fs:default` zonder 
 
 `backupmap.json` (#1245) zet op alle platforms een deny op `fs:allow-rename`/`fs:allow-remove` voor `$APPDATA/ai-backups` zelf en `$APPDATA` zelf, zodat de webview de backupmap niet tussentijds kan vervangen tussen de controle van `open_backup_folder` en het openen; wat eronder ligt blijft toegestaan (herstel, `mcp/`, `ops-test/`, de bibliotheek en de backups zelf blijven gewoon leesbaar/schrijfbaar). Proef: `place_file_backupmap_vervangen_verboden` in `place_file.rs`.
 
+Besluiten van `src/services/fileAccess/`: `docs/adr/0810-bestandsidentiteit-en-gelinkte-doelen-op-de-desktop.md`
+(`compareFilePaths`, `missingTarget`, gelinkte doelen in `replaceUserFile`) en
+`docs/adr/0811-weigeringen-van-de-browser-bij-bestandstoegang.md` (`webBackend.ts`).
+
 ## IFC is the native file format, not a sidecar
 
 De nieuwe byte-ingang (#804, T1) staat naast deze bestaande tekst-/binaire schrijfroutes:

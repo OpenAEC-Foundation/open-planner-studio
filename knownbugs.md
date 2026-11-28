@@ -5245,6 +5245,13 @@ en noem het in je rapport of PR-tekst.
       alleen de backupmap. Als bekende grens besloten bij de review van #1315 (ronde 2): op Linux kiest main
       het openprogramma al op deze manier. — B
 
+2780. **Opslaan op de desktop is na stroomuitval niet gegarandeerd heel.** De route via een tijdelijk bestand in `replaceUserFile` en
+      `writeTextFileAtomic`/`writeBytesFileAtomic` (`src/services/fileAccess/atomicWrite.ts`) schrijft een tijdelijk
+      bestand en hernoemen het over het doel, zonder `fsync` (plugin-fs heeft er geen). Tegen een crash van de app helpt
+      dat; bij stroomuitval of een kernel-panic kan de hernoeming op sommige bestandssystemen vóór de data op schijf
+      staan. Voor de herstelopslag van een gebouwmodel staat hetzelfde in 1765. Overgenomen uit het weggehaalde
+      commentaar van `atomicWrite.ts`, niet nagespeeld. — S
+
 ## Rondleiding, Help en extensie-gidsen
 
 493. **Cursief binnen vet toont losse sterretjes in de Help.** In "Een MCP-client koppelen" (en) staat

@@ -1,29 +1,17 @@
-// De map met afhankelijke projecten kiezen en lezen (stap 1.11 van "relaties tussen projecten",
-// keuze 7, `docs/relaties-tussen-projecten.md` §7.3). Alleen-lezen: OPS opent hier niets als document.
-//
-//  - Desktop (Tauri): een mapkiezer; OPS leest de `.ifc`-bestanden direct in die map (niet in submappen).
-//    Het pad staat als projectinstelling in het IFC-bestand (`Project.dependentProjectsFolder`).
-//  - Browser, Chromium: `showDirectoryPicker`. Het maphandvat staat in IndexedDB per project-id, zoals
-//    de recente bestanden hun handvat bewaren. Op de achtergrond leest OPS hem alleen met toestemming
-//    `granted` (`queryPermission`); de knop opent de mapkiezer, die bij de onthouden map begint.
-//  - Andere browsers: een paar bestanden kiezen; niets onthouden.
 import { idbGetAll, idbPut } from '@/utils/idb';
 
 const isTauri = () => typeof window !== 'undefined' && '__TAURI_INTERNALS__' in window;
 
-/** Waar de afhankelijke projecten staan. */
 export type DependentFolderRef =
   | { kind: 'path'; path: string }
   | { kind: 'handle'; handle: FileSystemDirectoryHandle }
   | { kind: 'files'; files: File[] };
 
-/** Een gelezen bestand uit de map. */
 export interface DependentFolderFile {
   name: string;
   text: string;
 }
 
-/** Of de browser een map kan kiezen (Chromium). */
 export function canPickDirectoryInBrowser(): boolean {
   return typeof window !== 'undefined' && typeof window.showDirectoryPicker === 'function';
 }
@@ -51,7 +39,6 @@ function pickFilesViaInput(): Promise<File[] | null> {
   });
 }
 
-/** Laat de planner een map (of in andere browsers: bestanden) kiezen. `null` ⇒ geannuleerd. */
 export async function pickDependentFolder(
   start?: { path?: string; handle?: FileSystemDirectoryHandle | null },
 ): Promise<DependentFolderRef | null> {
@@ -80,10 +67,6 @@ function joinPath(dir: string, name: string): string {
   return dir.endsWith(sep) ? `${dir}${name}` : `${dir}${sep}${name}`;
 }
 
-/**
- * Leest de `.ifc`-bestanden direct in de map, alleen-lezen. Een bestand dat niet te lezen is, slaat
- * OPS over. Een map die niet te lezen is (weg, geen toegang) geeft een fout.
- */
 export async function readDependentFolder(ref: DependentFolderRef): Promise<DependentFolderFile[]> {
   const out: DependentFolderFile[] = [];
   if (ref.kind === 'path') {
@@ -93,31 +76,28 @@ export async function readDependentFolder(ref: DependentFolderRef): Promise<Depe
       if (!entry.isFile || !isIfcName(entry.name)) continue;
       try {
         out.push({ name: joinPath(ref.path, entry.name), text: await readTextFile(joinPath(ref.path, entry.name)) });
-      } catch { /* onleesbaar bestand: overslaan */ }
+      } catch { }
     }
   } else if (ref.kind === 'handle') {
     for await (const entry of ref.handle.values()) {
       if (entry.kind !== 'file' || !isIfcName(entry.name)) continue;
       try {
         out.push({ name: entry.name, text: await (await (entry as FileSystemFileHandle).getFile()).text() });
-      } catch { /* onleesbaar bestand: overslaan */ }
+      } catch { }
     }
   } else {
     for (const file of ref.files) {
       if (!isIfcName(file.name)) continue;
-      try { out.push({ name: file.name, text: await file.text() }); } catch { /* overslaan */ }
+      try { out.push({ name: file.name, text: await file.text() }); } catch { }
     }
   }
   return out;
 }
 
-// ---- Het maphandvat per project-id (Chromium) ----
-
 const DB = 'ops-dependent-folders';
 const STORE = 'folders';
 
 interface StoredFolder {
-  /** Het project-id. */
   id: string;
   handle: FileSystemDirectoryHandle;
 }
@@ -134,11 +114,6 @@ export async function rememberedDependentFolderHandle(projectId: string): Promis
   return all.find(entry => entry.id === projectId)?.handle ?? null;
 }
 
-/**
- * Mag OPS de map op de achtergrond lezen? Alleen met toestemming `granted`; deze functie vraagt niets
- * (`queryPermission`). Toestemming vragen mag alleen bij een klik: de knop opent daarom de mapkiezer,
- * en die geeft de toestemming voor de gekozen map.
- */
 export async function dependentFolderPermission(handle: FileSystemDirectoryHandle): Promise<boolean> {
   try {
     return (await handle.queryPermission?.({ mode: 'read' })) === 'granted';
