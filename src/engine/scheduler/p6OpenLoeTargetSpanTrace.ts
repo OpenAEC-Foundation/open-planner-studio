@@ -42,12 +42,6 @@ function hasOnlyZeroLag(sequences: readonly Sequence[]): boolean {
     && sequence.lagPercent === undefined);
 }
 
-/**
- * Pure, fail-closed diagnose voor precies de bewezen Ashspace-vorm: een niet-gestarte XER-LOE
- * met een volledig, positief targetvenster, uitsluitend nul-lag SS-ingang en uitsluitend nul-lag
- * FF-uitgang. De relationele startdruk wordt als al-berekende productinvoer meegegeven; zo mag
- * target_start_date hem nooit overschrijven. P6 early/late/float/driving-uitvoer wordt niet gelezen.
- */
 export function explainOpenXerLoeTargetSpanEligibilityResolved(
   task: Task,
   schedulingOptions: SchedulingOptions | undefined,
@@ -57,7 +51,6 @@ export function explainOpenXerLoeTargetSpanEligibilityResolved(
   targetWindowWorkMinutes: number,
   targetWindowToleranceMinutes: number,
 ): OpenXerLoeTargetSpanDecision {
-  // Conventie B5 `p6OpenLoeTargetSpan`.
   if (schedulingOptions?.p6OpenLoeTargetSpan !== true) {
     return { eligible: false, reason: 'conventionOff' };
   }
@@ -97,10 +90,6 @@ export function explainOpenXerLoeTargetSpanEligibilityResolved(
   if (!Number.isFinite(relationalEarlyStart.getTime()) || targetStart.getTime() !== relationalEarlyStart.getTime()) {
     return { eligible: false, reason: 'targetStartConflictsWithRelation' };
   }
-  // P6 bewaart een targetvenster met inclusieve eindgrens: op de normale 5×8-kalender kan de
-  // bronduur daarom precies één werkdag groter zijn dan `workMinutesBetween(start, finish)`.
-  // Buiten die kleine, meetbare representatieband sluit de route; een willekeurige taakduur mag
-  // dus geen spanroute openen.
   if (!Number.isFinite(targetWindowWorkMinutes) || targetWindowWorkMinutes <= 0
     || !Number.isFinite(targetWindowToleranceMinutes) || targetWindowToleranceMinutes < 0
     || Math.abs(durationMinutes - Math.round(targetWindowWorkMinutes)) > targetWindowToleranceMinutes) {

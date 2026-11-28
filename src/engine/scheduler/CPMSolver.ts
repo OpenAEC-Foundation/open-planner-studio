@@ -1217,15 +1217,11 @@ export class CPMSolver {
         queue.pop();
         dirty.delete(rank);
         const id = order[rank];
-        // Deze voorganger-vensters zijn forward-invoer voor opvolgers. Wis alleen de opnieuw
-        // berekende taak; de vensters van onaangeraakte voorgangers blijven geldig.
         this.completedOutOfSequenceEs.delete(id);
         this.completedOutOfSequenceRelation.delete(id);
         this.completedPhysicalPoints.delete(id);
         for (const seq of this.predecessors.get(id) ?? []) this.seqConstraint.delete(seq.id);
         this.forwardPass([id], results, projectStart);
-        // Ook bij gelijke ES/EF doorgeven: een voltooid P6-venster kan veranderen zonder dat de
-        // actuals veranderen. Dezelfde forward-logica bepaalt de relatiegrens voor de opvolger.
         for (const seq of this.successors.get(id) ?? []) markChanged(seq.successorId);
       }
       return results.get(taskId);

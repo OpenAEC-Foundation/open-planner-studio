@@ -5,10 +5,6 @@ export interface DirectedRelationEdge {
   successorId: string;
 }
 
-/**
- * Neutrale pure cyclusdetector voor iedere relationele schrijver. Retourneert één concrete kring
- * met dezelfde taak-id aan begin en einde, of `null` voor een acyclische graaf.
- */
 export function detectCycleInEdges(edges: readonly DirectedRelationEdge[]): string[] | null {
   const successors = new Map<string, string[]>();
   const nodes = new Set<string>();
@@ -55,20 +51,6 @@ function edgeKey(edge: DirectedRelationEdge): string {
   return `${edge.predecessorId}\0${edge.successorId}`;
 }
 
-/**
- * De kring die `after` TOEVOEGT ten opzichte van `before`: een kring door minstens één kant die in
- * `before` nog niet bestond (kanten tellen op voorganger→opvolger, type en lag doen niet mee).
- * Retourneert die kring als taak-id-lijst met dezelfde id aan begin en einde, geroteerd zodat hij
- * begint bij een nieuwe kant, of `null` wanneer elke kring van `after` al in `before` zat.
- *
- * Gedeeld door de twee schrijvers die een relatiegraaf wijzigen: het aanmaken van één relatie
- * (`relationCycle`, store-route) en de eindcontrole van het taakraster (`validateFinalRelationGraph`).
- * Een reeds bestaande kring (bv. uit een import) blokkeert daardoor geen bewerking die er niets
- * aan toevoegt — dat was precies de overblokkering van het raster.
- *
- * Kosten: de gewone weg is één DFS over `after`. Alleen als die een kring vindt volgt een DFS over
- * `before`; alleen als ook `before` al een kring had, volgt de (lineaire) SCC-zoektocht.
- */
 export function detectIntroducedCycle(
   before: readonly DirectedRelationEdge[],
   after: readonly DirectedRelationEdge[],
@@ -76,12 +58,10 @@ export function detectIntroducedCycle(
   const cycle = detectCycleInEdges(after);
   if (!cycle) return null;
   const existing = new Set(before.map(edgeKey));
-  // Was `before` acyclisch, dan bevat elke kring van `after` per definitie een nieuwe kant.
   if (!detectCycleInEdges(before)) return rotateToAddedEdge(cycle, existing);
   return cycleThroughAddedEdge(existing, after);
 }
 
-/** Laat een gevonden kring beginnen bij de voorganger van zijn eerste nieuwe kant. */
 function rotateToAddedEdge(cycle: string[], existing: ReadonlySet<string>): string[] {
   const nodes = cycle.slice(0, -1);
   const start = nodes.findIndex((node, index) => !existing.has(edgeKey({
@@ -92,11 +72,6 @@ function rotateToAddedEdge(cycle: string[], existing: ReadonlySet<string>): stri
   return [...rotated, rotated[0]];
 }
 
-/**
- * `before` had zelf al een kring: zoek een kring die door een NIEUWE kant loopt. Een kant p→s ligt
- * op een kring precies dan als p en s in dezelfde sterk samenhangende component van `after` liggen;
- * het pad s→…→p erbij levert de concrete kring.
- */
 function cycleThroughAddedEdge(
   existing: ReadonlySet<string>,
   after: readonly DirectedRelationEdge[],
@@ -125,7 +100,6 @@ function successorMap(edges: readonly DirectedRelationEdge[]): Map<string, strin
   return successors;
 }
 
-/** Iteratieve Tarjan: component-index per knoop (geen recursie, dus geen stackgrens op grote graven). */
 function stronglyConnectedComponents(successors: ReadonlyMap<string, readonly string[]>): Map<string, number> {
   const index = new Map<string, number>();
   const low = new Map<string, number>();
@@ -175,7 +149,6 @@ function stronglyConnectedComponents(successors: ReadonlyMap<string, readonly st
   return component;
 }
 
-/** Kortste pad `from` → `to` (breedte-eerst), inclusief beide eindpunten; `null` als er geen is. */
 function shortestPath(
   successors: ReadonlyMap<string, readonly string[]>,
   from: string,
@@ -199,13 +172,6 @@ function shortestPath(
   return null;
 }
 
-/**
- * Transitieve sluitingen over het relatienetwerk voor path tracing (MSP "Task Path" /
- * P6 "Trace Logic"): alle (in)directe voorgangers en opvolgers van een taak, plus de
- * deelverzamelingen die uitsluitend via DRIVING relaties bereikbaar zijn (de ketens die
- * de planning werkelijk bepalen). Pure functie over de store-data; gedeeld door de
- * renderer en eventuele tabelfilters.
- */
 export interface TraceResult {
   predecessors: Set<string>;
   drivingPredecessors: Set<string>;
@@ -232,11 +198,6 @@ function walk(startId: string, edges: Map<string, Edge[]>, allowedSeqIds?: Set<s
   return reached;
 }
 
-/**
- * `traceFrom(id, sequences, drivingSeqIds).drivingPredecessors` voor veel taken over hetzelfde net:
- * de voorgangers-adjacentie wordt één keer gebouwd en alleen de driving-walk gedaan (`traceFrom`
- * bouwt beide richtingen en doet vier walks per aanroep). Zelfde uitkomst per taak.
- */
 export function drivingPredecessorWalker(
   sequences: Sequence[],
   drivingSeqIds: Set<string>,

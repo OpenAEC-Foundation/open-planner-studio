@@ -26,10 +26,6 @@ export interface P6CompletedWindowDecision {
   reason: P6CompletedWindowReason;
 }
 
-/**
- * De P6-herkomstvelden die de voltooid-poorten lezen, elk precies één keer (`verify:conventions`
- * telt elke lezing van een herkomst-datagate in de motor; B3 en C5 delen deze ene lezing).
- */
 interface P6CompletedGateFields {
   projectId: string | undefined;
   taskId: string | undefined;
@@ -52,8 +48,6 @@ function p6CompletedGateFields(task: Task): P6CompletedGateFields {
   };
 }
 
-/** Gedeelde provenancepoort (blad, project-/taakherkomst, expliciet targetvenster), in de vaste
- *  volgorde van B3; `null` = doorgelaten. */
 function provenanceRejection(task: Task, fields: P6CompletedGateFields): P6CompletedWindowReason | null {
   if (!isLeafTask(task)) return 'notLeafTask';
   if (fields.projectId === undefined || fields.projectId === '') return 'missingProjectProvenance';
@@ -86,46 +80,20 @@ function mayUseSuspendResumeCompletedWindow(
   return Number.isFinite(resumeTime) && resumeTime <= actualFinishTime;
 }
 
-/**
- * Alleen een bewezen XER-bladactiviteit mag voor een voltooide taak de P6-statusdatum als
- * bronsemantiek gebruiken. Dit is bewust géén datumoverride en leest géén opgeslagen P6
- * early/late/float-uitkomst: de datuminvoer is uitsluitend de al toegestane projectstatusdatum.
- *
- * De onafhankelijke guards maken de representatie fail-closed na IFC, undo en extensie-
- * round-trips: project-, taak-, voortgangstype- en activiteitstypeprovenance moeten tegelijk
- * bestaan. De vastgelegde `CP_Drtn`/`DT_FixedDUR2`-vorm is de enige bronvorm waarvoor de
- * corpusprobes een bron-alleen, consistente completed statusdatum-route bevestigen. `CP_Phys`
- * wordt wel volledig bewaard, maar blijft hier fail-closed: tien gelijkvormige corpusactiviteiten
- * leverden acht P6-statuspunten en twee ontbrekende early/late-orakels op. Omdat de lezer de
- * opgeslagen P6-uitkomst nooit als invoer mag gebruiken en er geen toegestane invoerveld-deler is,
- * zou toelaten een semantische gok zijn. Een P6 suspend/resume-paar
- * blijft standaard fail-closed en mag uitsluitend door de bestaande CP_Drtn-poort wanneer de taak zelf al
- * aantoonbaar voltooid is, haar actual-finish parseerbaar binnen het expliciete targetvenster en
- * de projectstatusdatum valt (`target_end_date <= actualFinish <= dataDate`), de backward-actual-
- * preserve-vlag aan staat, de resume niet ná de actual-finish valt en het interne stop/resume-paar
- * geldig is. Actieve, halve, omgekeerde of stale suspend/resume-vormen houden dus expliciet de
- * `hasSuspendResume`-reden. Nulduurmijlpalen vallen buiten deze route.
- *
- * Guardvolgorde is bewust vast en fail-closed: de eerste afwijzing is de ENIGE reden die we
- * rapporteren. Zo blijft de diagnose stabiel en deelt de boolean-wrapper exact dezelfde bron.
- */
 export function explainP6CompletedDataDateWindow(
   task: Task,
   dataDate: Date | null,
   schedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedWindowDecision {
-  // De aanroeper geeft de opgeloste set (`solveOptionsFor(project)`).
   return explainP6CompletedDataDateWindowResolved(task, dataDate, schedulingOptions);
 }
 
-/** Dezelfde diagnose (`CPMSolver`, `scheduleAnalysis`); leest alleen vlaggen. */
 export function explainP6CompletedDataDateWindowResolved(
   task: Task,
   dataDate: Date | null,
   schedulingOptions: SchedulingOptions | undefined,
 ): P6CompletedWindowDecision {
   if (dataDate === null) return { eligible: false, reason: 'missingDataDate' };
-  // Conventie B3 `p6CompletedDataDateWindow`.
   if (schedulingOptions?.p6CompletedDataDateWindow !== true) {
     return { eligible: false, reason: 'conventionOff' };
   }
@@ -135,14 +103,6 @@ export function explainP6CompletedDataDateWindowResolved(
   const fields = p6CompletedGateFields(task);
   const provenance = provenanceRejection(task, fields);
   if (provenance !== null) return { eligible: false, reason: provenance };
-  // CP_Phys is hier UITSLUITEND een diagnosetak, geen beslisroute: een `CP_Phys`-taak wordt NOOIT `eligible` — ze eindigt altijd op een afwijzing
-  // (onderaan `wrongCompletePctType`, of eerder `notCompleted`/`wrongActivityType`/…). De
-  // tussenliggende uitzonderingen bestaan alleen zodat de GERAPPORTEERDE reden de eerste echte
-  // blokkade is in plaats van altijd `wrongCompletePctType`; die redenen zijn gepind in
-  // `tests/planning/check-xer-completed-cp-phys-window.ts`. Een CP_Phys-route openen vraagt een
-  // eigen meting, niet het weghalen van de laatste `return`. Het
-  // CP_Phys-punt op de statusdatum (conventie C5) is een aparte tak, `explainP6CompletedPhysicalPoint`
-  // hieronder — geen verbreding van dit venster.
   const isPhysicalCompletion = fields.completePctType === 'CP_Phys';
   if (fields.completePctType !== 'CP_Drtn' && !isPhysicalCompletion) {
     return { eligible: false, reason: 'wrongCompletePctType' };
@@ -161,10 +121,6 @@ export function explainP6CompletedDataDateWindowResolved(
   if (isZeroDurationMilestone(task)) return { eligible: false, reason: 'zeroDurationMilestone' };
   if (isPhysicalCompletion) {
     const actualFinish = task.time.actualFinish ? parseInstant(task.time.actualFinish) : null;
-    // CP_Phys heeft voor een toekomstige bewezen route een echt geregistreerd eindfeit nodig:
-    // leeg, syntactisch ongeldig en ná de P6-statusdatum zijn alle drie fail-closed. Deze check
-    // staat bewust vóór de definitieve CP_Phys-afwijzing zodat een latere route-opening haar
-    // grens niet stil kan omzeilen.
     if (actualFinish === null || !Number.isFinite(actualFinish.getTime()) || actualFinish > dataDate) {
       return { eligible: false, reason: 'notCompleted' };
     }
@@ -181,13 +137,6 @@ export function usesP6CompletedDataDateWindow(
   return explainP6CompletedDataDateWindow(task, dataDate, schedulingOptions).eligible;
 }
 
-/**
- * Conventie C5 `p6CompletedPhysicalAtDataDate` (docblok + bron bij de sleutel in `types/project.ts`):
- * mag een VOLTOOIDE CP_Phys-activiteit als één punt op de statusdatum staan? Een aparte tak naast
- * B3 (niet een verbreding ervan): geen eis op het duurtype (DT_FixedDrtn doet mee) en naast TT_Task
- * ook TT_Mile/TT_FinMile; suspend/resume blijft fail-closed. Vaste guardvolgorde, de eerste
- * afwijzing is de enige reden (zelfde vorm als `explainP6CompletedDataDateWindowResolved`).
- */
 export function explainP6CompletedPhysicalPoint(
   task: Task,
   dataDate: Date | null,

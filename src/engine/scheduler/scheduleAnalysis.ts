@@ -15,64 +15,35 @@ import {
   explainP6CompletedLateRemainingWindowEligibilityResolved,
 } from './p6CompletedRouteTrace';
 
-/**
- * Invoer voor de resultaat-post-pass (`computeScheduleResults`). Puur data + een handvol
- * aan de solver gebonden kalender-helpers: de functie leest GEEN solver-instance-velden en
- * her-solvet niets — de vaste early/late-datums en de forward-pass-side-channels
- * (`seqConstraint`, `truncatedLeadIds`, `hardPinViolatedIds`, `hammockNoFinishDriverIds`)
- * zijn de enige bronnen.
- */
 export interface ScheduleAnalysisInput {
-  /** Topologische taakvolgorde uit de solver. */
   order: string[];
   earlyDates: Map<string, { es: Date; ef: Date }>;
   lateDates: Map<string, { ls: Date; lf: Date }>;
   outOfSequenceSequenceIds: string[];
   tasks: Map<string, Task>;
   sequences: Sequence[];
-  /** taskId -> uitgaande relaties. */
   successors: Map<string, Sequence[]>;
-  /** Per relatie de ruwe forward-pass-grens (één bron voor free float + driving). */
   seqConstraint: Map<string, Date>;
   schedulingOptions: SchedulingOptions | undefined;
-  /** Werkdag-gesnapte statusdatum, of null ⇒ geen statusdatum-gedrag. */
   dataDate: Date | null;
   truncatedLeadIds: string[];
   hardPinViolatedIds: string[];
   hammockNoFinishDriverIds: string[];
   projectEngine: CalendarEngine;
-  // ── Aan de solver gebonden, stateless kalender-helpers (modus-bewust) ──
   calendarFor: (task: Task) => CalendarEngine;
   progressCalendarFor: (task: Task) => CalendarEngine;
-  /** Conventie C4: verschoven begin van het nul-restvenster (voltooid buiten volgorde). */
   completedOutOfSequenceEs?: ReadonlyMap<string, Date>;
-  /** Conventie C5: voltooide CP_Phys-activiteiten met een punt (ES = EF, LS = LF) uit de solver; hun
-   *  late kant komt uit de backward pass, niet uit de actual-pin. */
   completedPhysicalPoints?: ReadonlyMap<string, Date>;
-  /** `task` optioneel: ELAPSEDTIME ⇒ kale klok-span i.p.v. werkdag-telling, zie
-   *  `CPMSolver.signedFloat`/`duration.ts`'s `signedElapsedSpan`. */
   signedFloat: (a: Date, b: Date, eng: CalendarEngine, task?: Task) => number;
-  /** Alleen uren §3.4: dezelfde getekende afstand in minuten op de kalender van de taak (werkminuten;
-   *  kalendertijd klokminuten). Bron van `totalFloatMinutes`/`freeFloatMinutes`. */
   signedFloatMinutes: (a: Date, b: Date, eng: CalendarEngine, task?: Task) => number;
-  /** Alleen uren §3.14: telt de taak in de dagenmaat? Dan is haar speling in dagen de afstand in
-   *  werkdagen (`measuredWorkdaysBetween`), anders minuten ÷ (werktijd per dag × 60). */
   countsInWorkdays: (task: Task) => boolean;
-  /** Formaatgebonden projectie voor relationship free float; generieke kalenderalgebra blijft fysiek. */
   constraintInstant: (c: TaskConstraint | undefined, eng: CalendarEngine) => Date | null;
   snapOnOrAfter: (eng: CalendarEngine, d: Date) => Date;
   snapOnOrBefore: (eng: CalendarEngine, d: Date) => Date;
-  /** De late grens van een MSO/MFO/SNLT op een nulduurmijlpaal (`CPMSolver.milestoneLateMoment`), anders null. */
   milestoneLateMoment: (task: Task, c: TaskConstraint | undefined, eng: CalendarEngine) => Date | null;
-  /** Optionele XER-diagnose die de post-pass op haar eigen beslisplekken aanvult. */
   backwardFloatTrace?: CpmBackwardFloatTrace;
 }
 
-/**
- * Resultaat-post-pass van de CPM-berekening: leidt uit de
- * VASTE early/late-datums de floats, kritiek-markering, driving-relaties, waarschuwings-sets en
- * float-paden af. Pure functie — muteert zijn invoer niet en her-solvet expliciet niet.
- */
 export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult {
   const {
     order, earlyDates, lateDates, outOfSequenceSequenceIds,
@@ -88,12 +59,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
   const taskResults = new Map<string, CPMTaskResult>();
   const criticalPath: string[] = [];
 
-  // Vrije speling per relatie: werkdag-stappen tussen de (gesnapte) geëiste start en de
-  // werkelijke vroegste start van de opvolger. 0 = de relatie bindt = driving (P6:
-  // relationship free float = 0; gelijkspel ⇒ meerdere driving relaties). Wordt de opvolger
-  // door de projectstart-vloer bepaald (volledig geklemde lead), dan bindt geen relatie.
   const sequenceFreeFloat: Record<string, number> = {};
-  // Alleen uren §3.4: dezelfde relatie-vrije speling in werkminuten op de opvolgerkalender.
   const sequenceFreeFloatMinutes: Record<string, number> = {};
   const drivingSequenceIds: string[] = [];
   const violatedConstraintTaskIds: string[] = [];
@@ -104,25 +70,8 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     const succEarly = earlyDates.get(seq.successorId);
     const succTask = tasks.get(seq.successorId);
     if (!cRaw || !succEarly || !succTask) continue;
-    // Relatie-vrije-speling in de kalender van de OPVOLGER (diens vroegste start rekent daar).
-    // Fractionele-dag-float via `workMinutesBetween`.
-    //
-    // BEKENDE BEPERKING (niet gefixt): deze berekening is NIET durationType-bewust — ze rekent altijd
-    // in WERKtijd, ook wanneer de OPVOLGER (`succTask`) ELAPSEDTIME is. `succEarly.es` van een
-    // ELAPSEDTIME-opvolger is bewust NIET gesnapt (hij mag op een niet-werk-instant staan), terwijl
-    // `reqStart` hieronder (`snapOnOrAfter(succCal, cRaw)`) wél altijd snapt. Dan vergelijkt dit een
-    // gesnapte grens met een ongesnapte waarde: verkeerde eenheid, en `reqStart > succEarly.es` kan
-    // het "endMs<startMs ⇒ 0"-vangnet raken — een stille foute waarde (bv. −1). Zo'n onterechte
-    // `relFloat ≠ 0` haalt de relatie ook uit `drivingSequenceIds`, en daarmee uit `floatPath` en de
-    // `longestPath`-kritiek-modus. Voor een gewone opvolger staat `succEarly.es` al op een geldige
-    // werk-instant en klopt dit. Gepind in `cases-msp-pariteit.json` (msp-21 voor de eenheid,
-    // msp-23/msp-24 voor de mismatch). Een fix vergt een eigen ELAPSEDTIME-tak op de ongesnapte
-    // `cRaw`/`succEarly.es` (`signedElapsedSpan`-stijl).
     const succCal = calendarFor(succTask);
     const reqStart = snapOnOrAfter(succCal, cRaw);
-    // De vrije speling hoort bij de VOORGANGER: telt die in de dagenmaat, dan is de afstand in
-    // werkdagen (§3.4). Nul blijft nul in beide maten (geen werktijd ertussen), dus de driving-markering
-    // verandert niet.
     const predTask = tasks.get(seq.predecessorId);
     const relMinutes = succCal.workMinutesBetween(reqStart, succEarly.es);
     const relFloat = predTask && countsInWorkdays(predTask)
@@ -133,8 +82,6 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     if (relFloat === 0) drivingSequenceIds.push(seq.id);
   }
 
-  // Project-scoped reken-opties + longest-path-kritiek-set. Elke tak staat strak achter zijn
-  // optie-conditie; afwezig ⇒ de standaardexpressie.
   const so = schedulingOptions;
   const tfMode = so?.totalFloatMode;
   const makeOpenEndedCritical = so?.makeOpenEndedCritical === true;
@@ -143,22 +90,7 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
   const critThreshold = critDef?.threshold ?? 0;
   const critThresholdHours = critDef?.thresholdHours;
   const useLongestPath = critDef?.mode === 'longestPath';
-  // Longest-path-kritiek: de Free-Float-peel van pad 1 — de driving-keten(s)
-  // vanaf de taak/taken met de grootste EF; bij ties (meerdere eindtaken met dezelfde grootste EF)
-  // is de UNIE van alle peels kritiek. tf speelt in deze modus geen rol. Alleen opgebouwd in
-  // longestPath-modus (anders leeg ⇒ geen effect).
-  // Handmatig gepland: BEWUST GEEN `manuallyScheduled`-tegenhanger van de hammock-uitsluiting
-  // hierboven/hieronder. Een hammock is "een gevolg, geen oorzaak" — hij mag nooit als
-  // keten-EINDPUNT gelden, want zijn EF is zelf al een AFGELEIDE van zijn eigen finish-drivers. Een
-  // manual taak is het omgekeerde: haar EF is een ECHT, rechtstreeks anker (geen afleiding) — als
-  // dat toevallig de grootste EF van het project is, IS ze legitiem het eindpunt van het langste
-  // pad. `drivingSet`/de driving-walk blijven hier vanzelf correct: `seqConstraint` wordt voor een
-  // relatie die een manual taak als OPVOLGER heeft nooit gezet (`CPMSolver.forwardPass`s manual-tak
-  // slaat de voorganger-lus over; `applyAlap` sluit haar expliciet uit) — zo'n relatie kan dus nooit in `drivingSequenceIds` belanden en `traceFrom`
-  // kan nooit "doorheen" een manual taak terugtracen via een relatie die ze feitelijk negeert.
   const longestPathCritical = new Set<string>();
-  // Eenmalige relatie-index voor bronregels die onderscheid maken tussen een echt netwerkeinde
-  // en een volledig geïsoleerde mijlpaal. Geen per-taak-scan over `sequences` (O(T+E), niet O(T×E)).
   const tasksWithPredecessor = new Set(sequences.map(sequence => sequence.successorId));
   let scheduleProjectEnd = new Date(0);
   for (const { ef } of earlyDates.values()) {
@@ -169,11 +101,10 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     for (const { ef } of earlyDates.values()) {
       if (ef.getTime() > maxEf) maxEf = ef.getTime();
     }
-    // Eén walker voor alle eindtaken (bij veel gelijke EF's bouwde `traceFrom` het net per taak opnieuw).
     const drivingPredecessorsOf = drivingPredecessorWalker(sequences, new Set(drivingSequenceIds));
     for (const [id, { ef }] of earlyDates) {
       if (ef.getTime() !== maxEf) continue;
-      if (tasks.get(id)?.isHammock === true) continue;   // hammock nooit kritiek
+      if (tasks.get(id)?.isHammock === true) continue;
       longestPathCritical.add(id);
       for (const p of drivingPredecessorsOf(id)) {
         longestPathCritical.add(p);
@@ -186,47 +117,22 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
   for (const taskId of order) {
     const early = earlyDates.get(taskId)!;
     const late = lateDates.get(taskId)!;
-    // Float rekent per taak in diens eigen kalender (P6-semantiek).
     const taskObj = tasks.get(taskId)!;
     const cal = calendarFor(taskObj);
 
-    // Vrije speling van een taak: hoeveel werkdagen hij kan uitlopen zonder de vroegste datum
-    // van een opvolger te raken = min van de relatie-vrije-spelingen hierboven. Voor werkdag-lag
-    // is dat exact gelijk aan de klassieke per-type formules (gap − lag, met de
-    // FS-finishdag-correctie); voor kalenderdag- en procent-lag volgt de juiste waarde
-    // automatisch uit dezelfde bron als de planningsberekening zelf.
     let freeFloat = Infinity;
-    // Alleen uren §3.4: dezelfde speling in minuten. Elke maat neemt haar eigen minimum over de
-    // opvolgers; bij één kalender wijzen ze dezelfde relatie aan.
     let freeFloatMinutes = Infinity;
     let freeFloatSource: CpmFreeFloatSource = 'derivedFromSuccessor';
     const succs = successors.get(taskId) || [];
     const inWorkdays = countsInWorkdays(taskObj);
-    /** Werkminuten op de taakkalender van `a` naar `b`, en dezelfde afstand in de dagweergave. */
     const ownCalendarSpan = (a: Date, b: Date): { days: number; minutes: number } => {
       const minutes = cal.workMinutesBetween(a, b);
       return { minutes, days: inWorkdays ? cal.measuredWorkdaysBetween(a, b) : minutes / (cal.hoursPerDay * 60) };
     };
     if (succs.length === 0) {
-      // Eindtaak: vrije speling = totale-speling-equivalent (finish kan opschuiven tot
-      // lateFinish) — getekend: een deadline/late-zijde-constraint kan hem negatief maken.
-      // Uur-taak ⇒ fractionele-dag-float; dag ⇒ integer.
       freeFloat = signedFloat(early.ef, late.lf, cal, taskObj);
       freeFloatMinutes = signedFloatMinutes(early.ef, late.lf, cal, taskObj);
     } else {
-      // Conventie C2 `p6FreeFloatOnOwnCalendar` (docblok + bron bij de sleutel in `types/project.ts`):
-      // voor een NIET-GESTARTE uurtaak telt de relatie-vrije-speling in de kalender van de TAAK zelf,
-      // voor FS, SS en FF: van de ONGESNAPTE relatiegrens (anker ES bij SS, EF bij FS/FF, plus de lag op
-      // de eigen kalender; ook een negatieve lag, als extrapolatie) tot de vroege opvolgerdatum (ES bij
-      // FS/SS, EF bij FF); de taak-ff is het minimum over de opvolgers. Een lag ≠ 0 telt alleen mee als de
-      // lagkalender de voorganger (= deze taak) is. Een GESTARTE (niet-voltooide) taak houdt de smalle
-      // C2-regel: alleen FS met lag 0. SF, ELAPSEDTIME- en procentlags en andere lagkalenders zijn ongemeten en
-      // houden de bestaande berekening (`sequenceFreeFloat`, opvolgerkalender). `sequenceFreeFloat`
-      // (en daarmee de driving-markering) blijft ongemoeid; alleen de vrije speling van de taak
-      // verandert. Een relatie zonder eigen vrije speling (bv. naar een voltooide opvolger, waarvan
-      // `preserveActualDatesInBackwardPass` de grens wist) levert ook hier niets. Er is bewust geen
-      // regel "voltooide opvolger ⇒ ff = 0": alleen in rehab-2 (P3-uitvoer) gezien, geen effect op de
-      // P6-populatie (zelfde criterium als C1/C4).
       const ownCalendarFreeFloat = so?.p6FreeFloatOnOwnCalendar === true
         && cal.hasOwnWorkBlocks && taskObj.time.completion < 1;
       const lagOnOwnCalendar = so?.lagCalendar === undefined || so.lagCalendar === 'predecessor';
@@ -240,7 +146,6 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
             : (Number.isFinite(seq.lagDays) ? seq.lagDays : 0) * cal.hoursPerDay * 60;
           const succEarly = earlyDates.get(seq.successorId);
           const inScope = ownCalendarStarted
-            // De smalle C2-regel voor gestarte taken: alleen FS met lag 0.
             ? seq.type === 'FINISH_START' && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0
             : seq.type !== 'START_FINISH' && seq.lagUnit !== 'ELAPSEDTIME' && (lagMinutes === 0 || lagOnOwnCalendar);
           if (inScope && succEarly && tasks.has(seq.successorId)) {
@@ -252,23 +157,12 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
             ({ days: ff, minutes: ffMinutes } = ownCalendarSpan(bound, toFinish ? succEarly.ef : succEarly.es));
           }
         }
-        // Conventie C12 `p6FinishNotBeforeFinishFinishBound`, vrije-spelingkant: over een FF-relatie zonder
-        // lag telt de vrije speling in de eigen kalender tot de vroege FINISH van de opvolger (die C12 op de
-        // relatiegrens kan leggen zonder haar start te verplaatsen), niet via de afgeleide startgrens.
-        // Alleen vanuit een open voorganger (docblok).
         if (so?.p6FinishNotBeforeFinishFinishBound === true && ff !== undefined && cal.hasOwnWorkBlocks
           && taskObj.time.completion < 1 && seq.type === 'FINISH_FINISH'
           && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
           const succEarly = earlyDates.get(seq.successorId);
           if (succEarly) ({ days: ff, minutes: ffMinutes } = ownCalendarSpan(early.ef, succEarly.ef));
         }
-        // Conventie C5 `p6CompletedPhysicalAtDataDate`, vrije-spelingkant: een voltooide CP_Phys-
-        // opvolger met een punt heeft geen relatiegrens (de voorwaartse pas slaat haar voorgangers over), maar
-        // staat wel op één vroeg punt. Over een FS0-relatie zonder eigen grens telt de vrije speling in de
-        // eigen kalender tot dat punt, spiegel van de late kant van C5 (docblok in `types/project.ts`). Punten
-        // bestaan alleen met C5 aan (`CPMSolver.recordCompletedPhysicalPoint`); geen aparte poort nodig.
-        // Geen eigen voltooiingspoort: een voltooide voorganger heeft met A12 aan al ff 0 (zie verderop),
-        // en zonder A12 blijft de relatiegrens staan (ff gedefinieerd).
         if (ff === undefined
           && seq.type === 'FINISH_START'
           && seq.lagPercent === undefined && (seq.lagMinutes ?? 0) === 0 && seq.lagDays === 0) {
@@ -281,11 +175,6 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     }
     if (freeFloat === Infinity) freeFloat = 0;
     if (freeFloatMinutes === Infinity) freeFloatMinutes = 0;
-    // De late grens van een verbonden open P6-finishmijlpaal is zijn eigen vroege grens, maar zijn
-    // vrije float blijft de ruimte tot het (door een andere open tak bepaalde) projecteinde. Houd
-    // die twee P6-betekenissen dus apart: TF komt verderop uit de verankerde LS/LF; FF uit de
-    // project-eindruimte. Expliciete PROJECT-end-
-    // float heeft hieronder zijn eigen, smallere nulregel en valt niet in deze variant.
     if (so?.p6FinishMilestoneBoundaryWindow === true
       && so.useProjectEndDateForFloat !== true && succs.length === 0
       && tasksWithPredecessor.has(taskId)
@@ -294,12 +183,6 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       freeFloatMinutes = signedFloatMinutes(early.ef, scheduleProjectEnd, cal, taskObj);
       freeFloatSource = 'projectEndFinishMilestoneBoundary';
     }
-    // P6's expliciete PROJECT-einddatum is voor een door het netwerk bereikte, open TT_FinMile
-    // een late-pass-/TF-anker, geen echte opvolger. Zo'n eindmijlpaal kan wel totale float hebben,
-    // maar geen vrije float: zonder opvolger is er geen opvolgerdatum die hij vrij kan opsouperen.
-    // Nauwe bronregel voor precies die P6-taaksoort; gewone open activiteiten en volledig
-    // geïsoleerde finishmijlpalen houden hun bestaande freeFloat=totalFloat-equivalent (de brede
-    // variant verslechterde 19 publieke taken, de zonder-predecessor-variant nog één).
     if (so?.useProjectEndDateForFloat === true && succs.length === 0
       && tasksWithPredecessor.has(taskId)
       && taskObj.milestoneKind === 'FINISH' && isZeroDurationMilestone(taskObj)) {
@@ -308,8 +191,6 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       freeFloatSource = 'clampedZero';
     }
 
-    // Totale speling: getekend (negatieve float bij geschonden late-zijde-constraints/deadlines), MSP-veilig als min van finish- en start-float (die kunnen
-    // verschillen wanneer een SNLT alleen de late start kapt). Kritiek = tf ≤ 0.
     const tt = taskObj.time;
     const completed = !!dataDate && tt.completion >= 1;
     const completedWindowDecision = explainP6CompletedDataDateWindowResolved(taskObj, dataDate, so);
@@ -323,20 +204,6 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         };
       })()
       : null;
-    // p6CompletedLateFromRemainingWindow: zodra `CPMSolver` de late
-    // zijde van deze taak via de restwerkregel berekent (dezelfde `completedWindow.eligible`-poort
-    // als daar), moet de TF/FF-formule tegen hetzelfde statusdatumvenster meten, niet tegen de
-    // rauwe historische `early.es`/`early.ef` — anders combineert de formule een gewindowd late-
-    // punt met een niet-gewindowd early-punt en ontstaat een spookfloat die uitsluitend de
-    // historische afstand tussen twee taken se eigen actual-vensters meet (bv. A/B hierboven zouden
-    // dan een verschillende TF krijgen puur omdat B later heeft gewerkt dan A, terwijl beide
-    // dezelfde late-ankerketen erven). Zonder de vlag blijft dit exact `early.es`/`early.ef`, want dan
-    // is `late.ls`/`late.lf` ook nog de actual-pin.
-    //
-    // Deze poort MOET letterlijk dezelfde functie zijn als die in `CPMSolver.backwardPass`: anders
-    // valt bv. een `TK_Complete` ZONDER `act_end_date` ertussen (wel window-eligible, niet
-    // `backwardActualPin`-eligible) en veranderen ls/lf/tf terwijl de solvertak niets doet
-    // (`check-xer-completed-late.ts`, taak NX).
     const useCompletedRemainingWindow = explainP6CompletedLateRemainingWindowEligibilityResolved(
       taskObj, dataDate, so,
     ).eligible;
@@ -346,12 +213,6 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     const startFloat = signedFloat(floatEarlyEs, late.ls, cal, taskObj);
     const finishFloatMinutes = signedFloatMinutes(floatEarlyEf, late.lf, cal, taskObj);
     const startFloatMinutes = signedFloatMinutes(floatEarlyEs, late.ls, cal, taskObj);
-    // Een EXPLICIETE P6-modus geldt ook voor lopende taken: start = LS−ES, finish = LF−EF en
-    // smallest = min(beide). Ontbreekt de bronoptie, dan blijft de oudere OPS-invariant behouden:
-    // een lopende taak gebruikt finish-float en een overige taak de kleinste — voor verse, MSPDI-,
-    // MPP- en P6XML-projecten zonder deze bronwaarde, en voor de standaard van het MS Project-profiel
-    // (`defaultOptionsFor('msproject')` zet geen `totalFloatMode`; spec rekenprofielen §3.1). Met een
-    // statusdatum is dit MSP's regel; zonder statusdatum telt voortgang hier niet mee.
     const tfSide = tfMode === 'finish'
       ? 'finish'
       : tfMode === 'start'
@@ -365,17 +226,12 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     let tfMinutes = tfSide === 'finish'
       ? finishFloatMinutes
       : tfSide === 'start' ? startFloatMinutes : Math.min(finishFloatMinutes, startFloatMinutes);
-    // Open-ended kritiek: alleen bij `makeOpenEndedCritical` krijgt een taak zonder opvolger
-    // tf=ff=0 (P6: LF=EF ⇒ kritiek). Default (optie afwezig) ⇒ ongewijzigd.
     if (makeOpenEndedCritical && succs.length === 0 && !completed) {
       tf = 0;
       freeFloat = 0;
       tfMinutes = 0;
       freeFloatMinutes = 0;
     }
-    // Hammock: tf=ff=0 DEFINITORISCH (LS=ES/LF=EF uit de backward pass), maar dit
-    // is géén kritiek-signaal — het forceren houdt de invariant ook als een niet-driving opvolger
-    // anders positieve free float zou geven. `isCritical` wordt hieronder geforceerd `false`.
     const isHammock = taskObj.isHammock === true;
     if (isHammock) {
       tf = 0;
@@ -383,77 +239,40 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       tfMinutes = 0;
       freeFloatMinutes = 0;
     }
-    // Handmatig gepland: `CPMSolver.backwardPass` geeft een manual
-    // taak DEFINITORISCH `ls=es`/`lf=ef` (verplichte early-return, zelfde vorm als de hammock-tak
-    // — zie het docblock daar). tf/ff zouden op zo'n IDENTIEK es/ls-paar dus ALTIJD 0 moeten zijn,
-    // ongeacht welke dag het is — maar de generieke `signedFloat` hierboven is een WERKDAG-tellende
-    // formule, gebouwd om een venster tussen twee (potentieel verschillende) werk-instanten te
-    // meten, niet om "0" te garanderen op een paar identieke, mogelijk NIET-werk-instanten. Op een
-    // manual taak met een rauw anker BUITEN de werkband (bv. een zaterdag-mijlpaal) geeft die
-    // formule daardoor een ARTEFACT: gemeten tf=-1 (`msp-56-z9a-manual-anchor-raw-no-snap`). Force
-    // tf=ff=0: dat is geen
-    // hammock-achtige "geen kritiek-signaal"-forcing (zie hieronder — `isCritical` wordt voor een
-    // manual taak NIET geforceerd), maar een correctie van de FORMULE-INVOER op een paar dat door
-    // constructie al identiek is. Op een werkdag-anker (het gewone geval, `msp-57`) is dit een no-op.
     if (taskObj.manuallyScheduled) {
       tf = 0;
       freeFloat = 0;
       tfMinutes = 0;
       freeFloatMinutes = 0;
     }
-    // P6/XER toont bij voltooid werk wel het historische actual-venster als LS/LF, maar TF blijft
-    // de backward-recurrentie van nog open downstream werk volgen. FF is voor historie nul: een
-    // voltooide activiteit kan haar opvolger niet meer vrij verschuiven. De floats hierboven zijn
-    // daarom bewust uit de netwerk-late-datums berekend; alleen de uiteindelijke datumweergave
-    // hieronder wordt op actuals teruggezet.
     if (completed && so?.preserveActualDatesInBackwardPass === true) {
       freeFloat = 0;
       freeFloatMinutes = 0;
       freeFloatSource = 'clampedZero';
     }
-    // P6/XER houdt vrije float op nul wanneer een late constraint de totale float negatief maakt.
-    // De publieke P6-meetmassa bevat wel 63 negatieve TF-cellen maar geen negatieve FF-cel; case 05
-    // bevestigt hetzelfde op een FNLT-eindtaak. Brongebonden, zodat de algemene getekende OPS-
-    // semantiek zonder vlag ongewijzigd blijft.
     if (so?.clampNegativeFreeFloat === true && freeFloat < 0) {
       freeFloat = 0;
       freeFloatSource = 'clampedZero';
     }
     if (so?.clampNegativeFreeFloat === true && freeFloatMinutes < 0) freeFloatMinutes = 0;
-    // Kritiek-definitie: hammock ⇒ NOOIT kritiek (P6: LOE is een gevolg, geen oorzaak);
-    // voltooid ⇒ nooit kritiek (P6, opvolgers wél); longestPath ⇒ op een driving-keten naar de
-    // laatste finish (tf-onafhankelijk); anders tf ≤ drempel (default 0 = het huidige tf≤0).
-    // Handmatig gepland: BEWUST GEEN eigen forceringstak (in tegenstelling tot hammock) — MS
-    // Project toont voor manual taken gewoon float: met tf hierboven al op 0 gezet,
-    // geeft de gewone `tf ≤ drempel`-regel het juiste (kritiek) antwoord vanzelf, zónder een
-    // hammock-achtige "nooit kritiek"-blindering. Een manual taak IS immers een echt anker (geen
-    // afgeleid gevolg zoals een hammock) en kan dus legitiem op het kritieke pad staan.
     const isCritical = isHammock
       ? false
       : completed
       ? false
       : useLongestPath
         ? longestPathCritical.has(taskId)
-        // Alleen uren §3.4: de drempel in uren vergelijkt met de speling in minuten.
         : critThresholdHours !== undefined
           ? tfMinutes <= critThresholdHours * 60
           : tf <= critThreshold;
 
     if (isCritical) criticalPath.push(taskId);
-    // Interfererende speling: ALTIJD berekend, getekend (fractioneel, erft
-    // `signedFloat` via tf/ff). Niet geserialiseerd, niet in de digest.
     const interferingFloat = tf - freeFloat;
-    // Near-critical: 0 < tf ≤ drempel; alleen wanneer de drempel gezet is (anders undefined
-    // ⇒ ongeschreven veld). tf=0 is NIET near; tf=drempel wél.
     const isNear = nearCriticalThreshold !== undefined && nearCriticalThreshold !== null
       ? tf > 0 && tf <= nearCriticalThreshold
       : undefined;
     if (isNear) nearCriticalTaskIds.push(taskId);
     if (early.ef > projectEnd) projectEnd = early.ef;
 
-    // Geschonden constraints / gemiste deadlines (bron van de negatieve float). Beide constraints
-    // worden geëvalueerd. Een harde MSO/MFO-pin telt hier NIET mee — diens logica-schending
-    // (rawMax > pin) is al in de forward pass geregistreerd en wordt onderaan toegevoegd.
     const task = taskObj;
     {
       for (const cc of [task.constraint, task.constraint2]) {
@@ -461,11 +280,8 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         if (cc.hard && (cc.type === 'MSO' || cc.type === 'MFO')) continue;
         const cd = constraintInstant(cc, cal);
         if (!cd) continue;
-        // Een MSO/MFO/SNLT op een nulduurmijlpaal toetst tegen hetzelfde moment als de late pass.
         const moment = milestoneLateMoment(task, cc, cal);
         const dW = moment ?? snapOnOrBefore(cal, cd);
-        // N3: vergelijk de equivalente startgrens; dagenmaat gebruikt dezelfde grens (145).
-        // Kalendertijd en nulduurmijlpalen houden hun letterlijke moment buiten werktijd.
         const dS = moment ?? (!isElapsedTask(task) && !isZeroDurationMilestone(task)
           ? snapOnOrAfter(cal, cd)
           : dW);
@@ -479,16 +295,8 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
       if (dlW && early.ef > dlW) missedDeadlineTaskIds.push(taskId);
     }
 
-    // Serialisatie: altijd `YYYY-MM-DDTHH:mm` (sinds F6 rekent elke solvekalender met werkblokken).
     const displayActualLateDecision = explainDisplayActualLateEligibility(taskObj, dataDate, so);
     const displayActualLate = displayActualLateDecision.eligible;
-    // Zónder de vlag `p6CompletedLateFromRemainingWindow` pint de LATE zijde van een voltooide taak
-    // op haar rauwe actual-venster (`early.es`/`early.ef`, dezelfde bron als
-    // `backwardActualPin` in `CPMSolver`) — asymmetrisch met de EARLY zijde hierboven, die al wél
-    // het statusdatumvenster toont zodra `completedDisplayWindow` eligible is. Mét de vlag heeft
-    // `CPMSolver.backwardPass` voor deze taak al de P6-restwerkregel toegepast (`late.ls`/`late.lf`
-    // dragen dan een zinvol, niet-gedegenereerd statusdatumvenster inclusief float) — die uitkomst
-    // hoort dan getoond te worden i.p.v. de rauwe actual-pin.
     const pinLateToActualWindow = displayActualLate && !useCompletedRemainingWindow
       && input.completedPhysicalPoints?.has(taskId) !== true;
     if (backwardFloatTrace) {
@@ -523,52 +331,28 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     });
   }
 
-  // Harde-pin-logicaschendingen: de voorganger-druk viel later dan de pin ⇒ de taak start
-  // vóór z'n voorganger klaar is. Toegevoegd aan de geschonden-constraint-verzameling (deduped).
   for (const id of hardPinViolatedIds) {
     if (!violatedConstraintTaskIds.includes(id)) violatedConstraintTaskIds.push(id);
   }
 
-  // Een project ZONDER geplande taken heeft geen projecteinde. De accumulator hierboven start op
-  // de epoch en wordt alleen door een echte earlyFinish opgetild; zonder resultaten zou hij dus
-  // `1970-01-01` rapporteren — een datum die overal als een ECHT projecteinde leest. Conditie is
-  // daarom "nul early-resultaten" (`earlyDates` is per constructie 1-op-1 met `order`: de forward
-  // pass vult hem uit diezelfde volgorde), niet "nul taken": het is precies de verzameling die de
-  // accumulator voedt. Uitkomst = dezelfde vorm die `emptyResult()` in CPMSolver voor de
-  // degradatiepaden teruggeeft: leeg einde, duur 0.
   const hasSchedule = earlyDates.size > 0;
 
-  // Projectduur = werkdag-spanne van de vroegste start tot de laatste finish, MET de
-  // mijlpaal-alleen-uitzondering — gedeeld met de "datums zoals opgeslagen"-reconstructie via
-  // `projectDurationOf` (`projectDuration.ts`), zodat beide callsites dezelfde regel toepassen.
-  // `projStart` blijft null bij nul early-resultaten (⟺ !hasSchedule) — dan is er niets te meten
-  // en blijft de duur 0, i.p.v. een spanne "vandaag → epoch".
   let projStart: Date | null = null;
   for (const { es } of earlyDates.values()) {
     if (!projStart || es < projStart) projStart = es;
   }
   const projectDuration = projectDurationOf(projectEngine, projStart, projectEnd, tasks.values());
 
-  // ── Multiple float paths (POST-PASS op het VASTE resultaat) ─────────────────────────────────────
-  // De vroege datums veranderen NIET door het peelen: dit is een goedkope graaf-peel resp.
-  // TF-rangschikking, geen her-solve. Uit ⇒ `criticalPaths = [criticalPath]` en `floatPathByTask =
-  // {}` (de tak wordt dan niet betreden). `criticalPaths[0]` is ALTIJD `criticalPath` (gecheckt in
-  // de check-batterij).
   let criticalPaths: string[][] = [criticalPath];
   const floatPathByTask: Record<string, number> = {};
   const fpOpt = so?.floatPaths;
   if (fpOpt?.enabled) {
-    // Hard begrensd op `maxPaths` (ook bij grote netten); <1 ⇒ geen paden.
     const maxPaths = Math.max(0, Math.floor(fpOpt.maxPaths));
-    // Hammocks: nooit end-kandidaat, tellen niet mee in een keten.
     const isHammock = (id: string) => tasks.get(id)?.isHammock === true;
     const candidates = new Set<string>();
     for (const id of order) if (!isHammock(id)) candidates.add(id);
 
     if (fpOpt.method === 'TOTAL_FLOAT') {
-      // TF-methode: rangschik op DISTINCT tf (1 = kleinste tf); `floatPath` = rang. Een rang boven
-      // `maxPaths` krijgt géén nummer (harde begrenzing). Peelt geen ketens ⇒ criticalPaths blijft
-      // de enkele bestaande keten.
       const tfOf = (id: string) => taskResults.get(id)!.totalFloat;
       const distinct = [...new Set([...candidates].map(tfOf))].sort((a, b) => a - b);
       const rankOf = new Map<number, number>();
@@ -578,22 +362,12 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         if (rank <= maxPaths) floatPathByTask[id] = rank;
       }
     } else {
-      // FREE_FLOAT (driving-logic-peeling, default): peel ketens naar afnemende EF.
-      //   (1) end = niet-toegewezen kandidaat met de grootste EF (topo-volgorde = stabiele tie-break).
-      //   (2) keten = traceFrom(end).drivingPredecessors ∪ {end} (hammocks uitgesloten).
-      //   (3) ken het padnummer toe aan de nog NIET-toegewezen taken in de keten (een gedeelde
-      //       voorganger houdt zo het nummer van de EERSTE peel waarin hij voorkomt).
-      //   (4) verwijder de héle keten uit de kandidaten; herhaal tot `maxPaths` of leeg.
       const drivingSet = new Set(drivingSequenceIds);
-      // Eén keer opgebouwd i.p.v. per peel (`traceFrom` bouwde het hele net en deed vier walks) en
-      // een positie-index i.p.v. `order.indexOf` in de sortering: een lange keten was zo
-      // O(keten · log · taken) per peel.
       const drivingPredecessorsOf = drivingPredecessorWalker(sequences, drivingSet);
       const orderIndex = new Map<string, number>();
       order.forEach((id, i) => { if (!orderIndex.has(id)) orderIndex.set(id, i); });
       const indexInOrder = (id: string) => orderIndex.get(id) ?? -1;
       const efMs = (id: string) => earlyDates.get(id)!.ef.getTime();
-      // Elke gepeelde keten + of hij (volledig) kritiek is — voor de `criticalPaths`-opbouw.
       const peeled: { ids: string[]; critical: boolean }[] = [];
       let p = 0;
       while (candidates.size > 0 && p < maxPaths) {
@@ -615,21 +389,15 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
         }
         for (const id of chain) candidates.delete(id);
         const ids = [...chain].sort((a, b) => indexInOrder(a) - indexInOrder(b));
-        // De driving-walk mag door gedeelde historie lopen. Voltooid werk is nooit kritiek,
-        // maar mag een actuele kritieke tak niet uit de padenlijst laten verdwijnen.
         const openIds = ids.filter(id => !dataDate || (tasks.get(id)?.time.completion ?? 0) < 1);
         peeled.push({ ids: openIds, critical: openIds.length > 0
           && openIds.every((id) => taskResults.get(id)?.isCritical === true) });
       }
-      // criticalPaths = alle gepeelde ketens die kritiek zijn. Pad 1 is (indien kritiek) al door
-      // `criticalPath` gerepresenteerd op index 0; extra kritieke ketens (bij ties)
-      // komen erachteraan.
       for (let i = 1; i < peeled.length; i++) {
         if (peeled[i].critical) criticalPaths.push(peeled[i].ids);
       }
     }
 
-    // Per-taak `floatPath` op het resultaat (alleen bij enabled; anders ongeschreven).
     for (const [id, r] of taskResults) {
       if (floatPathByTask[id] !== undefined) r.floatPath = floatPathByTask[id];
     }
@@ -644,28 +412,15 @@ export function computeScheduleResults(input: ScheduleAnalysisInput): CPMResult 
     violatedConstraintTaskIds,
     missedDeadlineTaskIds,
     outOfSequenceSequenceIds,
-    // Analyse-laag: near-critical-set gevuld bij ingestelde drempel; `interferingFloat` altijd per
-    // taak geschreven. `criticalPaths`/`floatPathByTask` gevuld door de float-path-post-pass hierboven
-    // (uit ⇒ `[criticalPath]` resp. `{}`).
     nearCriticalTaskIds,
     criticalPaths,
     floatPathByTask,
-    // Hammocks zonder finish-driver: waarschuwing (nul-lengte-terugval).
     hammockNoFinishDriverTaskIds: [...hammockNoFinishDriverIds],
-    // Projecteinde als moment (`YYYY-MM-DDTHH:mm`).
-    // Zonder early-resultaten leeg (zie `hasSchedule` hierboven) i.p.v. de epoch.
     projectEnd: hasSchedule ? formatInstant(projectEnd, 'hour') : '',
     projectDuration,
   };
 }
 
-/**
- * Het aantal kritieke ACTIVITEITEN: bladtaken met `isCritical`. Een verzameltaak krijgt haar
- * kritiek-vlag opgerold van haar kinderen (`applyCpmResult`) en is zelf geen activiteit — telt je
- * haar mee, dan telt één kritieke keten in drie fasen drie keer extra. Dit is dezelfde telling als
- * de statusbalk (`cpmResult.criticalPath`, dat de solver alleen uit bladtaken opbouwt), en de ene
- * teller voor het Rapportpaneel en MCP `planner_get_project_info`.
- */
 export function countCriticalActivities(tasks: readonly Task[]): number {
   let n = 0;
   for (const t of tasks) if (t.time.isCritical && isLeafTask(t)) n++;
