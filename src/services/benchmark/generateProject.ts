@@ -287,7 +287,7 @@ export function generateBenchmarkProject(size: number, opts: BenchmarkOptions = 
   let seqCounter = 0;
 
   const addEdge = (pi: number, si: number): boolean => {
-    if (pi < 0 || pi >= si) return false;
+    if (pi < 0 || pi >= si || si >= leafTaskIds.length) return false;
     const predecessorId = leafTaskIds[pi];
     const successorId = leafTaskIds[si];
     const key = `${predecessorId}>${successorId}`;
