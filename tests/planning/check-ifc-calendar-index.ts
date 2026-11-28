@@ -14,13 +14,11 @@ function same(label: string, actual: unknown, expected: unknown): void {
 for (const schema of IFC_SCHEMAS) {
   const data = ifcCalendarIndexFixture(40, 7);
   data.project.ifcSchema = schema;
-  // Een kalender zonder gebruikers schrijft geen lege control-relatie.
   data.resourceCalendars!.push({ ...data.calendar, id: 'ongebruikt', name: 'Ongebruikte kalender' });
   const before = JSON.stringify(data);
   const ifc = writeIFC(data);
   same(`${schema}: schrijven muteert de invoer niet`, JSON.stringify(data), before);
 
-  // Onafhankelijke STEP-parser: toets de relatievolgorde én de doelvolgorde aan de invoer.
   const entities = parseStep(ifc);
   const calendars = entities.filter(e => e.type === 'IFCWORKCALENDAR');
   const tasks = entities.filter(e => e.type === 'IFCTASK');
@@ -51,8 +49,6 @@ for (const schema of IFC_SCHEMAS) {
   }
 }
 
-// 393: Map gebruikt SameValueZero (NaN is een eigen sleutel), terwijl de oude ===-filter
-// beschadigde numerieke NaN-id's nooit koppelde. De tekst "NaN" blijft een gewone geldige id.
 for (const schema of IFC_SCHEMAS) {
   for (const invalid of [true, false]) {
     const data = ifcCalendarIndexFixture(2, 1);
@@ -83,8 +79,6 @@ for (const schema of IFC_SCHEMAS) {
   }
 }
 
-// Tel de echte kalenderlezingen in de volledige schrijver; geen tijdsgrens die van de runner afhangt.
-// De oude lus deed bij 64 kalenders meer dan 64 lezingen per taak/resource.
 for (const calendarCount of [0, 1, 64]) {
   const data = ifcCalendarIndexFixture(512, calendarCount);
   let reads = 0;
@@ -101,7 +95,6 @@ for (const calendarCount of [0, 1, 64]) {
   same(`${calendarCount} kalenders: kalenderlezingen ${reads} blijven binnen lineair budget ${limit}`, reads <= limit, true);
 }
 
-// Een nieuwe schrijfronde moet nieuwe toewijzingen zien; er blijft geen index tussen saves hangen.
 {
   const data = ifcCalendarIndexFixture(20, 2);
   writeIFC(data);

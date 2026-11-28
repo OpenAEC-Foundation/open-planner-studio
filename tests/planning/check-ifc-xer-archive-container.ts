@@ -1,5 +1,3 @@
-// X9 — IFC-container voor het zelfstandige XER-bronarchief. Geen reader-mock: echte STEP-tekst
-// gaat door writeIFC én readIFC. De bron is geldige XER, want schema 2 reconstrueert daaruit.
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { archiveDropped } from './xerArchiveFallbackAssert';
@@ -63,15 +61,10 @@ if (read.xerSourceArchive) {
     && read.xer.resources.assignments[0]?.sourceId === 'AS'
     && read.xer.resources.assignments[0]?.rawRow.cells.taskrsrc_id === 'AS');
 }
-// Eigenaarsbesluit 2026-09-24 ("openen met melding"): een onbruikbaar archief GIJZELT het project
-// niet meer. Elke case hieronder eist het VOLLEDIGE terugvalcontract (`archiveDropped`): project
-// opent, álle archiefafgeleiden weg, en een verplicht `xerArchiveIssue` met code + validatorreden.
-// Vroeger heetten deze helpers `rejectsArchive*` en eisten ze een `IfcParseError`.
 const droppedFailures: string[] = [];
 const dropsArchiveWith = (value: string, fragment?: string, code?: XerArchiveIssueCode) => {
   const verdict = archiveDropped(() => readIFC(value), { fragment, code });
   if (!verdict.ok) droppedFailures.push(verdict.why);
-  // Het project zelf moet volledig openen: de ene archieftaak is er gewoon.
   return verdict.ok && verdict.result?.tasks.some(task => task.name === 'Archieftaak') === true;
 };
 const replaceIntegerProperty = (content: string, name: string, value: number) => content.replace(
@@ -140,10 +133,6 @@ const duplicateRelation = ifc.replace(
 expect('15 dubbele propertyrelatie naar het archief ⇒ structure',
   dropsArchiveWith(duplicateRelation, 'hangt niet één-op-één', 'structure'));
 
-// ── Per foutcode één gerichte case (eigenaarsbesluit 2026-09-24) ─────────────────────────────
-/** Verwijder properties (op naam) uit een pset — zoals een herschrijvend IFC-programma dat grote
- *  tekstwaarden laat vallen. De property-entiteiten zelf blijven staan (wees-entiteiten zijn
- *  onschuldig en precies wat zulke software achterlaat). */
 const dropPsetProperties = (content: string, psetName: string, drop: (name: string) => boolean) => {
   const lines = content.split('\n');
   const nameByRef = new Map<string, string>();
@@ -169,16 +158,12 @@ const withoutArchivePset = ifc.replace(`${archiveRelation}\n`, '').replace(`${ar
 expect('18a FOUTCODE bytes-missing: archief-pset weg, selector (OPS_XerDocument) bleef staan',
   !withoutArchivePset.includes("'OPS_XerSourceArchive'")
   && dropsArchiveWith(withoutArchivePset, 'zonder OPS_XerSourceArchive', 'bytes-missing'));
-// Critreview archief-fallback (a): de omgekeerde richting van 18a — de selector-pset
-// (OPS_XerDocument) is weg bij een verder geldig archief. Ook dan valt het archief weg mét signaal;
-// zonder de selectorregel in `extractXerSourceProjectId` zou het archief stil zonder project blijven.
 const selectorPsetLine = ifc.split('\n').find(line => line.startsWith(`#${selectorSetId}=`))!;
 const withoutSelectorPset = ifc.replace(`${selectorRelation}\n`, '').replace(`${selectorPsetLine}\n`, '');
 expect('18b FOUTCODE structure: selector (OPS_XerDocument) weg, archief-pset geldig',
   !withoutSelectorPset.includes("'OPS_XerDocument'") && withoutSelectorPset.includes("'OPS_XerSourceArchive'")
   && dropsArchiveWith(withoutSelectorPset, 'selector ontbreekt', 'structure'));
 {
-  // Critreview archief-fallback (b): het detail is begrensd, ook bij een reusachtige foutmelding.
   const verdict = archiveDropped(
     () => readIFCRaw(ifc, {}, { reconstructXerArchive: () => { throw new Error(`lang${'y'.repeat(20_000)}`); } }),
     { code: 'metadata-invalid', fragment: 'lang' },
@@ -189,9 +174,6 @@ expect('18b FOUTCODE structure: selector (OPS_XerDocument) weg, archief-pset gel
     && (verdict.result?.xerArchiveIssue?.detail.length ?? 0) >= 400);
 }
 {
-  // Metadata onparseerbaar: de bytes kloppen (hash ok), maar de afleiding eruit faalt. In productie is
-  // dat de reconstructie (`readXER` over de geverifieerde bytes); hier geïnjecteerd, zodat de case
-  // niet afhangt van welke rommel `readXER` toevallig nog accepteert.
   const verdict = archiveDropped(
     () => readIFCRaw(ifc, {}, { reconstructXerArchive: () => { throw new Error('leesmodel kapot'); } }),
     { code: 'metadata-invalid', fragment: 'leesmodel kapot' },
@@ -201,7 +183,6 @@ expect('18b FOUTCODE structure: selector (OPS_XerDocument) weg, archief-pset gel
 }
 expect('20 een bruikbaar archief draagt nooit een xerArchiveIssue', read.xerArchiveIssue === undefined);
 {
-  // Aanroepercontract blijft hard: de synchrone ingang zonder reconstructor is geen bestandsfout.
   let contractThrow = false;
   try { readIFCRaw(ifc); } catch (error) {
     contractThrow = error instanceof IfcParseError && error.reason === 'xer-source-archive';
@@ -215,9 +196,6 @@ expect('16 geldige oudere IFC zonder XER-Psets blijft legacy-compatibel (en zond
   legacyRead.xerSourceArchive === undefined && legacyRead.xerSourceProjectId === undefined && legacyRead.xer === undefined
   && legacyRead.xerArchiveIssue === undefined);
 
-// Review PR #109, N3: een Arabische (cp1256) XER krijgt archiefcodering windows-1256. Die moet de
-// IFC-ronde overleven: de compacte container reconstrueert het archief uit de bytes, dus de
-// archiefvalidator (`validateTableReport`) moet de nieuwe codering kennen.
 {
   const cp1256 = new TextDecoder('windows-1256');
   const byChar = new Map<string, number>();

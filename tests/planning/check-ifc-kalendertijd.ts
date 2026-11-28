@@ -1,5 +1,3 @@
-// Bron: Terra's gewone-opslagproef bij #886, periode-0730.ifc (zonder bouwmodel).
-// Test de echte store-openactie en saveFile, met een geheugenhandle op de bestandsnaad.
 import { readFileSync, readdirSync } from 'node:fs';
 import { installBrowserStubs, installDeterminism } from './ifcPariteitKern';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -31,16 +29,11 @@ function eq(label: string, got: unknown, want: unknown) {
 function hasSourceClocks(text: string | undefined, start: string, end: string): boolean {
   return !!text && text.includes(`IFCTIMEPERIOD('${start}',`) && text.includes(`,'${end}');`);
 }
-/** Alleen één ongewijzigde hele scalarperiode mag bewust haar bronklok houden. */
 function literalWholePeriod(cal: WorkCalendar): string | undefined {
   const record = cal.ifcTimePeriods?.find(p => p.binding === 'scalar');
   return !cal.workTime && record?.scalarStart === cal.workStartHour && record.scalarEnd === cal.workEndHour
     ? `IFCTIMEPERIOD('${record.startText}','${record.endText}')` : undefined;
 }
-/** Zonder OPS-begin-, eind- en kalendermarkering moeten dezelfde werkblokken overblijven.
- * Een letterlijke uitzondering is aan de GlobalId van één kalender en haar enige standaardperiode gebonden.
- * De overige kalenders én alle werkende uitzonderingen worden ook dan volledig gecontroleerd.
- */
 function checkWrittenCalendar(label: string, text: string, wanted: WorkCalendar, literalPeriod?: string,
   wantedCalendars?: readonly WorkCalendar[]) {
   const marked = readIFC(text);
@@ -68,7 +61,6 @@ function checkWrittenCalendar(label: string, text: string, wanted: WorkCalendar,
     if (entity === undefined || !gotCal) continue;
     eq(`${calLabel}: werkdagen blijven gelijk`, [...gotCal.workDays].sort(), [...cal.workDays].sort());
     eq(`${calLabel}: vrije uitzonderingen blijven gelijk`, gotCal.holidays ?? [], cal.holidays ?? []);
-    // De gewone writer schrijft een onbegrensde wekelijkse herhaling. Ook bij bronklokken blijft die toets staan.
     const rawDays = new Set<number>();
     for (const workTime of ix.refsAt(entity, 6)) {
       const args = ix.argTokens(workTime)!, recurrence = ix.argTokens(ix.refAt(workTime, 3))!;
@@ -87,14 +79,11 @@ function checkWrittenCalendar(label: string, text: string, wanted: WorkCalendar,
       eq(`${calLabel}: die periode is letterlijk de bronperiode`, refs.length === 1
         && `${ix.type(refs[0])}(${(ix.argTokens(refs[0]) ?? []).join(',')})` === literalPeriod, true);
     } else {
-      // Zonder .T. kan de lezer een enkele band scalair noemen en oude, inactieve pauzevelden activeren.
-      // Voor een expliciete kalender toetsen we daarom de geregistreerde standaardbanden zelf.
       const got = cal.workTime ? getCalendarBands(gotCal)?.canonical : effectiveWorkTimeBands(gotCal);
       const bands = effectiveWorkTimeBands(cal);
       for (const day of [1, 2, 3, 4, 5, 6, 7] as const) compareBands(`${calLabel} zonder OPS-markeringen dag ${day}`,
         got?.byWeekday[day] ?? [], bands?.byWeekday[day] ?? []);
     }
-    // Lees de echte uitzonderingsperioden rechtstreeks: een niet-passende OPS-inhoudssleutel mag ze niet verbergen.
     const exceptions = ix.refsAt(entity, 7).filter(w => periodRefs(w).length > 0).map(w => {
       const args = ix.argTokens(w)!;
       return { name: str(args[0]), startDate: str(args[4]).slice(0, 10), endDate: str(args[5]).slice(0, 10),
@@ -135,8 +124,6 @@ function memoryFile(initial: string) {
   return { handle, writes };
 }
 
-// Synthetische vreemde kloktekst: ongeldig als IfcTime, maar geldig gequote STEP.
-// Bronbewaring mag na een gewone taakbewerking geen kapot bestand schrijven.
 for (const [start, end] of [
   ["07:30:00''x", '16:00:00'],
   ['07:30:00', "16:00:00''y"],
@@ -182,7 +169,6 @@ for (const [start, end, startHour, endHour] of [
   const saved = file.writes[0];
   const back = readIFC(saved);
   eq(`${start}: opgeslagen kalender`, [back.calendar.workStartHour, back.calendar.workEndHour], [startHour, endHour]);
-  // Controleer ook de standaard-IFC-periode: OPS-metadata mag een verkeerde klok niet maskeren.
   const canonicalStart = start === '7.5:00:00' ? '07:30:00' : start;
   const canonicalEnd = end === '16.75:00:00' ? '16:45:00' : end;
   eq(`${start}: standaardveld`, hasSourceClocks(saved, canonicalStart, canonicalEnd), true);
@@ -191,12 +177,8 @@ for (const [start, end, startHour, endHour] of [
   eq(`${start}: opnieuw geopend`, [reopened.getState().calendar.workStartHour, reopened.getState().calendar.workEndHour], [startHour, endHour]);
 }
 
-// Werkelijk geschreven door d783 (Terra-proef) én release v2026.8.1 (af71257f8).
-// De releasewriter draaide ongewijzigd met weekbanden 450,5–960 minuten, zonder taken.
 for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfractie-v2026.8.1.ifc']) {
   const old = readFileSync(new URL(`./fixtures/${fixture}`, import.meta.url), 'utf8');
-  // De latere writer kon dezelfde bandenvorm voor een gematerialiseerde dagkalender
-  // gebruiken. Een expliciete scalaire markering blijft beslissend.
   if (fixture === 'periode-oude-minuutfractie.ifc') {
     const scalar = old.replace("'IsHourCalendar',$,IFCBOOLEAN(.T.)", "'IsHourCalendar',$,IFCBOOLEAN(.F.)");
     eq('oude minuutfractie respecteert scalaire markering', readIFC(scalar).calendar.workTime, undefined);
@@ -213,8 +195,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   }
 }
 
-// De oude scalaire dag had 8 netto uren binnen een te korte klokspanne: de
-// bestaande minuutmigratie verlengt die bij openen, zonder plannerbewerking.
 {
   const input = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
   const file = memoryFile(input);
@@ -229,7 +209,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   }
 }
 
-// 1120: het kalenderherstel mag de ongewijzigde bronklok niet vervangen.
 {
   const input = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
   const original = "IFCTIMEPERIOD('9.123456:00:00','16:00:00')";
@@ -274,7 +253,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   eq('1120: tweede opslag houdt letterlijk 16:00', againFile.writes[0].includes(original), true);
   checkWrittenCalendar('1120 tweede opslag', againFile.writes[0], again.getState().calendar, original);
 
-  // Tweede generatie: het verschil tussen bronklok en effectief einde overleeft de eerste opslag.
   for (const example of [
     { label: 'pauze 16:45 en begin 16:30', patches: [{ simpleBreakStartMinute: 1005 }, { workStartHour: 16.5 }], start: '16:30:00' },
     { label: 'begin 10:00', patches: [{ workStartHour: 10 }], start: '10:00:00' },
@@ -302,7 +280,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
   }
 
-  // De afleiding en validatie van het kalenderformulier, gevolgd door de echte opslagactie.
   const changeEnd = (end: number) => {
     const current = store.getState().calendar, patch = { workEndHour: end };
     eq('1120: einde is volgens het formulier geldig', scalarTimesValid(current, patch), true);
@@ -332,8 +309,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   store.getState().switchDocument(originalId);
   eq('1120: documentwissel houdt kalender en koppeling', [effective(store.getState().calendar), binding(store.getState().calendar)], [effective(returned), binding(returned)]);
 
-  // De bronfixture heeft geen taken. Eén dagtaak in dezelfde oude IFC maakt ook B5 en de kern toetsbaar.
-  // Kale datums laten de scalaire kalender intact, zodat T1 werkelijk loopt vóór de berekening.
   const taskLines = [
     "#80010=IFCTASKTIME('Herstel Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M1D','2027-03-01','2027-03-01','2027-03-01','2027-03-01','2027-03-01','2027-03-01','P0Y0M0D','P0Y0M0D',.T.,$,$,$,$,'P0Y0M1D',$);",
     "#80011=IFCTASK('1tOTGtWTg8bYqp7BjjuF0J',#6,'Herstel',$,$,'1',$,$,$,.F.,$,#80010,.LOGISTIC.);",
@@ -371,8 +346,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     eq(`1120 crashherstel ${active}: klokherkomst volgt dezelfde code`, binding(recovered.getState().calendar)?.scalarEnd, before.workEndHour);
     eq(`1120 crashherstel ${active}: opslag behoudt bronklok`, writeIFC(buildWriteIFCInput(recovered.getState(), 'planOnly')).includes(original), true);
   }
-  // Dezelfde opzet als Terra: eerst openen en herstellen, daarna de taak als urenmaat klaarzetten.
-  // De pauzebewerking zelf loopt door de echte formulierafleiding, validatie en kalenderactie.
   for (const pause of [false, true]) {
     const label = `1120 uurtaak ${pause ? 'pauze 16:30–16:45' : 'één hele werkdag'}`;
     const file = memoryFile(withTask), store = createAppStoreContext().store;
@@ -403,7 +376,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     checkWrittenCalendar(label, saved, wanted, pause ? undefined : original);
     console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
   }
-  // Fixronde 5: een bewaarde oude bandklok mag de scalaire markering niet laten vervallen.
   for (const example of [
     { label: 'Sol minuutfractie', end: '15:30.5:00', hourTask: false, matching: false },
     { label: 'Sol minuutfractie met uurtaak', end: '15:30.5:00', hourTask: true, matching: false },
@@ -414,7 +386,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     let source = input.replace("'9.123456:00:00','16:00:00'", `'08:00:00','${example.end}'`)
       .replace('(#36));', "(#36,#80013));\n#80013=IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$);");
     if (example.matching) {
-      // De expliciete nulpauze voorkomt dat T1 450,5 netto minuten naar 451 afrondt.
       source = source.replace("'HoursPerDay',$,IFCREAL(8)", "'WorkEndHour',$,IFCREAL(15.508333333333333)")
         .replace('(#36,#80013));', "(#36,#80013,#80014));\n#80014=IFCPROPERTYSINGLEVALUE('SimpleBreakDuration',$,IFCREAL(0),$);");
     }
@@ -439,7 +410,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     eq(`${label}: bronperiode letterlijk`, hasSourceClocks(saved, '08:00:00', example.end), true);
     const scalarMark = "IFCPROPERTYSINGLEVALUE('IsHourCalendar',$,IFCBOOLEAN(.F.),$)";
     eq(`${label}: markering bij oude bandklok of uurtaak`, saved.includes(scalarMark), example.end === '15:30.5:00' || example.hourTask);
-    // Bewust de hele bronperiode: de effectieve eindwaarde staat daarnaast in OPS_Calendar.
     const sourcePeriod = `IFCTIMEPERIOD('08:00:00','${example.end}')`;
     checkWrittenCalendar(label, saved, wanted, sourcePeriod);
     const againFile = memoryFile(saved), again = createAppStoreContext().store;
@@ -447,8 +417,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     eq(`${label}: volledig heropenen behoudt scalaire werkdag en blokken`, view(again.getState().calendar), view(wanted));
     await again.getState().saveFile();
     eq(`${label}: tweede generatie schrijft eenmaal`, againFile.writes.length, 1);
-    // Bij seconden voegt de bestaande lezer bij heropenen een expliciete nulpauze toe.
-    // De gelijkheid van kalenderbytes is hier vereist voor de oude bandklok van proef 1.
     if (againFile.writes[0] && example.end === '15:30.5:00') {
       eq(`${label}: tweede generatie dezelfde kalenderbytes`, calendarBytes(againFile.writes[0]), calendarBytes(saved));
     }
@@ -488,7 +456,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   } else console.log('1120 merge weigert', JSON.stringify(result.error.cases));
 }
 
-// Fixronde 4: een klein laatste blok mag door bronbehoud geen nachtdienst worden.
 {
   const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
   let input = old.replace("'9.123456:00:00'", "'8.000000000000004:00:00'")
@@ -525,7 +492,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   }
 }
 
-// 1120, fixronde 1: een herstelde eindklok hoort bij de hele oorspronkelijke periode.
 {
   const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
   const effectiveEnd = '17:07:24.44159999999556';
@@ -533,7 +499,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
     { label: 'Terra pauze 16:45 en begin 16:30', patches: [{ simpleBreakStartMinute: 1005 }, { workStartHour: 16.5 }], end: effectiveEnd, start: '16:30:00', bare: true },
     { label: 'begin 10:00', patches: [{ workStartHour: 10 }], end: effectiveEnd, start: '10:00:00', bare: true },
     { label: 'einde 18:00', patches: [{ workEndHour: 18 }], end: '18:00:00', start: '9.123456:00:00', bare: true },
-    // Alleen hoursPerDay verplaatst in simpleBreakPatch geen grens; de dialoog toont netto uren als uitvoer.
     { label: 'alleen uren per dag', patches: [{ hoursPerDay: 7 }], end: '16:00:00', start: '9.123456:00:00', bare: false },
     { label: 'alleen pauzeduur', patches: [{ simpleBreakDurationMinutes: 30 }], end: '16:00:00', start: '9.123456:00:00', bare: false },
     { label: 'gewone bronklok per kant', patches: [{ workStartHour: 10 }], end: '17.5:00:00', start: '10:00:00', bare: true },
@@ -570,7 +535,6 @@ for (const fixture of ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfra
   }
 }
 
-// Gewone klokken blijven gewone klokken bij een andere laatste decimaal in WorkEndHour.
 for (const zone of ['', '+01:00']) {
   const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
   const end = `16:20:00${zone}`;
@@ -590,7 +554,6 @@ for (const zone of ['', '+01:00']) {
   eq(`${label}: opslag weigert niet`, file.writes.length, 1);
   const saved = file.writes[0];
   if (!saved) continue;
-  // Zonder zone is er geen bronrecord: daar schrijft de bestaande exacte klokschrijver, zoals main.
   const writtenEnd = zone ? end : '16:20:00.000000000006821210263296962';
   eq(`${label}: eindklok zoals main`, hasSourceClocks(saved, '10:00:00', writtenEnd), true);
   checkWrittenCalendar(label, saved, before);
@@ -602,7 +565,6 @@ for (const zone of ['', '+01:00']) {
   console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
 }
 
-// Fixronde 3: de oude minuutbreuk en WorkEndHour kunnen via verschillende rekenwegen binnenkomen.
 for (const zone of ['', '+01:00']) {
   const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
   const end = `15:45.21243617592245:00${zone}`;
@@ -633,7 +595,6 @@ for (const zone of ['', '+01:00']) {
   console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
 }
 
-// Een echt, maar kleiner herstel dan de grens mag dezelfde bronklok houden, ook bij een beginbewerking.
 for (const changeStart of [false, true]) {
   const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
   const end = '15.999999999999998:00:00';
@@ -664,8 +625,6 @@ for (const changeStart of [false, true]) {
   console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
 }
 
-// Ook na een beginbewerking blijven een nachtperiode en 24:00 dezelfde periode.
-// Dit zijn expliciete werkblokken: de scalarvelden kunnen geen nachtdienst invoeren.
 for (const end of ['02:00:00', '24:00:00']) {
   const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
   const input = old.replace("'9.123456:00:00'", "'22:00.0:00'").replace("'16:00:00'", `'${end}'`)
@@ -678,7 +637,6 @@ for (const end of ['02:00:00', '24:00:00']) {
   eq(`${label}: heeft bronrecord met letterlijke eindklok`, current.ifcTimePeriods?.some(p => p.endText === end), true);
   const bands = structuredClone(current.workTime!);
   for (const day of current.workDays) for (const band of bands.byWeekday[day as 1]) band.start = 23 * 60;
-  // Dezelfde afleiding als CalendarForm.applyBands; opslaan via de echte kalenderactie.
   const draft = { ...current, workTime: bands, hoursPerDay: hoursPerDayForBlocks(current, current, bands),
     workDays: workDaysFromBands(bands), simpleBreakStartMinute: undefined, simpleBreakDurationMinutes: undefined };
   eq(`${label}: echte kalenderactie`, store.getState().commitCalendarLibrary(
@@ -695,7 +653,6 @@ for (const end of ['02:00:00', '24:00:00']) {
   console.log(label, saved.split('\n').filter(l => l.includes('=IFCTIMEPERIOD(')).join(' | '));
 }
 
-// 1124: een tegenstrijdige bron met 24 seconden verschil heeft geen zone voor het effectieve einde.
 for (const zone of ['', '+01:00']) {
   const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
   const input = old.replace("'9.123456:00:00'", "'08:00:00'").replace("'16:00:00'", `'16:20:00${zone}'`)
@@ -730,7 +687,6 @@ for (const zone of ['', '+01:00']) {
     [wanted.workStartHour, wanted.workEndHour, wanted.hoursPerDay]);
 }
 
-// Zonder bronrecord blijft de bestaande exacte klokschrijver beslissend, zoals main.
 {
   const old = readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8');
   const file = memoryFile(old), store = createAppStoreContext().store;
@@ -753,7 +709,6 @@ for (const zone of ['', '+01:00']) {
   }
 }
 
-// Een expliciete middagpauze blijft effectief, ook als alleen de bronstart seconden krijgt.
 {
   const withSeconds = source.replace(period, "IFCTIMEPERIOD('07:00:01','16:00:00')");
   const file = memoryFile(withSeconds);
@@ -774,7 +729,6 @@ for (const zone of ['', '+01:00']) {
   }
 }
 
-// Dezelfde numerieke klok op zaterdag is geen bron voor een maandagbewerking.
 {
   const input = source.replace(period, "IFCTIMEPERIOD('07:30:01Z','16:00:00Z')")
     .replace(',$,$,(#19),', ',$,$,(#19,#9003),')
@@ -790,8 +744,6 @@ for (const zone of ['', '+01:00']) {
   eq('zonebewerking blijft zichtbaar', store.getState().calendar.workTime?.byWeekday[1][0].start, 510 + 1 / 60);
 }
 
-// Positie is geen identiteit: verwijderen, invoegen en kopiëren mogen de
-// bronzone van een overgebleven of gekopieerd tijdvak niet stil wegschrijven.
 for (const edit of ['verwijderen', 'invoegen', 'kopiëren'] as const) {
   const input = readFileSync(new URL('./fixtures/periode-oude-minuutfractie.ifc', import.meta.url), 'utf8')
     .replace("IFCTIMEPERIOD('07:30.5:00','16:00:00')", "IFCTIMEPERIOD('07:00:00','12:00:00')")
@@ -812,7 +764,6 @@ for (const edit of ['verwijderen', 'invoegen', 'kopiëren'] as const) {
     if (edit === 'verwijderen') week[1] = week[1].filter((_, i) => i !== 0);
     if (edit === 'invoegen') week[1] = [{ start: 300, end: 360 }, ...week[1]];
     if (edit === 'kopiëren') {
-      // Na verwijderen: dezelfde spread-kopie naar alle werkdagen als de editor.
       const src = week[1].filter((_, i) => i !== 0).map(b => ({ ...b }));
       for (const day of [1, 2, 3, 4, 5] as const) week[day] = src.map(b => ({ ...b }));
     }
@@ -827,7 +778,6 @@ for (const edit of ['verwijderen', 'invoegen', 'kopiëren'] as const) {
   eq(`${edit}: bestaande opslagmelding`, store.getState().ui.notifications.some(n => n.messageKey === 'notifications.saveFailed'), true);
   const untouched = readIFC(file.writes[0]);
   eq(`${edit}: vorige opslag heropent met dezelfde banden`, untouched.calendar.workTime, original);
-  // De planner kan de bewerking terugnemen en daarna gewoon opslaan.
   store.setState(state => { state.calendar.workTime = structuredClone(original); });
   await store.getState().saveFile();
   eq(`${edit}: teruggenomen bewerking schrijft weer`, file.writes.length, previousWrites + 1);
@@ -835,7 +785,6 @@ for (const edit of ['verwijderen', 'invoegen', 'kopiëren'] as const) {
   eq(`${edit}: zone blijft na heropenen en opnieuw opslaan`, hasSourceClocks(file.writes.at(-1), '13:00:01+01:00', '16:00:00+01:00'), true);
 }
 
-// Een echte, zelfs zeer kleine wijziging mag nooit de oude bronklok terugkrijgen.
 {
   const text = readFileSync(new URL('./fixtures/periode-oude-minuutfractie.ifc', import.meta.url), 'utf8').replace("'07:30.5:00'", "'07:30:00.000000001'");
   const parsed = readIFC(text);
@@ -865,8 +814,6 @@ for (const edit of ['verwijderen', 'invoegen', 'kopiëren'] as const) {
   }
 }
 
-// Ook een bewerkte scalaire klok houdt zijn volledige getalwaarde. De bestaande
-// IFCREAL-metadata bewaart zo nodig meer precisie dan de afgeleide uurwaarde.
 {
   const parsed = readIFC(source.replace(period, "IFCTIMEPERIOD('07:30:00.000000001','16:00:00')"));
   parsed.calendar.workStartHour += Number.EPSILON * 8;
@@ -876,7 +823,6 @@ for (const edit of ['verwijderen', 'invoegen', 'kopiëren'] as const) {
   checkWrittenCalendar('bewerkte scalaire klok', saved, parsed.calendar);
 }
 
-// De andere kalenderlussen moeten dezelfde kloklezing gebruiken.
 const shapes = [
   ['pauze', (text: string) => text.replace('(#17));', '(#17,#9001));')
     .replace('ENDSEC;\nEND-ISO', "#9001=IFCTIMEPERIOD('17:15:00','18:45:00');\nENDSEC;\nEND-ISO")],
@@ -898,14 +844,11 @@ for (const [shape, transform] of shapes) {
     eq(`${shape}: gewone opslag behoudt minuten`, file.writes[0]?.includes("IFCTIMEPERIOD('07:30:00','16:00:00')"), true);
     eq(`${shape}: heropenen behoudt banden`, readIFC(file.writes[0]).calendar.workTime, imported.calendar.workTime);
   }
-  // Vervang de extra periode, zodat juist de tweede band/patroon/uitzondering wordt getoetst.
   const seconds = input.replace(/(#9001=IFCTIMEPERIOD\('\d\d:\d\d:)00/, '$101');
   eq(`${shape}: secondenfixture gewijzigd`, seconds !== input, true);
   eq(`${shape}: seconden openen`, readIFC(seconds).tasks.length, imported.tasks.length);
 }
 
-// Eigen OPS-bestanden blijven zonder plannerbewerking gewoon openen en opslaan.
-// Een externe applicatiemarkering doorloopt dezelfde controle.
 for (const own of [true, false]) {
  for (const scalarMark of [false, true]) {
  for (const [start, end] of [['07:30:01', '16:00:00'], ['07:15:00', '16:45:30'], ['07:15:00.5', '16:45:00'], ['07:15:00.123', '16:45:00'], ['07:30:01Z', '16:00:00Z'], ['07:30:00.0001+01:00', '16:00:00+01:00'], ['07:30:00.000000001', '16:00:00'], ['07:30:00.000000000000000001', '16:00:00']] as const) {
@@ -945,8 +888,6 @@ for (const name of [...readdirSync(new URL('./fixtures/oude-tags/', import.meta.
   eq(`${name}: eigen bestand schrijft zonder bewerken`, file.writes.length, 1);
 }
 
-// Daadwerkelijke d783-writeruitvoer: de oude inhoudssleutel gebruikt dezelfde
-// minuutfractie als de standaardperiode. De uitzondering moet werkend blijven.
 {
   const input = readFileSync(new URL('./fixtures/kalendertijd-oud/werkende-uitzondering.ifc', import.meta.url), 'utf8');
   const expected = [{ name: 'Werkzaterdag', startDate: '2027-05-01', endDate: '2027-05-01', bands: [{ start: 510.5, end: 720 }] }];
@@ -972,7 +913,6 @@ for (const name of [...readdirSync(new URL('./fixtures/oude-tags/', import.meta.
   eq('oude uitzondering: kalenderstart gewijzigd', back.calendar.workStartHour, 8);
   eq('oude uitzondering: bewerking heropent werkend', back.calendar.workingExceptions, expected);
   eq('oude uitzondering: bronklokken behouden', hasSourceClocks(file.writes.at(-1), '08:30.5:00', '12:00:00'), true);
-  // V1 blijft expliciet en leidend: geen impliciete werkdag op alleen een recurrence.
   const marker = input.split('\n').find(line => line.includes("('WorkingExceptionKeysV1',"))!;
   const emptyMarker = input.replace(marker, marker.replace(/IFCTEXT\('.*'\)/, "IFCTEXT('[]')"));
   eq('oude uitzondering: lege V1 valt niet terug op legacy ids', readIFC(emptyMarker).calendar.workingExceptions ?? [], []);
@@ -981,8 +921,6 @@ for (const name of [...readdirSync(new URL('./fixtures/oude-tags/', import.meta.
   eq('oude uitzondering: niet-passende inhoudssleutel blijft afgewezen', readIFC(changedPeriod).calendar.workingExceptions ?? [], []);
 }
 
-// Werkelijke eigen schrijfvormen: alle normale werktijdbewerkingen blijven
-// opslaanbaar. Undo/redo gebruiken de echte store-acties, geen directe terugzet.
 const ownInputs: [string, string][] = ['periode-oude-minuutfractie.ifc', 'periode-oude-minuutfractie-v2026.8.1.ifc', 'periode-oude-scalarfractie-v2026.8.1.ifc', 'kalendertijd-oud/werkende-uitzondering.ifc']
   .map(name => [name, readFileSync(new URL(`./fixtures/${name}`, import.meta.url), 'utf8')]);
 for (const [name, seconds] of [['eigen-minuten', 0], ['eigen-milliseconden', 0.123], ['eigen-fijnere-decimale-seconden', 0.000000001]] as const) {
@@ -994,7 +932,7 @@ for (const [name, seconds] of [['eigen-minuten', 0], ['eigen-milliseconden', 0.1
     { start: 435 + seconds / 60, end: 720 + seconds / 60 }, { start: 780 + seconds / 60, end: 1005 + seconds / 60 },
   ];
   own.calendar.workingExceptions = [{ name: 'Eigen werkzaterdag', startDate: '2027-05-01', endDate: '2027-05-01', bands: [{ start: 480 + seconds / 60, end: 720 + seconds / 60 }] }];
-  ownInputs.push([name, writeIFC(own)]); // echte huidige schrijver; geen tekstmutatie.
+  ownInputs.push([name, writeIFC(own)]);
 }
 const shape = (cal: WorkCalendar) => ({
   workDays: cal.workDays, workStartHour: cal.workStartHour, workEndHour: cal.workEndHour, hoursPerDay: cal.hoursPerDay,
@@ -1066,7 +1004,6 @@ for (const [name, text] of ownInputs) {
 }
 console.log(`Eigen werktijdroutes: ${ownRoutes} bewerkingen, elk met echte undo en redo`);
 
-// E25: ook een bron-beginklok met tijdzone blijft na een eindbewerking onafhankelijk getoetst.
 {
   const text = source.replace(period, "IFCTIMEPERIOD('07:30:00+01:00','16:00:00')");
   const file = memoryFile(text), store = createAppStoreContext().store;
@@ -1088,7 +1025,6 @@ console.log(`Eigen werktijdroutes: ${ownRoutes} bewerkingen, elk met echte undo 
   }
 }
 
-// E25: een letterlijke projectperiode ontslaat een bewerkte resourcekalender niet van de controle.
 {
   const own = readIFC(readFileSync(new URL('./fixtures/periode-oude-scalarfractie-v2026.8.1.ifc', import.meta.url), 'utf8'));
   const resourceCalendar: WorkCalendar = { ...structuredClone(own.calendar), id: 'resource-proef', name: 'Resourcekalender',
@@ -1140,8 +1076,6 @@ console.log(`Eigen werktijdroutes: ${ownRoutes} bewerkingen, elk met echte undo 
   }
 }
 
-// Een bewerkte tijdzoneklok kan het model niet zelfstandig van een zone voorzien.
-// Weiger die opslag, in plaats van een bestaande tijdzone uit het bestand te wissen.
 const zoned = readFileSync(new URL('./fixtures/periode-oude-minuutfractie.ifc', import.meta.url), 'utf8')
   .replace("IFCTIMEPERIOD('07:30.5:00','16:00:00')", "IFCTIMEPERIOD('07:30:01Z','16:00:00Z')");
 const fineImport = readIFC(zoned);

@@ -196,36 +196,14 @@ def build(schema_name):
 tables = [build(name) for name in SCHEMAS]
 schema_union = ' | '.join(f"'{n}'" for n in SCHEMAS)
 
-print(f"""// GEGENEREERD door `scripts/ifc-schema-table.py` uit de EXPRESS-schema's {', '.join(SCHEMAS)}
-// zoals IfcOpenShell {ifcopenshell.version} ze meelevert (IFC4X3_ADD2 = IFC 4.3.2.0, ISO 16739-1:2024). Niet met
-// de hand bewerken: pas `OPS_ENTITIES` in het script aan en genereer opnieuw (zie de kop van het script).
-//
-// Eén tabel per schema; de poort kiest hem op `FILE_SCHEMA` in de kop van het bestand.
-// Per entiteit de attributen in STEP-volgorde (supertypen eerst), als `Naam:code`. Codes:
-//   S tekst · R REAL · I INTEGER · N NUMBER · B BOOLEAN · L LOGICAL · X BINARY
-//   #=A|B verwijzing naar een entiteit van type A of B (de OPS-entiteiten die het attribuuttype of een
-//   subtype ervan zijn; leeg = geen enkele OPS-entiteit mag hier staan)
-//   G GlobalId (22 tekens uit het IFC-base64-alfabet, eerste teken 0-3) · DT IfcDateTime (met
-//   seconden) · DA IfcDate · TI IfcTime · DU IfcDuration (ISO 8601)
-//   E=A|B enumeratie met de toegestane literals (in de volgorde van het schema) · V=Select een select
-//   (zie `selects`)
-//   SET<min>:<code> / LIST<min>:<code> verzameling/lijst met minimaal <min> elementen (een SET
-//   zonder dubbele elementen) · R+ / I+ positief (`SELF > 0`, IfcPositive…) · * afgeleid (altijd `*`)
-//   een `?` aan het eind = OPTIONAL (mag `$` zijn).
-
-export type IfcSchemaTableId = {schema_union};
+print(f"""export type IfcSchemaTableId = {schema_union};
 
 export interface IfcSchemaTable {{
-  /** Attributen per entiteit, in STEP-volgorde. */
   attributes: Record<string, readonly string[]>;
-  /** Selects: mag een verwijzing (`refs`, naar welke OPS-entiteiten: `entities`) en welke getypeerde
-   *  waarden (`IFCxxx(...)`). */
   selects: Record<string, {{ refs: boolean; entities: readonly string[]; types: readonly string[] }}>;
-  /** Code van het onderliggende type per getypeerde waarde in een select (`IFCREAL` ⇒ `R`). */
   typedValueKind: Record<string, string>;
 }}
 
-/** De tabel per schema, de standaard (IFC4X3_ADD2) eerst. */
 export const IFC_SCHEMA_TABLES: Record<IfcSchemaTableId, IfcSchemaTable> = {{
 {chr(10).join(tables)}
 }};""")

@@ -1,19 +1,4 @@
 import './domStub';
-// Uren per dag van blokkenkalenders door IFC opslaan en heropenen, op echte XER's (OPS_XER_CORPUS).
-// De corpusloze toets van hetzelfde gedrag staat in `check-ifc-urenperdag-blokken.ts`.
-//
-// Gemeten vóór de fix (main 7ea3e8748), over alle 93 XER's van het corpus (88 te openen documenten): 11
-// kalenders in deze 4 bestanden hadden een `hoursPerDay` (P6 `day_hr_cnt`) die afwijkt van de klokuren van
-// hun blokken, en kwamen na IFC terug met de klokuren. Daardoor veranderde bij 1301 taken de dagwaarde
-// (`scheduleDuration`, de kolom Duur van de CSV-export) en in de P6- en MSPDI-export de uren per dag van de
-// kalender. De getoonde duur en de datums veranderden niet: de weergave en de motor rekenen bij een
-// uurkalender met de blokken.
-//
-// Per bestand, voor elk document: openen via de echte route (doorrekenen), opslaan als IFC, heropenen.
-//  - het aantal uurkalenders met een afwijkende `hoursPerDay` (gepind, zodat de toets ze echt raakt);
-//  - alle kalenders gelijk (naam, werkdagen, blokken, uren per dag);
-//  - alle taken: dagwaarde, minuten, getoonde duur (automatisch, dagen, uren) en datums gelijk;
-//  - de kalenderuren in de P6-export (`HoursPerDay/Week/Month`) en de MSPDI-export (`MinutesPerDay/Week`).
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -43,7 +28,6 @@ function same(label: string, got: unknown, want: unknown): void {
 interface Target {
   name: string;
   sha256: string;
-  /** Kalender-id's (over alle documenten) van uurkalenders met hoursPerDay ≠ klokuren van de blokken. */
   deviating: string[];
 }
 const TARGETS: Target[] = [
@@ -53,8 +37,6 @@ const TARGETS: Target[] = [
     deviating: ['597'] },
   { name: 'Hotel_Construction_TEC.xer', sha256: '9679599df9108bd3b31e755351c1543d1915b82a91445a3f1b0b9c9a3d1f86fe',
     deviating: ['597'] },
-  // A3040 (lopende taak op 100 % zonder werkelijk einde) telt sinds `IfcTask.Status` = 'STARTED' gewoon
-  // mee: hij blijft lopend en zijn datums blijven gelijk (check-ifc-lopend-100.ts).
   { name: 'p6_torture_test_v1.xer', sha256: '2a7732b5b99de2a5f40aab40e0af52757fbe68e5d4eda404a9a060fdc1be1140',
     deviating: ['CAL-02', 'CAL-03', 'CAL-04', 'CAL-05', 'RCAL-CRANE600', 'RCAL-SPECIALIST'] },
 ];
@@ -77,8 +59,6 @@ function openInStore(parsed: OpenedImport): DocumentPayload[] {
 }
 
 const calendarsOf = (p: DocumentPayload): WorkCalendar[] => [p.calendar, ...p.calendars];
-/** Alle kalenders als gesorteerde lijst, zonder ontdubbelen: de id's veranderen na IFC en de volgorde van
- *  de bibliotheek ook, maar elke kalender telt mee (een verloren tweeling maakt de lijst korter). */
 const calendarList = (p: DocumentPayload): string[] => calendarsOf(p).map((c) => JSON.stringify({
   name: c.name, workDays: c.workDays, hoursPerDay: c.hoursPerDay, workTime: c.workTime?.byWeekday ?? null,
 })).sort();
@@ -95,8 +75,6 @@ function taskView(p: DocumentPayload) {
     }];
   }));
 }
-/** Per P6-kalender naam + uren (gesorteerd: de volgorde van de bibliotheek na heropenen telt niet), plus
- *  de minuten per dag en per week van de MSPDI-export. */
 function exportHours(p: DocumentPayload): { p6: string[]; mspdi: string[] } {
   const p6 = writeP6XMLWithReport(p.project, p.calendar, p.tasks, p.sequences, p.resources, p.assignments,
     p.calendars, p.customTaskTypes).xml;
@@ -121,7 +99,6 @@ if (!existsSync(root)) {
   process.exit(1);
 }
 
-// De console van de exportschrijvers (meldingen over niet-exporteerbare opties) hoort niet in de log.
 const quiet = <T>(fn: () => T): T => {
   const warn = console.warn;
   console.warn = () => {};
