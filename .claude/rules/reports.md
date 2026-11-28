@@ -225,3 +225,5 @@ het gedeelde XObject en de tekst per blad staan in ADR 0383 en 0350, de renders 
 **Getallen in rapporten** (`src/utils/reportNumber.ts`): `docs/adr/0620-getallen-in-rapporten-latijnse-cijfers-en-bidi-markering.md`.
 **Besluiten van het Rapport-tabblad** (`src/components/panels/reportStudio/`):
 `docs/adr/0650-rapporttabblad-keuzes-die-verrassen.md`.
+**Besluiten in `ReportPanel.tsx`**: de export pas na de herberekening en de sleepzone buiten de kolom
+(`docs/adr/0691-rapportpaneel-export-na-herberekening-en-sleepzone.md`).

@@ -7,10 +7,6 @@ import type { ActivityEntry } from '@/services/mcp/contracts';
 import { useAppStore } from '@/state/appStore';
 import { createSnapshotStore, DashboardIconButton, DashboardPanel, formatClockTime } from './DashboardPanel';
 
-// AI-activiteitenpaneel. Rechterpaneel in dezelfde rail als de DebugTerminal, maar
-// gevoed door de eigen `activityLog`-ring-buffer i.p.v. de log-bus. Nieuwste aanroep boven; klik op
-// een regel klapt de volledige args/respons uit (monospace, scrollbaar). "Wissen" leegt de buffer.
-
 function formatDuration(ms: number): string {
   if (ms < 1000) return `${Math.round(ms)} ms`;
   return `${(ms / 1000).toFixed(2)} s`;
@@ -18,7 +14,6 @@ function formatDuration(ms: number): string {
 
 const activityStore = createSnapshotStore<ActivityEntry[]>(activityLog.getEntries(), activityLog.subscribe);
 
-/** Eén uitklapbare regel + geneste sub-stappen (batch). */
 function ActivityRow({ entry, depth = 0 }: { entry: ActivityEntry; depth?: number }) {
   const { t } = useTranslation('common');
   const [expanded, setExpanded] = useState(false);
@@ -109,7 +104,6 @@ export function AIActivityPanel() {
         </DashboardIconButton>
       </>}
     >
-      {/* Feed — nieuwste boven */}
       <div style={{ flex: 1, overflowY: 'auto' }}>
         {entries.length === 0 ? (
           <div style={{ padding: '10px 8px', color: 'var(--dashboard-text-dim)', fontStyle: 'italic' }}>

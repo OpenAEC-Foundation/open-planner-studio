@@ -8,17 +8,8 @@ import { canUndoScheduleShift } from '@/state/scheduleShift';
 import type { ShiftReason } from '@/engine/scheduler/shiftExplanation';
 import type { Task } from '@/types/task';
 
-/** Rijen per keer: een herberekening kan duizenden taken raken, en een lange lijst leest niemand. */
 const ROWS_PER_PAGE = 200;
 
-/**
- * Paneel Verschuivingen (#742): welke taken de laatste herberekening verschoof, en waarom. Een lijst,
- * geen overzicht: per taak het oude en nieuwe einde en de reden. Klik op een rij = de taak in de
- * Gantt tonen, via dezelfde `focusOnTask` als het Waarschuwingenpaneel.
- *
- * De lijst is een momentopname van die herberekening (`scheduleShift`). Latere bewerkingen veranderen
- * hem niet; alleen Ongedaan maken verdwijnt dan, want dat zou die bewerkingen meenemen.
- */
 export function ScheduleShiftPanel() {
   const { t, i18n } = useTranslation('common');
   const { t: tTask } = useTranslation('task');
@@ -140,7 +131,6 @@ export function ScheduleShiftPanel() {
                     {body}
                   </button>
                 ) : (
-                  // De taak is na de herberekening verwijderd: niets om naartoe te springen.
                   <div className="w-full text-left flex items-start gap-2 px-3 py-1.5" data-ops-shift-id={row.taskId}>
                     {body}
                   </div>
