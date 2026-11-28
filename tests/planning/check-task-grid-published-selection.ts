@@ -11,9 +11,14 @@ import { GHOST_ROW_KEY } from '@/engine/taskGrid/ghostRow';
 import type { ViewRow } from '@/engine/view/visibleRows';
 import type { Task } from '@/types/task';
 
+// Voer de ECHTE setSelection-updater uit, zonder een productie-API alleen voor tests te maken.
+// Een verplaatste/meervoudige callback faalt expliciet. De browsertest bewaakt React en toetsen.
 const source = readFileSync('src/components/task-grid/FullTaskGrid.tsx', 'utf8');
 const bodies = [...source.matchAll(/setSelection\(current => \{([\s\S]*?)\n    \}\);/g)];
 assert.equal(bodies.length, 1, 'precies één synchronisatie-updater in TaskGridSurface');
+// Issue #899: React voert de updater pas bij de volgende render uit, als de refs al op de nieuwe
+// rijen staan. Leest hij ze daar, dan kent de herstelregel de oude plek niet en springt de cursor
+// naar de bovenste rij. De updater mag dus alleen de vooraf vastgelegde waarden gebruiken.
 assert.ok(!/previous(Rows|Columns)Ref/.test(bodies[0][1]),
   'de synchronisatie-updater leest geen previousRowsRef/previousColumnsRef (die zijn dan al bijgewerkt)');
 const columns = [taskColumnId('task.name'), taskColumnId('task.time.scheduleDuration')];
@@ -46,6 +51,8 @@ assert.deepEqual(run(createEmptyGridSelection(), ['a', 'b'], 'b', rows),
   updateGridSelection(createEmptyGridSelection(), { ...first, rowKey: 'b' }, rows, columns, 'replace'));
 assert.deepEqual(run(createEmptyGridSelection(), [], null, createTaskGridRowIndex([])), createEmptyGridSelection());
 
+// Issue #899: de cursor stond op c (derde van vijf); c verdwijnt (ingeklapt of verwijderd) en de store
+// publiceert nog niets nieuws. De cursor gaat naar de rij op die plek (d), niet naar de bovenste.
 {
   const five = createTaskGridRowIndex(['a', 'b', 'c', 'd', 'e'].map(id => row(id)));
   const withoutC = createTaskGridRowIndex(['a', 'b', 'd', 'e'].map(id => row(id)));
@@ -55,6 +62,8 @@ assert.deepEqual(run(createEmptyGridSelection(), [], null, createTaskGridRowInde
   assert.equal(after.active?.columnId, columns[1], 'de kolom blijft');
 }
 
+// Alle kleine lijsten, inclusief lege lijsten, andere volgorde en asymmetrische duplicaten.
+// [a,a] tegenover [a,b] is bewust gelijk volgens het oude contract; de omkering is dat niet.
 const lists: string[][] = [[]];
 let level: string[][] = [[]];
 for (let length = 1; length <= 3; length++) {
@@ -77,6 +86,7 @@ for (const ids of lists) for (const published of lists) for (const active of ['c
   cases++;
 }
 
+// De tweede occurrence mag niet naar de eerste springen doordat de membershiptest te streng is.
 const grouped = createTaskGridRowIndex([
   { kind: 'group', rowKey: 'g1', key: 'g1', label: 'Een', count: 1, depth: 0, levelIndex: 0, collapsed: false },
   row('a', 'g1/a'),
@@ -107,6 +117,7 @@ for (const count of [1_000, 5_000, 10_000]) {
   });
   const result = run(current, published, current.activeTaskId, index);
   assert.equal(result, current, 'identieke selectie houdt exact dezelfde referentie');
+  // De proxy telt gelezen RHS-items, geen tijden: de oude includes-loop is deterministisch kwadratisch.
   assert.ok(reads <= count, `${count} ids: ${reads} RHS-lezingen overschrijden het lineaire budget`);
   budgets.push({ count, rhsReads: reads, outputSha256: createHash('sha256').update(JSON.stringify(result)).digest('hex') });
 }

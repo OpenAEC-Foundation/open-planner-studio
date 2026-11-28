@@ -12,9 +12,11 @@ korter door verwachtingen af te leiden of de keten over te slaan.
   de check toetst juist die dag.
 - `check-task-slice.ts` zet de taak op 5 januari 2015. Een terugval op vandaag kan daar niet toevallig de verwachte
   datum geven.
-- `check-progress-import.ts` deel 5 zet de percentages als tekst in een echt CSV-blad en leest ze met
+- `check-progress-import.ts` deel 5 zet de percentages als tekst in een blad en leest ze met `sheetFromText` en
   `finalizeProgressRows`, niet als handgebouwde `ProgressRow`. Uit "33,4" komt 0.33399999999999996 en niet 0.334, en
-  `isCompletionUnchanged` moet met de waarde van de lezer kloppen.
+  `isCompletionUnchanged` moet met de waarde van de lezer kloppen. `sheetFromText` loopt langs de gedeelde
+  kolomherkenning (`sheetColumns.ts`) maar slaat de bestandslezer over; de echte lezer van een `.xlsx` toetst
+  `check-progress-import-xlsx.ts`.
 - `check-progress-import-xlsx.ts` toetst de rondgang op de echte `writeProgressSheetXLSX`. De handgebouwde bladen
   daar dekken vormen die die schrijver niet maakt (een percentage als fractie met percentage-opmaak, gedeelde
   strings, een foutcel). De kopteksten van de export staan er als vaste tekst (`EXPORT_TEXT`): de check draait
