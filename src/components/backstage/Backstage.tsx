@@ -26,12 +26,7 @@ import { hasForeignContent } from '@/services/ifc/foreign/ifcSource';
 import { ifcForeignContentEnabled } from '@/utils/featureFlags';
 import './Backstage.css';
 
-// Bestand zelf (navigatie, opmaak, de lichte secties) zit in de eerste bundel, zodat het meteen af
-// staat als je erop klikt (#895). De vier zware secties laden apart, binnen het afgewerkte scherm
-// (`SectionLoading`), en vooraf zodra het venster getoond is (`preloadBackstageSections`).
 const loadSettingsPanel = () => import('@/components/settings/SettingsPanelContent');
-// Platformbouw (#311): geen extensies. De voorwaarde staat hier, zodat de bundelaar de dynamische import (en
-// daarmee de catalogus-URL) weglaat, net als bij de extensiedialogen in App.tsx.
 const loadExtensionManager = EXTENSIONS_ENABLED ? () => import('@/components/backstage/ExtensionManagerPanel') : null;
 const loadHelpPanel = () => import('@/components/backstage/HelpPanel');
 const loadLibrarySection = () => import('./LibrarySection');
@@ -42,8 +37,6 @@ const ExtensionManagerPanel = loadExtensionManager
 const HelpPanel = lazy(() => loadHelpPanel().then(m => ({ default: m.HelpPanel })));
 const LibrarySection = lazy(() => loadLibrarySection().then(m => ({ default: m.LibrarySection })));
 
-/** Laadt de zware secties van Bestand op de achtergrond. Gooit nooit: mislukt het, dan laadt een sectie
- *  bij openen opnieuw. */
 export function preloadBackstageSections(): Promise<void> {
   return Promise.all([loadSettingsPanel(), loadExtensionManager?.(), loadHelpPanel(), loadLibrarySection()])
     .then(() => undefined, () => undefined);
@@ -63,23 +56,15 @@ export function Backstage() {
   const { t: tCommon } = useTranslation('common');
   const setUI = useAppStore(s => s.setUI);
   const section = useAppStore(s => s.ui.backstageSection);
-  // Help mag de wachtende voortgangsvraag pauzeren, geen andere handeling of document openen.
   const startQuestionOpen = useAppStore(s => s.ui.pendingActualStartQuestion !== null);
 
-  // "Sluit project" loopt via exact dezelfde route als de
-  // document-chrome (tabstrip/projectbalk/overzicht): `closeWithGuard` → dirty toont de 3-weg
-  // sluit-bevestiging, schoon sluit meteen.
   const { closeWithGuard } = useDocumentActions();
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
 
   const closeBackstage = useCallback(() => {
-    // Terug naar Start-tab
     setUI({ activeRibbonTab: 'start' });
   }, [setUI]);
 
-  // Projectinfo werkt met een lokale draft. Zolang die
-  // afwijkt, loopt elke wegnavigatie (zijbalk, Terug, Escape, een linttabblad) via de bewaker, die de
-  // keuzedialoog Toepassen / Verwerpen / Annuleren toont in plaats van de wijziging stil weg te gooien.
   const projectInfoRef = useRef<ProjectInfoPanelContentHandle>(null);
   const [projectInfoDirty, setProjectInfoDirty] = useState(false);
   const [projectInfoValid, setProjectInfoValid] = useState(true);
@@ -100,7 +85,6 @@ export function Backstage() {
     },
     apply: () => {
       const proceed = pendingLeave;
-      // Ongeldige draft (eigen profiel zonder naam): de knop staat dan uit; submit weigert ook.
       if (!projectInfoRef.current?.submit({ skipDone: true })) return;
       setPendingLeave(null);
       proceed?.();
@@ -108,18 +92,12 @@ export function Backstage() {
   };
 
   const handleCloseProject = () => {
-    // Backstage éérst dicht: de sluit-bevestiging hoort boven de gewone werkruimte te staan, niet
-    // achter/onder het File-menu dat de hele body overneemt.
     closeBackstage();
     closeWithGuard({ id: activeDocumentId });
   };
 
-  // Esc sluit backstage — niet terwijl er een dialoog boven staat (die handelt zijn eigen Escape af,
-  // o.a. de niet-toegepast-dialoog hieronder: Escape = Annuleren, niet óók nog Backstage sluiten).
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // `defaultPrevented`: een open `Select`-lijst (portal) handelt Escape zelf af (lijst dicht) en
-      // roept `preventDefault` — dan mag dezelfde Escape niet óók Backstage verlaten.
       if (e.key !== 'Escape' || e.defaultPrevented || isAnyDialogOpen()) return;
       leaveBackstageGuarded(closeBackstage);
     };
@@ -139,11 +117,9 @@ export function Backstage() {
           <Icon id="nav.back" size={16} className="ops-icon-inline-flip" /> {tMenu('backstage.back')}
         </button>
 
-        {/* Actie-items: triggeren actie en sluiten backstage */}
         <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.new" size={14} />} label={tMenu('ribbon.new')} onClick={() => leave(() => { handleNewProject(); closeBackstage(); })} />
         <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.open" size={14} />} label={tMenu('ribbon.open')} onClick={() => leave(() => { handleOpen(buildImportLabels(tCommon)); closeBackstage(); })} />
         <NavItem icon={<Icon id="project.recent" size={14} />} label={tMenu('backstage.recent')} active={section === 'recent'} onClick={() => goTo('recent')} />
-        {/* data-tour-anchor (tourstap 6): voorbeelden-navitem. */}
         <NavItem icon={<Icon id="file.examples" size={14} />} label={tMenu('backstage.examples')} active={section === 'examples'} onClick={() => goTo('examples')} tourAnchor="backstage-examples" />
         <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.save" size={14} />} label={tMenu('ribbon.save')} onClick={() => leave(() => { handleSave(); closeBackstage(); })} />
         <ActionItem disabled={startQuestionOpen} icon={<Icon id="file.save-as" size={14} />} label={tMenu('backstage.saveAs')} onClick={() => leave(() => { handleSaveAs(); closeBackstage(); })} />
@@ -158,7 +134,6 @@ export function Backstage() {
 
         <NavItem icon={<Icon id="project.properties" size={14} />} label={tMenu('ribbon.projectInfo')} active={section === 'project-info'} onClick={() => goTo('project-info')} />
         <NavItem icon={<Icon id="ui.settings" size={14} />} label={tMenu('backstage.settings')} active={section === 'settings'} onClick={() => goTo('settings')} />
-        {/* Platformbouw (#311): geen Extensies-sectie. */}
         {EXTENSIONS_ENABLED && (
           <NavItem icon={<Icon id="extensions.manage" size={14} />} label={tMenu('extensions.title')} active={section === 'extensions'} onClick={() => goTo('extensions')} />
         )}
@@ -166,14 +141,10 @@ export function Backstage() {
 
         <div className="backstage-nav-divider" />
 
-        {/* Help/documentatie-viewer: Backstage-NavItem als primaire ingang, in het "leer de app
-            kennen"-rijtje naast de rondleiding-herstart hieronder. */}
         <NavItem icon={<Icon id="ui.help" size={14} />} label={tMenu('backstage.help')} active={section === 'help'} onClick={() => goTo('help')} />
 
         <div className="backstage-nav-divider" />
 
-        {/* [Rondleiding] — herstart-ingang (naast die in het lint). Actie-item (geen `section`): sluit Backstage en
-            start de TourOverlay direct, zonder de WelcomeDialog ertussen. */}
         <ActionItem
           disabled={startQuestionOpen}
           icon={<Icon id="ui.tour" size={14} />}
@@ -222,13 +193,8 @@ export function Backstage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Sidebar items
-// ---------------------------------------------------------------------------
-
 function NavItem({ icon, label, active, onClick, tourAnchor }: {
   icon: React.ReactNode; label: string; active?: boolean; onClick: () => void;
-  /** Optioneel `data-tour-anchor`-attribuut voor de TourOverlay. */
   tourAnchor?: string;
 }) {
   return (
@@ -238,7 +204,6 @@ function NavItem({ icon, label, active, onClick, tourAnchor }: {
       {...(tourAnchor ? { 'data-tour-anchor': tourAnchor } : {})}
     >
       <span className="backstage-nav-icon">{icon}</span>
-      {/* De zijbalk is breed genoeg; een afbreekstreepje of regelafbreking uit een lintlabel hoort niet in de knopnaam. */}
       {label.replace(/\u00ad/g, '').replace(/\s*\n\s*/g, ' ')}
     </button>
   );
@@ -255,16 +220,10 @@ function ActionItem({ icon, label, onClick, disabled }: {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Action handlers (gedeeld)
-// ---------------------------------------------------------------------------
-
 function handleNewProject() {
-  // Nieuw-project-wizard (metadata + kalender + fasering-template).
   useAppStore.getState().setUI({ showNewProjectDialog: true });
 }
 
-// `labels` — de store-laag heeft geen `t(...)`; zie ImportLabels/buildImportLabels.
 function handleOpen(labels: ImportLabels) {
   void useAppStore.getState().openFile(labels);
 }
@@ -277,10 +236,6 @@ function handleSaveAs() {
   void useAppStore.getState().saveFileAs();
 }
 
-// ---------------------------------------------------------------------------
-// Recent section
-// ---------------------------------------------------------------------------
-
 function RecentSection() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -289,10 +244,7 @@ function RecentSection() {
   const openRecentFile = useAppStore(s => s.openRecentFile);
   const setUI = useAppStore(s => s.setUI);
 
-  // Fallback-web zonder site heeft geen herbruikbare refs, maar de navigatie blijft bereikbaar.
-  // Toon daarom uitleg in plaats van een leeg paneel (knownbug 38).
   const supported = supportsRecentFiles();
-  // Een site-bestand is alleen te openen zolang de site er is; anders tonen we het niet.
   const site = siteStorageAvailable();
   const recentFiles = site ? allRecentFiles : allRecentFiles.filter(e => e.ref.kind !== 'site');
 
@@ -320,7 +272,6 @@ function RecentSection() {
               <span className="backstage-recent-thumb"><Icon id="file.type-other" size={20} /></span>
               <span className="backstage-recent-info">
                 <span className="backstage-recent-name">{e.name}</span>
-                {/* Een site-bestand heeft geen pad: een herkenbaar label in plaats daarvan. */}
                 <span className="backstage-recent-path" data-ops-recent-site={e.ref.kind === 'site' || undefined}>
                   {e.ref.kind === 'path' ? e.ref.path : e.ref.kind === 'site' ? tMenu('backstage.recentOnSite') : e.name}
                 </span>
@@ -332,10 +283,6 @@ function RecentSection() {
     </>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Examples section — meegeleverde voorbeeldprojecten (data-gedreven via manifest)
-// ---------------------------------------------------------------------------
 
 interface ExampleEntry {
   file: string;
@@ -376,8 +323,6 @@ function ExamplesSection() {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const content = await res.text();
       await openExampleFromString(content, ex.name, buildImportLabels(tCommon));
-      // Showcase-voorbeelden delen één demo-resourcebibliotheek. De
-      // laadgrens heeft al gerekend; het linken herleidt zelf de resourcebelasting opnieuw.
       if (ex.category === 'showcase') applyDemoLibraryToShowcaseProject();
       setUI({ activeRibbonTab: 'start' });
     } catch (err) {
@@ -453,10 +398,6 @@ function ExamplesSection() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Export section
-// ---------------------------------------------------------------------------
-
 function ExportSection() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -465,13 +406,9 @@ function ExportSection() {
   const setUI = useAppStore(s => s.setUI);
   const companyId = useAppStore(s => s.project.companyId);
   const [alsoPool, setAlsoPool] = useState(false);
-  // #804 PR 13: alleen bij een document met een gebouwmodel (of gegevens van een ander programma) en de flag aan.
   const modelPresent = useAppStore(s => hasForeignContent(s.ifcSource) && ifcForeignContentEnabled(s.ui.featureFlags));
   const [withoutModel, setWithoutModel] = useState(false);
 
-  // Geen stale true laten hangen als het project z'n bedrijfskoppeling verliest (bijv. door te
-  // wisselen naar een ongekoppeld document) — anders blijft het vinkje aan staan voor een checkbox
-  // die niet eens meer zichtbaar is.
   useEffect(() => {
     if (!companyId) setAlsoPool(false);
   }, [companyId]);
@@ -483,21 +420,13 @@ function ExportSection() {
     (f) => ({ format: f.format, label: tMenu(f.labelKey), desc: tMenu(f.descKey), icon: f.icon, experimental: 'experimental' in f && f.experimental }),
   );
 
-  // Bij een cyclische planning geeft exportAs { ok: false } met cpmResult.error terug.
-  // Backstage vervangt de hele body, dus GanttCanvas is hier niet gemonteerd en de cyclus-toast
-  // (die in GanttCanvas leeft) vuurt niet — toon de fout daarom zelf in de
-  // backstage-stijl.
   const [exportError, setExportError] = useState<Pick<CPMResult, 'error' | 'errorInfo'> | null>(null);
 
   const handleExport = async (format: ExportFormat) => {
-    // Pool-ernaast geldt alleen voor de IFC-kaart (het is een IFC-tweede-bestand, geen
-    // embed in CSV/MSPDI/P6). Beide paden geven hetzelfde ExportResult terug, dus de
-    // cyclus-foutafhandeling geldt voor allebei. De export met bibliotheek is altijd zonder gebouwmodel.
     const result = format === 'ifc' && alsoPool
       ? await exportProjectWithPool()
       : await exportAs(format, format === 'ifc' && modelPresent && withoutModel ? { withoutBuildingModel: true } : undefined);
     if (!result.ok) {
-      // Blijf in Backstage zodat de fout zichtbaar is; ga niet terug naar het Start-tab.
       setExportError({ error: result.error, errorInfo: result.errorInfo });
       return;
     }
@@ -545,10 +474,6 @@ function ExportSection() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Print section — opent Report-tab
-// ---------------------------------------------------------------------------
-
 function PrintSection({ onOpenPreview }: { onOpenPreview: () => void }) {
   const { t: tMenu } = useTranslation('menu');
 
@@ -566,10 +491,6 @@ function PrintSection({ onOpenPreview }: { onOpenPreview: () => void }) {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Project info section
-// ---------------------------------------------------------------------------
-
 interface ProjectInfoSectionProps {
   panelRef: RefObject<ProjectInfoPanelContentHandle | null>;
   onApply: () => void;
@@ -582,7 +503,6 @@ interface ProjectInfoSectionProps {
 function ProjectInfoSection({ panelRef, onApply, dirty, onDirtyChange, canSubmit, onValidityChange }: ProjectInfoSectionProps) {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
-  // De plakkende actiebalk is een toast-mijdbalk — meld mount/unmount aan de meldingenplaatsing.
   useLayoutEffect(() => {
     notifyToastLayoutChange();
     return notifyToastLayoutChange;
@@ -596,9 +516,6 @@ function ProjectInfoSection({ panelRef, onApply, dirty, onDirtyChange, canSubmit
       <div className="backstage-form">
         <ProjectInfoPanelContent ref={panelRef} mode="edit" onDone={onApply} onValidityChange={onValidityChange} onDirtyChange={onDirtyChange} />
 
-        {/* De actiebalk staat onderaan het formulier (plakt niet meer: eigenaar, 2026-10-13). Wijkt de
-            draft af, dan staat er een gekleurd blok "niet toegepast" met Verwerpen naast Toepassen.
-            `data-ops-toast-avoid`: staat de balk in beeld, dan schuift de meldingenstapel erboven. */}
         <div
           className={`backstage-actions backstage-actions--stack${dirty ? ' is-dirty' : ''}`}
           data-ops-project-info-actions
@@ -623,24 +540,15 @@ function ProjectInfoSection({ panelRef, onApply, dirty, onDirtyChange, canSubmit
   );
 }
 
-// ---------------------------------------------------------------------------
-// Settings section — gedeelde settings-UI (zelfde als gear-dialog/ribbon)
-// ---------------------------------------------------------------------------
-
 function SettingsSection() {
   const { t: tMenu } = useTranslation('menu');
   return (
     <>
-      {/* `ribbon.projectSettings` = App-instellingen; de sleutelnaam bleef bewust gelijk. */}
       <h2 className="backstage-title">{tMenu('ribbon.projectSettings')}</h2>
       <SectionLoading><SettingsPanelContent /></SectionLoading>
     </>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Import section — importers geregistreerd door extensies
-// ---------------------------------------------------------------------------
 
 function ImportSection() {
   const { t: tMenu } = useTranslation('menu');
@@ -648,10 +556,6 @@ function ImportSection() {
   const setUI = useAppStore(s => s.setUI);
   const hasTasks = useAppStore(s => s.tasks.length > 0);
 
-  // "Voortgang bijwerken uit een blad" krijgt een EIGEN kaart bovenaan,
-  // boven de extensie-importerlijst (los van diens laadgedrag). Sluit
-  // Backstage mee (`activeRibbonTab: 'start'`), naar hetzelfde patroon als `ExportSection` na een
-  // geslaagde export, zodat het resultaat meteen tegen de planning zichtbaar is.
   const openProgressImport = () => setUI({ activeRibbonTab: 'start', showProgressImportDialog: true });
 
   const handleImport = (imp: ExtensionImporter) => {
@@ -665,9 +569,6 @@ function ImportSection() {
       const file = (e.target as HTMLInputElement).files?.[0];
       if (!file) { input.remove(); return; }
       try {
-        // De importer opent een vreemd bestand: als NIEUW document, zoals de ingebouwde formaten. Het
-        // actieve document blijft ongemoeid; een fout van de importer wordt een foutmelding. Zie
-        // `importWithExtension`.
         if (await importWithExtension(useAppStore, imp, file)) setUI({ activeRibbonTab: 'start' });
       } finally {
         input.remove();
@@ -694,15 +595,12 @@ function ImportSection() {
           </span>
         </button>
       </div>
-      {/* Platformbouw (#311): geen extensie-importers en geen verwijzing naar extensies. */}
       {!EXTENSIONS_ENABLED ? null : importers.length === 0 ? (
         <div className="backstage-empty">{tMenu('extensions.importEmpty')}</div>
       ) : (
         <div className="backstage-export-grid">
           {importers.map(imp => (
             <button key={`${imp.extensionId}:${imp.id}`} className="backstage-export-card" onClick={() => handleImport(imp)}>
-              {/* Importer-iconen komen uit draaiende extensiecode — hygiëne, maar loopt
-                  langs dezelfde sanitizer als de manifest-iconen. */}
               <span className="backstage-export-icon"><ExtensionIcon raw={imp.icon} fallback={<Icon id="file.import" size={20} />} /></span>
               <span className="backstage-export-info">
                 <h4>{imp.name}</h4>
@@ -716,10 +614,6 @@ function ImportSection() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Extensies section
-// ---------------------------------------------------------------------------
-
 function ExtensionsSection() {
   const { t: tMenu } = useTranslation('menu');
   return (
@@ -730,10 +624,6 @@ function ExtensionsSection() {
     </>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Help/documentatie section
-// ---------------------------------------------------------------------------
 
 function HelpSection() {
   const { t: tMenu } = useTranslation('menu');
