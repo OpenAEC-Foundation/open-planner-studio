@@ -58,4 +58,6 @@ De checks over werkregels, voortgang en het voortgangsblad, vastgelegde datums, 
 
 De IFC-tests in `tests/planning/` (eigen STEP-lezer als meetlat, uitvoer van een oudere writer, grenzen die niet van de machine afhangen): `docs/adr/1250-ifc-tests-eigen-step-lezer-oude-uitvoer-en-machinevrije-grenzen.md`.
 
+De tests van datums, werkdagen en CPM (eigen orakels, bronguards, gekozen grenzen, de tijdzonematrix voor `check-date-format.ts`): `docs/adr/1310-tests-van-datums-en-werkdagen-eigen-orakels-bronguards-en-gekozen-grenzen.md`.
+
 De browsertests van de Gantt, de takenlijst en de taken (een sleepverhouding die een tweede richtingskeuze zichtbaar maakt, fixtures die niet vacuüm slagen, wachten op een paint vóór het lezen van renderergeometrie, pixelgrenzen van de spelingsband): `docs/adr/1360-browsertests-van-gantt-en-taken-keuzes-die-verrassen.md`.

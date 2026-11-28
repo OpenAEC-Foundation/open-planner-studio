@@ -1,12 +1,3 @@
-// Instelling Tijdnotatie (24 of 12 uur): formatteren en parsen van kloktijden.
-// Elke verwachting is met de hand uitgerekend. Dekt:
-//  - formatClock in beide standen: 0:00, 12:00, 13:30, 24:00 als einde, een nachtblok;
-//  - parseClock: de geaccepteerde vormen per stand, 12:00 AM/PM, het einde van de dag, ongeldige invoer;
-//  - displayDateTime en de rastereditor (datum met tijd) in beide standen;
-//  - het blokeinde in de werktijden-editor (24:00 en "volgende dag");
-//  - het laden van de instelling uit localStorage (`ops-timeNotation`), met de default 24 uur.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen.
 import { clockPlaceholder, displayIsoTime, formatAxisClock, formatClock, formatLocalDateTime, parseClock } from '@/utils/displayTime';
 import { displayDateTime } from '@/utils/displayDate';
 import { formatGridDateTime, parseGridDateTime } from '@/engine/taskGrid/editors';
@@ -28,7 +19,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   }
 };
 
-// ── 1) formatClock, 24 uur ──────────────────────────────────────────────────
 eq('24h 0:00', formatClock(0, '24h'), '00:00');
 eq('24h 7:05 met voorloopnul', formatClock(425, '24h'), '07:05');
 eq('24h 12:00', formatClock(720, '24h'), '12:00');
@@ -39,7 +29,6 @@ eq('24h 1440 als einde is 24:00', formatClock(1440, '24h', { endOfDay: true }), 
 eq('24h nachtblok-einde 1800 toont 06:00', formatClock(1800, '24h'), '06:00');
 eq('24h einde-vlag raakt 0 niet', formatClock(0, '24h', { endOfDay: true }), '00:00');
 
-// ── 2) formatClock, 12 uur ──────────────────────────────────────────────────
 eq('12h 0:00 is 12:00 AM', formatClock(0, '12h'), '12:00 AM');
 eq('12h 0:30 is 12:30 AM', formatClock(30, '12h'), '12:30 AM');
 eq('12h 7:05 zonder voorloopnul', formatClock(425, '12h'), '7:05 AM');
@@ -53,7 +42,6 @@ eq('12h nachtblok-einde 1800 toont 6:00 AM', formatClock(1800, '12h'), '6:00 AM'
 eq('plaatshouder 24h', clockPlaceholder('24h'), '13:30');
 eq('plaatshouder 12h', clockPlaceholder('12h'), '1:30 PM');
 
-// ── 2b) Tijdschaal van de Gantt (korte vorm) ────────────────────────────────
 eq('as 24h uur', formatAxisClock(780, '24h', 'hour'), '13:00');
 eq('as 24h kwartier', formatAxisClock(795, '24h', 'quarterHour'), '13:15');
 eq('as 12h uur middernacht', formatAxisClock(0, '12h', 'hour'), '12 AM');
@@ -66,7 +54,6 @@ eq('as 12h uur smal middag', formatAxisClock(720, '12h', 'hour', true), '12p');
 eq('as 12h uur smal 22:00', formatAxisClock(1320, '12h', 'hour', true), '10p');
 eq('as 24h negeert smal', formatAxisClock(780, '24h', 'hour', true), '13:00');
 
-// ── 3) parseClock: 24-uursvormen ────────────────────────────────────────────
 eq('parse 13:00', parseClock('13:00'), 780);
 eq('parse 1300', parseClock('1300'), 780);
 eq('parse 13', parseClock('13'), 780);
@@ -83,7 +70,6 @@ eq('parse 24:00 als einde = 1440', parseClock('24:00', { endOfDay: true }), 1440
 eq('parse 24 als einde = 1440', parseClock('24', { endOfDay: true }), 1440);
 eq('parse 0:00 als einde blijft 0', parseClock('0:00', { endOfDay: true }), 0);
 
-// ── 4) parseClock: 12-uursvormen ────────────────────────────────────────────
 eq('parse 1:00 PM', parseClock('1:00 PM'), 780);
 eq('parse 1 pm', parseClock('1 pm'), 780);
 eq('parse 1pm', parseClock('1pm'), 780);
@@ -99,14 +85,12 @@ eq('parse 12:00 AM als einde = 1440', parseClock('12:00 AM', { endOfDay: true })
 eq('parse 12:00 PM als einde blijft middag', parseClock('12:00 PM', { endOfDay: true }), 720);
 eq('parse 1:00 AM als einde = 60', parseClock('1:00 AM', { endOfDay: true }), 60);
 
-// ── 5) parseClock: ongeldige invoer ─────────────────────────────────────────
 for (const bad of ['', ' ', 'x', '25:00', '13:60', '13:5', '1:00 XM', '13:00 PM', '0:00 AM', '0 pm',
   '12:00:00', '-1:00', '1:00 PM PM', '2400', '24:30', 'PM', ':30', '1::00']) {
   eq(`parse ongeldig ${JSON.stringify(bad)}`, parseClock(bad), undefined);
 }
 eq('parse 24:30 als einde ongeldig', parseClock('24:30', { endOfDay: true }), undefined);
 
-// ── 6) Rondgang: elke minuut van de dag overleeft formatteren + parsen ──────
 let roundTripFailures = 0;
 for (let m = 0; m < 1440; m++) {
   if (parseClock(formatClock(m, '24h')) !== m) roundTripFailures++;
@@ -116,7 +100,6 @@ eq('rondgang 1440 minuten × 2 standen', roundTripFailures, 0);
 eq('rondgang einde 24:00', parseClock(formatClock(1440, '24h', { endOfDay: true }), { endOfDay: true }), 1440);
 eq('rondgang einde 12:00 AM', parseClock(formatClock(1440, '12h', { endOfDay: true }), { endOfDay: true }), 1440);
 
-// ── 7) Datum met tijd (weergave, raster) ────────────────────────────────────
 eq('displayIsoTime 24h', displayIsoTime('2026-06-15T13:30', '24h'), '13:30');
 eq('displayIsoTime 12h', displayIsoTime('2026-06-15T13:30', '12h'), '1:30 PM');
 eq('displayIsoTime pure datum', displayIsoTime('2026-06-15', '12h'), '');
@@ -134,7 +117,6 @@ eq('raster: invoer ISO met T', parseGridDateTime('2026-06-15T13:00', 'dmy'), '20
 eq('raster: ongeldige tijd', parseGridDateTime('15-06-2026 13:00 PM', 'dmy'), null);
 eq('raster: 24:00 geweigerd', parseGridDateTime('15-06-2026 24:00', 'dmy'), null);
 
-// ── 7b) Lokaal tijdstip (herstel- en sitevenster): vaste AM/PM, Latijnse cijfers ───────────
 {
   const local = new Date(2026, 0, 15, 13, 30);
   for (const locale of ['nl', 'en', 'ja', 'ar', 'fa', 'zh']) {
@@ -147,7 +129,6 @@ eq('raster: 24:00 geweigerd', parseGridDateTime('15-06-2026 24:00', 'dmy'), null
   }
 }
 
-// ── 8) Blokeinde in de werktijden-editor ────────────────────────────────────
 eq('blok: einde 17:00 ⇒ veld', bandEndField(1020), { minutes: 1020, nextDay: false });
 eq('blok: einde 24:00 ⇒ veld 1440, geen volgende dag', bandEndField(1440), { minutes: 1440, nextDay: false });
 eq('blok: nachtblok 06:00 ⇒ veld 360 + volgende dag', bandEndField(1800), { minutes: 360, nextDay: true });
@@ -177,11 +158,6 @@ for (const end of [60, 1020, 1425, 1440, 1441, 1800, 2879]) {
   eq(`blok: rondgang einde ${end}`, bandEndFromField(f.minutes, f.nextDay), end);
 }
 
-// ── 8b) IFC: blokken uit de editor overleven opslaan en heropenen (review #347, punt 4) ─────
-// Wat de blokeditor nu maakt: een blok tot 24:00 (1440), een blok tot 23:45 na een stap omlaag
-// (1425) en een nachtblok tot 06:00 de volgende dag (1800). Twee round-trips, gelijk aan het origineel.
-// Plus de XER-"Late ploeg": blokken tot 24:00 met een hoursPerDay (8) die afwijkt van de bloksom (10);
-// sinds #351 schrijft de IFC-schrijver die afwijking ook bij een blokkenkalender (docs/ifc-round-trip.md).
 {
   const project = { ...createDefaultProject(), id: 'proj-tn', calendarId: 'cal-tn', startDate: '2026-01-05' };
   const roundTrip = (cal: WorkCalendar): WorkCalendar => readIFC(writeIFC({
@@ -210,7 +186,6 @@ for (const end of [60, 1020, 1425, 1440, 1441, 1800, 2879]) {
   }
 }
 
-// ── 9) Instelling laden: sleutel, default en validatie ──────────────────────
 const descriptor = SETTINGS.find(d => d.field === 'timeNotation');
 eq('instelling: descriptor bestaat met sleutel timeNotation', descriptor?.key, 'timeNotation');
 eq('instelling: 12h geldig', descriptor?.parse('12h'), '12h');

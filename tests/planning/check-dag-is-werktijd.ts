@@ -1,30 +1,4 @@
 import './domStub';
-// Eén dag is de werktijd van de taakkalender (eigenaarsbesluit 2026-10-15, optie 2).
-//
-// Een P6-kalender draagt een los getal "uren per dag" (`hoursPerDay`, XER `day_hr_cnt`). P6 gebruikt dat
-// alleen om uren voor het scherm om te rekenen. De werktijdblokken kunnen langer zijn: in
-// Roads_Project_TEC.xer staat 8 u/dag bij blokken van 10 u. Een urentaak bewaart haar duur in
-// `durationMinutes`; het verborgen dagengetal `scheduleDuration` is overal werkminuten ÷ de werktijd per
-// dag van de taakkalender (`hourTaskScheduleDuration`). Een taak van 1870 u is dus 187 dagen, niet 233,75.
-// De 8 blijft op de kalender en gaat ongewijzigd mee in de export. Bron:
-// docs/superpowers/plans/2026-10-07-review-pr109-uitkomsten.md op `claude/review-pr109-log` ("een dag", #354).
-//
-// Fixture: een kleine XER met kalender "Lange dagen" (day_hr_cnt 8, ma–vr 07:00–17:00 = 10 u) en een
-// urentaak van 1870 u, plus een dagkalender met een dagtaak van 40 u (5 d).
-//  §1 XER-import: dagengetal 187; de kalender houdt 8; de taak op de dagkalender blijft 5 d (sinds F5b in
-//     de urenmaat: 2400 min, alleen uren §3.10, T15).
-//  §2 IFC-round-trip (lezer en schrijver): 187 en 8; de geschreven duur blijft 1870 u.
-//  §3 de echte openroute, een rasterbewerking (1870 u en 1880 u), daarna opslaan als IFC en heropenen.
-//  §4 export: P6 XML `HoursPerDay` 8 en `PlannedDuration` 1870; MSPDI `MinutesPerDay` 480, `<Duration>` en
-//     `<Work>` (terugval duur × inzet) 1870 u; heropenen van die exports geeft weer 187.
-//  §5 resourcebelasting: de taak belast 187 werkdagen (1870 u), tot en met haar vroegste einde.
-//  §6 kalenderwissel: blokken naar 8 u ⇒ dagengetal 233,75; de uren per dag blijven 8; de restduur volgt.
-//  §7 materiaal uit XER (TASKRSRC, tempo per uur): totaal = tempo × uren, ook als de resourcekalender
-//     een andere dag heeft dan de taakkalender (Roads: 85 toewijzingen, 8 daarvan zo); de dagtaak blijft.
-//  §8 MSPDI-baseline van een urentaak: `<Baseline><Duration>` 1870 u, heropend weer 187 d; ook als de kalender
-//     na heropenen 8 u/dag houdt (#366, §8b); een oude baseline (233,75 d) gaat als 1870 u (§8c); een nieuwe
-//     baseline van een taak die daarna × 0,8 korter werd, blijft 10 u / 100 u en krijgt geen ⚠ (§8d); een oude
-//     baseline van een taak die daarna × 1,25 langer werd, houdt ⚠ en gaat als 1870 u (§8e).
 import { readXER } from '@/services/xer/xerReader';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -52,7 +26,6 @@ import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/regis
 
 declare const process: { exit(code: number): never };
 
-// De P6 XML- en MSPDI-lezer gebruiken de browser-`DOMParser`; in Node via de minimale shim.
 installDOMParser();
 
 let checks = 0;
@@ -69,10 +42,6 @@ const quiet = <T>(fn: () => T): T => {
   try { return fn(); } finally { console.warn = warn; }
 };
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// Fixture
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// P6-weekdagen: 1 = zondag … 7 = zaterdag. Ma–vr 07:00–17:00.
 const tenHours = (d: number) => (d >= 2 && d <= 6 ? `(0||${d}()((0||0(s|07:00|f|17:00)())))` : `(0||${d}()())`);
 const CAL10 = `(0||CalendarData()((0||DaysOfWeek()(${[1, 2, 3, 4, 5, 6, 7].map(tenHours).join('')}))(0||Exceptions()())))`;
 const XER = [
@@ -100,16 +69,10 @@ const calendarsOf = (r: Pick<ImportResult, 'calendar' | 'resourceCalendars'>): W
   [r.calendar, ...(r.resourceCalendars ?? [])];
 const calNamed = (cals: readonly WorkCalendar[], name: string) => cals.find((c) => c.name === name);
 const taskCoded = (tasks: readonly Task[], code: string) => tasks.find((t) => t.wbsCode === code);
-/** Het taakbeeld dat deze check toetst: eenheid, minuten, dagengetal. */
 const shape = (t: Task | undefined) => t && ({ unit: t.time.durationUnit, min: t.time.durationMinutes ?? null, sd: t.time.scheduleDuration });
 const HOUR_TASK = { unit: 'hours', min: 112200, sd: 187 };
-// De taak op de dagkalender: sinds F5b leest XER elke taak in de urenmaat (alleen uren §3.10, T15). Het
-// dagengetal blijft 5 (2400 min ÷ 480).
 const DAY_TASK = { unit: 'hours', min: 2400, sd: 5 };
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §1 XER-import
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 const imported = quiet(() => single(readXER(XER_BYTES)));
 {
   const long = calNamed(calendarsOf(imported), 'Lange dagen');
@@ -120,9 +83,6 @@ const imported = quiet(() => single(readXER(XER_BYTES)));
   same('§1 XER-import: de dagtaak blijft 5 d (40 ÷ 8, de bronomrekening)', shape(taskCoded(imported.tasks, 'D')), DAY_TASK);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §2 IFC-round-trip (schrijver + lezer)
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const ifc = quiet(() => writeIFC(imported));
   const back = quiet(() => readIFC(ifc));
@@ -137,9 +97,6 @@ const imported = quiet(() => single(readXER(XER_BYTES)));
     [shape(taskCoded(twice.tasks, 'A')), calNamed(calendarsOf(twice), 'Lange dagen')?.hoursPerDay], [HOUR_TASK, 8]);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §3 De echte openroute, een rasterbewerking, opslaan als IFC en heropenen
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openInStore(parsed: OpenedImport) {
   const ctx = createAppStoreContext();
@@ -182,9 +139,6 @@ const ctx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer', byt
     [{ unit: 'hours', min: 112800, sd: 188 }, 8]);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §4 Export: de 8 en de uren gaan ongewijzigd mee; heropenen geeft weer 187
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer', bytes: XER_BYTES }));
 {
   const s = loadCtx.store.getState();
@@ -214,9 +168,6 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
   same('§4 MSPDI heropend: urentaak 187', shape(mspBack.tasks.find((t) => t.name === 'Lange urentaak')), HOUR_TASK);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §5 Resourcebelasting: 187 werkdagen van 10 u, niet 234
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const s = loadCtx.store.getState();
   const a = taskIn(loadCtx, 'A');
@@ -230,15 +181,11 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
     days[days.length - 1], a.time.earlyFinish.slice(0, 10));
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §6 Kalenderwissel: het dagengetal volgt de nieuwe werktijd per dag
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const c = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer', bytes: XER_BYTES }));
   const cal = calNamed(c.store.getState().calendars, 'Lange dagen')!;
   const eight = [{ start: 420, end: 900 }];
   const workTime: WorkTimeBands = { byWeekday: { 1: eight, 2: eight, 3: eight, 4: eight, 5: eight, 6: [], 7: [] } };
-  // Een gestarte urentaak: haar restduur in dagen heeft de vorm van het dagengetal.
   c.store.setState((s) => {
     const t = s.tasks.find((x) => x.wbsCode === 'A')!;
     t.time.remainingMinutes = 56100;
@@ -254,14 +201,6 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
   same('§6 ongedaan maken: weer 187 en 93,5', [shape(taskIn(c, 'A')), taskIn(c, 'A').time.remainingTime], [HOUR_TASK, 93.5]);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §7 Materiaal uit XER: tempo per uur × uren, niet × 8 × 187
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// TASKRSRC geeft materiaal als tempo per uur (`target_qty_per_hr`). De lezer maakt er een tempo per dag
-// van; de belasting is dat tempo × de dagen van de taak. Bij een urentaak zijn dat 187 dagen van 10 u, dus
-// moet het tempo per dag × 10 zijn — ook als de resource op een kalender van 8 u staat (Wapening, zoals 8
-// van de 85 materiaaltoewijzingen in Roads). Zand op de dagtaak is de bewaking: zijn resourcekalender heeft
-// blokken van 10 u, maar een dagtaak houdt de opgeslagen 8 van de resourcekalender (3 × 8 × 5 d = 3 × 40 u).
 {
   const XER_MAT = [
     ...XER.split('\n').filter((l) => l !== '%E'),
@@ -288,9 +227,6 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
     [total('xer-resource:M1'), total('xer-resource:M2'), total('xer-resource:M3')], [1870, 3740, 120]);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §8 MSPDI-baseline van een urentaak: 1870 u, heropend 187 d
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const b = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer', bytes: XER_BYTES }));
   quiet(() => b.store.getState().saveBaseline('Basis'));
@@ -307,16 +243,11 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
   const backBaseline = back.baselines?.[0]?.tasks.find((x) => x.taskId === backA?.id)?.duration;
   same('§8 MSPDI heropend: taak 187 d en baseline 187 d (geen afwijking)', [backA?.time.scheduleDuration, backBaseline], [187, 187]);
 
-  // §8b Zoals na #366: de kalender houdt na heropenen zijn eigen 8 u/dag (`MinutesPerDay` 480) naast
-  // blokken van 10 u. De lezer moet de baseline dan nog steeds in de werktijd per dag lezen (187 d), net
-  // als de taak en als de schrijver; met de opgeslagen 8 werd het 234 d, een nep-afwijking van −47 d.
   const long = calNamed(calendarsOf(imported), 'Lange dagen')!;
   same('§8b lezer met 8 u/dag en blokken van 10 u: <Baseline><Duration> PT1870H0M0S ⇒ 187 d; dagtaak PT40H0M0S op 8 u ⇒ 5 d',
     [long.hoursPerDay, mspdiBaselineDays('PT1870H0M0S', true, long, long.hoursPerDay), mspdiBaselineDays('PT40H0M0S', false, long, 8)],
     [8, 187, 5]);
 
-  // §8c Een baseline met de oude dagtelling (fixture gemaakt met main: 233,75 d = 1870 u ÷ 8) gaat in de
-  // opgeslagen uren per dag naar MSPDI: 1870 u, zoals main schreef — niet 233,75 × 10 = 2337,5 u.
   const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
   const oldIfc = readFileSync(join(ROOT, 'tests', 'browser', 'fixtures', 'ifc', 'oude-baseline.ifc'), 'utf8');
   const o = openInStore(await parseOpenedFile({ name: 'oude-baseline.ifc', text: oldIfc }));
@@ -333,9 +264,6 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
   same('§8c MSPDI heropend: 1870 u is in de werktijd per dag 187 d, net als de taak',
     [oldBackA?.time.scheduleDuration, oldBack.baselines?.[0]?.tasks.find((x) => x.taskId === oldBackA?.id)?.duration], [187, 187]);
 
-  // §8d Een NIEUWE baseline, daarna wordt de taak korter met precies de factor opgeslagen ÷ werktijd
-  // (8 ÷ 10). De baseline past dan via de huidige minuten bij de oude telling, maar via haar span nog
-  // bij de nieuwe: geen ⚠, en de echte afwijking blijft in MS Project (baseline 10 u, niet 8 u).
   for (const [before, after, wantDays, wantMsp] of [['10h', '8h', 1, 'PT10H0M0S'], ['100h', '80h', 10, 'PT100H0M0S']] as const) {
     const c = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer', bytes: XER_BYTES }));
     gridDuration(c, 'A', before);
@@ -355,10 +283,6 @@ const loadCtx = openInStore(await parseOpenedFile({ name: 'dag-is-werktijd.xer',
       [wantDays, Number.parseInt(after, 10) * 60, false, wantMsp]);
   }
 
-  // §8e De spiegel van §8d: een OUDE baseline (233,75 d), daarna wordt de taak langer met precies de factor
-  // werktijd ÷ opgeslagen (10 ÷ 8): 1870 u → 2337,5 u = 233,75 × 600 min. De huidige minuten passen dan bij
-  // de nieuwe telling, maar de span van de baseline past bij de oude en beslist: ⚠, en de MSPDI-baseline
-  // blijft 1870 u (233,75 × 8). Zonder span-voorrang verdween de afwijking in MS Project (PT2337H30M0S).
   {
     const e = openInStore(await parseOpenedFile({ name: 'oude-baseline.ifc', text: oldIfc }));
     gridDuration(e, 'A', '2337.5h');
