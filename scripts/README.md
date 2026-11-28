@@ -149,7 +149,7 @@ Taak-, fase-, resource-, kalender- en baselinenamen zijn vertaald; de data is ve
   app-checkout, omdat het de store en motor van de app nodig heeft. Ze staan bewust niet in
   `public/examples/` of het voorbeeldenmanifest.
 - `-- --report` drukt per stand de einddatum, de kritieke taken en per taak start, einde en speling
-  af: de getallen voor de tutorialtekst. Ze staan ook als commentaarblok bovenin `tutorial-project.ts`.
+  af: de getallen voor de tutorialtekst.
 - Het project ligt op een vast jaar (start ma 7 juni 2027, bouwvak regio Midden 2027), omdat de tekst
   letterlijke datums noemt. Feestdagen en bouwvak komen uit de feestdagengenerator van de app.
 - Elke stand asserteert tijdens het bouwen zijn beoogde effect (bijv. de bouwvak verschuift de
