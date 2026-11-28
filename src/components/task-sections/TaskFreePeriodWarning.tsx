@@ -7,15 +7,6 @@ import { findLongFreePeriods } from '@/engine/scheduler/freePeriods';
 import { shownFinish, shownStart } from '@/utils/taskDates';
 import { Icon } from '@/components/icons';
 
-/**
- * Waarschuwing "deze taak loopt over een lange vrije periode".
- * RELATIONEEL/storeful (zelfde classificatie als `TaskCpmResultSection`): puur lezend, geen
- * `onChange`-contract, dus `taskId`-only i.p.v. het volledige `{ task, onChange }`-contract.
- *
- * Mijlpalen worden bewust overgeslagen (aparte casus: een mijlpaal die toevallig op een vrije dag
- * valt is geen "taak die over een periode heen loopt") — evenals taken zonder geldige
- * start/finish. De eigenlijke detectie is puur/stateloos in `findLongFreePeriods`.
- */
 export function TaskFreePeriodWarning({ taskId }: { taskId: string }) {
   const { t } = useTranslation('task');
   const dd = useDisplayDate();
@@ -23,15 +14,10 @@ export function TaskFreePeriodWarning({ taskId }: { taskId: string }) {
   const calendars = useAppStore(s => s.calendars);
   const projectCal = useAppStore(s => s.calendar);
 
-  // Zelfde getoonde start/einde als `TaskTimeFields`/Gantt/tooltip (`shownStart`/`shownFinish`) —
-  // niet de rauwe plan-ankers.
   const start = task && !task.isMilestone ? shownStart(task) : undefined;
   const finish = task && !task.isMilestone ? shownFinish(task) : undefined;
   const cal = task ? effectiveCalendarOf(task, projectCal, calendars) : undefined;
 
-  // Review vóór de merge (aanbeveling): memoïseren — de scan is O(taakduur in kalenderdagen) en
-  // draaide anders op élke store-mutatie mee (ook per sleep-frame bij niet-datumwijzigingen).
-  // Deps zijn de daadwerkelijke invoer (datums + kalender), niet het taak-object zelf.
   const periods = useMemo(
     () => (cal && start && finish ? findLongFreePeriods(cal, start, finish) : []),
     [cal, start, finish],

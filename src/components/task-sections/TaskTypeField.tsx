@@ -26,10 +26,6 @@ function usePersonalTypes(): CustomTaskType[] {
   return useSyncExternalStore(subscribePersonalTaskTypes, getPersonalTaskTypes, () => []);
 }
 
-/** Eén veld voor het instant-apply paneel én de TaskDialog-draft. De globale bibliotheek is nooit
- * documentstate; de projectkopie wordt pas gematerialiseerd bij een echte typekeuze. Met
- * `projectRenames` (Taak bewerken) wacht een bevestigde hernoeming in het project tot de taakbewerking
- * dicht is; zonder (het paneel) gebeurt ze meteen. */
 export function TaskTypeField({ task, onChange, materializeProjectType = true, projectRenames }: {
   task: Task;
   onChange: (patch: Partial<Task>) => void;
@@ -41,7 +37,6 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true, p
   const personal = usePersonalTypes();
   const storedProject = useAppStore(s => s.customTaskTypes);
   const activeDocumentId = useAppStore(s => s.activeDocumentId);
-  // Een uitgestelde hernoeming (Taak bewerken) toont in deze dialoog al de naam die de planner koos.
   const project = projectRenames
     ? storedProject.map(type => {
       const pending = projectRenames.pending.find(rename => rename.id === type.id && rename.documentId === activeDocumentId);
@@ -52,9 +47,6 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true, p
   const [dialog, setDialog] = useState<'new' | 'manage' | null>(null);
   const [name, setName] = useState('');
   const [editingId, setEditingId] = useState<string | null>(null);
-  // Hernoemd persoonlijk type dat een taak in het actieve document gebruikt, met een andere naam daar:
-  // de app vraagt of die naam mee moet (#804 keuze 7). De vraag hoort bij het document waarin ze gesteld
-  // is en vervalt bij een documentwissel (fixronde 1 van #999).
   const [projectRename, setProjectRename] = useState<ProjectTaskTypeRename | null>(null);
   const openRename = projectRename?.documentId === activeDocumentId ? projectRename : null;
   useEffect(() => {
@@ -88,9 +80,6 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true, p
     ...(selectedProject && !personal.some(type => type.id === selectedProject.id) && !projectOnly.some(type => type.id === selectedProject.id)
       ? [{ value: selected, label: selectedProject.name }]
       : []),
-    // Terugval voor een typereferentie die nergens (meer) bestaat. Een persoonlijk type dat nog niet
-    // in het project staat (de TaskDialog-draft materialiseert pas bij Opslaan) staat hierboven al
-    // in de lijst — nogmaals toevoegen gaf dezelfde optiewaarde twee keer (dubbele React-key).
     ...(task.customTaskTypeId && !selectedProject && !personal.some(type => type.id === task.customTaskTypeId)
       ? [{ value: selected, label: t('taskType.USERDEFINED') }]
       : []),
@@ -103,7 +92,6 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true, p
     onChange({ taskType: 'USERDEFINED', customTaskTypeId: type.id });
   };
   const create = () => {
-    // Een kleur die vrij is in je lijst én in dit project (#856).
     const type = addPersonalTaskType(name, undefined, undefined, storedProject);
     if (!type) return;
     chooseCustom(type);
@@ -116,9 +104,6 @@ export function TaskTypeField({ task, onChange, materializeProjectType = true, p
     setName(''); setEditingId(null);
     const inProject = project.find(type => type.id === id);
     if (!inProject || inProject.name === result.name) return;
-    // Gebruikt een taak de werksoort, dan vraagt de app het; een ongebruikte projectkopie (die IFC en
-    // herstel niet bewaren) krijgt de naam stil (eigenaarsbesluit 18 november 2026). Botst die naam in
-    // het project, dan blijft de kopie zoals ze is, zonder melding.
     const store = useAppStore.getState();
     if (customTaskTypeInUse(store.tasks, id)) {
       setProjectRename({ documentId: activeDocumentId, id, oldName: inProject.name, newName: result.name });

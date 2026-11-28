@@ -19,8 +19,6 @@ import type { Task } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { shownFinish, shownStart } from '@/utils/taskDates';
 
-/** Eenheden met hooguit twee decimalen: een importgat van een kwartdag blijft zichtbaar
- *  zonder dat een float-staart als `4.999999` in het veld belandt. */
 const formatUnits = (minutes: number, unit: number): string => String(Math.round((minutes / unit) * 100) / 100);
 
 const sourceOf = (p: SplitPiece): string | undefined => (p.kind === 'gap' ? p.source : undefined);
@@ -28,11 +26,6 @@ const samePieces = (a: readonly SplitPiece[], b: readonly SplitPiece[]): boolean
   a.length === b.length && a.every((p, i) => p.kind === b[i].kind
     && Math.abs(p.minutes - b[i].minutes) < 1e-6 && sourceOf(p) === sourceOf(b[i]));
 
-/**
- * Getalveld met commit op blur/Enter (Enter = blur, zelfde vorm als `SequenceLagInput`). `onCommit`
- * geeft `false` bij een geweigerde of lege bewerking: het veld springt dan terug op de huidige
- * waarde — er blijft nooit een getal staan dat niet in de data zit.
- */
 function SplitNumberInput({ value, onCommit, label, dataAttr }: {
   value: string;
   onCommit: (units: number) => boolean;
@@ -68,12 +61,6 @@ function SplitNumberInput({ value, onCommit, label, dataAttr }: {
   );
 }
 
-/** Van–tot per werkstuk NA een pauze, op exact dezelfde as als de Gantt-balk: dezelfde stukken
- *  (`taskSplitSegments`: de getoonde momenten, de maat van de taak en de werkblokken van haar kalender).
- *  Tussengrenzen zijn daar EXCLUSIEF; het einde van een stuk is dus het laatste werkmoment vóór die grens
- *  (`prevWorkInstant`: een stuk tot de volgende ochtend 07:00 eindigt op het blokeinde van de dag ervoor).
- *  De labels volgen B4: een tijd alleen als het moment midden op de werkdag valt (knownbug 244). Een taak
- *  met alleen datums (van vóór het minutenmodel) houdt hele werkdagen. */
 export function splitPieceRanges(task: Task, cal: WorkCalendar, workdayDurationMeasure: boolean): { from: string; to: string }[] {
   const segments = taskSplitSegments(task, cal, workdayDurationMeasure);
   if (!segments) return [];
@@ -88,20 +75,6 @@ export function splitPieceRanges(task: Task, cal: WorkCalendar, workdayDurationM
   });
 }
 
-/**
- * Onderbrekingen — de exacte invoer naast het splitsgebaar in de Gantt, op
- * dezelfde data. Eén regel per pauze: *na n* (werk vóór de pauze op de WERK-as, dus zonder eerdere
- * pauzes) · *pauze n* · van–tot van het stuk erna · verwijderen. Eenheid = werkdagen, bij een
- * urentaak uren (`splitUnitMinutes`).
- *
- * Al het rekenwerk loopt via `splitEdit.ts` en elke commit is één `setTaskSplits` zonder
- * coalesceKey — dus één undo-stap per bewerking. De sectie rekent zelf nooit op
- * `afterMinutes`/`gapMinutes`; ze leest de stukken van `toSplitPieces`.
- *
- * Niet-wélgevormde importsplits (`'not-editable'`) tonen één gekleurd blok, de van–tot-datums en
- * alleen "Alle onderbrekingen opheffen". Elke andere weigering van `canSplitTask` (mijlpaal,
- * verzameltaak, hammock, verstreken tijd, handmatig, te kort) ⇒ geen sectie.
- */
 export function TaskSplitsSection({ taskId }: { taskId: string }) {
   const { t } = useTranslation('task');
   const { date, dateTime } = useDisplayDate();
@@ -124,7 +97,6 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
   const ranges = splitPieceRanges(task, resolveCalendar(task.calendarId, calendars, calendar), workdayDurationMeasure);
   const showDate = (iso: string) => (iso.includes('T') ? dateTime(iso) : date(iso));
 
-  /** `false` = geweigerd of niets veranderd ⇒ het veld springt terug, geen undo-stap. */
   const apply = (result: SplitEditResult): boolean => {
     if (!pieces || !result.ok || samePieces(result.pieces, pieces)) return false;
     return setTaskSplits(task.id, result.pieces) === null;
@@ -138,7 +110,6 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
   );
 
   if (!pieces) {
-    // Alleen-lezen: de datums uit dezelfde wandeling als de balk, geen invoer.
     return (
       <>
         {header}
@@ -167,8 +138,6 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
     );
   }
 
-  // Werk vóór elke pauze, cumulatief op de WERK-as: `workBefore` = som van werkstuk 0..i,
-  // `earlierWork` = som van werkstuk 0..i−1 (wat "na n" niet verschuift).
   const gaps: { index: number; minutes: number; leveling: boolean; workBefore: number; earlierWork: number }[] = [];
   let work = 0;
   let lastWork = 0;
@@ -180,7 +149,6 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
     });
   }
 
-  // Toevoegen: halverwege het langste werkstuk (het eerste bij gelijke lengte), pauze één eenheid.
   let longest = 0;
   let longestStart = 0;
   let cursor = 0;
@@ -209,8 +177,6 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
                   dataAttr="after"
                   label={`${t('properties.splits.after')} (${unitLabel})`}
                   value={formatUnits(g.workBefore, unit)}
-                  // "na n" verschuift alleen werkstuk i: dat is n minus het werk van de stukken ervóór.
-                  // Kleiner dan één eenheid voor dit stuk ⇒ weigeren i.p.v. `setWorkLength`s stille klem.
                   onCommit={units => {
                     const minutes = units * unit - g.earlierWork;
                     if (!(minutes >= unit - 1e-6)) return false;
@@ -222,7 +188,6 @@ export function TaskSplitsSection({ taskId }: { taskId: string }) {
                   dataAttr="pause"
                   label={`${t('properties.splits.pause')} (${unitLabel})`}
                   value={formatUnits(g.minutes, unit)}
-                  // 0 = de pauze opheffen (samenvoegen met de buren); negatief is geen lengte.
                   onCommit={units => (units >= 0 ? apply(setGapLength(pieces, g.index, units * unit, unit)) : false)}
                 />
                 <span className="truncate text-text-secondary">{unitLabel}</span>

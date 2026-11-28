@@ -4,18 +4,10 @@ import { formatExternalLagShort } from '@/engine/taskGrid/relationFormat';
 import { parseableHourSuffix } from '@/utils/durationFormat';
 import { localizeDecimalPoint } from '@/utils/reportNumber';
 
-/** Een anker zoals in de relatiecel (ISO), met een spatie in plaats van de `T` voor de leesbaarheid. */
 function anchorText(anchor: string): string {
   return anchor.replace('T', ' ');
 }
 
-/**
- * *Afhankelijke projecten* (stap 1.11 van "relaties tussen projecten", keuze 7) — sectie van
- * `TaskPropertiesPanel`, direct onder de eigen afhankelijkheden. Alleen-lezen: welke taken in andere
- * projecten via een externe koppeling van deze taak afhangen, met de richting, het type (met lag) en het
- * anker waarop dat project rekent. Bron: het laatste zoekresultaat van dit document
- * (`ui.dependentProjects`). Geen resultaat voor deze taak ⇒ geen sectie.
- */
 export function TaskDependentsSection({ taskId }: { taskId: string }) {
   const { t, i18n } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
@@ -33,7 +25,6 @@ export function TaskDependentsSection({ taskId }: { taskId: string }) {
       <ul className="flex flex-col gap-1" data-ops-dependents>
         {own.map(link => {
           const lag = localizeDecimalPoint(formatExternalLagShort(link, hourSuffix), i18n.language);
-          // Hun koppeling zegt `predecessor` als ONZE taak hun voorganger is: dan is hun taak onze opvolger.
           const role = link.direction === 'predecessor' ? 'successor' : 'predecessor';
           return (
             <li
