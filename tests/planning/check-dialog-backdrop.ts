@@ -1,24 +1,3 @@
-// Backdrop-klik en bewerkbare dialogen (issue #158) — broncodepoort.
-//
-// De bug: de nieuw-project-wizard sloot bij een klik naast het paneel en gooide daarmee stil alles
-// weg wat de gebruiker al had ingetypt. Hetzelfde patroon zat in vijftien andere dialogen met
-// invoervelden of een lokale bewerkbuffer (taak, kalender, filter, contour, imports, …), omdat de
-// gedeelde `Dialog` de backdrop-close per dialoog laat kiezen en de migratie het bestaande gedrag
-// letterlijk overnam.
-//
-// De regel sinds #158 (zie het doc-commentaar in `src/components/common/Dialog.tsx`):
-//   `onBackdropClick` alleen op een dialoog ZONDER bewerkbare invoer — informatie- en keuzedialogen.
-//   Alles met een invoerveld sluit uitsluitend via Annuleren/X/Escape.
-//
-// Deze poort bewaakt dat mechanisch, in twee richtingen:
-//   (a) elk bestand onder src/ dat `onBackdropClick=` doorgeeft staat op de allowlist hieronder,
-//       en bevat zelf geen invoerelement (`<input`, `<textarea`, `<select`, `<Select`);
-//   (b) elk allowlist-item gebruikt de prop ook echt (geen spookvermelding die de lijst laat
-//       verwateren);
-//   (c) de twee dialogen met een eigen overlay (FeedbackDialog met textarea, SettingsDialog)
-//       hangen geen klik-handler aan hun overlay.
-//
-// Draait via run.sh. Exit 0 = alles groen. Tijdzone-onafhankelijk.
 import fs from 'node:fs';
 import path from 'node:path';
 
@@ -29,17 +8,16 @@ function ok(label: string, cond: boolean, detail?: string): void {
   if (!cond) diffs.push(detail ? `${label}: ${detail}` : label);
 }
 
-/** Dialogen zonder bewerkbare invoer waar een klik naast het paneel gewoon "sluiten" mag betekenen. */
 const ALLOWLIST = new Set([
-  'src/components/dialogs/ConfirmDialog.tsx',            // ja/nee — backdrop = annuleren
-  'src/components/dialogs/UpdateDialog.tsx',             // informatie; tijdens download al uitgeschakeld
-  'src/components/dialogs/RecoveryDialog.tsx',           // keuze; sluiten laat de recovery-bestanden staan
-  'src/components/dialogs/StatsDialog.tsx',              // leesweergave
-  'src/components/dialogs/ShortcutsDialog.tsx',          // leesweergave
-  'src/components/dialogs/AiConnectionDetailsDialog.tsx', // leesweergave
-  'src/components/dialogs/NewOrOpenProjectDialog.tsx',   // keuze zonder invoer
-  'src/components/dialogs/ExtensionConsentDialog.tsx',   // toestemming — backdrop = weigeren
-  'src/components/dialogs/JustUpdatedDialog.tsx',        // leesweergave
+  'src/components/dialogs/ConfirmDialog.tsx',
+  'src/components/dialogs/UpdateDialog.tsx',
+  'src/components/dialogs/RecoveryDialog.tsx',
+  'src/components/dialogs/StatsDialog.tsx',
+  'src/components/dialogs/ShortcutsDialog.tsx',
+  'src/components/dialogs/AiConnectionDetailsDialog.tsx',
+  'src/components/dialogs/NewOrOpenProjectDialog.tsx',
+  'src/components/dialogs/ExtensionConsentDialog.tsx',
+  'src/components/dialogs/JustUpdatedDialog.tsx',
 ]);
 
 const INPUT_MARKERS = ['<input', '<textarea', '<select', '<Select'];
@@ -75,7 +53,6 @@ for (const rel of ALLOWLIST) {
     'spookvermelding — haal hem van de allowlist');
 }
 
-// (c) eigen overlays zonder `Dialog`: de overlay-div mag geen klik-handler dragen.
 const feedback = fs.readFileSync(path.join(root, 'src/components/dialogs/FeedbackDialog.tsx'), 'utf8');
 const feedbackOverlay = /<div\s+className="feedback-dialog-overlay"\s*>/.test(feedback);
 ok('FeedbackDialog-overlay heeft geen klik-handler (textarea erin)', feedbackOverlay,

@@ -26,10 +26,6 @@ export const TASK_GRID_PERFORMANCE_COUNTS = Object.freeze({
   selectionAdapterRelationCount: 2_999,
 });
 
-// Eindreview-bevinding: bulk-plakken bevroor de app. Gemeten 2.000 taken × 27 kolommen (16.000
-// writes) ⇒ 4.446 ms synchroon vóór de fix in gridTransaction.ts (de gezamenlijke-eindtoestand-
-// controle voor conditioneel schrijfbare cellen kopieerde daar per cel × per prefixlengte de
-// VOLLEDIGE tasksById-map). Zie runTaskGridPasteBenchmark hieronder.
 export const TASK_GRID_PASTE_PERFORMANCE_COUNTS = Object.freeze({
   taskCount: 2_000,
   columnCount: 27,
@@ -40,23 +36,9 @@ export const TASK_GRID_PERFORMANCE_BUDGETS = Object.freeze({
   commandBatchMs: 100,
   selectionAdapterMs: 2,
   virtualWindowMs: 5,
-  // Gemeten mediaan na de FIX 5-reparaties (10 losse processen op de gebruikte sandbox): 764–1.378
-  // ms, mediaan ~1.300 ms. Budget is ~2× die mediaan, zie docs/superpowers/evidence/
-  // tabel-overhaul-review-fixes.md, sectie "Verwerking onafhankelijke eindreview". Vóór de fix was
-  // dit exact scenario niet eens haalbaar binnen enkele seconden (zie het commentaar bij
-  // TASK_GRID_PASTE_PERFORMANCE_COUNTS hierboven) — dit blijft een echte regressiegrens: hij kan
-  // falen als de gezamenlijke-eindtoestandcontrole ooit weer O(taken × schrijfacties) wordt.
   pasteCommitMs: 3_000,
 });
 
-// De selectie→adaptermeting duurt per keer maar ~0,2–0,5 ms. Twee warmups zijn dan te weinig voor
-// de JIT: de eerste samples lopen nog in onge-optimaliseerde code en zijn 4–10× trager (lokaal
-// gemeten 1,6–4,4 ms). Op een drukke CI-runner met twee kernen duurt het optimaliseren langer, zodat
-// soms de helft van de negen samples nog traag was en de mediaan net over 2 ms kwam (CI 2026-10-19:
-// 2,01 en 2,02 ms; normaal 0,16–0,31 ms). Daarom krijgt alleen deze goedkope meting 30 warmups en
-// 21 meetruns. De poort blijft de mediaan tegen dezelfde 2 ms. De bewaakte regressie (adapterdomein
-// en relatie-index bij iedere selectie opnieuw bouwen) zit in iedere sample, dus extra warmups
-// verbergen hem niet.
 export const TASK_GRID_SELECTION_ADAPTER_PROTOCOL = Object.freeze({
   warmups: 30,
   runs: 21,
@@ -85,7 +67,6 @@ export interface TaskGridPerformanceBenchmark {
   budgetsMs: typeof TASK_GRID_PERFORMANCE_BUDGETS;
   warmups: number;
   runs: number;
-  /** Eigen protocol voor de goedkope selectie→adaptermeting; zie TASK_GRID_SELECTION_ADAPTER_PROTOCOL. */
   selectionAdapterProtocol: { warmups: number; runs: number };
   samplesMs: TaskGridPerformanceSamples;
   mediansMs: {
@@ -99,12 +80,6 @@ export interface TaskGridPerformanceBenchmark {
   mountedDataCells: number;
 }
 
-/**
- * Eén deterministische dataset voor zowel de blokkerende check als het losse benchmarkscript.
- * De twee relatiegolven koppelen iedere taak aan zijn volgende en op-een-na-volgende buur; zo zijn
- * alle 50.000 taken vertegenwoordigd zonder toeval, self-links of een generator die zelf de meting
- * domineert. De generatorbouw valt bewust buiten de gemeten tijden.
- */
 export function createTaskGridPerformanceFixture(): TaskGridPerformanceFixture {
   const { taskCount, columnCount, relationCount } = TASK_GRID_PERFORMANCE_COUNTS;
   const tasks: Task[] = Array.from({ length: taskCount }, (_, index) => ({
@@ -119,8 +94,6 @@ export function createTaskGridPerformanceFixture(): TaskGridPerformanceFixture {
     parentId: null,
     childIds: [],
     resourceIds: [],
-    // buildTaskRelationIndex leest alleen scheduleDuration; de fixture bootst bewust geen project-
-    // of solverpayload na, zodat uitsluitend het afgesproken indexpad wordt gemeten.
     time: { scheduleDuration: 5 },
   }) as unknown as Task);
   const rows: ViewRow[] = tasks.map(task => ({
@@ -267,7 +240,6 @@ export function runTaskGridPerformanceBenchmark(
   const mountedWindow = computeVirtualWindow(virtualInput);
   const mountedRows = mountedWindow.mountedRows.length;
 
-  // Houd de meetoperaties observeerbaar voor de runtime zonder het resultaat te beïnvloeden.
   if (timingSink === Number.MIN_SAFE_INTEGER) throw new Error('onbereikbare performance-sink');
 
   return {
@@ -300,22 +272,6 @@ export interface TaskGridPasteBenchmark {
   medianMs: number;
 }
 
-/**
- * Reproduceert de bulk-plak-bevinding uit de eindreview op de ECHTE store: `wbsAutoNumber` staat
- * aan (dus `task.wbsCode` is een conditioneel schrijfbare cel op elke rij — precies de kolom die
- * de review aanwees), en de plak dekt alle taken × alle gekozen kolommen tegelijk. De brontekst is
- * de eigen `copy()`-weergave van elke cel, zodat elke waarde gegarandeerd geldig parseert zonder
- * per kolomtype handmatig een format te hoeven verzinnen. De plak hoeft niet te SLAGEN (wbsCode
- * blijft door `wbsAutoNumber` conditioneel read-only) — de meting gaat over hoe lang de
- * gezamenlijke-eindtoestandcontrole erover doet om dat te bepalen, niet over het eindresultaat.
- */
-/**
- * Genereert per (rij, kolom) een geldige, van de huidige waarde AFWIJKENDE brontekst — puur op
- * `valueKind`, zonder een specifieke kolom-id te hoeven kennen. Nodig omdat `planTaskGridPaste`
- * een no-op (dezelfde canonieke waarde terugplakken) al vóór de `PasteIntent` elimineert: een
- * paste die de bestaande waarden herhaalt zou de gemeten hot path — de gezamenlijke-eindtoestand-
- * controle in gridTransaction.ts — dus stilzwijgend overslaan.
- */
 function syntheticPasteText(descriptor: TaskColumnDescriptor, rowIndex: number, columnIndex: number): string {
   switch (descriptor.valueKind) {
     case 'text': return `Gewijzigd ${rowIndex}-${columnIndex}`;
@@ -344,11 +300,6 @@ export function runTaskGridPasteBenchmark(warmups = 2, runs = 9): TaskGridPasteB
   const descriptors = buildTaskColumnRegistry({
     projectId: state.project.id, activityCodeTypes: [], customFieldDefs: [], baselines: [],
   });
-  // Alleen gewone, per-cel bewerkbare velden — relaties/technische samengestelde kolommen
-  // ('tokens'/'technical') hebben een eigen tokenformaat en horen niet in deze meting.
-  // Taaktypes-etappe (2026-09-05): kolommen die alleen ontsloten beschikbaar zijn (`task.workRule`,
-  // `available(ctx)` leest `taskTypesUnlocked`) horen niet in de vaste 27 — de meting gebruikt,
-  // net als de echte adapter, alleen kolommen die in DIT (niet-ontsloten) context beschikbaar zijn.
   const availabilityContext = { projectId: state.project.id } as TaskColumnContext;
   const writable = descriptors.filter(descriptor => descriptor.readOnly !== true
     && typeof descriptor.parse === 'function'
@@ -400,13 +351,6 @@ export function runTaskGridPasteBenchmark(warmups = 2, runs = 9): TaskGridPasteB
   if (!planned.ok) throw new Error('Paste-benchmarkfixture kon zichzelf niet plannen — geen geldig 2.000×27-blok');
   const writeCount = planned.value.writes.length;
 
-  // Aanbeveling 3 (onafhankelijke eindreview): één sample zonder warmup was gevoelig voor
-  // CPU-druk (de reviewer zag 5.049 ms rood en 2.935 ms net groen op hetzelfde werk). `runGridMutation`
-  // wordt hier — net als de review's eigen wbsCode-repro — zonder `skipReadOnlyCells` gepland, dus
-  // de conditionele wbsCode-cel weigert de HELE transactie vóór er ooit gecommit wordt: de store
-  // blijft na elke sample ongewijzigd, dus dezelfde voorbereide `PasteIntent` mag veilig
-  // `warmups + runs` keer herhaald worden op precies dezelfde 2.000-taken-fixture, net als
-  // `runTaskGridPerformanceBenchmark` hierboven doet.
   let prepared = false;
   const samplesMs = measure(() => {
     const result = S().runGridMutation([planned.value]);

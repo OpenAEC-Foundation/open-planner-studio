@@ -1,8 +1,3 @@
-// Testgereedschap: een voortgangsblad als leesbare tekst (`;` tussen cellen, één regel per rij) in
-// plaats van een binaire werkmap. `sheetFromText` loopt langs de echte kolomherkenning
-// (`sheetColumns.ts`) zonder ZIP, voor batterijen die het plan toetsen. `xlsxFromText` maakt er een
-// echt `.xlsx` van met alleen tekstcellen, voor de echte lezer en de echte bestandskiezer.
-
 import { escapeXmlAttr, escapeXmlText } from '@/services/xlsx/xmlText';
 import { writeZip } from '@/services/zip';
 import { collectProgressRows, mapColumnIndex, progressHeaderIssue, refuseSheet } from '@/services/progressImport/sheetColumns';
@@ -10,7 +5,6 @@ import { PROGRESS_IMPORT_LIMITS, type ProgressImportLimits, type ProgressSheet }
 
 interface TextRow { rowNumber: number; texts: string[] }
 
-/** Niet-lege regels met hun echte regelnummer: de koprij is rij 1, net als in een spreadsheet. */
 function textRows(text: string): TextRow[] {
   return text.split(/\r?\n/)
     .map((line, index) => ({ rowNumber: index + 1, line }))
@@ -30,7 +24,6 @@ function columnLetter(index: number): string {
   return index < 26 ? String.fromCharCode(65 + index) : `A${String.fromCharCode(65 + index - 26)}`;
 }
 
-/** Een `.xlsx` met alleen tekstcellen, zoals een spreadsheet die een datum als tekst bewaart. */
 export async function xlsxFromText(text: string): Promise<Uint8Array> {
   const decl = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>';
   const main = 'http://schemas.openxmlformats.org/spreadsheetml/2006/main';

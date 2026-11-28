@@ -170,9 +170,6 @@ if (materializedGridBefore.kind === 'grid-preference' && materializedGridAfter.k
   eq('Gridvoorkeur maakt het document niet dirty', materializedGridAfter.isDirty, false);
 }
 
-// Tijdelijke compatibiliteitsroute: de bestaande stack-undo moet vanaf Task 4B dezelfde pure
-// materializer gebruiken. Een oude/hostile snapshot mag nog een stale derived key dragen; die moet
-// worden genegeerd en uit de herstelde brondata opnieuw worden berekend.
 const integrationStore = createAppStore();
 const I = () => integrationStore.getState();
 I().newProject();

@@ -1,13 +1,3 @@
-// F4b (spec "alleen uren" §3.11): de contourdialoog toont dezelfde dagen en delen als histogram en
-// nivelleerder.
-//
-// De dialoog leest de plaatsing van `workPlacement.ts` (`taskLoadPlacement`) en de belasting per dag
-// (`assignmentLoadOnPlacement`), net als het histogram. Een fase is een inzet per werkdag; het werk van
-// een dag is inzet × deel van de dag × werktijd per dag. Toepassen schrijft periodes die de belasting
-// precies zo terugleest.
-//  - Probe uit §3.11 (knownbugs 143): urentaak 24 u vanaf wo 3 jun 11:00 ⇒ wo 0,5, do 1, vr 1, ma 0,5.
-//  - Een dagenmaat-taak van 2,5 d vanaf ma 07:00 ⇒ ma 1, di 1, wo 0,5.
-//  - Een korte vrijdag (6 u) bij een urentaak ⇒ vr 0,75.
 import { readFileSync } from 'node:fs';
 import { resolve as resolvePath } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -43,7 +33,6 @@ const cal = (id: string, byDay: Record<number, Band[]>): WorkCalendar => ({
   workTime: { byWeekday: Object.fromEntries([1, 2, 3, 4, 5, 6, 7].map(d => [d, byDay[d] ?? []])) as WorkTimeBands['byWeekday'] },
 });
 const standard = cal('std', { 1: std, 2: std, 3: std, 4: std, 5: std });
-// De voorbeeldweek: ma–do 8 u, vr 6 u (07:00–12:00 + 13:00–14:00).
 const shortFriday = cal('kortevr', { 1: std, 2: std, 3: std, 4: std, 5: [{ start: 420, end: 720 }, { start: 780, end: 840 }] });
 const engineOf = (c: WorkCalendar) => new CalendarEngine(calendarForEngine(c));
 const ops = { workdayDurationMeasure: true };
@@ -58,7 +47,6 @@ function task(time: Partial<TaskTime>, extra: Partial<Task> = {}): Task {
 }
 const assignment: ResourceAssignment = { id: 'a', taskId: 't', resourceId: 'r', unitsPerDay: 1 };
 
-// ── 1. De probe van §3.11: een urentaak die midden op de dag begint ──────────────────────────────
 const hourTask = task({ durationUnit: 'hours', durationMinutes: 1440, earlyStart: '2026-06-03T11:00', earlyFinish: '2026-06-08T11:00' });
 {
   const eng = engineOf(standard);
@@ -71,7 +59,6 @@ const hourTask = task({ durationUnit: 'hours', durationMinutes: 1440, earlyStart
   same('urentaak: het werk is 24 u', remainingMinutesOfRates(m.remainingRates, m.shares, m.mpd), 1440);
 }
 
-// ── 2. Een dagenmaat-taak met een breuk ──────────────────────────────────────────────────────────
 const dayTask = task({ durationUnit: 'days', scheduleDuration: 2.5, earlyStart: '2026-06-01T07:00', earlyFinish: '2026-06-03T11:00' });
 {
   const m = contourDayModel(dayTask, assignment, null, engineOf(standard), ops);
@@ -80,7 +67,6 @@ const dayTask = task({ durationUnit: 'days', scheduleDuration: 2.5, earlyStart: 
   same('dagenmaat: het werk is 2,5 × 8 u', remainingMinutesOfRates(m.remainingRates, m.shares, m.mpd), 1200);
 }
 
-// ── 3. De korte vrijdag bij een urentaak en bij een dagenmaat-taak ───────────────────────────────
 {
   const hours = task({ durationUnit: 'hours', durationMinutes: 2280, earlyStart: '2026-06-01T07:00', earlyFinish: '2026-06-05T14:00' });
   const m = contourDayModel(hours, assignment, null, engineOf(shortFriday), ops);
@@ -90,7 +76,6 @@ const dayTask = task({ durationUnit: 'days', scheduleDuration: 2.5, earlyStart: 
   same('dagenmaat 5 d op de voorbeeldweek: vr is één werkdag (dagslot)', r6(d.shares), [1, 1, 1, 1, 1]);
 }
 
-// ── 4. Toepassen zonder wijziging legt de verdeling vast, niets anders ───────────────────────────
 for (const [name, t] of [['urentaak', hourTask], ['dagenmaat', dayTask]] as const) {
   const eng = engineOf(standard);
   const m = contourDayModel(t, assignment, null, eng, ops);
@@ -103,7 +88,6 @@ for (const [name, t] of [['urentaak', hourTask], ['dagenmaat', dayTask]] as cons
   same(`${name}: de dialoog leest dezelfde inzet terug`, r6(again.remainingRates), r6(m.remainingRates));
 }
 
-// Een urentaak loopt per werkblok (twee stukken per dag rond de pauze); opgeslagen wordt één periode per dag.
 {
   const eng = engineOf(standard);
   const t = task({ durationUnit: 'hours', durationMinutes: 960, earlyStart: '2026-06-01T07:00', earlyFinish: '2026-06-02T16:00' });
@@ -113,7 +97,6 @@ for (const [name, t] of [['urentaak', hourTask], ['dagenmaat', dayTask]] as cons
     [{ afterMinutes: 0, minutes: 480, workMinutes: 480, kind: 'remaining' }, { afterMinutes: 480, minutes: 480, workMinutes: 480, kind: 'remaining' }]);
 }
 
-// ── 5. Een andere inzet per dag en het verrichte werk ────────────────────────────────────────────
 {
   const eng = engineOf(standard);
   const m = contourDayModel(hourTask, assignment, null, eng, ops);
@@ -128,7 +111,6 @@ for (const [name, t] of [['urentaak', hourTask], ['dagenmaat', dayTask]] as cons
   same('histogram: verricht + rest per dag', r6(assignmentPlacementLoad(assignment, m.days, m.mpd, contour, () => [])), [1.5, 1, 1, 0]);
 }
 
-// ── 6. Een vorm houdt het totaal, met het deel van de dag ────────────────────────────────────────
 {
   const m = contourDayModel(hourTask, assignment, null, engineOf(standard), ops);
   const total = remainingMinutesOfRates(m.remainingRates, m.shares, m.mpd);
@@ -137,7 +119,6 @@ for (const [name, t] of [['urentaak', hourTask], ['dagenmaat', dayTask]] as cons
   same('vorm Bel: een piek in het midden', rates[1] > rates[0] && rates[2] > rates[3], true);
 }
 
-// ── 7. De dialoog gebruikt deze regel ────────────────────────────────────────────────────────────
 const root = resolvePath(fileURLToPath(new URL('.', import.meta.url)), '../../src');
 const dialog = readFileSync(resolvePath(root, 'components', 'dialogs', 'ContourDialog.tsx'), 'utf8');
 same('ContourDialog leest contourDayModel en schrijft contourPeriodsFromRates', [

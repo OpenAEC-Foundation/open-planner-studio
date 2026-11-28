@@ -1,11 +1,3 @@
-// Restduur van een dagtaak met een breuk is exact (B3; aanval a08 na #600, BLOKKEERT 2).
-//
-// Sinds #600 mag een planner "0,25d" typen. Een nieuwe taak van 0,25 d (0 % gereed, geen ingevoerde rest)
-// loopt na herberekenen ma 1 jun 07:00–09:00, maar de kolom Resterende duur, het paneel en de rapporten
-// gaven 0 d rest: `remainingTaskMeasure` deed `Math.round(duur × (1 − voortgang))`. 0,5 d gaf 1 d en
-// 2,5 d gaf 3 d. Nu: duur × (1 − voortgang), zonder afronding; een ingevoerde rest houdt voorrang.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { setLocale } from '@/i18n/config';
 import { createElement } from 'react';
@@ -38,7 +30,6 @@ function near(label: string, got: number, want: number): void {
   if (!(Math.abs(got - want) < 1e-9)) diffs.push(`${label}: verwacht ${want}, kreeg ${got}`);
 }
 
-// Standaardkalender: ma–vr 07:00–12:00 + 13:00–16:00 (8 u).
 const blocks = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
 const standard: WorkCalendar = {
   id: 'std', name: 'Standaard', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16,
@@ -74,7 +65,6 @@ const panelRemaining = (task: Task) => {
   return /<input[^>]*value="([^"]*)"[^>]*disabled/.exec(html)?.[1] ?? /<input[^>]*disabled[^>]*value="([^"]*)"/.exec(html)?.[1];
 };
 
-// ── 1. Nieuwe taak, duur via de echte rastercommit, geen ingevoerde rest ────────────────────────────
 const cases = [
   { typed: '0,25d', days: 0.25, finish: '2026-06-01T09:00', shown: '0,25d' },
   { typed: '0.5d', days: 0.5, finish: '2026-06-01T11:00', shown: '0,5d' },
@@ -94,7 +84,6 @@ for (const c of cases) {
   eq(`${c.typed} 1g paneel Resterend`, panelRemaining(t), c.shown);
 }
 
-// ── 2. De terugval rekent exact; een ingevoerde rest houdt voorrang ────────────────────────────────
 const base = of(S().tasks[0].id);
 const withTime = (time: Partial<Task['time']>): Task => ({ ...base, time: { ...base.time, ...time } });
 const fallback = remainingTaskMeasure(withTime({ scheduleDuration: 2.5, completion: 0.4, remainingTime: undefined }));

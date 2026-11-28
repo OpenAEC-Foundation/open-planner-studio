@@ -32,7 +32,6 @@ if (fs.existsSync(fullGridPath)) {
     /createTaskGridAdapter/.test(fullGrid));
   ok('FullTaskGrid draagt exact surface-id full-task-grid',
     /surfaceId\s*=\s*["']full-task-grid["']/.test(fullGrid));
-  // `resolveColumnLabel` staat sinds #817 in een gedeelde module: de rapportkolommen gebruiken hetzelfde label.
   ok('Ontbrekende kolomvertalingen vallen terug op een leesbaar label en nooit op de interne sleutel',
     /export function resolveColumnLabel/.test(read('src/engine/taskGrid/columnLabel.ts'))
       && /import\s+\{[^}]*\bresolveColumnLabel\b[^}]*\}\s+from\s+'@\/engine\/taskGrid\/columnLabel'/.test(fullGrid)

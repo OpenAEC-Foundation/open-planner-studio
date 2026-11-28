@@ -1,16 +1,8 @@
-// Minimale XML-DOM voor de golf-4-verificatiescripts (NIET shipped): de P6/MSPDI-readers gebruiken
-// de browser-`DOMParser`, die in Node ontbreekt. Ondersteunt precies de API die die readers raken:
-// parseFromString, documentElement, getElementsByTagName (descendants), children (element-kinderen),
-// localName, tagName, textContent, parentElement. Genoeg voor de WELGEVORMDE XML die onze writers
-// produceren (geen namespaces-semantiek; CDATA en numerieke tekenverwijzingen worden als tekst gelezen, zoals in echte P6 XML).
-
 const unescape = (s: string): string =>
   s.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&apos;/g, "'")
     .replace(/&#x([0-9a-fA-F]+);/g, (_, h: string) => String.fromCodePoint(parseInt(h, 16)))
     .replace(/&#(\d+);/g, (_, d: string) => String.fromCodePoint(parseInt(d, 10)))
     .replace(/&amp;/g, '&');
-// CDATA-inhoud is letterlijke tekst (echte P6 XML zet projectnamen in `<![CDATA[…]]>`); escape hem
-// zodat de tag-regex hem als gewone tekst ziet en `unescape` hem terugzet.
 const escapeText = (s: string): string => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 
 class XNode {
@@ -55,7 +47,6 @@ class XDocument {
 }
 
 function parseXML(src: string): XDocument {
-  // Herhaal tot niets meer verandert: één ronde kan uit '<!<!---->--' een nieuw '<!--' maken.
   let clean = src.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, (_, t: string) => escapeText(t));
   for (let prev = ''; prev !== clean;) {
     prev = clean;

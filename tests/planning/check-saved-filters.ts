@@ -1,7 +1,3 @@
-// Opgeslagen filterpresets (issue #85): losse, app-brede filters moeten robuust worden bewaard en
-// geladen. Deze check dekt zowel round-trip als de parse-guard tegen handmatig beschadigde opslag.
-// Draait via run.sh. Exit 0 = alles groen.
-
 import { loadSavedFilters, saveSavedFilters } from '@/utils/settingsStore';
 import type { SavedFilter } from '@/types/view';
 

@@ -1,13 +1,3 @@
-// Datums die de app zelf schrijft (`YYYY-MM-DD`, `YYYY-MM-DDTHH:mm` zonder offset) zijn UTC-instants
-// (§1). Twee plekken lazen ze toch via de LOKALE tijd van de machine:
-//   - `computeGenerateSpan` nam `new Date('2026-01-01').getFullYear()`: in New York is dat
-//     31 december 2025, dus de feestdagen werden een jaar te vroeg gegenereerd.
-//   - `buildThumbnail` gaf datetimes zonder offset aan `Date.parse` (lokaal), maar date-only strings
-//     worden UTC: een uurtaak en een dagtaak met dezelfde instant stonden verschoven in de miniatuur.
-// De uitkomst mag dus niet van de tijdzone afhangen; de tijdzone-matrix in run.sh draait dit onder
-// vijf zones.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { computeGenerateSpan } from '@/engine/calendar/generateCalendarHolidays';
 import { buildThumbnail } from '@/utils/documents';
 import type { Task } from '@/types/task';
@@ -25,7 +15,6 @@ eq('Generatiespanne vanaf 1 januari: startjaar zelf', computeGenerateSpan('2026-
 eq('Generatiespanne met projecteinde op 1 januari', computeGenerateSpan('2026-01-01', '2027-01-01'), { from: 2025, to: 2028 });
 eq('Generatiespanne op 31 december', computeGenerateSpan('2026-12-31', '2027-12-31'), { from: 2025, to: 2028 });
 
-// Knownbug 198: ongeldig einde verdringt geen geldig alternatief en veroorzaakt geen NaN.
 for (const invalid of ['ongeldig', 'not-a-date', 'NaN']) {
   eq(`onleesbaar einde ${invalid}: standaardbereik`, computeGenerateSpan('2026-01-01', invalid), { from: 2025, to: 2029 });
   eq(`onleesbaar einde ${invalid}: berekend einde blijft tellen`, computeGenerateSpan('2026-01-01', invalid, '2031-06-01'), { from: 2025, to: 2032 });

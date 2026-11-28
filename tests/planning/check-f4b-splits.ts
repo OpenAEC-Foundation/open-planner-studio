@@ -1,13 +1,3 @@
-// F4b (spec "alleen uren" §3.12 T24, §3.14; F3c split-as): slepen en splitsen van een dagtaak, en dezelfde
-// stukken in Gantt, paneel Onderbrekingen en afdruk.
-//
-//  1. De dagslot-as: een taak in de dagenmaat legt stukken en pauzes op dagslots van `werktijd per dag × 60`
-//     asminuten; elke werkdag telt één dagslot, ook een korte vrijdag of een nachtploeg.
-//  2. Slepen in de dagenmaat (`resolveDayMeasureBarDrag`): bij dagzoom per hele werkdag, met behoud van de
-//     breuk; bij uurzoom per uur, en de duur wordt werkdagen met het deel van de dag.
-//  3. Eén bron voor de stukken (`taskSplitSegments`): renderer, paneel (knownbug 244) en afdruk
-//     (knownbug 245) lezen dezelfde maat als de solver; onder P6 telt een dagtaak in werkminuten.
-// Exit 0 = alles groen.
 import './domStub';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { resolveDayMeasureBarDrag } from '@/engine/renderer/hourBarDragMath';
@@ -64,7 +54,6 @@ function task(time: Partial<TaskTime>, gaps?: TaskSplitGap[]): Task {
 const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGap[]) =>
   task({ durationUnit: 'days', scheduleDuration: days, scheduleStart: start, earlyStart: start, scheduleFinish: finish, earlyFinish: finish }, gaps);
 
-// ── 1. De dagslot-as ─────────────────────────────────────────────────────────────────────────────
 {
   const std = engineOf(standard);
   same('dagslot = werktijd per dag × 60', dagslotMinutes(std), 480);
@@ -87,7 +76,6 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
     F(splitWorkdayStart(I('2026-06-03T02:00'), nightEng, night)), '2026-06-02T22:00');
 }
 
-// ── 2. Slepen in de dagenmaat ────────────────────────────────────────────────────────────────────
 {
   const std = engineOf(standard);
   const base = {
@@ -124,9 +112,6 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
     workdaySteps: 1, pointerStart: I('2026-06-02T01:00'), pointerCurrent: I('2026-06-03T01:00'), snapMinutes: 1440,
   });
   same('nachtploeg: één ploeg verder', [F(n.start), F(n.finish)], ['2026-06-02T22:00', '2026-06-03T06:00']);
-  // Een gesplitste dagtaak (aanval na #600 fout 3): 4 d, een pauze van één werkdag na de eerste werkdag; ma werk,
-  // di pauze, wo–vr werk. De balk spant werk plus pauze (de splitsom van de motor); een rand verandert alleen het
-  // laatste werkstuk. Vroeger trok de linkerrand alleen werk van het einde af en sprong hij naar woensdag.
   const gaps: TaskSplitGap[] = [{ afterMinutes: 480, gapMinutes: 480, source: 'user' }];
   const split = (over: Partial<Parameters<typeof resolveDayMeasureBarDrag>[0]>) => {
     const r = resolveDayMeasureBarDrag({
@@ -143,12 +128,8 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
   same('splits, uurzoom: body +1 u schuift alles een uur, ook over de pauze en het weekend',
     split({ edge: 'body', snapMinutes: 60, pointerCurrent: I('2026-06-01T13:00') }), ['2026-06-01T08:00', '2026-06-08T08:00', 4]);
 }
-// Per getoonde kolom (useBarDrag bij dagzoom): de telling begint bij de werkdag van de gegrepen rand, niet
-// bij de dag onder de muis. Een lange balk die in het weekend gegrepen wordt, gaat zo per kolom mee
-// (gantt-drag-undo, auto-calc-after-edit: +1 kolom vanaf een greep op za of zo).
 {
   const std = engineOf(standard);
-  // De projectkalender (de getekende as) is standaard ma–vr; `eng`/`c` is de taakkalender.
   const steps = (anchor: string, columns: number, side: 'start' | 'end' = 'start', compressed = false, eng = std, c = standard) =>
     dragWorkdaySteps(I(anchor), side, columns, std, compressed, eng, c);
   same('kolommen: ma +1 = 1 werkdag', steps('2026-06-01T07:00', 1), 1);
@@ -165,9 +146,6 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
     steps('2026-06-02T22:00', 1, 'start', false, engineOf(night), night), 1);
   same('nachtploeg: een einde za 06:00 hoort bij vr; +1 (za) = ma',
     steps('2026-06-06T06:00', 1, 'end', false, engineOf(night), night), 1);
-  // Aanval na #600 (a09, fout 1): een taak met een kalender van zeven dagen op een project van ma–vr. Onder
-  // compressie is de kolom na vrijdag maandag; de taakkalender telt daar drie werkdagen tot (za, zo, ma).
-  // Vroeger gaf de verkorting "compressed ⇒ columns" één werkdag, dus zaterdag.
   const sevenBands = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
   const sevenDays = cal('zeven', { byWeekday: { 1: sevenBands, 2: sevenBands, 3: sevenBands, 4: sevenBands, 5: sevenBands, 6: sevenBands, 7: sevenBands } });
   sevenDays.workDays = [1, 2, 3, 4, 5, 6, 7];
@@ -188,9 +166,7 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
 }
 
 
-// ── 3. Eén bron voor de stukken ──────────────────────────────────────────────────────────────────
 {
-  // Knownbug 244: dagtaak ma 08:00 op een kalender 08–16, pauzes van 1 u na 2 u en na 5 u op de as.
   const probe = dayTask('2026-06-01T08:00', '2026-06-02T10:00', 1, [
     { afterMinutes: 120, gapMinutes: 60, source: 'user' }, { afterMinutes: 300, gapMinutes: 60, source: 'user' },
   ]);
@@ -200,7 +176,6 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
   same('paneel Onderbrekingen: van–tot na elke pauze, B4 (knownbug 244)', splitPieceRanges(probe, eightToFour, true), [
     { from: '2026-06-01T11:00', to: '2026-06-01T13:00' }, { from: '2026-06-01T14:00', to: '2026-06-02T10:00' },
   ]);
-  // Een pauze van één werkdag op de korte vrijdag: OPS telt dagslots, P6 werkminuten (F3c).
   const friday = dayTask('2026-06-04T07:00', '2026-06-09T16:00', 3, [{ afterMinutes: 480, gapMinutes: 480, source: 'user' }]);
   same('maat van de split-as: OPS dagslots, P6 werkminuten', [taskSplitMeasure(friday, true), taskSplitMeasure(friday, false)], ['workdays', true]);
   same('OPS: het werk na een pauze van één werkdag hervat ma 07:00',
@@ -208,13 +183,11 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
   same('P6: dezelfde pauze is 480 werkminuten en hervat ma 09:00',
     F(taskSplitSegments(friday, shortFriday, false)![1].start), '2026-06-08T09:00');
   same('paneel: het stuk na de pauze toont "ma 8 jun" (OPS)', splitPieceRanges(friday, shortFriday, true)[0], { from: '2026-06-08', to: '2026-06-09' });
-  // Een dagkalender (zonder eigen blokken) splitst in de dagenmaat, niet meer in hele dagen.
   const half = dayTask('2026-06-01T07:00', '2026-06-02T16:00', 1, [{ afterMinutes: 240, gapMinutes: 240, source: 'user' }]);
   same('dagkalender: het eerste stuk eindigt na een halve werkdag', F(taskSplitSegments(half, scalar, true)![0].end), '2026-06-01T11:00');
   same('één engine per kalenderobject', splitEngineFor(scalar) === splitEngineFor(scalar), true);
 }
 
-// ── 4. De afdruk tekent dezelfde stukken (knownbug 245) en datums volgens B4 ────────────────────
 {
   const texts: string[] = [];
   const connectors: string[] = [];
@@ -246,7 +219,6 @@ const dayTask = (start: string, finish: string, days: number, gaps?: TaskSplitGa
     dateNotation: 'dmy', timeNotation: '24h',
   } as unknown as PrintOptions;
   const longDay = cal('lang', week([{ start: 420, end: 720 }, { start: 780, end: 1020 }]));
-  // Zoals ReportPanel: de kolombreedtes gemeten op de getoonde tekst (met tijd waar B4 die toont).
   const widths = (tasks: Task[]) => measureTableColumnWidths(buildPrintRows(tasks, undefined), {
     showCompletion: false, dateNotation: 'dmy', timeNotation: '24h', calendar: longDay, calendars: [],
   }, text => text.length * 6);

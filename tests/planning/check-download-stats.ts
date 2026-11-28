@@ -1,8 +1,3 @@
-/**
- * Contract-check voor de leeskant van de stats-pijplijn (services/stats/downloadStats.ts):
- * parser tegen de echte JSON-vorm van `downloads.json`, schema-poort, en de cache-/fetch-
- * volgorde met een geïnjecteerde fetch en opslag. Puur → headless. Exit 1 bij een afwijking.
- */
 import {
   DOWNLOAD_STATS_CACHE_MS,
   DOWNLOAD_STATS_URL,
@@ -25,7 +20,6 @@ function check(name: string, cond: boolean): void {
   }
 }
 
-// De vorm zoals `download-stats.mjs --format=json` hem schrijft (stand 2026-09-07, ingekort).
 const bucket = (install: number, update: number, both: number, byKind: Record<string, number>) => ({ install, update, both, byKind });
 const FIXTURE = {
   schemaVersion: 1,
@@ -43,7 +37,6 @@ const FIXTURE = {
   unknown: [],
 };
 
-// ── Parser ──
 {
   const r = parseDownloadStats(FIXTURE);
   check('fixture parseert', r.ok);
@@ -65,7 +58,6 @@ const FIXTURE = {
   check('geen object ⇒ nette fout', !parseDownloadStats('nee').ok && !parseDownloadStats(null).ok);
 }
 
-// ── Cache + fetch ──
 function memStorage(): StatsStorage & { map: Map<string, string> } {
   const map = new Map<string, string>();
   return { map, getItem: k => map.get(k) ?? null, setItem: (k, v) => { map.set(k, v); } };
@@ -93,7 +85,6 @@ await (async () => {
   const forced = await loadDownloadStats({ storage, fetchImpl: fakeFetch(log, FIXTURE), now: T0 + 60_000, force: true });
   check('force negeert de verse cache', log.length === 2 && !forced.fromCache);
 
-  // De geforceerde fetch hierboven stempelde T0 + 60 s als fetchedAt, dus dáárvandaan rekenen.
   const later = await loadDownloadStats({ storage, fetchImpl: fakeFetch(log, FIXTURE), now: T0 + 60_000 + DOWNLOAD_STATS_CACHE_MS + 1 });
   check('na 30 min: opnieuw fetchen', log.length === 3 && !later.fromCache);
 

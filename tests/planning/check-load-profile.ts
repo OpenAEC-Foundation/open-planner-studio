@@ -1,17 +1,3 @@
-/**
- * De belasting leest het profiel van het project (spec "alleen uren" §3.11, §3.14; review #581 r1,
- * knownbug 258). De verdeling van een dagenmaat-taak hangt af van de maatconventie
- * `workdayDurationMeasure`: onder OPS telt 1 d als één werkdag, onder P6 en MS Project als
- * 1 × de werktijd per dag (8 u). Elke productieroute moet daarom het effectieve profiel doorgeven.
- *
- * Kalender: ma–do 07:00–15:00 (8 u), vr 07:00–13:00 (6 u), werktijd per dag 8 u. Taak T: 1 d vanaf
- * vr 07:00 met resource R (inzet 1).
- *  - P6: 8 u = vr 6 u + ma 2 u. De solver eindigt op ma 09:00; de belasting is vr 0,75 + ma 0,25.
- *  - OPS (controle): één werkdag, dus vr 1.
- * Routes: `runCPM`, `recomputeResourceLoad`, de gridtransactie (duur 2 d: vr 0,75 + ma 1 + di 0,25),
- * undo/redo (`materializeHistoryTarget`), een documentwissel, openen uit IFC, het MCP-histogram, het
- * rapport *Resourcebelasting* en de bezetting van de bibliotheek.
- */
 import './domStub';
 import { makeMcpContext } from '../mcp/harness';
 import { getTool } from '@/services/mcp/toolRegistry';
@@ -74,7 +60,6 @@ function fixture(profile: SchedulingProfile): { context: AppStoreContext; taskId
 const loadOf = (c: AppStoreContext) => c.store.getState().resourceLoadResult?.load.r ?? null;
 const finishOf = (c: AppStoreContext) => c.store.getState().tasks.find(t => t.id === 't')!.time.earlyFinish;
 
-// ── runCPM en recomputeResourceLoad ──────────────────────────────────────────────
 {
   const { context } = fixture(P6);
   eq('p1 P6: de solver eindigt op ma 09:00', finishOf(context), `${MA}T09:00`);
@@ -88,7 +73,6 @@ const finishOf = (c: AppStoreContext) => c.store.getState().tasks.find(t => t.id
   eq('p5 OPS (controle): de belasting staat helemaal op vr', loadOf(context), { [VR]: 1 });
 }
 
-// ── Gridtransactie, undo en redo ─────────────────────────────────────────────────
 {
   const { context } = fixture(P6);
   const S = () => context.store.getState();
@@ -98,7 +82,6 @@ const finishOf = (c: AppStoreContext) => c.store.getState().tasks.find(t => t.id
   };
   const res = S().runGridMutation([cell]);
   eq('p6 gridtransactie: de duurcel slaagt', res.ok, true);
-  // Twee dagen = 16 u: vr 6 + ma 8 + di 2. Zonder het profiel: vr 1 + ma 1.
   eq('p7 gridtransactie: de belasting leest het profiel', loadOf(context), { [VR]: 0.75, [MA]: 1, [DI]: 0.25 });
   S().undo();
   eq('p8 undo: de herstelde belasting leest het profiel', loadOf(context), P6_LOAD);
@@ -106,7 +89,6 @@ const finishOf = (c: AppStoreContext) => c.store.getState().tasks.find(t => t.id
   eq('p9 redo: idem', loadOf(context), { [VR]: 0.75, [MA]: 1, [DI]: 0.25 });
 }
 
-// ── Documentwissel en openen uit IFC ─────────────────────────────────────────────
 {
   const { context } = fixture(P6);
   const S = () => context.store.getState();
@@ -119,12 +101,10 @@ const finishOf = (c: AppStoreContext) => c.store.getState().tasks.find(t => t.id
   eq('p11 IFC: het profiel gaat mee', parsed.project.schedulingProfile?.baseId, 'p6');
   const reopened = createAppStoreContext();
   reopened.store.getState().applyLoadedProject(parsed, { recompute: true });
-  // De lezer geeft de resource een eigen id.
   const r = reopened.store.getState();
   eq('p12 openen uit IFC: de belasting leest het profiel', r.resourceLoadResult?.load[r.resources[0].id] ?? null, P6_LOAD);
 }
 
-// ── Rapport en bezetting (pure kernen met de productie-invoer) ───────────────────
 {
   const { context } = fixture(P6);
   const s = context.store.getState();
@@ -133,7 +113,6 @@ const finishOf = (c: AppStoreContext) => c.store.getState().tasks.find(t => t.id
     calendar: s.calendar, calendars: s.calendars, cpmResult: s.cpmResult, baseline: null, today: VR,
     solveOptions: solveOptionsFor(s.project),
   }, { period: { preset: 'project' }, bucket: 'week', onlyOverloaded: false });
-  // Het rapport rondt af op één decimaal: 0,75 → 0,8 en 0,25 → 0,3 (zonder profiel 1 en 0).
   eq('p13 rapport Resourcebelasting: per week 0,8 en 0,3 (zonder profiel 1 en 0)',
     report.rows.map(r => [r.bucketStart, r.required]), [['2026-06-01', 0.8], [MA, 0.3]]);
 
@@ -150,7 +129,6 @@ const finishOf = (c: AppStoreContext) => c.store.getState().tasks.find(t => t.id
   eq('p14 bezetting: de dagbelasting van het document leest het profiel', occupancy.rows[0]?.docs[0]?.dailyLoad ?? null, P6_LOAD);
 }
 
-// ── MCP ──────────────────────────────────────────────────────────────────────────
 async function mcp() {
   const { context } = fixture(P6);
   const res = await getTool('planner_get_resource_histogram')!.handler(

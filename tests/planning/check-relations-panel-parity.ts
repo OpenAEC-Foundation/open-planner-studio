@@ -16,10 +16,6 @@ type ParityRow = Readonly<{
   evidenceId: string;
 }>;
 
-/**
- * De machineleesbare verwijderpoort uit tabel-overhaul-spec §10.3. De trace-eis is opgesplitst
- * in voorgangers en opvolgers, omdat beide lintacties onafhankelijk beschikbaar moeten blijven.
- */
 export const RELATIONS_PANEL_PARITY: readonly ParityRow[] = [
   {
     id: 'internal-crud',

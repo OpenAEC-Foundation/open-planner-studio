@@ -1,4 +1,3 @@
-// Hulpmodule voor measure-cpm-writeback.mjs; beide bundels draaien dezelfde store-actie.
 import { createHash } from 'node:crypto';
 import { createAppStoreContext } from '@/state/appStoreFactory';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
@@ -27,7 +26,6 @@ export function createMeasurement(size: number) {
       const ms = performance.now() - start;
       const state = store.getState();
       if (state.cpmResult?.error) throw new Error(state.cpmResult.error);
-      // Buiten de tijdmeting: vergelijk alle taakvelden, het hele CPM-resultaat en belasting.
       const output = JSON.stringify({ tasks: state.tasks, cpm: state.cpmResult, load: state.resourceLoadResult },
         (_, value: unknown) => value instanceof Map || value instanceof Set ? [...value] : value);
       return { ms, sha256: createHash('sha256').update(output).digest('hex') };

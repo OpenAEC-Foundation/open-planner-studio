@@ -1,13 +1,3 @@
-/**
- * Ribbon-groep Baselines & Progress — layoutcontract.
- *
- * Elke stack rendert zijn kinderen onder elkaar (maximaal drie per stack binnen de vaste
- * linthoogte), zonder naast elkaar te staan. De baseline-/voortgangsregels delen één stack, en
- * balkkleuren en resource-accent staan onder elkaar. Welke stack precies welke overige knop draagt
- * (spelingsband #130, relatielijnen #144) ligt bewust NIET vast: dat is indeling, geen contract.
- */
-// De ribbon-config laadt i18n, dat bij module-initialisatie de documentrichting zet. De test leest
-// alleen declaratieve config en heeft dus geen DOM nodig, behalve deze minimale Node-shim.
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 
@@ -25,16 +15,10 @@ const eq = (label: string, got: unknown, want: unknown) => {
 const overlays = RIBBON_TABS.beeld.find(group => group.id === 'overlays');
 const bars = RIBBON_TABS.beeld.find(group => group.id === 'bars');
 eq('Baselines & Progress-groep bestaat', !!overlays, true);
-// Issue #391: de balkweergave staat in een eigen groep "Balken".
 eq('Balken-groep bestaat, direct na Baselines & Progress',
   RIBBON_TABS.beeld.findIndex(group => group.id === 'bars'),
   RIBBON_TABS.beeld.findIndex(group => group.id === 'overlays') + 1);
 
-// Invarianten i.p.v. een vastgepinde indeling: een nieuwe knop in een stack met ruimte, of een
-// extra stack, mag deze test niet breken (voorheen moest elke toevoeging hier handmatig mee, zie
-// #130). Wat wél vast ligt: stacks hebben hooguit drie knoppen binnen de linthoogte, de bestaande
-// knoppen blijven bestaan, en de paren die bij elkaar horen staan onder elkaar in één stack.
-// Enige uitzondering op "alles in stacks": de grote gesplitste knop Baseline-overlay (eigen kolom).
 const items = [...(overlays?.items ?? []), ...(bars?.items ?? [])];
 const stackOf = (id: string) =>
   items.find(item => item.kind === 'stack' && item.items.some(child => child.id === id));

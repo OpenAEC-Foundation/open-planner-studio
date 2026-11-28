@@ -1,8 +1,3 @@
-// App sluiten (audit 2026-09-26): `createAppQuitController` loopt de documenten met niet-opgeslagen
-// wijzigingen langs de bestaande sluit-bevestiging en ruimt pas bij een schone exit de
-// herstelsnapshots op. Headless: alle randen (store, recovery, venster) zijn fakes.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import './domStub';
 import { createHash } from 'node:crypto';
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -33,9 +28,7 @@ function harness(initial: AppQuitDocument[]) {
     quitPending: false,
     recoveryOn: true,
     inputFinished: 0,
-    /** Een lopende of wachtende opslag (in de app: de schrijfrij). */
     saving: null as Promise<void> | null,
-    /** Aantal foutmeldingen (in de app: een mislukte of geweigerde opslag meldt zich zo). */
     errors: 0,
   };
   const controller = createAppQuitController({
@@ -64,13 +57,11 @@ function harness(initial: AppQuitDocument[]) {
     },
     claimShutdown: () => () => undefined,
   });
-  /** Laat een opslag lopen tot `release()`. */
   const hold = () => {
     let release!: () => void;
     world.saving = new Promise<void>((r) => { release = r; });
     return release;
   };
-  // De sluit-bevestiging, zoals CloseDocumentDialog hem afhandelt.
   const answer = (choice: 'opslaan' | 'niet-opslaan' | 'annuleren' | 'opslaan-mislukt') => {
     const id = world.pending!;
     if (choice === 'opslaan' || choice === 'niet-opslaan') world.docs = world.docs.filter((d) => d.id !== id);
@@ -81,7 +72,6 @@ function harness(initial: AppQuitDocument[]) {
   return { controller, world, log, answer, settle, hold };
 }
 
-// 1. Niets ongeopgeslagen: meteen herstel uit, gewist, venster dicht — zonder vraag.
 {
   const h = harness([{ id: 'a', isDirty: false }, { id: 'b', isDirty: false }]);
   eq('1 CloseRequested wordt overgenomen', h.controller.requestQuit(), true);
@@ -89,7 +79,6 @@ function harness(initial: AppQuitDocument[]) {
   eq('1 schone exit: volgorde', h.log, ['poort-dicht', 'herstel-uit', 'herstel-gewist', 'venster-dicht', 'poort-open']);
 }
 
-// 2. Twee gewijzigde documenten: per document de vraag; opslaan + niet opslaan ⇒ dicht.
 {
   const h = harness([{ id: 'a', isDirty: true }, { id: 'b', isDirty: false }, { id: 'c', isDirty: true }]);
   h.controller.requestQuit();
@@ -102,7 +91,6 @@ function harness(initial: AppQuitDocument[]) {
   eq('2 daarna schone exit', h.log.slice(2), ['poort-dicht', 'herstel-uit', 'herstel-gewist', 'venster-dicht', 'poort-open']);
 }
 
-// 3. Annuleren breekt het afsluiten af: herstel blijft aan, venster blijft open, vlag weer uit.
 {
   const h = harness([{ id: 'a', isDirty: true }, { id: 'b', isDirty: true }]);
   h.controller.requestQuit();
@@ -111,12 +99,10 @@ function harness(initial: AppQuitDocument[]) {
   eq('3 geen tweede vraag, geen exit', h.log, ['vraag:a']);
   eq('3 herstel blijft aan', h.world.recoveryOn, true);
   eq('3 vlag uit, controller inactief', [h.world.quitPending, h.controller.active], [false, false]);
-  // Een nieuwe sluitpoging begint opnieuw bij het eerste gewijzigde document.
   h.controller.requestQuit();
   eq('3 nieuwe poging vraagt opnieuw', h.log, ['vraag:a', 'vraag:a']);
 }
 
-// 4. Een mislukte opslag (document blijft dirty) breekt eveneens af.
 {
   const h = harness([{ id: 'a', isDirty: true }]);
   h.controller.requestQuit();
@@ -125,7 +111,6 @@ function harness(initial: AppQuitDocument[]) {
   eq('4 mislukte opslag: geen exit', h.log, ['vraag:a']);
 }
 
-// 5. Store-wijzigingen terwijl de vraag openstaat doen niets.
 {
   const h = harness([{ id: 'a', isDirty: true }]);
   h.controller.requestQuit();
@@ -134,10 +119,6 @@ function harness(initial: AppQuitDocument[]) {
   eq('5 geen dubbele vraag', h.log, ['vraag:a']);
 }
 
-// 6. Review #401: open veldinvoer zonder blur (inzet 1 → 3 getypt, focus nog in het veld). Echte
-//    store en de echte randen van `appQuitDependencies`; alleen het Tauri-venster is nagebootst.
-//    Afsluiten rondt de invoer eerst af: de inzet staat in de store, het document is gewijzigd, en
-//    de controller vraagt om bevestiging in plaats van herstel te wissen en het venster te sluiten.
 {
   const reg = createPendingTextEdits();
   const ctx = createAppStoreContext({ pendingTextEdits: reg });
@@ -148,7 +129,6 @@ function harness(initial: AppQuitDocument[]) {
   s().assignResource(taskId, resourceId, 1);
   const asg = s().assignments[0]!.id;
   ctx.store.setState((st) => { st.isDirty = false; });
-  // Zoals `UnitsInput` (commit van de draft) en `useTextEntryAutoCalcHold` (eigen blokkade) zich aanmelden.
   let released = 0;
   reg.register({ commit: () => s().updateAssignment(asg, { unitsPerDay: 3 }) });
   reg.register({ release: () => { released++; } });
@@ -164,7 +144,6 @@ function harness(initial: AppQuitDocument[]) {
   eq('6 sluitvraag voor het actieve document', s().ui.pendingCloseDocId, s().activeDocumentId);
   eq('6 de getypte inzet staat in de store', s().assignments[0]!.unitsPerDay, 3);
   eq('6 eigen rekenblokkade vrijgegeven', released, 1);
-  // Annuleren: het afsluiten breekt af en geeft de afsluitfase terug (anders hield deze ronde hem voor de rest vast).
   s().setUI({ pendingCloseDocId: null });
   controller.step();
   eq('6 geannuleerd', [s().ui.appQuitPending, controller.active], [false, false]);
@@ -191,8 +170,6 @@ for (const closeActive of [true, false]) {
   eq(`1838/${closeActive}: juiste document blijft open`, s().documents.some(d => d.id === (closeActive ? active : other)), closeActive);
 }
 
-// 7. Review #401 (vervolg 3): het register hoort bij één storecontext. Een documentactie in een
-//    andere context rondt de invoer van de zichtbare app niet af; in de gemounte context wel.
 {
   let commits = 0;
   const off = mountedPendingTextEdits.register({ commit: () => { commits++; } });
@@ -203,8 +180,6 @@ for (const closeActive of [true, false]) {
   off();
 }
 
-// 8. #804 stap 3 (besluit eigenaar 17 november 2026: wachten, dan sluiten). Afsluiten tijdens een opslag wacht eerst,
-//    met "Wordt nog opgeslagen…", en zet pas daarna het herstel uit en wist het.
 {
   const h = harness([{ id: 'a', isDirty: false }]);
   const release = h.hold();
@@ -219,8 +194,6 @@ for (const closeActive of [true, false]) {
   eq('8 daarna de schone exit', h.log, ['aanduiding-aan', 'aanduiding-uit', 'poort-dicht', 'herstel-uit', 'herstel-gewist', 'venster-dicht', 'poort-open']);
 }
 
-// 9. Een opslag die tijdens het wachten mislukt (er komt een foutmelding), breekt het afsluiten af, zoals een mislukte
-//    opslag uit de sluitvraag: geen vraag, het herstel blijft staan, het venster blijft open.
 {
   const h = harness([{ id: 'a', isDirty: true }]);
   const release = h.hold();
@@ -232,8 +205,6 @@ for (const closeActive of [true, false]) {
   eq('9 herstel aan, afsluiten afgebroken', [h.world.recoveryOn, h.world.quitPending, h.controller.active], [true, false, false]);
 }
 
-// 10. Een document dat tijdens de opslag verder gewijzigd is (na het wachten nog gewijzigd, zonder fout): de gewone
-//     sluitvraag.
 {
   const h = harness([{ id: 'a', isDirty: true }, { id: 'b', isDirty: false }]);
   const release = h.hold();
@@ -246,7 +217,6 @@ for (const closeActive of [true, false]) {
   eq('10 daarna dicht', h.log.slice(3), ['poort-dicht', 'herstel-uit', 'herstel-gewist', 'venster-dicht', 'poort-open']);
 }
 
-// 11. Loopt er na de sluitvraag nog een schrijfactie (een AutoSave-ronde), dan wacht het afsluiten ook daarop.
 {
   const h = harness([{ id: 'a', isDirty: true }]);
   h.controller.requestQuit();
@@ -259,8 +229,6 @@ for (const closeActive of [true, false]) {
   eq('11 daarna dicht', h.log.slice(1), ['aanduiding-aan', 'aanduiding-uit', 'poort-dicht', 'herstel-uit', 'herstel-gewist', 'venster-dicht', 'poort-open']);
 }
 
-// 12. De echte randen (`appQuitDependencies`): de schrijfrij, de aanduiding `ui.savingBeforeClose` in de store, en een
-//     nieuwe of herhaalde foutmelding als teken dat een opslag tijdens het wachten mislukte.
 {
   const ctx = createAppStoreContext();
   const s = () => ctx.store.getState();
@@ -291,7 +259,6 @@ for (const closeActive of [true, false]) {
   await settle();
   eq('12 mislukt: afgebroken, aanduiding weg', [s().ui.savingBeforeClose, s().ui.appQuitPending, log], [false, false, []]);
 
-  // Dezelfde fout nog een keer (samengevouwen tot "×2", geen nieuwe melding) telt ook.
   write = holdWrite();
   controller.requestQuit();
   await settle();
@@ -301,7 +268,6 @@ for (const closeActive of [true, false]) {
   await settle();
   eq('12 herhaalde fout: opnieuw afgebroken', [s().ui.appQuitPending, log], [false, []]);
 
-  // Geslaagd: de oude foutmeldingen van eerder tellen niet.
   write = holdWrite();
   controller.requestQuit();
   await settle();
@@ -313,7 +279,6 @@ for (const closeActive of [true, false]) {
   off();
 }
 
-// 13. Zonder lopende opslag: de volgorde van nu, zonder aanduiding.
 {
   const ctx = createAppStoreContext();
   const s = () => ctx.store.getState();
@@ -335,12 +300,6 @@ for (const closeActive of [true, false]) {
   off();
 }
 
-// 14. #804 stap 3, fixronde 1 (BLOKKEERT; de proef van de review): de laatste fase. Een lege rij alleen sloot nieuwe
-//     opslag niet uit: tijdens het wissen van het herstel en het sluiten van het venster kon nog een Ctrl+S of een ronde
-//     van Automatisch opslaan beginnen. De echte store, de echte opslagroute en de echte bestands-AutoSave op een echt
-//     bestand, met dezelfde subscription als `useAppCloseGuard`; alleen het venster en de bestandsbrug van Tauri zijn
-//     nagebootst. Fixronde 2: dan is het document gewijzigd terwijl het herstel gewist is; het venster gaat dan niet
-//     dicht, maar de gewone ronde begint opnieuw met de sluitvraag, en opslaan werkt weer.
 {
   const ipc = installNodeFileIpc();
   const win = window as unknown as { __TAURI_INTERNALS__: { invoke: (...args: unknown[]) => Promise<unknown> } };
@@ -394,7 +353,6 @@ for (const closeActive of [true, false]) {
     phase = { calls: ipc.calls.length, hash: fileHash() };
     eq('14 de laatste fase: de schil staat stil, ook voor de MCP-bridge',
       [s().ui.appClosing, isGlobalShortcutFrozen(s().ui), isBlockingDialogOpen(s().ui), recoveryOn], [true, true, true, false]);
-    // Wat de schil tegenhoudt, maar de store nog wel zou kunnen: een bewerking, Ctrl+S, Opslaan als, een AutoSave-ronde.
     s().addTask({ name: 'Bewerking tijdens het afsluiten' });
     eq('14 Ctrl+S slaat niet op', await s().saveFileForDocument(s().activeDocumentId), false);
     await s().saveFileAs();
@@ -403,13 +361,11 @@ for (const closeActive of [true, false]) {
       [dialogs, s().ui.notifications.length, mutating(phase.calls), fileHash() === phase.hash, s().isDirty], [0, 0, [], true, true]);
     allowClear.resolve();
     await new Promise((r) => setTimeout(r, 0));
-    // Het vangnet: het venster gaat niet dicht met een gewijzigd document; de gewone ronde begint opnieuw.
     eq('14 geen destroyWindow met een gewijzigd document', destroys, []);
     eq('14 de sluitvraag; schil, poort en herstel weer open',
       [s().ui.pendingCloseDocId, s().ui.appClosing, s().ui.appQuitPending, controller.active, recoveryOn],
       [s().activeDocumentId, false, true, true, true]);
     eq('14 nog steeds niets geschreven', [mutating(phase.calls), fileHash() === phase.hash], [[], true]);
-    // Opslaan uit de sluitvraag werkt weer; daarna sluit de app.
     eq('14 opslaan werkt weer', await s().saveFileForDocument(s().activeDocumentId), true);
     eq('14 en schreef het bestand', [s().isDirty, fileHash() !== phase.hash], [false, true]);
     s().setUI({ pendingCloseDocId: null });

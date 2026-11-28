@@ -1,4 +1,3 @@
-// F1: dezelfde statusregel in dialoog, paneel, raster en MCP. Werkelijke tijden blijven feiten.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { createTaskDialogSave, planTaskDialogProgress } from '@/state/taskDialogSave';
@@ -58,7 +57,6 @@ for (const c of cases) for (const route of ['dialoog', 'paneel', 'raster', 'plak
   } else if (route === 'paneel') {
     accepted = f.S().setActualFinish(f.id, c.value);
   } else if (route === 'MCP') {
-    // De tool roept deze validatie aan op zijn geïsoleerde mutatiedraft.
     const draft = structuredClone({
       tasks: f.S().tasks, sequences: [], assignments: [], resources: [],
       calendars: f.S().calendars, calendar: f.S().calendar, project: f.S().project,
@@ -111,7 +109,6 @@ for (const [plannedFinish, finish] of [
     [task], f.calendar, [f.calendar]);
   eq('148 vastgelegde finish na deadline gemist', missed.missedDeadlineTaskIds, [f.id]);
 }
-// F2 sluit de algemene normalisatie aan (D2); de F1-klem op het statusmoment blijft behouden.
 {
   const f = fixture('2026-06-10');
   eq('D2 normaliseert ook vóór de statusdag', normalizeActualDate(f.task(), 'actualFinish',
@@ -121,7 +118,6 @@ for (const [plannedFinish, finish] of [
   eq('paneel accepteert ouder feit', f.S().setActualFinish(f.id, '2026-06-04'), true);
   eq('F2-paneel normaliseert ouder feit met D2', f.task().time.actualFinish, '2026-06-04T16:00');
 }
-// Een gecombineerde MCP-invoer toetst het opgegeven einde vóór completion < 100 het wist.
 for (const [actualFinish, applied] of [
   ['2026-06-03T14:00', false], ['2026-06-03T10:00', true],
 ] as const) {

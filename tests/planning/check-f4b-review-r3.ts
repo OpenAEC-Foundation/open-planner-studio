@@ -1,46 +1,3 @@
-// F4b, fixronde 3 (review r3 op PR #584): één tabel voor wat een planner als duur invoert.
-//
-// Faalgeval uit het rapport: een kalendertijdtaak, "1d 0u" in de Duur-cel. De oude minutenroute las dat
-// (sinds ronde 2 terecht) als 1440 klokminuten, maar de transactie deelde ze door de WERKtijd per dag
-// (8 u) en hield de eenheid dagen: 3 kalenderdagen, einde 4 juni 07:00. "1d 4u" werd 84 u in plaats van
-// 28. De transactie geeft kalendertijd nu als expliciete duur door (`elapsedClockDuration`).
-//
-// De tabel: invoer × duurtype × profiel × route. Per rij na herberekenen: de opgeslagen eenheid, de
-// opgeslagen waarde, het eindmoment en de duur in minuten (klokminuten bij kalendertijd, werkminuten
-// anders). De verwachtingen staan letterlijk in `EXPECTED`, met de hand gerekend.
-//  - Routes: de Duur-cel (typen + Enter: `parseGridEditorText` → `validate` → `planWrite` →
-//    `runGridMutation`), plakken van de tekst op een andere taak (`planTaskGridPaste`), kopiëren van de
-//    getypte cel naar een derde taak (`copyTaskGridSelection` + plakken), en paneel/dialoog (de parser
-//    en de toepassing van `TaskDurationField`, hier nagebouwd, met `updateTask`).
-//  - Elke taak start ma 1 juni 2026 07:00 en duurt vooraf 2 d van haar duurtype, zodat elke invoer
-//    een wijziging is. Kalender: ma–vr 07–12 + 13–16 (8 u).
-//
-// Mutatiebewijs (2026-10-24, 177 rijen): de fix weg (stand c4bea0f21) ⇒ 30 rijen rood, met precies het
-// faalgeval ("1d 0u" 3 d en einde 4 juni 07:00; "1d 4u" 3,5 d en 4 juni 19:00); kalendertijd altijd als
-// urenmaat ⇒ 21 rood; dagen zonder exactheidstoets ⇒ 9 rood ("1d 4u" wordt 1,166667 d).
-//
-// Fixronde 4 (review r4): de dimensie TAAKSTAND. Sinds de tweede stap van ronde 4 telt
-// `durationEditProgress` zelf een kalenderdag als 24 klokuren (besluit van de orkestrator); het raster
-// geeft weer gewoon de werktijd per dag mee. Paneel, dialoog en MCP: check-f4b-review-r4.ts en
-// tests/mcp/cases-duration-progress.ts. De rijen hierboven zijn niet gestart. Daarna dezelfde
-// invoer, plus "0d 8u" en "2u", op een LOPENDE taak (werkelijke start ma 1 juni 07:00, 25 % gereed,
-// statusdatum di 2 juni 07:00) en een GEREEDE taak (100 %, werkelijk einde na 2 d, statusdatum ma 8
-// juni 07:00), via de cel en plakken. Faalgeval uit het rapport: kalendertijd 2 d (12 u verricht),
-// "1d 4u" wordt een urentaak van 28 u; de voortgangsoverdracht mat de oude 2 d met 8 werkuren per dag
-// (960 min): 14,285714 % en nog 4 u verricht. "0d 8u" (minder dan de 12 u) werd geaccepteerd.
-//  - Lopend, per rij: eenheid, opgeslagen waarde, VERRICHT (% × totaal, in minuten van de maat van de
-//    taak: werkminuten, of klokminuten bij kalendertijd), rest, percentage en einde. Verricht blijft
-//    240 min (werktijd) of 720 min (kalendertijd). Een totaal onder het verrichte deel wordt geweigerd
-//    en dan verandert geen enkel tijdveld.
-//  - Gereed: geen weigering (een voltooide taak heeft geen rest om mee te schuiven); de duur volgt de
-//    invoer, de werkelijke datums en het einde blijven, 100 % blijft.
-//  - Ook de kolom Eenheid (dagen naar uren) op een lopende taak: dezelfde voortgangsoverdracht.
-//  - Was een BEKENDE AFWIJKING (knownbug 266): `durationEditProgress` (`workRuleApply.ts`) rekent bij een
-//    eenheidswissel de rest als 720 × (1 − 1/3) = 480,00000000000006 min. Die ruis legde het einde net
-//    voorbij de bandgrens: wo 3 juni 07:00 in plaats van di 2 juni 16:00. Sinds de kalenderwandelingen in
-//    hele ms rekenen (review #591 r7) is het einde di 16:00; de vier rijen zijn uit `KNOWN_DRIFT`. Een rij in
-//    `KNOWN_DRIFT` mag alleen precies de gemeten afwijking geven; verdwijnt die, dan wordt de rij rood.
-// Exit 0 = groen.
 import './domStub';
 import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -80,15 +37,12 @@ const NL_SUFFIXES: Record<string, string> = { 'duration.suffixDay': 'd', 'durati
 
 type Profile = 'ops' | 'p6' | 'msproject';
 type Route = 'cel' | 'plakken' | 'kopiëren' | 'paneel';
-/** Wat er na herberekenen staat: eenheid, opgeslagen waarde (dagen of minuten), einde, duur in minuten. */
 type Outcome = { unit: TaskDurationUnit; stored: number; finish: string; minutes: number };
 
 const INPUTS = ['1d', '1,5d', '24u', '1d 0u', '1d 4u', '2,5d 3u', '5'] as const;
 type Input = typeof INPUTS[number];
-/** Gestarte taak: dezelfde invoer, plus twee totalen onder het verrichte deel van de kalendertijdtaak. */
 const STARTED_INPUTS = [...INPUTS, '0d 8u', '2u'] as const;
 type StartedInput = typeof STARTED_INPUTS[number];
-/** Gestarte taak na herberekenen. Lopend: met verricht en rest; gereed: met de werkelijke datums. */
 type ProgressOutcome = {
   unit: TaskDurationUnit; stored: number; completion: number; finish: string;
   done?: number; rest?: number; actualStart?: string; actualFinish?: string;
@@ -98,10 +52,6 @@ const COMPOUND: ReadonlySet<Input> = new Set(['1d 0u', '1d 4u', '2,5d 3u']);
 const day = (stored: number, finish: string, minutes: number): Outcome => ({ unit: 'days', stored, finish, minutes });
 const hour = (stored: number, finish: string): Outcome => ({ unit: 'hours', stored, finish, minutes: stored });
 
-// Met de hand gerekend vanaf ma 1 juni 07:00.
-// Werktijd OPS: "d" is de dagenmaat; samengesteld telt 1 d = 8 u en houdt de dagmaat.
-// Werktijd P6/MSP (B8): "d" is de urenmaat, 1 d = 480 min; samengesteld houdt de dagmaat (8 u per dag).
-// Kalendertijd, elk profiel: een dag is 24 klokuren; "1d 4u" = 28 u past niet op zes decimalen ⇒ uren.
 const WORK_OPS: Record<Input, Outcome> = {
   '1d': day(1, '2026-06-01T16:00', 480),
   '1,5d': day(1.5, '2026-06-02T11:00', 720),
@@ -129,21 +79,11 @@ const ELAPSED: Record<Input, Outcome> = {
   '2,5d 3u': day(2.625, '2026-06-03T22:00', 3780),
   '5': day(5, '2026-06-06T07:00', 7200),
 };
-/** De beginstand (2 d): het paneel weigert samengestelde invoer, dan blijft dit staan. */
 const START: Record<DurationType, Outcome> = {
   WORKTIME: day(2, '2026-06-02T16:00', 960),
   ELAPSEDTIME: day(2, '2026-06-03T07:00', 2880),
 };
 
-// LOPEND, met de hand gerekend. 2 d, 25 % gereed, werkelijke start ma 1 juni 07:00, statusdatum di 2 juni
-// 07:00. Het restwerk begint op de statusdatum (onder MSP is "start + verricht" eerder, A22).
-// Verricht: werktijd 0,25 × 2 × 480 = 240 werkmin; kalendertijd 0,25 × 2 × 1440 = 720 klokmin (12 u).
-// De voortgangsoverdracht houdt dat vast: nieuw % = verricht ÷ nieuw totaal, rest = totaal − verricht.
-// Bij een eenheidswissel telt de oude duur in de maat van de taak (kalendertijd: 2 d = 2880 klokmin).
-//  Werktijd, einde vanaf di 07:00 met 8 u per werkdag (07–12, 13–16): 240 ⇒ di 11:00; 480 ⇒ di 16:00;
-//    1140 ⇒ do 10:00; 1200 ⇒ do 11:00; 2160 ⇒ ma 8 juni 11:00.
-//  Kalendertijd, einde = di 07:00 + rest: 12 u ⇒ di 19:00; 16 u ⇒ di 23:00; 24 u ⇒ wo 07:00;
-//    51 u ⇒ do 10:00; 108 u ⇒ za 6 juni 19:00.
 type P = ProgressOutcome | 'geweigerd';
 const run = (unit: TaskDurationUnit, stored: number, done: number, rest: number, completion: number, finish: string): P =>
   ({ unit, stored, completion, finish, done, rest });
@@ -180,14 +120,10 @@ const RUN_ELAPSED: Record<StartedInput, P> = {
   '0d 8u': 'geweigerd',
   '2u': 'geweigerd',
 };
-/** De kolom Eenheid naar uren op de lopende taak: de duur blijft, het verrichte deel ook. */
 const RUN_UNIT_HOURS: Record<DurationType, ProgressOutcome> = {
   WORKTIME: { unit: 'hours', stored: 960, completion: 0.25, finish: '2026-06-03T11:00', done: 240, rest: 720 },
   ELAPSEDTIME: { unit: 'hours', stored: 2880, completion: 0.25, finish: '2026-06-03T19:00', done: 720, rest: 2160 },
 };
-// GEREED: de duur volgt de invoer (dezelfde eenheid en waarde als op een niet-gestarte taak; "0d 8u" is
-// bij werktijd 1 d, bij kalendertijd 480 klokmin; "2u" overal 120 min). 100 %, de werkelijke datums
-// en het einde (= werkelijk einde) blijven.
 const DONE_TYPED: Record<'WORK_OPS' | 'WORK_P6' | 'ELAPSED', Record<StartedInput, [TaskDurationUnit, number]>> = {
   WORK_OPS: { '1d': ['days', 1], '1,5d': ['days', 1.5], '24u': ['hours', 1440], '1d 0u': ['days', 1], '1d 4u': ['days', 1.5],
     '2,5d 3u': ['days', 2.875], '5': ['days', 5], '0d 8u': ['days', 1], '2u': ['hours', 120] },
@@ -206,7 +142,6 @@ function expectedStarted(input: StartedInput, type: DurationType, profile: Profi
 function expected(input: Input, type: DurationType, profile: Profile, route: Route): Outcome | 'geweigerd' {
   if (route === 'paneel' && COMPOUND.has(input)) return 'geweigerd';
   const typed = type === 'ELAPSEDTIME' ? ELAPSED[input] : profile === 'ops' ? WORK_OPS[input] : WORK_P6[input];
-  // Kopiëren onder P6/MSP zet een dagmaat-werktaak als uren op het klembord (B8): de lengte blijft.
   if (route === 'kopiëren' && type === 'WORKTIME' && profile !== 'ops' && typed.unit === 'days') {
     return hour(typed.minutes, typed.finish);
   }
@@ -214,7 +149,6 @@ function expected(input: Input, type: DurationType, profile: Profile, route: Rou
 }
 
 type Stand = 'lopend' | 'gereed';
-/** Werkelijk einde van de gereede taak van 2 d: werktijd di 2 juni 16:00, kalendertijd wo 3 juni 07:00. */
 const DONE_FINISH: Record<DurationType, string> = { WORKTIME: '2026-06-02T16:00', ELAPSEDTIME: '2026-06-03T07:00' };
 
 function fixture(profile: Profile, statusDate?: string) {
@@ -258,7 +192,6 @@ function fixture(profile: Profile, statusDate?: string) {
     const selection = updateGridSelection(createEmptyGridSelection(), { rowKey: task.id, columnId: DURATION }, rowIndex, [DURATION], 'replace');
     return { selection, rowIndex, columns: [DURATION], descriptors: d.descriptorsById, context: d.context, dateNotation: 'dmy' as const };
   };
-  /** Typen in de Duur-cel (of een andere kolom) en Enter. */
   const typeCell = (text: string, id: string, columnId = DURATION): boolean => {
     const d = domain();
     const descriptor = d.descriptorsById.get(columnId)!;
@@ -278,7 +211,6 @@ function fixture(profile: Profile, statusDate?: string) {
     const copied = copyTaskGridSelection(environment(id));
     return copied.ok ? copied.value : '';
   };
-  /** Paneel en dialoog: dezelfde parser en dezelfde toepassing als `TaskDurationField`. */
   const panel = (text: string, id: string): boolean => {
     const task = taskOf(id);
     const s = S();
@@ -315,7 +247,6 @@ function fixture(profile: Profile, statusDate?: string) {
     };
   };
   const round6 = (n: number) => Number(n.toFixed(6));
-  /** Na herberekenen, voor een gestarte taak. Verricht en rest in minuten van de maat van de taak. */
   const progressOutcome = (id: string, stand: Stand): ProgressOutcome => {
     S().runCPM();
     const t = taskOf(id).time;
@@ -349,7 +280,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   for (const type of ['WORKTIME', 'ELAPSEDTIME'] as const) {
     for (const input of INPUTS) {
       const label = (route: Route) => `${profile} ${type === 'ELAPSEDTIME' ? 'kalendertijd' : 'werktijd'} "${input}" ${route}`;
-      // Duur-cel, en daarna kopiëren van die cel naar een andere taak.
       {
         const f = fixture(profile);
         const typed = f.addTask('Getypt', type);
@@ -362,7 +292,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
         row(`${label('kopiëren')} (klembord "${text}")`, { accepted: pasted, outcome: f.outcome(other) },
           expected(input, type, profile, 'kopiëren'), START[type]);
       }
-      // De tekst zelf plakken op een andere taak (bijvoorbeeld uit een rekenblad).
       {
         const f = fixture(profile);
         f.addTask('Andere', type);
@@ -371,7 +300,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
         const accepted = f.paste(input, target);
         row(label('plakken'), { accepted, outcome: f.outcome(target) }, expected(input, type, profile, 'plakken'), START[type]);
       }
-      // Paneel en dialoog.
       {
         const f = fixture(profile);
         const id = f.addTask('Paneel', type);
@@ -383,7 +311,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// Extra rijen: een kalendertijdtaak in uren, en de transactie met een los minutengetal (de oude route).
 for (const profile of ['ops', 'p6', 'msproject'] as const) {
   const startHours = hour(2880, '2026-06-03T07:00');
   {
@@ -411,10 +338,7 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// Taakstand lopend en gereed: de Duur-cel en plakken, en (lopend) de kolom Eenheid.
 const UNIT = taskColumnId('task.time.durationUnit');
-/** Zie de kop: label ⇒ het gemeten einde van een bekende motorafwijking. Leeg sinds review #591 r7 (de vier rijen
- *  "lopend p6/msproject werktijd "1,5d" cel/plakken" geven nu het met de hand gerekende einde di 16:00). */
 const KNOWN_DRIFT: ReadonlyMap<string, string> = new Map();
 const known: string[] = [];
 function startedRow(label: string, accepted: boolean, unchanged: boolean, got: ProgressOutcome, want: P): void {
@@ -461,7 +385,6 @@ for (const stand of ['lopend', 'gereed'] as const) {
   }
 }
 
-// Knownbugs 266 en 341: maatwissels houden een expliciete rest, zonder percentage-ruis.
 for (const profile of ['ops', 'p6', 'msproject'] as const) {
   for (const type of ['WORKTIME', 'ELAPSEDTIME'] as const) {
     for (const unit of ['days', 'hours'] as const) {
@@ -501,8 +424,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
       reopened.getState().runCPM();
       const saved = reopened.getState().tasks.find(t => t.name === 'Expliciete rest')!.time;
       rows++;
-      // Na laden wordt het hulpveld remainingTime van een urentaak opnieuw afgeleid. De
-      // restbron blijft remainingMinutes; bij een dagtaak is remainingTime zelf de bron.
       const savedState = [saved.completion, saved.durationUnit,
         afterUnit === 'hours' ? saved.remainingMinutes : saved.remainingTime];
       const savedWant = [0.5, afterUnit, afterUnit === 'hours' ? hpd * 60 : 1];

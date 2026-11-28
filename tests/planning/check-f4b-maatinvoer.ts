@@ -1,11 +1,3 @@
-// F4b (spec "alleen uren" §3.12, B8, B1a, B2): wat een planner als duur typt.
-//
-//  - "5d" is in het OPS-profiel de dagenmaat, "40u" de urenmaat; onder P6/MSP is "d" de urenmaat.
-//  - Een kaal getal houdt de maat van de taak, in de eenheid die het veld toont.
-//  - Breuken ("2,5", "2.5d", "1,5u") zijn voor iedereen te typen (de schakelaar Urenplanning is weg).
-//  - Vast werk is altijd urenmaat: "5d" wordt 5 × de werktijd per dag (B1a).
-//  - Een eenheidswissel houdt het eindmoment, ook met een breuk (B1).
-// Paneel, dialoog en raster delen `parseTaskDurationInput`; het raster leest hem via de Duur-kolom.
 import './domStub';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
@@ -35,14 +27,12 @@ function same(label: string, got: unknown, want: unknown): void {
 const days = (n: number, explicitUnit = true): ParsedTaskDuration => ({ unit: 'days', scheduleDuration: n, explicitUnit });
 const hours = (minutes: number, explicitUnit = true): ParsedTaskDuration => ({ unit: 'hours', durationMinutes: minutes, explicitUnit });
 
-// ── 1. B8 in het OPS-profiel (dagenmaat aan) ─────────────────────────────────────────────────────
 const OPS = { dayMeasure: true, hoursPerDay: 8 } as const;
 same('OPS "5d" = dagenmaat 5', parseTaskDurationInput('5d', 'hours', OPS), days(5));
 same('OPS "40u" = urenmaat 40 u', parseTaskDurationInput('40u', 'days', OPS), hours(2400));
 same('OPS "40h" = urenmaat 40 u', parseTaskDurationInput('40h', 'days', OPS), hours(2400));
 same('OPS kaal "3" op een dagenmaat-taak = 3 d', parseTaskDurationInput('3', 'days', OPS), days(3, false));
 same('OPS kaal "3" op een urenmaat-taak = 3 u', parseTaskDurationInput('3', 'hours', OPS), hours(180, false));
-// Breuken (B2: voor iedereen), met punt en komma.
 same('breuk "2,5d"', parseTaskDurationInput('2,5d', 'days', OPS), days(2.5));
 same('breuk "2.5d"', parseTaskDurationInput('2.5d', 'days', OPS), days(2.5));
 same('breuk kaal "2,5" op een dagenmaat-taak', parseTaskDurationInput('2,5', 'days', OPS), days(2.5, false));
@@ -53,10 +43,8 @@ same('zes decimalen: "1,2345678d"', parseTaskDurationInput('1,2345678d', 'days',
 same('negatief geweigerd', parseTaskDurationInput('-2,5d', 'days', OPS), null);
 same('onzin geweigerd', parseTaskDurationInput('2,5,5d', 'days', OPS), null);
 same('onveilig groot geweigerd', parseTaskDurationInput('999999999999999999999d', 'days', OPS), null);
-// Zonder context leest de parser zoals het OPS-profiel.
 same('zonder context "5d" = dagenmaat', parseTaskDurationInput('5d', 'hours'), days(5));
 
-// ── 2. B8 onder P6/MSP (dagenmaat uit): "d" is de urenmaat ───────────────────────────────────────
 const P6 = { dayMeasure: false, hoursPerDay: 8 } as const;
 same('P6 "5d" = urenmaat 5 × 8 u', parseTaskDurationInput('5d', 'days', P6), hours(2400));
 same('P6 "2,5d" = 20 u', parseTaskDurationInput('2,5d', 'hours', P6), hours(1200));
@@ -67,7 +55,6 @@ same('P6 kaal "3" op een urentaak die in d getoond wordt = 24 u',
 same('P6 kaal "12" op een dagtaak die in u getoond wordt = 1,5 d',
   parseTaskDurationInput('12', 'days', { ...P6, shownUnit: 'hours' }), days(1.5, false));
 
-// ── 3. Profielregels: welk profiel telt de dagenmaat, en B9 ──────────────────────────────────────
 same('OPS-profiel telt de dagenmaat', profileCountsWorkdays({ schedulingProfile: { baseId: 'ops', id: 'ops', name: '', overrides: {} } }), true);
 same('zonder profiel (nieuw OPS-project) telt de dagenmaat', profileCountsWorkdays({}), true);
 same('P6-profiel telt geen dagenmaat', profileCountsWorkdays({ schedulingProfile: { baseId: 'p6', id: 'p6', name: '', overrides: {} } }), false);
@@ -75,7 +62,6 @@ same('MSP-profiel telt geen dagenmaat', profileCountsWorkdays({ schedulingProfil
 same('B9: Altijd uren telt niet in OPS', effectiveDurationDisplay('hours', true), 'auto');
 same('B9: Altijd uren werkt onder P6', effectiveDurationDisplay('hours', false), 'hours');
 
-// ── 4. Bewerktekst ───────────────────────────────────────────────────────────────────────────────
 function task(time: Partial<Task['time']>, extra: Partial<Task> = {}): Task {
   return {
     id: 't', name: 'T', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -92,7 +78,6 @@ same('bewerktekst 40 u', formatTaskDurationInput(hour40), '40');
 same('bewerktekst 40 u in d getoond (P6, Altijd dagen)', formatTaskDurationInput(hour40, { shownUnit: 'days', hoursPerDay: 8 }), '5');
 same('weergave 2,5 d in nl', formatTaskDurationText(day25, 8, { locale: 'nl', suffixes: { day: 'd', hour: 'u', minute: 'm' } }), '2,5d');
 
-// ── 5. De Duur-kolom van het raster leest dezelfde regel ─────────────────────────────────────────
 const registry = buildTaskColumnRegistry({ projectId: 'p', activityCodeTypes: [], customFieldDefs: [], baselines: [] });
 const durationColumn = registry.find(d => String(d.id) === 'task.time.scheduleDuration')!;
 function gridContext(workdayDurationMeasure: boolean, durationDisplay: 'auto' | 'days' | 'hours' = 'auto'): TaskColumnContext {
@@ -118,14 +103,12 @@ same('raster kopieertekst onder P6: een dagenmaat-taak gaat als uren', durationC
 const validated = durationColumn.validate!(days(2.5), day25, gridContext(true));
 same('raster validatie laat een breuk door', validated.ok, true);
 
-// ── 6. Samengestelde invoer (`parseDuration`) leest breuken ──────────────────────────────────────
 same('parseDuration "2.5d"', parseDuration('2.5d', 8), 1200);
 same('parseDuration "1,5u"', parseDuration('1,5u', 8), 90);
 same('parseDuration kaal "2.5"', parseDuration('2.5', 8), 1200);
 same('parseDuration "1,5d 2u"', parseDuration('1,5d 2u', 8), 840);
 same('parseDuration "4h30" blijft fout', parseDuration('4h30', 8), null);
 
-// ── 7. B1a in de store: vast werk is altijd urenmaat ─────────────────────────────────────────────
 const weekdays = (b: { start: number; end: number }[], fri = b): WorkTimeBands => ({ byWeekday: { 1: b, 2: b, 3: b, 4: b, 5: fri, 6: [], 7: [] } });
 const sample: WorkCalendar = {
   id: 'cal-week', name: 'Voorbeeldweek', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16,
@@ -139,7 +122,6 @@ const sample: WorkCalendar = {
   store.getState().updateTask(id, { workRule: 'FIXED_WORK' });
   const before = store.getState().tasks.find(t => t.id === id)!;
   const parsed = parseTaskDurationInput('5d', before.time.durationUnit, { dayMeasure: true, hoursPerDay: 8 })!;
-  // Dezelfde patch als het duurveld (`TaskDurationField.apply`).
   store.getState().updateTask(id, { time: { ...before.time, durationUnit: 'days', scheduleDuration: parsed.scheduleDuration!, durationMinutes: undefined } });
   const after = store.getState().tasks.find(t => t.id === id)!;
   same('B1a: "5d" bij vast werk wordt urenmaat', after.time.durationUnit, 'hours');
@@ -156,8 +138,6 @@ const sample: WorkCalendar = {
   same('store bewaart een breuk in de dagenmaat', [after.time.durationUnit, after.time.scheduleDuration], ['days', 2.5]);
 }
 
-// ── 8. Een eenheidswissel houdt het eindmoment (B1: een breuk mag) ───────────────────────────────
-// Het OPS-profiel: de dagenmaat telt de kalender dag voor dag. P6/MSP en kalendertijd: check-f4b-review-r1.
 const OPS_MEASURE = { workdayDurationMeasure: true };
 const engine = new CalendarEngine(calendarForEngine(sample));
 same('voorbeeldweek: werktijd per dag', engine.hoursPerDay, 8);

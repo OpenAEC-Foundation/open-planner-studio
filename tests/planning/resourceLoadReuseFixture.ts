@@ -1,4 +1,3 @@
-// Synthetische, deterministische invoer voor regressie en de vergelijking van beide revisies.
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import type { HistogramInput } from '@/engine/scheduler/ResourceLoad';
 import { CONTOUR_SHAPE_VALUES } from '@/engine/contour/contourEngine';
@@ -47,7 +46,6 @@ export function makeResourceLoadReuseFixture(taskCount: number, assignmentsPerTa
     }
     if (kind === 6) {
       task.time.scheduleDuration = 2;
-      // Twee toewijzingen aan dezelfde resource krijgen elk hun eigen contour; de tweede is langer.
       task.timephasedContours = [2, 5].map((days, j) => ({
         resourceUid: null, resourceId: 'r0',
         periods: [{ afterMinutes: 0, minutes: days * 360, workMinutes: days * (j ? 180 : 360), kind: 'remaining' }],
@@ -56,7 +54,6 @@ export function makeResourceLoadReuseFixture(taskCount: number, assignmentsPerTa
     tasks.push(task);
   }
   const assignments: ResourceAssignment[] = [];
-  // Bewust door elkaar: hergebruik mag niet afhangen van aangrenzende toewijzingen.
   for (let j = 0; j < assignmentsPerTask; j++) {
     for (let i = 0; i < taskCount; i++) {
       const a: ResourceAssignment = {

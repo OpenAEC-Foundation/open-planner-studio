@@ -1,15 +1,3 @@
-// Instellingen bij geblokkeerde of volle opslag (audit 2026-09-26). Een browser met geblokkeerde
-// site-opslag gooit `SecurityError` bij élke localStorage-toegang; een volle opslag gooit
-// `QuotaExceededError` bij schrijven. Eén kale toegang liet `loadAllSettings()` in zijn geheel
-// verwerpen (alle instellingen terug naar de standaard) of werd een onafgehandelde rejection.
-//
-// Deel A (#583): in een sandbox-iframe zonder `allow-same-origin` gooit al het LEZEN van de global
-// (`localStorage` zelf, de getter). Dat pad loopt bij het laden van de store-modules
-// (`defaultCalendar` → `loadConstructionMode`). Daarom staan hier alleen `domStub` als vaste import en
-// de app-modules als dynamische import, NÁ het zetten van de gooiende getter.
-// Deel B: de global bestaat, maar elke methode gooit (geblokkeerde opslag in een gewone browser).
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import './domStub';
 
 const diffs: string[] = [];
@@ -20,7 +8,6 @@ const blocked = () => { throw Object.assign(new Error('The operation is insecure
 const origWarn = console.warn;
 console.warn = () => {};
 
-// ── A. De getter van de global gooit (opaque origin) ──────────────────────────────────────────────
 for (const name of ['localStorage', 'sessionStorage']) {
   Object.defineProperty(globalThis, name, { get: blocked, configurable: true });
 }
@@ -52,7 +39,6 @@ try {
 }
 ok(`A niets gooit bij een gooiende getter, kreeg ${String(errA)}`, errA === null);
 
-// ── B. De global bestaat, elke methode gooit ─────────────────────────────────────────────────────
 Object.defineProperty(globalThis, 'localStorage', { configurable: true, writable: true, value: undefined });
 (globalThis as unknown as { localStorage: unknown }).localStorage = {
   getItem: blocked, setItem: blocked, removeItem: blocked, key: blocked, get length() { return blocked(); },

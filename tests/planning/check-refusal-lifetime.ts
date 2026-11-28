@@ -1,13 +1,3 @@
-// Levensduur van weigeringen (eigenaarsbesluit 2026-10-19 5b) — headless tegen de ECHTE store.
-//
-// Een weigering (`refusal: true`, rood) blijft staan tot het kruisje, MAAR verdwijnt:
-//   - bij elke wissel van actief document (nieuw, openen, tabwissel, sluiten) en komt niet terug;
-//   - na elke toegepaste undo- en redo-stap (de store-actie, dus elke route: sneltoets, lint, MCP).
-// Alleen weigeringen: een echte fout (opslaan mislukt) en een info blijven. De strook
-// `StructureLockedNotice` volgt dezelfde regel via `ui.structureLockedClearedAt`.
-// Volgorde: eerst wissen, dan melden — een weigering ná de stap blijft staan.
-//
-// Draait vanzelf mee via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -29,10 +19,8 @@ const keys = () => N().map(n => n.messageKey);
 const weiger = () => S().notify(refusalNotice({ messageKey: 'notifications.relationDuplicate' }));
 const echteFout = () => S().notify({ severity: 'error', messageKey: 'notifications.saveFailed' });
 const info = () => S().notify({ severity: 'info', messageKey: 'notifications.statusDateSetToday', params: { date: 'x' } });
-/** Strook zichtbaar volgens de store-regel van `StructureLockedNotice`. */
 const strookOpen = () => S().ui.structureLockedNotice > S().ui.structureLockedClearedAt;
 
-/** Een vers document met één taak en één bewerking, zodat er iets te undo'en valt. */
 function opzet(): string {
   S().newDocument();
   clearAll();
@@ -41,7 +29,6 @@ function opzet(): string {
   return id;
 }
 
-// ── 1. Undo ──────────────────────────────────────────────────────────────────
 {
   const id = opzet();
   weiger();
@@ -54,7 +41,6 @@ function opzet(): string {
   eq('1d de info houdt zijn eigen timer (blijft info, niet sticky)', [N()[1]?.severity, N()[1]?.sticky ?? false], ['info', false]);
 }
 
-// ── 2. Redo ──────────────────────────────────────────────────────────────────
 {
   const id = opzet();
   S().undo();
@@ -66,27 +52,24 @@ function opzet(): string {
   eq('2b redo wist de weigering, de echte fout blijft', keys(), ['notifications.saveFailed']);
 }
 
-// ── 3. Geen stap ⇒ niets gewist ──────────────────────────────────────────────
 {
   S().newDocument();
   clearAll();
   weiger();
-  S().undo(); // niets te undo'en in een vers document
+  S().undo();
   eq('3a undo zonder stap laat de weigering staan', keys(), ['notifications.relationDuplicate']);
   S().redo();
   eq('3b redo zonder stap laat de weigering staan', keys(), ['notifications.relationDuplicate']);
 }
 
-// ── 4. Eerst wissen, dan melden ─────────────────────────────────────────────
 {
   opzet();
   weiger();
   S().undo();
-  weiger(); // een weigering ná de stap
+  weiger();
   eq('4a een weigering ná de undo blijft staan', keys(), ['notifications.relationDuplicate']);
 }
 
-// ── 5. Documentwissel ───────────────────────────────────────────────────────
 {
   S().newDocument();
   const docA = S().activeDocumentId;
@@ -110,7 +93,6 @@ function opzet(): string {
   eq('5e een kopie openen wist de weigering', keys(), []);
 }
 
-// ── 6. Openen in het actieve (lege) tabblad ─────────────────────────────────
 {
   S().newDocument();
   clearAll();
@@ -123,7 +105,6 @@ function opzet(): string {
   eq('6b openen in hetzelfde tabblad wist de weigering', N().filter(n => n.refusal).length, 0);
 }
 
-// ── 7. De strook volgt dezelfde regel ───────────────────────────────────────
 {
   opzet();
   S().notifyStructureLocked();
@@ -139,7 +120,6 @@ function opzet(): string {
   eq('7e documentwissel sluit de strook', strookOpen(), false);
 }
 
-// ── 8. 5a: de *Taak*-toast is een weigering en volgt dus 5b ──────────────────
 {
   S().newDocument();
   clearAll();

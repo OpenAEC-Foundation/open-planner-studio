@@ -1,4 +1,3 @@
-// Knownbug 4: documenteer dat een harde MFO vóór de projectstart kan uitkomen.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { builtInProfile, effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -43,8 +42,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
         if (linked && mode === 'voor-harde' && !res.violatedConstraintTaskIds.includes(b.id)) {
           throw new Error('De relatie botst met de harde MFO, maar er is geen waarschuwing: ' + details);
         }
-        // Geen assert over afwezigheid van een projectstartwaarschuwing bij een worteltaak:
-        // het toevoegen van zo'n waarschuwing moet deze test niet breken.
         cases++;
       }
     }

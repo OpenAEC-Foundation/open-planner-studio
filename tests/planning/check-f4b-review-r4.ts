@@ -1,21 +1,3 @@
-// F4b, fixronde 4 (review r4 op PR #584): een duurwijziging op een LOPENDE kalendertijdtaak houdt het
-// verrichte deel, ook via het paneel en "Taak bewerken" (store-route).
-//
-// Faalgeval: `durationEditProgress` (`src/engine/work/workRuleApply.ts`) mat bij een eenheidswissel de
-// oude duur met de werktijd per dag die de aanroeper meegaf. Een kalendertijdtaak van 2 d (2880
-// klokminuten) telde zo als 960 minuten. Met 12 u verricht gaf "24u" in het paneel 16,67 % (nog 4 u
-// verricht), "8u" werd geaccepteerd (korter dan de 12 u), en de eenheidswissel naar uren gaf 8,33 %.
-// Nu telt de functie de dag zelf uit het duurtype: 24 klokuren bij kalendertijd (besluit van de
-// orkestrator 2026-10-24: de functie mag daarvoor gewijzigd worden).
-//
-// Routes: het paneel (de parser en de eenheidswissel van `TaskDurationField`, hier nagebouwd, met
-// `updateTask`) en "Taak bewerken" (`createTaskDialogSave`, met dezelfde concepttijd). Elk profiel
-// (OPS, P6, MSP), een kalendertijdtaak en een werktijdtaak als controle: werktijd verandert niet.
-// Elke taak: 2 d in dagen, werkelijke start ma 1 juni 2026 07:00, 25 % gereed, statusdatum di 2 juni
-// 07:00. Kalender: ma–vr 07–12 + 13–16 (8 u). Verricht: werktijd 240 werkmin, kalendertijd 720 klokmin.
-// Per rij na herberekenen: eenheid, opgeslagen waarde, verricht, rest, percentage en einde; een
-// geweigerde invoer laat de taak precies staan. De AI-route staat in tests/mcp/cases-duration-progress.ts.
-// Exit 0 = groen.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { createTaskDialogSave } from '@/state/taskDialogSave';
@@ -40,14 +22,6 @@ const EDITS: readonly Edit[] = ['24u', '8u', '1d 4u', 'eenheid uren'];
 type Outcome = { unit: TaskDurationUnit; stored: number; done: number; rest: number; completion: number; finish: string };
 type Want = Outcome | 'geweigerd';
 
-// Met de hand gerekend. Nieuw % = verricht ÷ nieuw totaal; rest = nieuw totaal − verricht.
-// Het restwerk begint op de statusdatum di 2 juni 07:00 (onder MSP is "start + verricht" eerder, A22).
-//  Kalendertijd (verricht 720 klokmin): "24u" = 1440 ⇒ 50 %, rest 720 ⇒ di 19:00; "8u" = 480 < 720 ⇒
-//    geweigerd; eenheid uren = 2 × 1440 = 2880 ⇒ 25 %, rest 2160 ⇒ wo 3 juni 19:00.
-//  Werktijd (verricht 240 werkmin): "24u" = 1440 ⇒ 16,6667 %, rest 1200 ⇒ di 480 + wo 480 + do 240 ⇒
-//    do 4 juni 11:00; "8u" = 480 ⇒ 50 %, rest 240 ⇒ di 11:00; eenheid uren = 2 × 480 = 960 ⇒ 25 %,
-//    rest 720 ⇒ di 480 + wo 240 ⇒ wo 3 juni 11:00.
-//  "1d 4u": het paneel en de dialoog lezen geen samengestelde duur (de parser weigert, de taak blijft).
 const WANT: Record<DurationType, Record<Edit, Want>> = {
   ELAPSEDTIME: {
     '24u': { unit: 'hours', stored: 1440, done: 720, rest: 720, completion: 0.5, finish: '2026-06-02T19:00' },
@@ -77,7 +51,6 @@ function fixture(profile: Profile) {
     } });
     return id;
   };
-  /** De concepttijd die `TaskDurationField` maakt: getypte duur of een eenheidswissel. `null` = geweigerd. */
   const draftTime = (id: string, edit: Edit): TaskTime | null => {
     const task = taskOf(id);
     const s = S();
