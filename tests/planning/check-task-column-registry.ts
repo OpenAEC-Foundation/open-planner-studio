@@ -247,9 +247,6 @@ baselineStart.copy(task, ctx);
 baselineStart.autoFitText(task, ctx);
 eq('Baseline.tasks wordt exact één keer per registrybouw geïndexeerd en nooit per cel', baselineTasksReads, 1);
 
-// Er is geen kalenderloze ma–vr-terugval meer: die negeerde feestdagen en de werkweek (en telde
-// vanaf een weekenddag één te veel). Zonder kalenderroute blijft de afwijking leeg; mét de echte
-// route telt Nieuwjaar (do 1 januari) niet als werkdag tussen baseline (wo) en huidig (do).
 eq('baselineafwijking zonder kalenderroute verzint geen ma–vr-telling',
   baselineVariance.read(task, { ...ctx, signedWorkDaysBetween: undefined }), undefined);
 const newYearEngine = new CalendarEngine({
@@ -257,8 +254,6 @@ const newYearEngine = new CalendarEngine({
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8,
   holidays: [{ name: 'Nieuwjaar', startDate: '2026-01-01', endDate: '2026-01-01' }],
 });
-// Datumcellen valideren strikt en onafhankelijk van de JS-engine: `Date.parse` accepteerde in V8
-// ook een niet-bestaande dag (2026-02-31 rolde door naar 3 maart) en T24:00, WebKit weigerde die.
 const deadlineColumn = registry.find(column => column.id === 'task.deadline')!;
 const dateCellCases: readonly (readonly [string, boolean])[] = [
   ['2026-02-28', true], ['2024-02-29', true], ['2026-01-01T23:59', true],
@@ -291,7 +286,6 @@ eq('ontbrekende baselinetaak legt de lege cel uit',
   baselineStart.tooltip?.(missingBaselineValue, taskWithoutBaseline, ctx),
   'Niet aanwezig in deze baseline');
 
-// Elk token draagt de soort van de bronresource (#815, `resourceKind`): hier drie ploegen, dus werk.
 const expectedAssignmentTokens = [
   { assignmentId: 'a-1', resourceId: 'r-1', resourceKind: 'work', unitsPerDay: 1 },
   { assignmentId: 'a-2', curve: 'FRONT_LOADED', resourceId: 'r-2', resourceKind: 'work', unitsPerDay: 0.5 },
@@ -316,8 +310,6 @@ for (const id of ['assignment.resources', 'assignment.unitsPerDay', 'assignment.
 }
 
 const assignedResources = registry.find(column => column.id === 'assignment.resources')!;
-// Sinds #815 mag een kostenresource op een mijlpaal: de editor staat daar open, de validatie weigert
-// er werk en materiaal (`assignmentMilestoneWork`, check-cost-resource.ts D11–D12).
 eq('Assignmenteditor gesloten op summary, open op mijlpaal (alleen kosten)', [
   (assignedResources.readOnly as (task: Task, ctx: TaskColumnContext) => boolean)(
     { ...task, childIds: ['kind'] }, ctx,
@@ -450,8 +442,6 @@ for (const column of registry) {
       if (validated?.ok) {
         const planned = column.planWrite?.(validated.value, task, ctx);
         if (isReadOnly(column)) {
-          // De weigercode is `readOnly`, of de kolomeigen reden (bv. Gepland einde van een
-          // automatisch geplande taak: `scheduleFinishNotManual`).
           ok(`${column.id}: conditioneel read-only plant geen intent`,
             planned?.ok === false && planned.errors[0]?.code === readOnlyValidationCode(column, task, ctx));
         } else {

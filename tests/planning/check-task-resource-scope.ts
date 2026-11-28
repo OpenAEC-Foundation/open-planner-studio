@@ -1,6 +1,3 @@
-// Issue #73 — één geselecteerde taak mag alleen haar eigen resources en toewijzingen
-// doorgeven aan contextuele resourceweergaven. Zonder selectie moet de gewone projectscope
-// behouden blijven; anders verdwijnt de ongefilterde weergave na deselecteren.
 import { scopeTaskResources } from '@/utils/taskResourceScope';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 

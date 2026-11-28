@@ -1,17 +1,3 @@
-// Voorbeeldensnapshot van fase F0 van "alleen uren" (spec docs/superpowers/specs/2026-10-20-alleen-uren-design.md
-// §6.3). Per IFC-voorbeeld van vóór het minutenmodel (`fixtures/minute-model-examples-f0/`, de vroegere
-// `examples/`) staat in `fixtures/minute-model-examples.json` van elke taak de
-// vroege en late start, het vroege en late einde en de speling na Bereken, met de motor van vandaag.
-// F2 en F3 moeten die snapshot halen op dagniveau.
-//
-// Vergelijken op dagniveau, zoals de minutenmodel-runs van de harness: de datum uit de snapshot gaat
-// door de regel van zijn veld (D1–D7, D3 voor kalendertijd; `normalizeTaskDate`), daarna vergelijkt de
-// werkdag van een moment (`workdayOfInstant`) beide kanten in de klok van de taak. Zolang de motor
-// datums zonder tijd geeft (F0), is dat hetzelfde als exact vergelijken. Speling met 10⁻⁶.
-//
-// Bijwerken (alleen na een bewuste wijziging, met de reden in de commit):
-//   OPS_MINUTE_MODEL_EXAMPLES_UPDATE=1 bash tests/planning/run.sh check-minute-model-examples.ts
-// Een nieuw of verwijderd voorbeeld is ook rood, totdat de snapshot is bijgewerkt.
 import { readdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -28,10 +14,6 @@ import { workdayOfInstant, isDateOnly } from '@/engine/calendar/workdayRules';
 import type { Task } from '@/types/task';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
-// De voorbeelden zoals ze vóór het minutenmodel waren (zonder `OPS_Project.TimeModel`), vastgezet als
-// fixture. Sinds de voorbeelden in het minutenmodel opnieuw gegenereerd zijn (zodat ze schoon openen,
-// knownbug 35), toetst deze check hier nog steeds wat hij moet toetsen: een oud bestand gaat door de
-// migratie op de laadgrens en haalt de F0-snapshot op dagniveau. Niet bijwerken met `gen:examples`.
 const EX_DIR = join(HERE, 'fixtures', 'minute-model-examples-f0');
 const SNAPSHOT = join(HERE, 'fixtures', 'minute-model-examples.json');
 const UPDATE = process.env.OPS_MINUTE_MODEL_EXAMPLES_UPDATE === '1';
@@ -44,7 +26,6 @@ const FIELDS = [
   ['es', 'earlyStart'], ['ef', 'earlyFinish'], ['ls', 'lateStart'], ['lf', 'lateFinish'],
 ] as const satisfies ReadonlyArray<readonly [keyof Omit<TaskSnap, 'tf'>, TaskDateField & keyof Task['time']]>;
 
-/** Sleutel van een taak in de snapshot: WBS-code plus naam. Uniek binnen een voorbeeld (gecontroleerd). */
 const taskKey = (t: Task): string => `${t.wbsCode ?? ''} ${t.name}`.trim();
 
 function sameWorkday(got: string, want: string, field: TaskDateField, ctx: TaskDateContext): boolean {
@@ -55,7 +36,6 @@ function sameWorkday(got: string, want: string, field: TaskDateField, ctx: TaskD
   return workdayOfInstant(ctx.clock, w, side) === workdayOfInstant(ctx.clock, g, side);
 }
 
-/** Vaste vorm: één regel per taak, zodat een wijziging in de diff per taak leesbaar blijft. */
 function formatSnapshot(snap: Snapshot): string {
   const lines = ['{', `  "toelichting": ${JSON.stringify(snap.toelichting)},`, '  "examples": {'];
   const names = Object.keys(snap.examples);
@@ -88,7 +68,6 @@ if (files.length === 0) failures.push(`geen IFC-voorbeelden gevonden in ${EX_DIR
 for (const file of files) {
   const name = file.replace(/\.ifc$/, '');
   const parsed = readIFC(readFileSync(join(EX_DIR, file), 'utf8'));
-  // Zoals scripts/verify-examples.ts: het bestand in de echte store laden en Bereken.
   S().loadState(parsed);
   S().runCPM();
   const tasks = S().tasks;
@@ -147,8 +126,6 @@ if (UPDATE) {
   console.log(`OK  voorbeeldensnapshot bijgewerkt: ${files.length} voorbeelden, ${n} taken.`);
 }
 
-// Exacte dagenmaat-momenten (§3.14) die de snapshot hierboven sinds F3c ook bevat. De dagen zijn per
-// kalender even lang; de bestaande urenloper toetst de doelen hier onafhankelijk van de dagenmaat.
 const f3Goals = [
   ["05-brugvervanging-n279", "3.1", "2027-03-17T08:36", "2027-03-31T08:36"],
   ["08-zorgcentrum-de-linde", "3.1", "2027-03-15T14:24", "2027-04-02T14:24"],
