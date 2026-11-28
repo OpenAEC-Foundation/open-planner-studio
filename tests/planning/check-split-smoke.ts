@@ -1,17 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// check-split-smoke.ts — rooktests voor de oppervlakken die de critreview van het splits-ontwerp NIET
-// naliep (issue #146, spec §"Niet gecontroleerd door de review"): print/PDF, de tabelrapporten, de
-// verzameltaak-rollup en baseline/variance, elk met een GEBRUIKERSsplit (`source: 'user'`) die via de
-// echte store-actie `setTaskSplits` is gemaakt. Ze lezen `splitWalk`/de solver-uitkomst en horen door
-// deze etappe niet te veranderen — dit bestand maakt van die aanname een poort. Kleine asserties,
-// geen nieuwe engine-logica; de diepe render-/wandel-semantiek staat in `check-split-bar-render.ts`
-// en `check-split-walk.ts`.
-//
-// Scenario (dagkalender, ma–vr): Fase ⟶ { U 4d, T 10d }, projectstart ma 2026-06-01. Baseline B0
-// vóór de split; daarna T = 5d werk · 3d pauze · 5d werk, doorgerekend. T eindigt dan op wo
-// 2026-06-17 (13 werkdagen) in plaats van vr 2026-06-12.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -37,7 +23,6 @@ const attempt = <T>(label: string, fn: () => T): T | undefined => {
   try { return fn(); } catch (e) { checks++; diffs.push(`${label} gooit: ${String(e)}`); return undefined; }
 };
 
-// ── Opzet ────────────────────────────────────────────────────────────────────
 S().newProject();
 S().setProject({ name: 'Splits-rooktest', startDate: '2026-06-01' });
 const fase = S().addTask({ name: 'Fase' });
@@ -63,7 +48,6 @@ S().runCPM();
 eq('opzet: gebruikersgat staat op T', task(T).splitGaps, [{ afterMinutes: 2400, gapMinutes: 1440, source: 'user' }]);
 eq('opzet: T eindigt na de pauze op wo 06-17', task(T).time.earlyFinish, "2026-06-17T16:00");
 
-// ── (a) print/PDF: segmenten getekend, geen throw ────────────────────────────
 function makeD2D(): { d2d: Draw2D; count(): number } {
   let rects = 0;
   let pending = false;
@@ -99,7 +83,6 @@ const printOptions = {
   ok('print: het hele project tekent iets', all.count() >= 3);
 }
 
-// ── (b) rapporten: duur = werkduur, de pauze telt niet mee ───────────────────
 const s = S();
 const ctx: ReportContext = {
   tasks: s.tasks, sequences: s.sequences, resources: s.resources, assignments: s.assignments,
@@ -117,12 +100,10 @@ const ctx: ReportContext = {
   eq('voortgang: resterend werk van T = 10 werkdagen (geen pauze)', remainingDays(ctx, task(T)), 10);
 }
 
-// ── (c) verzameltaak-rollup: de ouder eindigt op het einde van het laatste stuk ─
 eq('rollup: Fase eindigt waar het laatste stuk van T eindigt', task(fase).time.earlyFinish, task(T).time.earlyFinish);
 eq('rollup: Fase start op de projectstart', task(fase).time.earlyStart?.slice(0, 10), '2026-06-01');
 ok('rollup: U verandert niet door de split van T', task(U).time.earlyFinish === '2026-06-04T16:00');
 
-// ── (d) baseline/variance: einddata vergeleken, geen throw ───────────────────
 {
   const engine = new CalendarEngine(calendarForEngine(S().calendar));
   const v = attempt('variance', () => computeVariance(S().tasks as Task[], ctx.baseline, engine, S().cpmResult?.projectEnd));
@@ -133,7 +114,6 @@ ok('rollup: U verandert niet door de split van T', task(U).time.earlyFinish === 
   eq('variance: U ongewijzigd', v?.rows.find(r => r.taskId === U)?.deltaFinish, 0);
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  split-smoke: alle checks groen (${checks})`);
   process.exit(0);

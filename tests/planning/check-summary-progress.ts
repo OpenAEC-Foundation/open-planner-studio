@@ -1,18 +1,3 @@
-// Voortgang en status van een verzameltaak (fase) — headless tegen de ECHTE store.
-//
-// Bevinding "weergaven 3" + "taakmutaties 7": de Tabel, de Gantt-tooltip, de PDF en MCP lazen de
-// OPGESLAGEN `completion`/`status` van een fase (vaak 0% "Niet gestart", of een bevroren
-// importwaarde), terwijl het WBS-rapport zelf een duurgewogen voortgang uitrekende en 100% zei.
-// Tegelijk accepteerden de paneelschuif, het contextmenu en het raster eigen voortgang op een fase
-// (fase 100%, kinderen 0%), terwijl MCP, voortgangsimport en de gids zeggen dat een fase geen eigen
-// voortgang draagt.
-//
-// Besluit (optie A): fasevoortgang is ALTIJD afgeleid — één gedeelde helper met de gewogen formule
-// van het WBS-rapport, aangeroepen in de verzameltaak-rollup van `applyCpmResult` — met dezelfde
-// uitzonderingen als de datum-rollup (handmatig geplande fase, "datums zoals opgeslagen"). Voortgang
-// op een fase is alleen-lezen; het contextmenu werkt via de bladtaken eronder.
-//
-// Draait via run.sh.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { buildTaskColumnRegistry } from '@/engine/taskGrid/taskColumnRegistry';
@@ -65,10 +50,6 @@ function wbsCompletion(id: string): number {
   return row ? row.completion : NaN;
 }
 
-/**
- * Fase P met drie bladtaken (5d, 10d, 5d) en een subfase Q met één blad (4d). Alles start op de
- * projectstart; de statusdatum ligt ná de einden, zodat werkelijke datums nooit geweigerd worden.
- */
 function reset() {
   S().newProject();
   S().setProject({ startDate: '2026-03-02', statusDate: '2026-03-31' });
@@ -87,7 +68,6 @@ function reset() {
   return { P, Q, K1, K2, K3, L1 };
 }
 
-// ── 1. Alles 100% ⇒ de fase is 100% en voltooid ──────────────────────────────────────────────
 {
   const ids = reset();
   eq('Vooraf: fase 0% niet gestart', progressOf(ids.P), { completion: 0, status: 'NOT_STARTED' });
@@ -97,8 +77,6 @@ function reset() {
   eq('Alle kinderen 100% ⇒ subfase 100% COMPLETED', progressOf(ids.Q), { completion: 1, status: 'COMPLETED' });
   eq('WBS-rapport zegt hetzelfde (fase)', wbsCompletion(ids.P), 1);
 
-  // Terug naar 0%: de bladen houden (§3.2) hun werkelijke start en blijven dus "gestart" — de fase
-  // volgt precies dat. Pas als ook de werkelijke starts weg zijn, is de fase weer "niet gestart".
   for (const id of [ids.K1, ids.K2, ids.K3, ids.L1]) S().setTaskProgress(id, 0);
   S().runCPM();
   eq('Alle kinderen terug naar 0% (mét werkelijke start) ⇒ fase 0% STARTED', progressOf(ids.P), { completion: 0, status: 'STARTED' });
@@ -107,28 +85,24 @@ function reset() {
   eq('Ook de werkelijke starts gewist ⇒ fase 0% NOT_STARTED', progressOf(ids.P), { completion: 0, status: 'NOT_STARTED' });
 }
 
-// ── 2. Gemengd ⇒ duurgewogen over de BLADEN, gelijk aan het WBS-rapport ──────────────────────
 {
   const ids = reset();
   S().setTaskProgress(ids.K1, 1);
   S().setTaskProgress(ids.K2, 0.4);
   S().setTaskProgress(ids.L1, 0.5);
   S().runCPM();
-  // (5×1 + 10×0.4 + 5×0 + 4×0.5) / (5+10+5+4) = 11/24
   near('Gemengd: fase = Σ(duur×%)/Σduur over de bladen', progressOf(ids.P).completion, 11 / 24);
   eq('Gemengd: fase status STARTED', progressOf(ids.P).status, 'STARTED');
   eq('Gemengd: fase-waarde = WBS-rapport, exact', progressOf(ids.P).completion, wbsCompletion(ids.P));
   eq('Gemengd: subfase 50% STARTED', progressOf(ids.Q), { completion: 0.5, status: 'STARTED' });
   eq('Gemengd: subfase-waarde = WBS-rapport, exact', progressOf(ids.Q).completion, wbsCompletion(ids.Q));
 
-  // Gestart zonder % (werkelijke start, 0%) ⇒ fase "bezig", voortgang 0.
   const ids2 = reset();
   ok('Werkelijke start op een blad wordt geaccepteerd', S().setActualStart(ids2.K3, '2026-03-02'));
   S().runCPM();
   eq('Blad gestart op 0% ⇒ fase 0% STARTED', progressOf(ids2.P), { completion: 0, status: 'STARTED' });
 }
 
-// ── 3. Uitzondering: een handmatig geplande fase houdt haar opgeslagen waarde ─────────────────
 {
   const ids = reset();
   S().setTaskProgress(ids.K1, 1);
@@ -140,7 +114,6 @@ function reset() {
   near('Automatische subfase eronder rolt wél op', progressOf(ids.Q).completion, 0);
 }
 
-// ── 4. Voortgang op een fase is alleen-lezen: setters en raster weigeren ──────────────────────
 {
   const ids = reset();
   S().setTaskProgress(ids.K1, 0.5);
@@ -175,7 +148,6 @@ function reset() {
   eq('Celplanner (ook voor plakken/import): status op een fase geweigerd', planned.ok ? null : planned.errors[0]?.code, 'summaryProgress');
 }
 
-// ── 5. Contextmenu "Voortgang" op een fase werkt via de bladtaken, niet op de fase zelf ───────
 {
   const ids = reset();
   S().selectTask(ids.P, false);
@@ -190,7 +162,6 @@ function reset() {
   eq('Contextmenu is één undo-stap', [ids.K1, ids.K2, ids.K3, ids.L1].map(id => task(id).time.completion), [0, 0, 0, 0]);
 }
 
-// ── 6. IFC: openen + opslaan zet geen oude fasevoortgang terug; "datums zoals opgeslagen" wel ──
 {
   const ids = reset();
   S().setTaskProgress(ids.K1, 1);
@@ -198,15 +169,6 @@ function reset() {
   S().setTaskProgress(ids.K3, 1);
   S().setTaskProgress(ids.L1, 1);
   S().runCPM();
-  // Een "oud" bestand: de fase draagt een bevroren 62% "gestart", en K3 en de fase staan later
-  // opgeslagen dan de berekening geeft (zodat openen een verschuiving vindt en "datums zoals
-  // opgeslagen" aanbiedt). Sinds de fase ook afgeleide werkelijke datums krijgt, draagt ze na de rollup
-  // een werkelijk einde; een bevroren 62%-fase heeft dat niet (de lezer zou haar daarop naar 100%
-  // normaliseren), dus weg.
-  // Sinds 2026-10-12 (eigenaarsbesluit optie 1) telt alleen een verschil in de GETOONDE datums: K3 is
-  // voltooid en staat dus in de modus én na herberekenen op zijn werkelijke datums — zijn verzette
-  // vroege datums tellen niet. De fase wél: in het bestand is ze niet voltooid (62%), dus toont ze
-  // daar haar opgeslagen einde 20-03; herberekend is ze voltooid en eindigt ze op haar werkelijke einde.
   S().updateTask(ids.P, { status: 'STARTED' });
   setTime(ids.P, { completion: 0.62, actualFinish: undefined, earlyFinish: '2026-03-20' });
   setTime(ids.K3, { earlyStart: '2026-03-16', earlyFinish: '2026-03-20' });
@@ -214,19 +176,12 @@ function reset() {
   const rawOld = readIFC(oldFile).tasks.find(t => t.name === 'Fase')!;
   eq('Fixture: het bestand draagt de bevroren fasewaarde', [rawOld.time.completion, rawOld.status], [0.62, 'STARTED']);
 
-  // Dit deel toetst openen BUITEN de modus: het bestand is buiten de modus opgeslagen en draagt dus
-  // geen `recordedSourceFormat` (`ifcSaveInput.ts` schrijft die alleen in de modus). Tot #371 zette
-  // deze fixture die bronvlag wél, alleen zodat openen de modus AANBOOD (heropen-beleid 2026-09-24).
-  // Sinds #371 (eigenaar, 2026-10-17, "zoals je het achterliet") opent een eigen IFC mét bronvlag
-  // weer IN de modus, en daar toont de fase haar opgeslagen voortgang (het tweede deel hieronder).
   S().applyLoadedProject(readIFC(oldFile), { filePath: null, recompute: true });
   eq('Openen: de fase krijgt de afgeleide voortgang, niet de bevroren bestandswaarde',
     { completion: byName('Fase').time.completion, status: byName('Fase').status }, { completion: 1, status: 'COMPLETED' });
   const resaved = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).tasks.find(t => t.name === 'Fase')!;
   eq('Openen + opslaan: het bestand draagt nu de afgeleide waarde', [resaved.time.completion, resaved.status], [1, 'COMPLETED']);
 
-  // Geen aanbod-stand meer (eigenaar, 2026-10-17): een buiten de modus opgeslagen eigen IFC vergeet
-  // de opgeslagen datums. Hetzelfde bestand als ONBEWERKT (vlag aan) opent in de modus.
   ok('Fixture (buiten de modus opgeslagen): openen vergeet de opgeslagen datums', S().recordedDates === null && !S().datesAsRecorded);
   S().applyLoadedProject({ ...readIFC(oldFile), recordedSourceFormat: 'mspdi', importPristine: true }, { filePath: null, recompute: true });
   ok('Fixture (onbewerkt): opent in "datums zoals opgeslagen"', S().datesAsRecorded);

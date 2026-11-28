@@ -1,10 +1,3 @@
-// Kalenderwijziging op schaal — headless tegen de ECHTE store. Een andere uren-per-dag op de
-// projectkalender raakt élke taak; de K2-momentopname en -settle per taak mogen daarbij niet per taak
-// alle toewijzingen doorlopen (O(taken × toewijzingen) op een Immer-draft). Deze batterij pint het
-// resultaat van `updateCalendar`/`setProjectCalendar` tegen de losse per-taakroute (de referentie die
-// vóór de index gold) en bewaakt dat een project van 8000 taken binnen een ruime tijd klaar is.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import { captureCalendarChange, settleCalendarChange } from '@/engine/work/workRuleApply';
@@ -20,8 +13,6 @@ const ok = (label: string, cond: boolean, detail = '') => {
   if (!cond) fails.push(`${label}${detail ? `: ${detail}` : ''}`);
 };
 
-/** Referentie: exact de per-taakroute van vóór de index (volledige toewijzingenlijst per taak), op een
- *  losse JSON-kopie van de documentvelden — geen draft, dus geen gedeelde objecten met de store. */
 type RefState = Pick<AppState, 'tasks' | 'assignments' | 'calendars' | 'calendar' | 'project' | 'resources'>;
 function snapshot(): RefState {
   const { tasks, assignments, calendars, calendar, project, resources } = S();
@@ -38,7 +29,6 @@ function referenceUpdate(s: RefState, calendarId: string, hoursPerDay: number): 
 
 function load(size: number, seed: number) {
   const project = generateBenchmarkProject(size, { seed, resourceCount: 12 });
-  // Variatie in werkregels, voortgang en toewijzingswerk zodat de settle echt iets herschrijft.
   project.tasks.forEach((t, i) => {
     if (i % 5 === 1) t.workRule = 'FIXED_WORK';
     if (i % 5 === 2) t.workRule = 'FIXED_RATE';
@@ -62,7 +52,6 @@ for (const seed of [1, 2, 3]) {
     JSON.stringify(S().assignments) === JSON.stringify(want.assignments));
 }
 
-// setProjectCalendar: dezelfde referentie, via de wissel naar een tweede kalender met andere uren.
 {
   load(400, 4);
   const other = { ...S().calendar, id: 'cal-tweede', name: 'Tweede', hoursPerDay: 5 };
@@ -79,7 +68,6 @@ for (const seed of [1, 2, 3]) {
   ok('setProjectCalendar gelijk aan de per-taakroute (toewijzingen)', JSON.stringify(S().assignments) === JSON.stringify(want.assignments));
 }
 
-// Schaal: 8000 taken, alle taken op de projectkalender.
 load(8000, 7);
 const calId = S().project.calendarId;
 const t0 = performance.now();

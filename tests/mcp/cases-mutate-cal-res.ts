@@ -1,27 +1,3 @@
-// T20 — mutatietools kalender/resource/project/baseline (WP5-dispatch, leveler-contract,
-// intra-batch-guards). Draait headless tegen de ECHTE Zustand-store (via de harness) + de MINIMALE
-// F2-runtime-stub (src/services/mcp/tools/runtime.ts), exact zoals cases-mutate-tasks.ts (T19).
-//
-// Testlijst (spec §Tool-set Muteren + WP5 + §level_resources-contract + T20-brief):
-//   1. update_calendar bulk 2 kalenders ⇒ ÉÉN undo-stap
-//   2. projectkalender-id op een VERS project ⇒ promotie naar de bibliotheek (WP5b) + wijziging landt
-//   3. generator-bouwvak + rawHolidays ⇒ merge + becameLiteral:true + generation weg
-//  3b. generatie tot het latere van ingevoerd/berekend einde, ontbrekende einddatums en hergeneratie
-//   4. onwerkbaar venster ⇒ WAARSCHUWING (cappedTaskIds), géén fout, wijziging gecommit
-//   5. onbekend id zonder create ⇒ zachte weigering + lege-batch-snelpad (geen snapshot/redo-wipe)
-//   6. create:true ⇒ nieuwe bibliotheek-kalender met generator-basis
-//   7. manage_assignments add/update/move/remove happy path met de T18-veldnamen
-//   8. dubbele add in ÉÉN call ⇒ tweede zacht geweigerd (incrementele guard binnen de batch)
-//  8b. REVIEWFIX: onbekende `curve` (add én update) ⇒ zachte weigering i.p.v. uncaught crash;
-//      geldige items in dezelfde call blijven staan
-//   9. level_resources dryRun ⇒ store byte-identiek + volledig LevelingResult
-//  10. level_resources apply ⇒ delays + ÉÉN undo-stap + before/after
-//  11. stale vóór level_resources ⇒ eerst herrekend (WP8-guardpatroon)
-//  12. clear_leveling ⇒ delays weg, één undo-stap; ook uitsluitend sub-dag-delay/nivelleergaten
-//  13. update_project statusdatum + anker-semantiek (startDate verschuift NIETS)
-//  14. move_project ⇒ verschuift de bestaande planning in één undo-stap
-//  15. save_baseline: stale ⇒ eerst herrekenen, baseline op verse datums + batchable:false in de def
-//  16. registratie/tools-list-vorm: zeven tools, prefix + description + vier annotaties
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import type { McpContext, McpToolResult, McpToolOk } from '@/services/mcp/contracts';
@@ -35,13 +11,9 @@ import { parseDate, addCalendarDays, formatDate } from '@/utils/dateUtils';
 
 const store = useAppStore;
 
-// Warm-up (zelfde reden als cases-mutate-tasks.ts): een verse store heeft `calendars: []`; het
-// restore-pad promoot de projectkalender-cache tot bibliotheek-entry (syncProjectCalendar §9.1).
-// Eén edit + undo zorgt dat die benigne promotie niet in een byte-identiek-assert opduikt.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
-// --- helpers -------------------------------------------------------------------------------------
 function reset(): void {
   store.getState().newProject();
 }
@@ -68,7 +40,6 @@ function okData(res: McpToolResult): any {
 function rejections(res: McpToolResult): { id: string; reason: string }[] {
   return (res as McpToolOk).itemRejections ?? [];
 }
-/** Voeg een blad-taak met een expliciete duur toe (store-actie; buiten de tools om). */
 function addTask(name: string, durationDays: number): string {
   const id = store.getState().addTask({ name });
   const t = store.getState().tasks.find((x) => x.id === id)!;
@@ -76,7 +47,6 @@ function addTask(name: string, durationDays: number): string {
   return id;
 }
 
-/** Vaste projectspanne met optioneel een echt rekenresultaat in een later jaar. */
 function prepareCalendarSpan(endDate: string, withCpm: boolean): void {
   store.getState().setProject({ startDate: '2027-06-07', endDate });
   if (withCpm) {
@@ -91,15 +61,11 @@ function prepareCalendarSpan(endDate: string, withCpm: boolean): void {
   }
 }
 
-// =================================================================================================
-// 1) update_calendar — bulk over twee kalenders = ÉÉN undo-stap
-// =================================================================================================
 test('update_calendar: bulk over 2 kalenders ⇒ één undo-stap, beide wijzigingen toegepast', async () => {
   reset();
   store.getState().ensureProjectCalendarInLibrary();
   const projCalId = store.getState().project.calendarId;
   const ctx = makeCtx();
-  // Eerst een tweede kalender aanmaken (aparte call, telt niet mee voor de undo-meting).
   const created = okData(
     await call('planner_update_calendar', { calendars: [{ id: 'ploeg-2', create: true, name: 'Ploeg 2' }] }, ctx),
   );
@@ -123,22 +89,14 @@ test('update_calendar: bulk over 2 kalenders ⇒ één undo-stap, beide wijzigin
   assertEq(lib.find((c) => c.id === projCalId)!.name, 'Hoofdkalender', 'projectkalender hernoemd');
   assertEq(lib.find((c) => c.id === secondId)!.name, 'Nachtploeg', 'tweede kalender hernoemd');
   assertEq(lib.find((c) => c.id === secondId)!.hoursPerDay, 6, 'hoursPerDay toegepast');
-  // Eén undo maakt BEIDE wijzigingen ongedaan.
   store.getState().undo();
   assert(store.getState().calendars.find((c) => c.id === projCalId)!.name !== 'Hoofdkalender', 'undo draaide kalender 1 terug');
   assert(store.getState().calendars.find((c) => c.id === secondId)!.name !== 'Nachtploeg', 'undo draaide kalender 2 terug');
 });
 
-// =================================================================================================
-// 2) WP5b — projectkalender-id op een VERS project: eerst promoveren, dán bewerken
-// =================================================================================================
 test('update_calendar: projectkalender-id op vers project ⇒ promotie naar bibliotheek + wijziging landt', async () => {
   reset();
   const projCalId = store.getState().project.calendarId;
-  // Simuleer het document waar WP5b over gaat: de projectkalender leeft alleen als gedenormaliseerde
-  // cache (`s.calendar`) en staat NIET in de bibliotheek — de staat van een pre-2.8a-bestand en van
-  // een verse store (`calendars: []`). `newProject()` promoot hem tegenwoordig zelf via
-  // hydratePayload, dus we halen de entry hier bewust weer weg.
   store.setState((st) => { st.calendars = st.calendars.filter((c) => c.id !== projCalId); });
   assertEq(store.getState().calendars.some((c) => c.id === projCalId), false,
     'testvoorwaarde: projectkalender staat nog niet in de bibliotheek');
@@ -153,9 +111,6 @@ test('update_calendar: projectkalender-id op vers project ⇒ promotie naar bibl
   assertEq(store.getState().calendar.name, 'Gepromoveerd', 'de gedenormaliseerde cache is meegelopen (§9.1)');
 });
 
-// =================================================================================================
-// 3) Meng-semantiek WP5d — generator-bouwvak + rawHolidays ⇒ merge, generation weg, becameLiteral
-// =================================================================================================
 test('update_calendar: generator (NL-bouwvak) + rawHolidays ⇒ merge, generation weg, becameLiteral:true', async () => {
   reset();
   store.getState().ensureProjectCalendarInLibrary();
@@ -182,8 +137,6 @@ test('update_calendar: generator (NL-bouwvak) + rawHolidays ⇒ merge, generatio
   assertEq(data.calendars[0].becameLiteral, true, 'becameLiteral gemeld per item');
   const cal = store.getState().calendars.find((c) => c.id === projCalId)!;
   assertEq(cal.generation, undefined, 'generation is gewist door de rauwe toevoeging');
-  // Reviewfix: écht verwijderd (delete), niet een sleutel-met-undefined — en de projectkalender-cache
-  // moet de bijgewerkte bibliotheek-entry blijven volgen (§9.1).
   assertEq('generation' in cal, false, 'de generation-SLEUTEL is verwijderd, niet op undefined gezet');
   assertEq('generation' in store.getState().calendar, false, 'de projectkalender-cache loopt mee');
   assertEq(store.getState().calendar.holidays.length, cal.holidays.length, 'cache en entry zijn in sync');
@@ -191,9 +144,6 @@ test('update_calendar: generator (NL-bouwvak) + rawHolidays ⇒ merge, generatio
   assert(cal.holidays.length > 1, 'de generator-basis (bouwvak + feestdagen) staat er ook in');
 });
 
-// =================================================================================================
-// 3b) Bugs 124/182 — dezelfde defaultspanne voor MCP-update en beide UI-generatoren
-// =================================================================================================
 for (const { label, endDate, withCpm, toYear } of [
   { label: 'ingevoerd einde vroeg, berekend einde later', endDate: '2027-12-31', withCpm: true, toYear: 2034 },
   { label: 'ingevoerd einde later, berekend einde vroeg', endDate: '2037-12-31', withCpm: true, toYear: 2038 },
@@ -204,7 +154,6 @@ for (const { label, endDate, withCpm, toYear } of [
   test(`update_calendar: generate — ${label}`, async () => {
     reset();
     prepareCalendarSpan(endDate, withCpm);
-    // Beide dialogen geven deze drie waarden door; de bestaande matrix bewaakt ook hun helperpad.
     const state = store.getState();
     const span = computeGenerateSpan(state.project.startDate, state.project.endDate, state.cpmResult?.projectEnd);
     assertEq(span, { from: 2026, to: toYear }, 'UI-defaultspanne dekt het latere beschikbare einde');
@@ -226,24 +175,18 @@ for (const { label, endDate, withCpm, toYear } of [
     };
     await checkGeneration();
     if (withCpm) {
-      // De eindherberekening van de eerste call mag opnieuw genereren niet terugbrengen naar endDate.
       await checkGeneration();
     }
     assertEq(store.getState().project.endDate, endDate, 'de ingevoerde einddatum blijft behouden');
   });
 }
 
-// =================================================================================================
-// 4) WP7 — onwerkbaar venster ⇒ prominente WAARSCHUWING, géén fout, wijziging GECOMMIT
-// =================================================================================================
 test('update_calendar: onwerkbaar venster ⇒ cappedTaskIds als waarschuwing, geen fout, wijziging gecommit', async () => {
   reset();
   store.getState().ensureProjectCalendarInLibrary();
   const projCalId = store.getState().project.calendarId;
   const start = store.getState().project.startDate;
   addTask('gecapte taak', 5);
-  // Meerjarig, aaneengesloten feestdagblok vanaf de projectstart ⇒ de werkdag-scans van de solver
-  // botsen herhaald tegen de MAX_SCAN(366)-grens (zelfde recept als cases-engine-capped.ts eis 3).
   const blokEnd = shiftIso(start, 3000);
 
   const ctx = makeCtx();
@@ -252,7 +195,7 @@ test('update_calendar: onwerkbaar venster ⇒ cappedTaskIds als waarschuwing, ge
     { calendars: [{ id: projCalId, rawHolidays: [{ name: 'blok', startDate: start, endDate: blokEnd }] }] },
     ctx,
   );
-  const data = okData(res); // GEEN fout
+  const data = okData(res);
   assert(Array.isArray(data.cappedTaskIds) && data.cappedTaskIds.length >= 1, 'cappedTaskIds prominent in de data');
   assert(Array.isArray(data.warnings) && data.warnings.some((w: string) => /onwerkbaar|venster|capped/i.test(w)),
     'een leesbare waarschuwing staat in data.warnings');
@@ -260,13 +203,10 @@ test('update_calendar: onwerkbaar venster ⇒ cappedTaskIds als waarschuwing, ge
   assert(cal.holidays.some((h) => h.name === 'blok'), 'de wijziging is ECHT gecommit (geen rollback)');
 });
 
-// =================================================================================================
-// 5) Onbekend id zonder create ⇒ zachte weigering; all-unknown ⇒ lege-batch-snelpad
-// =================================================================================================
 test('update_calendar: onbekend id zonder create ⇒ zachte weigering, GEEN snapshot en redo ONGEMOEID', async () => {
   reset();
   store.getState().addTask({ name: 'seed' });
-  store.getState().undo(); // seed de redo-stack
+  store.getState().undo();
   const undoLen = store.getState().historyEvents.filter(event => event.state === 'applied').length;
   const redoLen = store.getState().historyEvents.filter(event => event.state === 'undone').length;
   assert(redoLen >= 1, 'de redo-stack is geseed');
@@ -280,9 +220,6 @@ test('update_calendar: onbekend id zonder create ⇒ zachte weigering, GEEN snap
   assertEq(store.getState().historyEvents.filter(event => event.state === 'undone').length, redoLen, 'redo-stack ONGEMOEID');
 });
 
-// =================================================================================================
-// 6) create:true ⇒ nieuwe bibliotheek-kalender (met generator-basis, create-spanne)
-// =================================================================================================
 test('update_calendar: create:true ⇒ nieuwe kalender met generator-basis en generation-metadata', async () => {
   reset();
   prepareCalendarSpan('2037-12-31', true);
@@ -310,9 +247,6 @@ test('update_calendar: create:true ⇒ nieuwe kalender met generator-basis en ge
   assertEq(row.becameLiteral, false, 'geen rawHolidays ⇒ becameLiteral false');
 });
 
-// =================================================================================================
-// 7) manage_assignments — add/update/move/remove happy path met de T18-veldnamen
-// =================================================================================================
 test('manage_assignments: add/update/move/remove met assignmentId/unitsPerDay/curve', async () => {
   reset();
   const a = addTask('A', 5);
@@ -320,7 +254,6 @@ test('manage_assignments: add/update/move/remove met assignmentId/unitsPerDay/cu
   const r = store.getState().addResource({ name: 'Timmerman', type: 'LABOR', description: '', maxUnits: 2 });
   const ctx = makeCtx();
 
-  // add
   const addRes = await call('planner_manage_assignments', {
     actions: [{ action: 'add', taskId: a, resourceId: r, unitsPerDay: 1, curve: 'BELL' }],
   }, ctx);
@@ -333,7 +266,6 @@ test('manage_assignments: add/update/move/remove met assignmentId/unitsPerDay/cu
   assertEq(asgn.unitsPerDay, 1, 'unitsPerDay geschreven');
   assertEq(asgn.curve, 'BELL', 'curve geschreven');
 
-  // update
   okData(await call('planner_manage_assignments', {
     actions: [{ action: 'update', assignmentId: asgnId, unitsPerDay: 0.5, curve: 'UNIFORM' }],
   }, ctx));
@@ -341,7 +273,6 @@ test('manage_assignments: add/update/move/remove met assignmentId/unitsPerDay/cu
   assertEq(asgn.unitsPerDay, 0.5, 'unitsPerDay bijgewerkt');
   assertEq(asgn.curve, 'UNIFORM', 'curve bijgewerkt');
 
-  // move
   okData(await call('planner_manage_assignments', {
     actions: [{ action: 'move', assignmentId: asgnId, taskId: b }],
   }, ctx));
@@ -350,7 +281,6 @@ test('manage_assignments: add/update/move/remove met assignmentId/unitsPerDay/cu
   assertEq(store.getState().tasks.find((t) => t.id === a)!.resourceIds, [], 'resourceIds op A opgeruimd');
   assertEq(store.getState().tasks.find((t) => t.id === b)!.resourceIds, [r], 'resourceIds op B bijgewerkt');
 
-  // remove
   const rmRes = await call('planner_manage_assignments', {
     actions: [{ action: 'remove', assignmentId: asgnId }],
   }, ctx);
@@ -358,9 +288,6 @@ test('manage_assignments: add/update/move/remove met assignmentId/unitsPerDay/cu
   assertEq(store.getState().assignments.filter((x) => x.id === asgnId).length, 0, 'toewijzing is weg');
 });
 
-// =================================================================================================
-// 8) Intra-batch-guard — tweede identieke add in ÉÉN call ⇒ zacht geweigerd (dubbeltelling-guard)
-// =================================================================================================
 test('manage_assignments: dubbele add in één call ⇒ eerste toegepast, tweede zacht geweigerd', async () => {
   reset();
   const a = addTask('A', 5);
@@ -380,14 +307,6 @@ test('manage_assignments: dubbele add in één call ⇒ eerste toegepast, tweede
     'de store bevat precies één toewijzing (geen dubbeltelling)');
 });
 
-// =================================================================================================
-// 8b) REVIEWFIX-blocker — een onbekende `curve` mag NOOIT de store in
-//
-// Regressie die dit afdekt: de dispatcher valideert `inputSchema` NIET, dus zonder tool-guard belandde
-// bv. 'SPIRAAL' ongefilterd in de store. `recomputeResourceLoad()` draait in `runInMcpTransaction`
-// stap 5 — BUITEN de try/catch — en `ResourceLoad.CURVE_POINTS[curve]` is dan undefined: uncaught
-// TypeError, géén McpToolResult, corrupte waarde GECOMMIT plus een undo-stap erbij.
-// =================================================================================================
 test('manage_assignments: onbekende curve (add) ⇒ zachte weigering, store byte-identiek, geen undo-stap', async () => {
   reset();
   const a = addTask('curve-a', 5);
@@ -419,7 +338,7 @@ test('manage_assignments: kleine-letter-curve ("bell") ⇒ geweigerd; geldig ite
   const ctx = makeCtx();
   const res = await call('planner_manage_assignments', {
     actions: [
-      { action: 'add', taskId: a, resourceId: r, unitsPerDay: 1, curve: 'bell' }, // hoofdlettergevoelig
+      { action: 'add', taskId: a, resourceId: r, unitsPerDay: 1, curve: 'bell' },
       { action: 'add', taskId: b, resourceId: r, unitsPerDay: 1, curve: 'BELL' },
     ],
   }, ctx);
@@ -452,11 +371,6 @@ test('manage_assignments: onbekende curve (update) ⇒ zachte weigering, bestaan
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'geen undo-stap gepusht');
 });
 
-// =================================================================================================
-// 9/10/11) level_resources — dryRun / apply / staleness-guard
-// =================================================================================================
-/** Overbelasting-opzet: A (10 dagen) en B (5 dagen) parallel, beide 1 eenheid van dezelfde
- *  resource met maxUnits 1 ⇒ B heeft speling en kan binnen de float wegschuiven. */
 function levelingFixture(): { a: string; b: string; r: string } {
   reset();
   const a = addTask('A-lang', 10);
@@ -517,12 +431,9 @@ test('level_resources apply: delays geschreven, ÉÉN undo-stap, before/after ge
   assert(withDelay.some((t) => t.id === b) || withDelay.length >= 1, 'de korte taak schuift (of minstens één taak)');
   assert(typeof data.projectEndBefore === 'string' && typeof data.projectEndAfter === 'string',
     'projectEndBefore/After aanwezig');
-  // constrainToFloat:false ⇒ de einddatum-delta hoort prominent te zijn.
   assert(data.projectEndDelta && typeof data.projectEndDelta.calendarDays === 'number',
     'projectEndDelta prominent bij constrainToFloat:false');
-  // Reviewfix: naast de VOORSPELDE projectEndAfter ook het werkelijke projecteinde uit de verse store.
   assertEq(data.projectEnd, store.getState().cpmResult!.projectEnd, 'projectEnd komt uit de verse store');
-  // Eén undo maakt de hele nivellering ongedaan.
   store.getState().undo();
   assertEq(store.getState().tasks.filter((t) => t.levelingDelay !== undefined).length, 0,
     'één undo wist alle levelingDelays');
@@ -530,20 +441,16 @@ test('level_resources apply: delays geschreven, ÉÉN undo-stap, before/after ge
 
 test('level_resources: stale planning ⇒ eerst herrekend (WP8-guardpatroon)', async () => {
   levelingFixture();
-  store.getState().addTask({ name: 'maakt stale' }); // store-edit ⇒ scheduleStale
+  store.getState().addTask({ name: 'maakt stale' });
   assertEq(store.getState().scheduleStale, true, 'testvoorwaarde: planning is stale');
   const ctx = makeCtx();
   const res = await call('planner_level_resources', { constrainToFloat: true, dryRun: true }, ctx);
   const data = okData(res);
   assertEq(data.recomputed, true, 'de respons meldt dat er eerst is herrekend');
   assertEq(store.getState().scheduleStale, false, 'de planning is nu vers');
-  // Bij dryRun is het werkelijke projecteinde per definitie het ONgewijzigde (== before).
   assertEq(data.projectEnd, data.projectEndBefore, 'dryRun laat het werkelijke projecteinde ongemoeid');
 });
 
-// =================================================================================================
-// 12) clear_leveling
-// =================================================================================================
 test('clear_leveling: wist alle levelingDelays in één undo-stap', async () => {
   levelingFixture();
   const ctx = makeCtx();
@@ -562,7 +469,6 @@ test('clear_leveling: ziet dezelfde nivelleeruitvoer als de store (sub-dag-delay
   const subDay = addTask('alleen sub-dag-delay', 5);
   const gapOnly = addTask('alleen nivelleergat', 5);
   const importSplit = { afterMinutes: 480, gapMinutes: 480 };
-  // Rechtstreeks gezet: dit is wat een `.mpp`-import resp. een eerdere onderbreek-nivellering achterlaat.
   store.setState((s) => {
     const a = s.tasks.find((t) => t.id === subDay)!;
     a.levelingDelayMinutes = 90;
@@ -582,15 +488,9 @@ test('clear_leveling: ziet dezelfde nivelleeruitvoer als de store (sub-dag-delay
     'precies één undo-stap');
 });
 
-// =================================================================================================
-// 13) update_project — statusdatum + anker-semantiek van startDate
-// =================================================================================================
 test('update_project: statusdatum landt; startDate is GEEN volledige Δ-verschuiving zoals move_project (T7-review H1: wél de gerichte klem-uitzondering op een wortel-taak zonder voorganger/constraint)', async () => {
   reset();
   const a = addTask('bestaand (wortel)', 5);
-  // Opvolger van `a` — heeft een voorganger, dus buiten de klem (T7b/H1: "wortel-taken zonder
-  // voorganger"). Bewijst dat `startDate` géén volledige `move_project`-stijl Δ-verschuiving doet:
-  // een taak met een voorganger blijft op zijn eigen (relatief bepaalde) anker staan.
   const b = addTask('opvolger', 3);
   store.getState().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
   store.getState().runCPM();
@@ -608,28 +508,6 @@ test('update_project: statusdatum landt; startDate is GEEN volledige Δ-verschui
   assertEq(store.getState().project.name, 'Renovatie Kade', 'naam gezet');
   assertEq(store.getState().project.statusDate, statusDatum, 'statusdatum gezet');
   assertEq(store.getState().project.startDate, nieuweStart, 'startDate gezet');
-  // T7b/H1: `a` is een wortel-taak zonder voorganger/constraint mét een eigen anker vóór de nieuwe
-  // (latere) startDate — die klemt sinds deze fixronde óók via de MCP-tool mee, exact zoals de
-  // UI-variant (`projectSlice.setProject`) en gemeld via `anchorsClamped`.
-  //
-  // BUGFIX (T13, vóór mijn scope maar blokkeerde npm run verify): `nieuweStart` is een RUWE
-  // kalenderdag-shift (`shiftIso`, geen kalender-snap) — "vandaag + 40 dagen" kan op elke weekdag
-  // landen, ook een niet-werkdag. `clampProjectStartAnchors` klemt (per zijn eigen, hierboven
-  // geciteerde moduledoc) NOOIT naar zo'n ruwe datum zelf, maar naar de EERSTVOLGENDE
-  // werk-instant OP/NÁ die datum (`snapWorkInstantOnOrAfter`) — exact zoals de solver zelf snapt.
-  // Een `assertEq(..., nieuweStart, ...)` was dus een datum-afhankelijke flake: groen zolang
-  // "vandaag + 40" toevallig op een werkdag viel, rood zodra dat een weekend was (2026-08-17 + 40 =
-  // 2026-09-26, een zaterdag — precies zo'n geval).
-  //
-  // L2 (Opus-eindreview 2026-08-17): de eerste fix verving `assertEq` door een LOSSE band ("op/ná
-  // de nieuwe startDate, een echte werkdag, binnen 4 kalenderdagen speling") — dat verbergt een
-  // klem die bv. één dag te ver snapt net zo goed als een correcte klem, want beide vallen binnen
-  // de band. Scherper zonder de flake terug te halen: reken de EXACTE verwachte werkdag zelf uit,
-  // dag-voor-dag vanaf `nieuweStart`, met de ONAFHANKELIJKE `CalendarEngine.isWorkDay` (niet
-  // `snapWorkInstantOnOrAfter` zelf — dat zou de test weer tautologisch maken tegen de
-  // implementatie i.p.v. tegen de specificatie), en toets daar `assertEq` tegen. Nog steeds
-  // datum-onafhankelijk (geen hardgecodeerde kalenderdatum — werkt voor elke "vandaag"), maar een
-  // klem die één dag te ver snapt geeft nu een exacte rode regel i.p.v. een groene "binnen de band".
   const aStartAfter = store.getState().tasks.find((t) => t.id === a)!.time.scheduleStart;
   assert(aStartAfter !== aStartBefore, 'de wortel-taak zonder voorganger/constraint IS meegeklemd (anker gewijzigd)');
   const clampEngine = new CalendarEngine(store.getState().calendar);
@@ -640,9 +518,6 @@ test('update_project: statusdatum landt; startDate is GEEN volledige Δ-verschui
   assertEq(aStartAfter, `${formatDate(expectedAnchor)}T07:00`,
     'de wortel-taak klemt naar de EERSTE werkdag op/ná de nieuwe startDate (onafhankelijk dag-voor-dag berekend via CalendarEngine.isWorkDay, niet via snapWorkInstantOnOrAfter)');
   assertEq(data.anchorsClamped, 1, 'de respons meldt het geklemde aantal');
-  // GEEN volledige Δ-verschuiving (dat blijft move_project): de OPVOLGER (heeft een voorganger, dus
-  // geen wortel-anker) blijft op zijn eigen, relatief bepaalde anker staan — startDate verschuift
-  // 'm niet mee zoals move_project dat zou doen.
   assertEq(store.getState().tasks.find((t) => t.id === b)!.time.scheduleStart, bStartBefore,
     'de opvolger (heeft een voorganger) is NIET verschoven door startDate');
   assert(/move_project/i.test(JSON.stringify(data)) || /move_project/i.test(tool('planner_update_project').description),
@@ -662,9 +537,6 @@ test('update_project: statusDate null ⇒ sleutel ECHT verwijderd (niet als unde
   assertEq(data.project.statusDate, null, 'de respons meldt de statusdatum als null');
 });
 
-// =================================================================================================
-// 14) move_project — verschuift de bestaande planning, één undo-stap
-// =================================================================================================
 test('move_project: verschuift de bestaande planning in één undo-stap', async () => {
   reset();
   const a = addTask('verschuifbaar', 5);
@@ -684,9 +556,6 @@ test('move_project: verschuift de bestaande planning in één undo-stap', async 
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'precies één undo-stap');
 });
 
-// =================================================================================================
-// 15) save_baseline — staleness-guard (WP8) + batchable:false
-// =================================================================================================
 test('save_baseline: stale ⇒ eerst herrekenen, baseline op VERSE datums, batchable:false', async () => {
   reset();
   const a = addTask('bl', 5);
@@ -703,15 +572,11 @@ test('save_baseline: stale ⇒ eerst herrekenen, baseline op VERSE datums, batch
   assertEq(store.getState().baselines[0].name, 'Nulmeting', 'naam toegepast');
   assertEq(store.getState().activeBaselineId, store.getState().baselines[0].id, 'de nieuwe baseline is actief');
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'precies één undo-stap');
-  // De baseline is op de VERSE datums genomen.
   const fresh = store.getState().tasks.find((t) => t.id === a)!.time.earlyStart;
   assertEq(store.getState().baselines[0].tasks.find((r) => r.taskId === a)!.start, fresh,
     'baseline-startdatum = de herrekende earlyStart');
 });
 
-// =================================================================================================
-// 16) Registratie + tools/list-vorm
-// =================================================================================================
 test('registratie: zeven T20-tools met prefix, description, vier annotaties en JSON-schema', async () => {
   registerToolModules([calendarResourceTools]);
   const raw = await handleMcpMessage(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }), makeCtx());
@@ -741,10 +606,8 @@ test('registratie: zeven T20-tools met prefix, description, vier annotaties en J
   assert(generator.region.description.includes('P = Potosí'), 'het schema geeft de regiocode voor Potosí');
   assert(generator.country.enum.includes('CA'), 'de dispatcher publiceert Canada in de landenlijst');
   assert(generator.region.description.includes('NU = Nunavut'), 'het schema geeft de regiocode voor Nunavut');
-  // Reviewfix: spec r65 zet destructiveHint op een GESLOTEN lijst — clear_leveling hoort er niet bij.
   assertEq(tools.find((t) => t.name === 'planner_clear_leveling').annotations.destructiveHint, false,
     'clear_leveling draagt GEEN destructiveHint (afgeleide, herberekenbare waarden)');
-  // level_resources zegt zelf dat het eerdere nivellering wist; clear_leveling hoeft dat niet te herhalen (#818).
   assert(/resets earlier leveling itself/i.test(tool('planner_level_resources').description),
     'level_resources-beschrijving legt uit dat het zelf eerdere nivellering wist');
 });

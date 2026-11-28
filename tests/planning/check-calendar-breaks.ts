@@ -1,5 +1,3 @@
-// K2 — eenvoudig scalar-pauzepatroon. Dit bewaakt de ene gedeelde afleiding, IFC-round-trip en
-// document/undo-gedrag; de browsertest bewaakt vervolgens de bedieningsvorm zelf.
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { parseInstant, formatInstant } from '@/utils/dateUtils';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';

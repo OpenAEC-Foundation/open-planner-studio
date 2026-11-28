@@ -1,5 +1,3 @@
-// Gerichte MCP-contracttests voor retained XER/P6-bronsemantiek.
-// Alle bronwaarden zijn synthetisch; er wordt geen corpusnaam of pad gebruikt.
 import { useAppStore, makeMcpContext, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -48,56 +46,29 @@ function reset(): void {
   S().newProject();
 }
 
-// Reviewbevinding P1 (batch): een grote gestructureerde XER-invoer mag geen enkele cel onbegrensd
-// laten groeien. `LONG_CELL` is > het per-cel afkapniveau (2.000 tekens) zodat afkapping écht
-// getest wordt (de oorspronkelijke synthetische fixture van 1.520 tekens bleef er ONDER en bewees
-// dus niets over de afkapgrens zelf).
 const LONG_CELL = 'synthetic-free-cell-' + 'x'.repeat(5000);
 const LONG_CELL_TRUNCATED_LENGTH = 2000 + '…(truncated at 2000 characters)'.length;
 
-// Reviewronde 2 (review2-3d.md #2): de eerste fix dichtte alleen `rawRow.cells` af; vrije tekst
-// BUITEN `rawRow` (roleSources.description, resources.description, taskProjections.notes/
-// customFields) ging ongefilterd mee. Twee aparte secrets houden de twee behandelingen uit elkaar:
-// FREE_TEXT_SECRET hoort in een veld dat zonder opt-in VOLLEDIG moet verdwijnen (notities); die
-// mag dus NERGENS verschijnen, ook niet als afgekapt prefix. LABEL_SECRET hoort in een kort
-// naam-/labelveld dat bewust ZICHTBAAR blijft maar hard afgekapt — daar is een 200-tekens-prefix
-// een correcte uitkomst, geen lek.
 const FREE_TEXT_SECRET = 'FREE-TEXT-SECRET-' + 'y'.repeat(9000);
 const LABEL_SECRET = 'LABEL-SECRET-' + 'z'.repeat(9000);
 const LABEL_TRUNCATED_LENGTH = 200 + '…(truncated at 200 characters)'.length;
 
-// Reviewronde 3 (review2-3d.md N2): een BLOCKLIST van vrije-tekstsleutels vergeet onvermijdelijk een
-// synoniem — `text`/`comment`/`memo`/`remark`/`title`/`longName` glipten er in ronde 2 allemaal
-// doorheen. De fix keert de classificatie om naar deny-by-default (`SAFE_LABEL_KEYS`-allowlist); deze
-// zes alias-sleutels op `roleSources[0]` bewijzen dat ELKE onbekende sleutel nu standaard verborgen
-// is, niet alleen de drie die de vorige ronde bij naam noemde.
 const ALIAS_SECRET = 'ALIAS-SECRET-' + 'a'.repeat(3000);
 const ALIAS_KEYS = ['text', 'comment', 'memo', 'remark', 'title', 'longName'] as const;
 
-// Reviewronde 3 (review2-3d.md N5): een bronrij-vorm met méér dan twee sleutels moet nog steeds
-// structureel herkend worden.
 const N5_SECRET = 'N5-SHAPE-SECRET-' + 'n'.repeat(9000);
 
-// Reviewronde 4 (review2-3d.md R8): exact het door de review gemeten getal — een project-id van
-// 80.000 tekens die als OBJECTSLEUTEL (niet als waarde) de respons in gaat.
 const LONG_PROJECT_ID = 'P'.repeat(80000);
 
 function archiveFixture(): XerSourceArchive {
-  // De production-reader levert deze exact gevormde objectgrafiek. De test gebruikt een compacte
-  // synthetische variant, omdat deze suite MCP-responscontracten test en geen XER-parsercontract.
   const readModel = structuredClone(createEmptyXerArchiveReadModel()) as any;
   const diagnostics = structuredClone(createEmptyXerArchiveDiagnostics()) as any;
-  // Review2-3d.md ronde 3, N3: `currencyCode` komt uit CURRTYPE in het bronbestand — een 5.014-tekens
-  // waarde (exact het door de review gemeten getal) bewijst dat `summary` nu ook door de
-  // labelafkapping loopt (het IS een SAFE_LABEL_KEYS-veld, dus zichtbaar, maar hard begrensd).
   readModel.numberFormat = { decimal: ',', group: '.', source: 'currtype', currencyCode: `EUR-${'Q'.repeat(5010)}` };
   readModel.taskSourceRowsByProject = {
     'PROJ-A': [
       { line: 11, cells: { task_id: 'TASK-A', task_name: LONG_CELL, task_notes: 'synthetic note' } },
       { line: 12, cells: { task_id: 'TASK-B', task_name: 'Second synthetic task' } },
     ],
-    // Reviewbevinding P1 (responsgrens): 100 rijen (de opt-in-paginalimiet) met elk drie ruime
-    // vrije cellen, zodat één pagina ná per-cel-afkapping alsnog boven de 256 kB-responsgrens komt.
     'PROJ-BIG': Array.from({ length: 100 }, (_, index) => ({
       line: 200 + index,
       cells: {
@@ -107,37 +78,19 @@ function archiveFixture(): XerSourceArchive {
         cell_c: 'c'.repeat(3000),
       },
     })),
-    // Review2-3d.md #4: CJK-tekst is 1 UTF-16-code-unit maar 3 UTF-8-bytes per teken. 50 rijen ×
-    // 2.000 CJK-tekens = 100.000 CODE-UNITS (ver onder de oude "String.length"-grens van 262.144)
-    // maar ≈ 300.000 ECHTE BYTES (ruim boven de 262.144-bytesgrens die de tool belooft).
     'PROJ-CJK': Array.from({ length: 50 }, (_, index) => ({
       line: 300 + index,
       cells: { task_id: `CJK-${index}`, greeting: '漢'.repeat(2000) },
     })),
-    // Review2-3d.md #5: dit project heeft GEEN documentview (het is nooit "geopend" in de zin van
-    // de lezer) maar staat wél hier — precies de P2_BASELINE-situatie uit de review: de summary moet
-    // het adverteren, en de tool moet het ook echt accepteren.
     'PROJ-ONLY-IN-TASKROWS': [{ line: 500, cells: { task_id: 'ONLY-1' } }],
-    // Review2-3d.md ronde 3, N5: een bronrij met MEER dan twee sleutels (zoals
-    // `XerScheduleOptionsSourceRow` = `{table,line,cells}`) moet nog steeds structureel herkend
-    // worden — niet fail-open naar de generieke labeltak vallen.
     'PROJ-SHAPE': [{ table: 'PROJECT', line: 800, cells: { secret_col: N5_SECRET } }],
-    // Review2-3d.md ronde 3, N4: één rij met een kolomNAAM van 60.001 tekens (de review mat exact dit
-    // getal) — moet zelf afgekapt worden, niet verbatim meegaan.
     'PROJ-LONGKEY': [{ line: 600, cells: { [`col_${'k'.repeat(60001)}`]: 'short-value' } }],
-    // Review2-3d.md ronde 3, N4: 10 rijen × 200 cellen met LANGE kolomnamen maar TRIVIALE waarden —
-    // zonder key-begroting zou de budget-teller hier bijna niets zien (de waarden zijn 1 teken) en
-    // pas via de dure `finalizeBounded`-serialisatie ingrijpen, als het al binnen de opt-in-
-    // paginalimiet past. Met key-begroting breekt de teller tijdens de projectie af.
     'PROJ-LONGKEY-BUDGET': Array.from({ length: 10 }, (_, rowIndex) => ({
       line: 700 + rowIndex,
       cells: Object.fromEntries(Array.from({ length: 200 }, (_, cellIndex) => [
         `col_${rowIndex}_${cellIndex}_${'k'.repeat(2500)}`, 'v',
       ])),
     })),
-    // Review2-3d.md ronde 4, R8: een project-id van 80.000 tekens (`proj_id` komt uit het
-    // bronbestand) belandt via `summary.catalogCounts.taskSourceRowsByProject` als OBJECTSLEUTEL —
-    // de generieke objecttak deed voorheen `out[childKey] = …` zonder de sleutel zelf af te kappen.
     [LONG_PROJECT_ID]: [{ line: 900, cells: { task_id: 'LONGID-1' } }],
   };
   readModel.resourceCatalog = {
@@ -148,8 +101,6 @@ function archiveFixture(): XerSourceArchive {
       roles: [{
         sourceId: 'ROLE-1', internalId: 'role-1', line: 21, name: 'Synthetic Role', shortName: 'SR',
         description: FREE_TEXT_SECRET,
-        // Zes alias-sleutels (review2-3d.md N2) — geen van deze staat op een blocklist, dus alleen
-        // deny-by-default (SAFE_LABEL_KEYS) verbergt ze allemaal.
         text: ALIAS_SECRET, comment: ALIAS_SECRET, memo: ALIAS_SECRET, remark: ALIAS_SECRET,
         title: ALIAS_SECRET, longName: ALIAS_SECRET,
         rawRow: { line: 21, cells: { role_id: 'ROLE-1', role_name: 'Synthetic Role' } },
@@ -165,10 +116,6 @@ function archiveFixture(): XerSourceArchive {
     customFieldDefs: [{ id: 'UDF-1', name: LABEL_SECRET, type: 'text' }],
     taskProjections: [{
       projectId: 'PROJ-A', taskId: 'TASK-A',
-      // `Task['notes']` (src/types/task.ts) is een OBJECTARRAY (`{id,text,done}[]`), geen string
-      // (review2-3d.md ronde 3, N1) — de fixture gebruikt bewust de ECHTE vorm zodat de test het
-      // eerdere lek (de blocklist keek alleen naar de buitenste sleutel `notes`, niet naar `text`
-      // binnenin) ook echt had gezien.
       notes: [{ id: 'note-1', text: FREE_TEXT_SECRET, done: false }],
       activityCodes: { 'ACTIVITY-TYPE-1': 'ACTIVITY-VALUE-1' },
       customFields: { 'UDF-1': FREE_TEXT_SECRET },
@@ -184,7 +131,6 @@ function archiveFixture(): XerSourceArchive {
       UDFVALUE: [{ line: 29, cells: { fk_id: 'TASK-A' } }],
       MEMOTYPE: [{ line: 30, cells: { memo_type_id: 'MEMO-1' } }],
       TASKNOTE: [{ line: 31, cells: { task_id: 'TASK-A' } }],
-      // TASKMEMO draagt bij uitstek vrije notitietekst — de synthetische cel is bewust lang.
       TASKMEMO: [{ line: 32, cells: { task_id: 'TASK-A', task_memo: LONG_CELL } }],
       TASK_NOTES: [{ line: 33, cells: { task_notes: 'synthetic note' } }],
       deferredUdfValues: [{ line: 34, cells: { fk_id: 'RESOURCE-1' } }],
@@ -368,8 +314,6 @@ test('resourceCatalog: rawRow-cellen alleen achter includeRawRows, met afkapping
   const serializedClosed = JSON.stringify(closed);
   assert(!serializedClosed.includes('synthetic-free-cell-'), 'geen vrije brontekst zonder opt-in');
 
-  // RSRC-cellen dragen persoonsgegevens (rsrc_name): naast includeRawRows ook includeResourceNames
-  // (eigenaarsbesluit 22-09). Alleen includeRawRows houdt de rij dicht — zie de resourcenamen-tests.
   const opened = ok(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', limit: 1, includeRawRows: true, includeResourceNames: true });
   assertEq(opened.items[0].rawRow.cells.rsrc_id, 'R-1', 'korte cel ongewijzigd met opt-in');
   assertEq(opened.items[0].rawRow.cells.rsrc_notes.length, LONG_CELL_TRUNCATED_LENGTH, 'grote vrije cel afgekapt, niet volledig');
@@ -400,8 +344,6 @@ test('metadataCatalog: retained brondata (TASKMEMO) alleen achter includeRawRows
   const opened = ok(TOOL, { section: 'metadataCatalog', collection: 'TASKMEMO', limit: 1, includeRawRows: true });
   assertEq(opened.items[0].cells.task_memo.length, LONG_CELL_TRUNCATED_LENGTH, 'grote notitiecel afgekapt met opt-in');
 
-  // Genormaliseerde (niet-rij) collecties zijn ongevoelig voor includeRawRows: geen `cells` te
-  // verbergen, dus geen gedragsverschil.
   const normalized = ok(TOOL, { section: 'metadataCatalog', collection: 'customFieldDefs', limit: 1, includeRawRows: true });
   assertEq(normalized.items[0].id, 'UDF-1', 'genormaliseerde collectie ongewijzigd door includeRawRows');
 });
@@ -443,8 +385,6 @@ test('diagnostics: archive-, unknown-table-, import-report- en documentviewinfor
     assertEq(data.total, 1, `${collection}: total`);
     assertEq(data.items.length, 1, `${collection}: item`);
   }
-  // Twee documentViews in de fixture (PROJ-A + PROJ-BIG, de laatste alleen voor de
-  // responsgrens-test hierboven) — total telt dus mee, de pagina zelf blijft limit-gestuurd.
   const documentViews = ok(TOOL, { section: 'diagnostics', collection: 'documentViews', limit: 1 });
   assertEq(documentViews.total, 2, 'documentViews: total');
   assertEq(documentViews.items.length, 1, 'documentViews: item');
@@ -466,12 +406,7 @@ test('rawSource: alleen opt-in, hard begrensd en paginaerbaar over grote payload
   assertEq(second.chunks[0].index, 8, 'chunk-index');
   assertEq(err(TOOL, { section: 'rawSource', includeRawSource: true, includeResourceNames: true, limit: 9 }).code, 'VALIDATION', 'geen onbeperkte base64');
   assertEq(err(TOOL, { section: 'rawSource', includeRawSource: false }).code, 'VALIDATION', 'false is geen opt-in');
-  // Fable-critreview PR #109 bevinding 11: bij echte chunkgrootte is één base64-chunk al 256 KiB,
-  // dus een rawSource-pagina (tot 8 chunks) past nooit onder de 256 kB-responsgrens — de
-  // toolbeschrijving mag rawSource daar niet onder scharen.
   assert(Math.ceil(first.chunkSizeBytes / 3) * 4 * 8 > 256 * 1024, 'volle rawSource-pagina > 256 kB bij echte chunkgrootte');
-  // Sinds #818 noemt param `limit` de grootte van een rawSource-pagina; de algemene 256 kB-grens meldt het
-  // antwoord zelf (VALIDATION met de grens), dus die zin staat niet meer in de toolbeschrijving.
   const limitDesc = String(((getTool(TOOL)?.inputSchema as any)?.properties?.limit?.description) ?? '');
   assert(/rawSource ≤ 8 chunks of ~256 kB/.test(limitDesc), `param limit noemt de grootte van een rawSource-pagina: ${limitDesc}`);
 });
@@ -488,17 +423,12 @@ test('invalid args worden runtime geweigerd zonder storemutatie', () => {
   assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', limit: 0 }).code, 'VALIDATION', 'limit');
   assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', offset: -1 }).code, 'VALIDATION', 'offset');
   assertEq(err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-A', includeRawRows: 'yes' as any }).code, 'VALIDATION', 'includeRawRows type');
-  // `diagnostics` zit sinds review2-3d.md #1 óók in RAW_ROWS_SECTIONS (documentViews draagt dezelfde
-  // vrije cellen als de andere drie) — `rawSource` heeft juist zijn EIGEN opt-in (`includeRawSource`)
-  // en blijft dus wél buiten deze lijst.
   assertEq(err(TOOL, { section: 'rawSource', includeRawSource: true, includeRawRows: true }).code, 'VALIDATION', 'includeRawRows hoort niet bij rawSource (dat heeft includeRawSource)');
   assertEq(JSON.stringify({ tasks: S().tasks, sequences: S().sequences, archive: S().xerSourceArchive }), before, 'geen storemutatie door leespad');
 });
 
 test('P1: planner_batch weigert deze tool vóór enige mutatie, transactie of herberekening', async () => {
   attachArchive();
-  // Expliciete, herkenbare uitgangstoestand — als checkExclusions vóór de transactie weigert, blijft
-  // dit exact zo; verandert er iets, dan liep de aanroep alsnog door de mutatie-executor.
   useAppStore.setState((state) => {
     state.isDirty = false;
     state.scheduleStale = true;
@@ -529,8 +459,6 @@ test('no-XER document: veilige summary meldt afwezigheid, inhoudsectie geeft NOT
 
 test('archief onbruikbaar bij openen: summary zegt "geen archief (onbruikbaar bij openen: <code>)", niet "nooit een XER-bron"', () => {
   reset();
-  // Eigenaarsbesluit 2026-09-24 ("openen met melding"): readIFC liet het archief vallen en zette
-  // `xerArchiveIssue`. De tool moet dat onderscheiden van een document dat nooit een XER-bron had.
   const neverData = ok(TOOL);
   assertEq(neverData.archiveIssue, null, 'geen issue zonder weggelaten archief');
   useAppStore.setState((state) => {
@@ -549,8 +477,6 @@ test('archief onbruikbaar bij openen: summary zegt "geen archief (onbruikbaar bi
 
 test('P3 (R9): sourcePresent:false loopt ook door de poort — currentProjectId afgekapt', () => {
   reset();
-  // `xerSourceProjectId` is GEEN statische tekst — het is een documentveld dat uit het bestand komt
-  // (review2-3d.md ronde 4, R9). Vóór de fix retourneerde deze tak vóór sanitize/finalizeBounded.
   const hugeId = 'X'.repeat(9009);
   useAppStore.setState((state) => { state.xerSourceProjectId = hugeId; });
   const data = ok(TOOL);
@@ -582,19 +508,12 @@ test('P2 (R8): sleutels in de generieke objecttak worden ook afgekapt en begroot
   );
 });
 
-// =================================================================================================
-// Reviewronde 2 (review2-3d.md) — de EIGENSCHAP, niet drie losse paden.
-// =================================================================================================
-
 test('P1 #2: vrije tekst buiten rawRow verdwijnt zonder opt-in; labels blijven zichtbaar maar afgekapt', () => {
   attachArchive();
 
-  // Vrije tekst (notes/description/customFields) — de SLEUTEL verdwijnt helemaal zonder opt-in,
-  // niet slechts "afgekapt-maar-nog-zichtbaar".
   const roleClosed = ok(TOOL, { section: 'resourceCatalog', collection: 'roleSources', limit: 1 });
   assert(!('description' in roleClosed.items[0]), 'roleSources.description verdwijnt zonder opt-in');
   assert(!JSON.stringify(roleClosed).includes(FREE_TEXT_SECRET.slice(0, 50)), 'geen spoor van de vrije tekst zonder opt-in');
-  // N2: geen van de zes alias-sleutels staat op een blocklist — alleen deny-by-default verbergt ze.
   for (const key of ALIAS_KEYS) {
     assert(!(key in roleClosed.items[0]), `roleSources.${key} verdwijnt zonder opt-in (alias-sleutel, N2)`);
   }
@@ -605,15 +524,12 @@ test('P1 #2: vrije tekst buiten rawRow verdwijnt zonder opt-in; labels blijven z
   assert(!JSON.stringify(resourcesClosed).includes(FREE_TEXT_SECRET.slice(0, 50)), 'geen spoor van de vrije tekst zonder opt-in');
 
   const projectionsClosed = ok(TOOL, { section: 'metadataCatalog', collection: 'taskProjections', limit: 1 });
-  // `notes` is een objectarray (`{id,text,done}[]`, review2-3d.md N1): de array zelf blijft staan
-  // (met het veilige `id`/`done`), maar het BLAD `text` — de eigenlijke notitietekst — verdwijnt.
   assertEq(projectionsClosed.items[0].notes[0].id, 'note-1', 'notes[].id (label) blijft zichtbaar');
   assert(!('text' in projectionsClosed.items[0].notes[0]), 'notes[].text verdwijnt zonder opt-in (N1)');
   assertEq(projectionsClosed.items[0].notes[0].done, false, 'notes[].done (boolean) blijft ongemoeid');
   assertEq(projectionsClosed.items[0].customFields.fieldCount, 1, 'customFields wordt een fieldCount-projectie, geen waarden');
   assert(!JSON.stringify(projectionsClosed).includes(FREE_TEXT_SECRET.slice(0, 50)), 'geen spoor van customFields-waarden zonder opt-in');
 
-  // Met opt-in: de vrije tekst komt terug, maar afgekapt op 2.000 tekens — nooit de volle 9.000.
   const roleOpened = ok(TOOL, { section: 'resourceCatalog', collection: 'roleSources', limit: 1, includeRawRows: true });
   assertEq(roleOpened.items[0].description.length, LONG_CELL_TRUNCATED_LENGTH, 'description afgekapt op 2.000 tekens, niet de volle 9.000');
   assert(!JSON.stringify(roleOpened).includes(FREE_TEXT_SECRET), 'ook mét opt-in blijft de VOLLE 9.000-tekens-secret buiten bereik');
@@ -626,8 +542,6 @@ test('P1 #2: vrije tekst buiten rawRow verdwijnt zonder opt-in; labels blijven z
   assertEq(projectionsOpened.items[0].notes[0].text.length, LONG_CELL_TRUNCATED_LENGTH, 'notes[].text afgekapt op 2.000 tekens met opt-in (N1)');
   assertEq(projectionsOpened.items[0].customFields['UDF-1'].length, LONG_CELL_TRUNCATED_LENGTH, 'customFields-waarde afgekapt op 2.000 tekens met opt-in');
 
-  // Labels (namen buiten rawRow) blijven ALTIJD zichtbaar, met of zonder opt-in — maar hard afgekapt
-  // op 200 tekens: "genormaliseerd" mag niet langer "onbegrensd" betekenen.
   const curvesClosed = ok(TOOL, { section: 'resourceCatalog', collection: 'curves', limit: 1 });
   assertEq(curvesClosed.items[0].name.length, LABEL_TRUNCATED_LENGTH, 'curves.name afgekapt op 200 tekens, altijd zichtbaar');
   assert(curvesClosed.items[0].name.startsWith('LABEL-SECRET-'), 'een label-prefix mag zichtbaar zijn (bewuste keuze, geen notitie)');
@@ -636,7 +550,6 @@ test('P1 #2: vrije tekst buiten rawRow verdwijnt zonder opt-in; labels blijven z
   assertEq(defsClosed.items[0].name.length, LABEL_TRUNCATED_LENGTH, 'customFieldDefs.name afgekapt op 200 tekens, altijd zichtbaar');
 });
 
-/** Loopt recursief door een respons en verzamelt elke stringwaarde. */
 function collectStrings(value: unknown, out: string[]): void {
   if (typeof value === 'string') { out.push(value); return; }
   if (Array.isArray(value)) { value.forEach((item) => collectStrings(item, out)); return; }
@@ -667,17 +580,11 @@ test('P1 #2: generieke walker — zonder opt-in geen string > 2.000 tekens en ge
     for (const value of strings) {
       assert(value.length <= 2000, `${label}: string van ${value.length} tekens overschrijdt de 2.000-tekens-grens zonder opt-in ("${value.slice(0, 40)}…")`);
       assert(!value.includes(FREE_TEXT_SECRET.slice(0, 50)), `${label}: bevat notitie-inhoud zonder includeRawRows`);
-      // N2: dekt ook de zes alias-sleutels (roleSources) en, via taskProjections, geneste `notes[].text`.
       assert(!value.includes(ALIAS_SECRET.slice(0, 30)), `${label}: bevat alias-sleutelinhoud zonder includeRawRows`);
     }
   }
 });
 
-/** Reviewbevinding P1 #1 (review2-3d.md): de vorige documentViews-fixture was een handgeschreven
- *  stub (`{sourceProjectId, synthetic:true}`) die de productievorm niet had — de test was daardoor
- *  structureel blind voor het lek. Deze fixture gaat wél door de ECHTE lezer (`readXER`, via
- *  `reconstructXerSourceFromBytes(...).archive`), corpusloos, met een bewust gigantische vrije cel in een
- *  TASKRSRC-kolom, zodat `documentViews[x].resources.assignments[].rawRow.cells` 'm ECHT draagt. */
 const REAL_ARCHIVE_SECRET = 'REAL-SECRET-' + 'w'.repeat(50000);
 
 function buildRealArchiveFixture(): XerSourceArchive {
@@ -706,10 +613,6 @@ function buildRealArchiveFixture(): XerSourceArchive {
   return reconstructXerSourceFromBytes(source).archive;
 }
 
-/** Reviewbevinding #3/#6 (review2-3d.md): een rij met véél cellen (de `%F`-kolomkop van het
- *  bronbestand bepaalt dat aantal, dus een aanvaller-gecontroleerd bestand kan het opdrijven) mag
- *  geen tientallen-MB-tussenstring opbouwen vóór de responsgrens ingrijpt. 250 extra kolommen op
- *  ÉÉN TASKRSRC-rij, elk met een ruime vrije waarde. */
 function buildManyCellsArchiveFixture(): XerSourceArchive {
   const extraColumnCount = 250;
   const extraFieldNames = Array.from({ length: extraColumnCount }, (_, index) => `extra_col_${index}`);
@@ -774,17 +677,10 @@ test('P3 #6: cap op cellen per rij + budget-tijdens-projectie voorkomt een megab
   assertEq(Object.keys(view.resources.assignments[0].rawRow.cells).length, 258, 'testopzet: 250 extra + 8 kernvelden');
   attachRealArchive(archive, 'P-MANYCELLS');
 
-  // 258 cellen × ~2.026 afgekapte tekens zou zonder cap/budget ruim boven de 256 kB-responsgrens
-  // uitkomen — de fix moet dit AL TIJDENS de projectie afvangen (P3 #6), niet pas na een dure
-  // volledige serialisatie.
   const tooMany = err(TOOL, { section: 'diagnostics', collection: 'documentViews', limit: 1, includeRawRows: true });
   assertEq(tooMany.code, 'VALIDATION', 'responsgrens grijpt in vóór de respons de deur uit gaat');
   assert(/responsgrens|limit/.test(tooMany.error), 'foutmelding hint naar limit/offset');
 
-  // Zonder opt-in blijft de pagina klein — de cap/budget speelt alleen mee zodra celinhoud
-  // daadwerkelijk wordt uitgelezen. (De 250 onbekende TASKRSRC-kolommen leveren wél 250 kleine
-  // `unknownFields`-diagnostiekregels op — legitiem en ver onder de responsgrens, vandaar de
-  // ruimere marge dan bij de andere "zonder opt-in blijft klein"-asserties in dit bestand.)
   const closed = ok(TOOL, { section: 'diagnostics', collection: 'documentViews', limit: 1 });
   const closedLength = JSON.stringify(closed).length;
   assert(closedLength < 50000, `zonder opt-in blijft de pagina klein ongeacht het celaantal, kreeg ${closedLength}`);
@@ -792,12 +688,9 @@ test('P3 #6: cap op cellen per rij + budget-tijdens-projectie voorkomt een megab
 
 test('P2 #4: de responsgrens meet ECHTE UTF-8-bytes, niet UTF-16-code-units (CJK)', () => {
   attachArchive();
-  // 50 rijen × 2.000 CJK-tekens = 100.000 code-units (ver onder de oude "String.length"-grens) maar
-  // ≈ 300.000 ECHTE bytes (boven de 262.144-bytesgrens). Vóór de fix zou dit zijn DOORGELATEN.
   const tooManyBytes = err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-CJK', includeRawRows: true, limit: 50 });
   assertEq(tooManyBytes.code, 'VALIDATION', 'CJK-pagina met te veel ECHTE bytes wordt geweigerd');
 
-  // Een kleinere pagina (10 rijen × 2.000 CJK-tekens ≈ 60.000 bytes) blijft ruim onder de grens.
   const smaller = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-CJK', includeRawRows: true, limit: 10 });
   assertEq(smaller.items.length, 10, 'kleinere CJK-pagina blijft toegestaan');
 });
@@ -816,9 +709,6 @@ test('P2 #5: één selectorbron — een project alleen in taskSourceRowsByProjec
 test('P2 #5 (N5): rijdetectie op vorm (line + string-cells), niet op exact 2 sleutels', () => {
   attachArchive();
   const closed = ok(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-SHAPE', limit: 1 });
-  // Vóór de fix viel een 3-sleutelrij (zoals XerScheduleOptionsSourceRow: {table,line,cells}) door
-  // naar de generieke objecttak: `cells` werd dan een gewoon record en elke celwaarde kwam als LABEL
-  // naar buiten — afgekapt, maar wél ZICHTBAAR zonder opt-in. Fail-open. Nu: fieldCount, geen cellen.
   assert(!('cells' in closed.items[0]), 'cellen blijven volledig weg zonder opt-in, ook bij een 3-sleutelrij (N5)');
   assertEq(closed.items[0].fieldCount, 1, 'fieldCount i.p.v. cellen (N5)');
   assertEq(closed.items[0].table, 'PROJECT', 'overige velden (table) blijven gewoon zichtbaar als label (N5)');
@@ -835,9 +725,6 @@ test('P2 #4 (N4): cel-/veldNAMEN worden afgekapt én meegeteld in het budget', (
   assertEq(keys.length, 1, 'testopzet: precies één cel');
   assert(keys[0].length <= LABEL_TRUNCATED_LENGTH, `kolomnaam blijft afgekapt (kreeg ${keys[0].length} tekens), niet verbatim 60.001 (N4)`);
 
-  // 10 rijen × 200 cellen met LANGE kolomnamen maar TRIVIALE waarden: zonder key-begroting zou de
-  // teller hier bijna niets zien. De weigering hoort van de budget-tijdens-projectie te komen (dus
-  // GEEN "geserialiseerd" in de melding — spiegelt de M4-pinningtest hieronder).
   const tooManyLongKeys = err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-LONGKEY-BUDGET', includeRawRows: true, limit: 10 });
   assertEq(tooManyLongKeys.code, 'VALIDATION', 'lange kolomnamen alléén (triviale waarden) raken de responsgrens (N4)');
   assert(!tooManyLongKeys.error.includes('serialized'), 'de weigering komt van de budget-tijdens-projectie (kolomnamen tellen mee), niet pas van finalizeBounded (N4)');
@@ -845,13 +732,6 @@ test('P2 #4 (N4): cel-/veldNAMEN worden afgekapt én meegeteld in het budget', (
 
 test('P3 (M4): het ByteBudget-effect is gepind — de weigering komt van vóór, niet ná, de serialisatie', () => {
   attachArchive();
-  // `PROJ-BIG` (100 rijen × 3 cellen van 3.000 tekens) is groot genoeg om de budget-teller AL TIJDENS
-  // de projectie te laten afbreken, ruim vóór de dure volledige `JSON.stringify` in `finalizeBounded`.
-  // De twee foutmeldingen verschillen bewust in tekst (`createByteBudget` mist "geserialiseerd",
-  // `finalizeBounded` heeft het wél) — dat verschil is hier de gepinde eigenschap. Mutatiebewijs:
-  // schakel de `ByteBudget`-drempel uit en dezelfde aanroep krijgt de finalizeBounded-tekst (`.includes`
-  // wordt `true`), dus déze assertie kantelt — precies het gat dat de review aanwees (M4: 0 tests rood
-  // toen de budgetdrempel alleen werd uitgeschakeld).
   const tooLarge = err(TOOL, { section: 'taskSourceRowsByProject', projectId: 'PROJ-BIG', includeRawRows: true, limit: 100 });
   assertEq(tooLarge.code, 'VALIDATION', 'responsgrens grijpt in');
   assert(!tooLarge.error.includes('serialized'), 'de weigering komt van de budget-tijdens-projectie, vóór volledige serialisatie (M4)');
@@ -880,9 +760,6 @@ test('P3 #8: loopt via de ECHTE dispatch-weg (handleMcpMessage), niet alleen def
   assertEq(validCall.result?.isError, false, 'een geldige summary-call passeert de dispatcher ongehinderd');
 });
 
-// Eigenaarsbesluit 22-09 (bevestigd 2026-10-07): "MCP-provenance: codes altijd; resourcenamen alleen
-// achter een opt-in, en de AI-client moet die opt-in aan zijn gebruiker vragen." De fixture loopt door
-// de ECHTE lezer, met een P6-resource die een persoon is ("Jan de Vries", resourcecode "JDV").
 const PERSON_NAME = 'Jan de Vries';
 const PERSON_CODE = 'JDV';
 
@@ -926,7 +803,6 @@ test('resourcenamen: zonder includeResourceNames nergens een persoonsnaam, codes
   const sources = ok(TOOL, { section: 'resourceCatalog', collection: 'resourceSources', limit: 10 });
   assertEq(sources.items[0].code, PERSON_CODE, 'resourceSources draagt de code ook zonder opt-in');
 
-  // Elke sectie/collectie, ook mét includeRawRows (vrije tekst ≠ toestemming voor persoonsnamen).
   const calls: Array<Record<string, unknown>> = [
     {},
     ...['resources', 'identities', 'resourceSources', 'roleSources', 'rates', 'curves', 'assignmentSources', 'issues']
@@ -941,7 +817,6 @@ test('resourcenamen: zonder includeResourceNames nergens een persoonsnaam, codes
     const text = JSON.stringify(ok(TOOL, args));
     assert(!text.includes(PERSON_NAME), `geen persoonsnaam zonder includeResourceNames: ${JSON.stringify(args)}`);
   }
-  // De ruwe bronbytes dragen de naam ook: rawSource vraagt dezelfde toestemming.
   const rawDenied = err(TOOL, { section: 'rawSource', includeRawSource: true });
   assertEq(rawDenied.code, 'VALIDATION', 'rawSource zonder includeResourceNames geweigerd');
   assert(rawDenied.error.includes('includeResourceNames'), 'de fout noemt de ontbrekende opt-in');
@@ -972,7 +847,6 @@ test('resourcenamen: toolbeschrijving laat de AI-client eerst de gebruiker om to
   assert(!!option, 'includeResourceNames staat in het invoerschema');
   assertEq(option.type, 'boolean', 'boolean');
   assertEq(option.default, false, 'standaard false');
-  // De regel staat één keer volledig, in de toolbeschrijving (eigenaarsbesluit 22-09); de optie verwijst ernaar (#818).
   assert(/ask the user for (explicit )?permission/i.test(tool.description), 'toestemmingsinstructie aan de AI-client');
   assert(/AI provider/i.test(tool.description), 'legt uit waarom: namen gaan naar de AI-aanbieder');
   assert(/permission/i.test(option.description as string), 'de optie noemt de toestemming');

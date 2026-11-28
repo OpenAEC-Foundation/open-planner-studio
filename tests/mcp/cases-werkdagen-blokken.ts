@@ -1,12 +1,3 @@
-// Review PR #351 [BEVESTIGD]: `planner_update_calendar` met ALLEEN `workDays` op een UURkalender liet de
-// werkblokken staan zoals ze waren. Een uurkalender met blokken op ma–wo kreeg zo `workDays` [1..5] met
-// lege blokken op do/vr. Na opslaan als IFC kregen do/vr de blokken van maandag: de werktijd en de uren
-// per dag veranderden stil.
-//
-// Besluit orkestrator: MCP volgt dezelfde regel als het kalendervenster (`workDaysSetPatch` in
-// `src/services/subdayIo.ts`). Een nieuwe werkdag krijgt blokken volgens die regel (eerst een kopie van
-// de eerste werkdag met blokken, anders de standaardwerkdag); een vervallen werkdag verliest zijn blokken.
-// `hoursPerDay` volgt uit de blokken. Dit bestand pint dat vast, ook na een IFC-rondgang.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { readTools } from '@/services/mcp/tools/readTools';
@@ -23,13 +14,11 @@ import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 const store = useAppStore;
 const S = () => store.getState();
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
 registerToolModules([readTools, calendarResourceTools, batchTools]);
 
-/** Via de ECHTE dispatch-weg (`handleMcpMessage`, recept mcp-tool stap 5): schemapoort inbegrepen. */
 let rpcId = 0;
 async function call(name: string, args: unknown): Promise<McpToolResult> {
   const raw = await handleMcpMessage(
@@ -63,9 +52,8 @@ function bandsOn(days: number[], blocks: Block[]): WorkTimeBands {
   return { byWeekday };
 }
 
-const STANDAARD: Block[] = [{ start: 420, end: 720 }, { start: 780, end: 960 }]; // 07–12 + 13–16 = 8 h
+const STANDAARD: Block[] = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
 
-/** Projectkalender als uurkalender, met één taak eraan (de IFC-rondgang moet hem dragen). */
 async function hourProjectCalendar(workTime: WorkTimeBands, hoursPerDay?: number): Promise<string> {
   S().newProject();
   const projId = S().project.calendarId;
@@ -78,14 +66,12 @@ async function hourProjectCalendar(workTime: WorkTimeBands, hoursPerDay?: number
   return projId;
 }
 
-/** Geen werkdag zonder blokken, en geen blokken op een niet-werkdag. */
 function assertConsistent(cal: WorkCalendar, label: string): void {
   assert(!!cal.workTime, `${label}: het blijft een uurkalender`);
   assertEq(workDaysFromBands(cal.workTime!), [...cal.workDays].sort((a, b) => a - b),
     `${label}: werkdagen en blokken spreken elkaar niet tegen`);
 }
 
-/** IFC-rondgang: werktijd, werkdagen en uren per dag komen gelijk terug. */
 function assertIfcStable(cal: WorkCalendar, label: string): void {
   const terug = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).calendar;
   assert(!!terug.workTime, `${label}: de uurkalender overleeft IFC`);
@@ -97,9 +83,6 @@ function assertIfcStable(cal: WorkCalendar, label: string): void {
   assertEq(terug.hoursPerDay, cal.hoursPerDay, `${label}: de uren per dag komen gelijk terug uit IFC`);
 }
 
-// =================================================================================================
-// 1) Het reviewscenario: blokken ma–wo, daarna alleen `workDays` [1..5]
-// =================================================================================================
 test('alleen workDays [1..5] op een uurkalender ma–wo ⇒ do/vr krijgen blokken zoals in het venster', async () => {
   const projId = await hourProjectCalendar(bandsOn([1, 2, 3], STANDAARD));
   const voor = calById(projId);
@@ -143,9 +126,6 @@ test('een eigen hoursPerDay in hetzelfde item blijft leidend', async () => {
   assertEq(cal.workTime!.byWeekday[5], STANDAARD, 'de blokken volgen wel de regel van het venster');
 });
 
-// =================================================================================================
-// 2) Een werkdag vervalt
-// =================================================================================================
 test('alleen workDays [1..4] op een uurkalender ma–vr ⇒ vrijdag verliest zijn blokken', async () => {
   const kortVr: Block[] = [{ start: 420, end: 720 }];
   const wt = bandsOn([1, 2, 3, 4], STANDAARD);
@@ -177,7 +157,7 @@ test('dag eraf én dag erbij in één item: zaterdag kopieert de eerste werkdag,
 
 test('een al tegenstrijdige kalender (werkdag zonder blokken) wordt hersteld door alleen workDays', async () => {
   const projId = await hourProjectCalendar(bandsOn([1, 2, 3], STANDAARD));
-  S().updateCalendar(projId, { workDays: [1, 2, 3, 4, 5] }); // de oude, foute toestand van vóór de fix
+  S().updateCalendar(projId, { workDays: [1, 2, 3, 4, 5] });
   const res = await call('planner_update_calendar', { calendars: [{ id: projId, workDays: [1, 2, 3, 4, 5] }] });
   assertEq(rejections(res), [], 'geen weigering');
   const cal = calById(projId);
@@ -212,9 +192,6 @@ test('uurkalender zonder enig blok ⇒ de werkdagen krijgen de eigen enkelvoudig
   assertConsistent(cal, 'zonder blokken');
 });
 
-// =================================================================================================
-// 3) Wat ongewijzigd blijft
-// =================================================================================================
 test('dagkalender: alleen workDays verandert alleen de werkdagen', async () => {
   S().newProject();
   const projId = S().project.calendarId;
@@ -230,10 +207,8 @@ test('dagkalender: alleen workDays verandert alleen de werkdagen', async () => {
 });
 
 test('workTime én gelijke workDays in één item (letterlijke lezing): de NIEUWE blokken gelden', async () => {
-  // Pint de voorwaarde `item.workTime === undefined` vast: met `workTime` in het item mag de werkdagregel
-  // de meegestuurde blokken niet vervangen door de oude (mutant `!== null` liet maandag 07–12 + 13–16).
   const projId = await hourProjectCalendar(bandsOn([1, 2, 3, 4, 5], STANDAARD));
-  const nieuw: Block[] = [{ start: 360, end: 840 }]; // 06–14
+  const nieuw: Block[] = [{ start: 360, end: 840 }];
   const res = await call('planner_update_calendar', {
     calendars: [{ id: projId, workTime: bandsOn([1, 2, 3, 4, 5], nieuw), workDays: [1, 2, 3, 4, 5] }],
   });

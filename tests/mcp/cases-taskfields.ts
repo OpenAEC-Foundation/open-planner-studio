@@ -1,17 +1,3 @@
-// Taak-VELDEN via de bridge: de duur-bug en de veld-allowlist (src/services/mcp/tools/taskFields.ts).
-//
-// AANLEIDING (echte agent-run): een agent bouwde een bouwplanning via `planner_batch` en kreeg ALLE
-// taken op de default 5 werkdagen. Hij probeerde herhaaldelijk `planner_update_tasks` met
-// `fields: { duration: 10 }` — de tool antwoordde steeds `ok`, maar de duur veranderde nooit.
-// Twee oorzaken:
-//   1. `add_tasks` kende helemaal geen duur-veld ⇒ altijd `createDefaultTaskTime(now, 5)`.
-//   2. `fields` was een kale `Object.assign(task, fields)`-merge: `duration` landde als ROMMELVELD
-//      op het Task-object (de echte duur woont op `time.scheduleDuration`) ⇒ stille no-op.
-//      Diezelfde merge kon met `fields: { time: {...} }` de HELE time-tak (CPM-datums, floats,
-//      actuals, completion) vervangen.
-//
-// Elke test hieronder pint precies één van die faalvormen vast, via de losse tools ÉN via
-// `planner_batch` (twee ingangen naar dezelfde `*Core`-kern).
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { taskTools } from '@/services/mcp/tools/taskTools';
 import { batchTools } from '@/services/mcp/tools/batchTool';
@@ -25,13 +11,9 @@ import { parseInstant } from '@/utils/dateUtils';
 
 const store = useAppStore;
 
-// Warm-up (zelfde reden als de andere case-bestanden): een verse store heeft `calendars: []`; het
-// restore-pad promoot de projectkalender-cache tot bibliotheek-entry. Eén edit + undo haalt die
-// benigne promotie vooraf weg.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
-// De batch-tool heeft de echte taak-tools in de registry nodig.
 registerToolModules([taskTools, batchTools, readTools]);
 const batchDef = batchTools[0];
 
@@ -63,11 +45,9 @@ const byName = (name: string) => store.getState().tasks.find((t) => t.name === n
 function reset(): void {
   store.getState().newProject();
 }
-/** Voortgang registreren vereist een projectstatusdatum (mcpValidation stap 8). */
 function withStatusDate(date = '2027-01-04'): void {
   store.setState((s) => { s.project.statusDate = date; });
 }
-/** Eén gewone taak in een schone store; retourneert het id. */
 function seedTask(name = 'Taak', duration = 5): string {
   const id = store.getState().addTask({ name });
   store.setState((s) => {
@@ -77,11 +57,6 @@ function seedTask(name = 'Taak', duration = 5): string {
   return id;
 }
 
-// =================================================================================================
-// A. planner_add_tasks — duur bij het aanmaken
-// =================================================================================================
-// #818: `update_tasks.fields` gebruikt de taakvelden zonder beschrijvingsteksten. Het taakveld `description`
-// heet net zo als die tekst; het mag niet mee verdwijnen (council-ronde 1 op #838).
 test('update_tasks.fields kent precies de velden van add_tasks, ook het taakveld `description`', () => {
   const sorted = (keys: Iterable<string>) => [...keys].sort();
   assertEq(sorted(Object.keys(TASK_FIELD_SCHEMA_PROPERTIES)), sorted(TASK_FIELD_NAMES), 'volledige set = allowlist');
@@ -89,7 +64,6 @@ test('update_tasks.fields kent precies de velden van add_tasks, ook het taakveld
   const def = taskTools.find((t) => t.name === 'planner_update_tasks')!;
   const items = (def.inputSchema as any).properties.updates.items;
   assertEq(sorted(Object.keys(items.properties.fields.properties)), sorted(TASK_FIELD_NAMES), 'fields = allowlist');
-  // Zelfde schema als bij add_tasks, op de beschrijvingsteksten na.
   const strip = (v: unknown): unknown => {
     if (Array.isArray(v)) return v.map(strip);
     if (v === null || typeof v !== 'object') return v;
@@ -117,7 +91,6 @@ test('add_tasks: `duration` landt ECHT op time.scheduleDuration (was: altijd de 
   assertEq(byName('Ruwbouw').time.durationType, 'ELAPSEDTIME', 'durationType landde');
   assertEq(byName('Fundering').time.durationType, 'WORKTIME', 'default durationType blijft WORKTIME');
   assertEq(byName('Zonder duur').time.scheduleDuration, 5, 'zonder duration blijft de default van 5 werkdagen');
-  // De afgeleide finish moet bij de duur passen (createDefaultTaskTime, niet een half handgemaakt TaskTime).
   const f = byName('Fundering').time;
   assert(f.scheduleFinish > f.scheduleStart, 'scheduleFinish is uit de duur afgeleid');
   assert(f.earlyStart !== '' && f.earlyFinish !== '', 'de CPM-datums zijn na de eind-runCPM gevuld');
@@ -161,14 +134,10 @@ test('add_tasks: een onbekende sleutel is een HARDE fout (nooit stil gedropt)', 
   assertEq(store.getState().tasks.length, 0, 'geen taak aangemaakt');
 });
 
-// =================================================================================================
-// B. planner_update_tasks — fields.duration werkt, onbekend weigert
-// =================================================================================================
 test('update_tasks: fields.duration wijzigt de duur ECHT (regressie: stille no-op)', async () => {
   reset();
   withStatusDate();
   const id = seedTask('Fundering', 5);
-  // Voortgang zetten, zodat we ná de duur-wijziging kunnen bewijzen dat de time-tak intact bleef.
   okData(await call('planner_update_tasks', { updates: [{ id, progress: { completion: 40 } }] }));
   const beforeEarlyStart = taskById(id)!.time.earlyStart;
 
@@ -179,9 +148,6 @@ test('update_tasks: fields.duration wijzigt de duur ECHT (regressie: stille no-o
   const t = taskById(id)!;
   assertEq(t.time.scheduleDuration, 12, 'de duur is ECHT gewijzigd (time.scheduleDuration)');
   assert(!('duration' in (t as unknown as Record<string, unknown>)), 'er staat geen rommelveld `duration` op de taak');
-  // De time-tak is veld-voor-veld gepatcht, niet vervangen.
-  // Niet gewist, en sinds de restduurregel (besluit eigenaar) past het percentage zich aan: het
-  // gedane werk (40% van 5 d = 2 d) blijft gelijk, dus 2/12 van de nieuwe duur.
   assertEq(t.time.completion, 0.4 * 5 / 12, 'completion overleefde de duur-wijziging (gedane werk gelijk)');
   assertEq(t.time.remainingTime, 10, 'restduur = nieuwe duur − gedane werk');
   assert(t.time.actualStart !== undefined, 'actualStart (uit het voortgangspad) overleefde');
@@ -208,10 +174,6 @@ test('update_tasks: onbekend veld ⇒ zachte weigering en GEEN enkele mutatie', 
   assertEq(okData(res).updated, [], 'niets als toegepast gerapporteerd');
 });
 
-// F5 (spec-review-fixronde op 526af9f9, plan-Z14 regel ~470) — de drie NIEUWE Z14b-velden
-// (mspTaskType/effortDriven/timephasedContours) zijn puur .mpp-importdata en horen dus, net als
-// isHammock/manuallyScheduled, met een GERICHTE `REJECT_HINTS`-reden geweigerd te worden — niet als
-// kaal "onbekend veld" (dat zou een agent niets leren over WAAROM).
 test('update_tasks: mspTaskType/effortDriven/timephasedContours zijn read-only (gerichte REJECT_HINTS, geen mutatie)', async () => {
   reset();
   const id = seedTask('Fundering', 5);
@@ -289,7 +251,6 @@ test('update_tasks: fields.time wordt geweigerd en laat de hele time-tak intact'
   assert(/time/.test(rej[0].reason) && /duration/.test(rej[0].reason), `de reden wijst naar \`duration\`: ${rej[0].reason}`);
   assertEq(JSON.stringify(taskById(id)!.time), before, 'de time-tak is byte-identiek gebleven');
 
-  // Het bestaande voortgangs-verbod blijft óók staan (en wint, met zijn eigen boodschap).
   const res2 = await call('planner_update_tasks', { updates: [{ id, fields: { time: { completion: 1 } } }] });
   assert(/progress/.test(rejections(res2)[0].reason), 'voortgang in fields verwijst nog steeds naar `progress`');
   const res3 = await call('planner_update_tasks', { updates: [{ id, fields: { status: 'COMPLETED' } }] });
@@ -312,7 +273,7 @@ test('update_tasks: een duur-wijziging WIST een achtergebleven durationMinutes (
   const id = seedTask('Uur-taak', 2);
   store.setState((s) => {
     const t = s.tasks.find((x) => x.id === id)!;
-    t.time.durationMinutes = 2 * 8 * 60; // alsof de taak op een uur-kalender is ingevoerd
+    t.time.durationMinutes = 2 * 8 * 60;
   });
   okData(await call('planner_update_tasks', { updates: [{ id, fields: { duration: 6 } }] }));
   const t = taskById(id)!;
@@ -343,7 +304,6 @@ test('add/update/get_task/overview: dagen en uren blijven hun native eenheid via
   assertEq(task.time.durationMinutes, 720, 'aanmaak bewaart exact 720 minuten');
   assertEq(task.time.scheduleDuration, 1.5, 'afgeleid dagequivalent volgt de 8-uurskalender');
 
-  // Eén overzicht mengt dagen en uren: de urenduur blijft 12, niet het dagequivalent 1,5.
   const overview = okData(await call('planner_get_project_overview', {}));
   const dayRow = overview.tasks.find((row: any) => row.id === created.created['tmp-day']);
   const hourRow = overview.tasks.find((row: any) => row.id === id);
@@ -365,8 +325,6 @@ test('add/update/get_task/overview: dagen en uren blijven hun native eenheid via
 
 test('durationUnit zonder duration en uren zonder werkblokken worden geweigerd zonder herinterpretatie', async () => {
   reset();
-  // Een scalaire standaardkalender is bewust een geldige, afleidbare uurbron. Maak de kalender
-  // daarom werkelijk onbruikbaar i.p.v. alleen de optionele opgeslagen banden te verwijderen.
   store.setState((s) => { delete s.calendar.workTime; s.calendar.workDays = []; });
   const id = seedTask('Dagen', 2);
   const unitOnly = await call('planner_update_tasks', { updates: [{ id, fields: { durationUnit: 'hours' } }] });
@@ -379,10 +337,6 @@ test('durationUnit zonder duration en uren zonder werkblokken worden geweigerd z
   assertEq(taskById(id)!.time.scheduleDuration, 2, 'de bestaande daghoeveelheid bleef behouden');
 });
 
-// Audit import/export nr. 1 (bijvangst): `duration` in dagen accepteert bewust een FRACTIE — de app
-// kent fractionele dagtaken (CSV-import, Tabel "1d 4u", Gantt) — maar de weigerhints beloofden
-// "hele dagen". Tekst en gedrag moeten hetzelfde zeggen; deze test pint allebei vast. De bridge rondt
-// NIET af (dat zou een ontwerpkeuze van de eigenaar zijn, geen tekstcorrectie).
 test('duration in dagen: een fractie wordt geaccepteerd en exact bewaard, en de teksten zeggen dat ook', async () => {
   reset();
   const created = okData(await call('planner_add_tasks', { tasks: [
@@ -392,10 +346,6 @@ test('duration in dagen: een fractie wordt geaccepteerd en exact bewaard, en de 
   const id = created.created['tmp-f'];
   assertEq(taskById(id)!.time.scheduleDuration, 2.5, 'add_tasks bewaart 2.5 dag exact (niet afgerond)');
   assertEq(taskById(id)!.time.durationUnit, 'days', 'het blijft een dagtaak');
-  // F3 (alleen uren §3.4/§3.14, B1): de dagenmaat telt het halve dagdeel mee. 2.5 dag begint op dezelfde
-  // dag als een taak van 3 en eindigt halverwege de derde werkdag, niet aan het einde ervan. De
-  // schemabeschrijving van `duration` belooft dat ook ("kept exactly", §3.13). Was in F3c-winkel een
-  // tussenstand (B2, "2,5 ⇒ 3"); met de motor erbij is het doel gehaald.
   const drie = taskById(created.created['tmp-3'])!.time;
   const fractie = taskById(id)!.time;
   assertEq(fractie.earlyStart, drie.earlyStart, '2.5 dag begint op dezelfde dag als een taak van 3');
@@ -429,16 +379,14 @@ test('update_tasks: constraint / deadline / calendarId — gevalideerd, niet bli
   assertEq(taskById(id)!.constraint, { type: 'SNET', date: '2026-05-04T07:00' }, 'de constraint landde');
   assertEq(taskById(id)!.deadline, '2026-06-01T16:00', 'de deadline landde');
 
-  // Wissen met null.
   okData(await call('planner_update_tasks', { updates: [{ id, fields: { constraint: null, deadline: null } }] }));
   assertEq(taskById(id)!.constraint, undefined, 'constraint gewist');
   assertEq(taskById(id)!.deadline, undefined, 'deadline gewist');
 
-  // Ongeldige invoer weigert i.p.v. stil te landen.
   const bad = [
-    { constraint: { type: 'SNET' } },                       // datum ontbreekt
+    { constraint: { type: 'SNET' } },
     { constraint: { type: 'BESTAAT-NIET', date: '2026-05-04' } },
-    { constraint: { type: 'SNET', date: '2026-05-04', hard: true } }, // hard alleen bij MSO/MFO
+    { constraint: { type: 'SNET', date: '2026-05-04', hard: true } },
     { deadline: 'volgende week' },
     { calendarId: 'cal-bestaat-niet' },
     { priority: 5000 },
@@ -451,7 +399,6 @@ test('update_tasks: constraint / deadline / calendarId — gevalideerd, niet bli
   assertEq(taskById(id)!.constraint, undefined, 'geen enkele rotte constraint landde');
   assertEq(taskById(id)!.name, 'Fundering', 'de naam bleef geldig');
 
-  // De projectkalender-id is wél een geldige taak-kalender.
   okData(await call('planner_update_tasks', { updates: [{ id, fields: { calendarId: store.getState().calendar.id } }] }));
   assertEq(taskById(id)!.calendarId, store.getState().calendar.id, 'een bestaande kalender-id landt');
 });
@@ -566,9 +513,6 @@ test('update_tasks: een geweigerd fields-blok blokkeert het progress-pad van het
   assertEq(taskById(id)!.time.completion, 0.25, 'de voortgang landde');
 });
 
-// =================================================================================================
-// C. Dezelfde paden via planner_batch (tweede ingang naar dezelfde *Core-kernen)
-// =================================================================================================
 test('batch: add_tasks-duur + update_tasks-duur landen ook via planner_batch', async () => {
   reset();
   const res = await batchDef.handler({
@@ -614,23 +558,6 @@ test('batch: mijlpaal + duration > 0 rolt de HELE batch terug (structurele stapf
   assertEq(store.getState().tasks.length, before, 'de eerste stap is teruggedraaid');
 });
 
-// =================================================================================================
-// D. mpp-nul-data-etappe (P2, spec-review op 3fba671b) — het `timephasedGuidanceLost`-envelopveld.
-// Additieve contractuitbreiding (McpEnvelope, zelfde precedent als `backupCreated` hierboven): een
-// mutatie die aantoonbaar MSP-timephased-sturing loslaat (`clearTimephasedWindow`/
-// `clearTimephasedDurationWalks` in taskDefaults.ts gaven `true` terug) draagt dit veld terug —
-// ONAFHANKELIJK van de in-app K8a-melding, die aan de eenmalige-per-document-gate hangt
-// (`timephasedLossNotice.ts`): het envelopveld draagt gewoon élke keer opnieuw mee, ook een TWEEDE
-// keer op hetzelfde document waar de app-melding stil blijft (de AI-client mag het altijd zien).
-// Deze cases toetsen daarom BEIDE kanalen apart, en steunen op `reset()` (== `newProject()`) tussen
-// cases voor een schone `ui.notifications`-lei — precies het pad dat de P1-fix repareerde: zónder
-// die fix zou de EERSTE case hier de meldings-gate voor dit docId voorgoed "al gemeld" maken, en zou
-// de assertie op `ui.notifications` in een latere case hier stil (en ten onrechte) falen.
-// =================================================================================================
-
-/** Zet timephased-sturing rechtstreeks op de taak — dit veld is via `planner_update_tasks` bewust
- *  read-only (zie de REJECT_HINTS-test in sectie B hierboven), dus buiten de tool-allowlist om,
- *  net als `seedTask`/`withStatusDate` hierboven. */
 function seedTimephasedWindow(id: string): void {
   store.setState((s) => {
     const t = s.tasks.find((x) => x.id === id)!;
@@ -641,7 +568,7 @@ function seedTimephasedWindow(id: string): void {
 
 test('update_tasks: een duur-wijziging die sturing loslaat draagt timephasedGuidanceLost + meldt zich (K8a)', async () => {
   reset();
-  store.setState((s) => { s.ui.notifications = []; }); // schone lei (P1: reset() geeft ook een schone meldings-gate).
+  store.setState((s) => { s.ui.notifications = []; });
   const id = seedTask('Met MSP-sturing', 5);
   seedTimephasedWindow(id);
   const res = await call('planner_update_tasks', { updates: [{ id, fields: { duration: 9 } }] });
@@ -682,7 +609,6 @@ test('batch: een update_tasks-stap die sturing loslaat draagt timephasedGuidance
 });
 
 test('batch: een tweede sturingsverlies op hetzelfde document draagt het envelopveld WEER, ook al blijft de K8a-melding stil', async () => {
-  // Vervolg op de vorige case (BEWUST geen reset()): zelfde document, dat net al gemeld heeft.
   const id2 = seedTask('Nog een MSP-sturing', 5);
   seedTimephasedWindow(id2);
   const res = await call('planner_update_tasks', { updates: [{ id: id2, fields: { duration: 6 } }] });

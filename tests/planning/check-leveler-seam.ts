@@ -1,17 +1,3 @@
-// check-leveler-seam.ts — B1c-plan-2 taak 5: de meelezers van `capacityOf` stellen een EERLIJKE
-// diagnose (spec §4, "De naad in de nivelleerder"). Drie gevallen, alle drie vóór deze ronde fout:
-//  1. nul CAPACITEIT (een resource die werkt maar niets te bieden heeft) is geen kalender-mismatch.
-//  2. een ECHTE kalender-mismatch (resource werkt niet op de dagen die de taak nodig heeft) blijft
-//     wél CALENDAR_MISMATCH.
-//  3. de conflictverzamelaar in `findSlot` mist de nul-guard die `fits` al had — een dag zonder
-//     vraag (curve-nul) mag nooit als conflictdag verschijnen, ook niet als een ANDERE (pinned)
-//     taak die dag toevallig overboekt.
-//
-// Helperstijl gekopieerd uit `check-leveler-splits.ts`/`check-leveler-scope.ts`/
-// `check-leveler-ceiling.ts`.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import { distributeUnits } from '@/engine/scheduler/ResourceLoad';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
@@ -38,7 +24,6 @@ const PROJECT_CAL: WorkCalendar = {
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
 };
 
-// Werkt uitsluitend op zaterdag — voor geval 2 (echte kalender-mismatch).
 const SATURDAY_ONLY_CAL: WorkCalendar = {
   id: 'cal-saturday-only-seam', name: 'zaterdag-alleen', description: '', workDays: [6],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
@@ -77,14 +62,6 @@ function stubCpmResult(projectEnd: string): CPMResult {
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 1: nul CAPACITEIT is geen kalender-mismatch. Resource R op de gewone ma-vr-kalender, maar
-// met `availabilitySteps` die `maxUnits` vanaf 06-01 op 0 zetten (en géén stap die 'm later weer
-// optrekt — dus 0 blijft gelden over de volledige scanhorizon). De resource WERKT op die dagen
-// (isResWorkDay), hij heeft alleen niets te bieden. `maxCapacityOf` blijft 1 (het hoogste punt over
-// alle stappen, ook al geldt het nu niet meer) — dus geen INTRINSIC_OVERRUN. De scan loopt daardoor
-// leeg: NO_WINDOW_IN_HORIZON, niet CALENDAR_MISMATCH.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-seam: nul capaciteit is geen kalender-mismatch (geval 1) --');
 {
   const taskA = task('a1', '2026-06-01', '2026-06-01', 1, { priority: 500 });
@@ -100,11 +77,6 @@ console.log('-- leveler-seam: nul capaciteit is geen kalender-mismatch (geval 1)
   eq('reden is de eerlijke horizon-uitputting', r1.unresolvedReasons['a1'], 'NO_WINDOW_IN_HORIZON');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 2: een ECHTE kalender-mismatch blijft CALENDAR_MISMATCH. Resource R op een kalender die
-// alleen zaterdag werkt; taak A op de ma-vr-projectkalender (geen eigen `calendarId`) — geen enkele
-// kandidaatdag van A is ooit een werkdag voor R.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-seam: een echte kalender-mismatch blijft herkend (geval 2) --');
 {
   const taskA = task('a2', '2026-06-01', '2026-06-01', 1, { priority: 500 });
@@ -119,28 +91,18 @@ console.log('-- leveler-seam: een echte kalender-mismatch blijft herkend (geval 
   eq('echte mismatch blijft herkend', r2.unresolvedReasons['a2'], 'CALENDAR_MISMATCH');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 3: nul-guard in de conflictverzamelaar. Taak Y (6 werkdagen, BACK_LOADED-curve,
-// unitsPerDay 1) heeft op haar EIGEN eerste dag (maandag) een curve-vraag van 0 — geverifieerd
-// hieronder met `distributeUnits` zelf, niet aangenomen. Taak Z (vastgepind, priority 1000, dus
-// ONVOORWAARDELIJK boekend — geen capaciteitscheck) claimt diezelfde maandag met 2 eenheden op een
-// resource met capaciteit 1: een ECHTE overboeking, maar niet DOOR Y (die vraagt daar niets).
-// Y kan nergens terecht (haar staartvraag van 2/dag past nooit binnen capaciteit 1) en valt terug
-// op de conflictverzamelaar — die mag maandag NIET als conflictdag voor Y noemen: er is niets van Y
-// te boeken, dus niets van Y dat kan botsen.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-seam: nul-guard in de conflictverzamelaar (geval 3) --');
 {
   const curveArr = distributeUnits(1, 6, 'BACK_LOADED');
   ok('vooronderstelling: distributeUnits levert een 0 op de eerste dag (BACK_LOADED, 1/dag, 6 dagen)',
     curveArr[0] === 0);
 
-  const taskZ = task('z5', '2026-06-01', '2026-06-01', 1, { priority: 1000 }); // vastgepind
+  const taskZ = task('z5', '2026-06-01', '2026-06-01', 1, { priority: 1000 });
   const taskY = task('y5', '2026-06-01', '2026-06-08', 6, { priority: 500 });
 
   const resourceR = res('r-seam3', 1);
   const assignments = [
-    assign('z5-r', 'z5', 'r-seam3', 2), // pinned, boekt onvoorwaardelijk 2 eenheden op maandag — cap is 1
+    assign('z5-r', 'z5', 'r-seam3', 2),
     assign('y5-r', 'y5', 'r-seam3', 1, 'BACK_LOADED'),
   ];
   const cpmResult = stubCpmResult('2026-06-08');
@@ -155,8 +117,6 @@ console.log('-- leveler-seam: nul-guard in de conflictverzamelaar (geval 3) --')
     !r3.unresolved['y5']?.includes('2026-06-01'));
 }
 
-// Knownbug 121: de uitleg gebruikt de echte dagvraag (werk/curve/som) en maximale
-// capaciteit inclusief stappen, precies zoals de reden-classificatie.
 {
   const t = task('detail', '2026-06-01', '2026-06-03', 3);
   const r = res('detail-resource', 1, { availabilitySteps: [{ from: '2026-01-01', maxUnits: 2 }] });
@@ -190,7 +150,6 @@ console.log('-- leveler-seam: nul-guard in de conflictverzamelaar (geval 3) --')
   eq('niet-geselecteerde resource: geen misleidende details', excluded.intrinsicOverruns, undefined);
 }
 
-// Knownbug 8: pins mogen blijven staan, maar hun overboeking mag niet uit het rapport verdwijnen.
 {
   const a = task('pin-a', '2026-06-01', '2026-06-01', 1, { priority: 1000 });
   const b = task('pin-b', '2026-06-01', '2026-06-01', 1, { priority: 1000 });
@@ -224,7 +183,6 @@ console.log('-- leveler-seam: nul-guard in de conflictverzamelaar (geval 3) --')
 
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  leveler-seam: alle checks groen (${checks})`);
   process.exit(0);

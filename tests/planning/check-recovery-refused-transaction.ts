@@ -1,10 +1,3 @@
-// Geweigerde webopslag voor crashherstel, deel 2 (issue #582): `indexedDB.open` slaagt, maar de eerste
-// transactie gooit een `SecurityError`. Ook dan gaat crashherstel stil uit voor deze sessie.
-// Andere delen, elk in een eigen proces want de sessievlag blijft de sessie lang staan:
-// `check-recovery-refused.ts` (weigering bij openen), `-missing.ts` (`indexedDB` ontbreekt),
-// `-getter.ts` (lezen van `indexedDB` gooit) en `-later.ts` (uitval ná werkende opslag blijft zichtbaar).
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import {
   clearRecovery, fullRecoverySave, holdRecoveryForLater, loadRecovery, saveRecovery,
   recoveryStorageUnavailable, RecoveryStorageUnavailableError,
@@ -19,9 +12,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-// Transactie 1 en 2 horen bij het openen: de versionchange-transactie van de dubbel en de indexcontrole
-// in `openDbStores`. Die slagen. Elke volgende transactie, dus de eerste echte lezing van
-// crashherstel, wordt geweigerd.
 let transactions = 0;
 installFakeRecoveryIndexedDb({ onTransaction: () => {
   transactions++;
@@ -47,7 +37,6 @@ console.info = (...args: unknown[]) => { infoLines.push(args); };
 const doc = { id: 'A', ifc: 'ISO-10303-21; /* A */', filePath: null, isDirty: true, datesAsRecorded: false };
 const caught = async (run: () => Promise<unknown>): Promise<unknown> => run().then(() => null, (error: unknown) => error);
 
-// Opstarten: de eerste transactie wordt geweigerd.
 const loaded = await loadRecovery();
 eq('T1 loadRecovery geeft een lege herstelset', [loaded.activeDocumentId, loaded.docs.length, loaded.archives.size], [null, 0, 0]);
 eq('T2 de geweigerde eerste transactie zet de sessievlag', recoveryStorageUnavailable(), true);

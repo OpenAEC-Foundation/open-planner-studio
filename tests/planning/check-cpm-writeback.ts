@@ -1,6 +1,3 @@
-// F5 rekent buiten de Immer-producer: volledige uitkomstpariteit met de oude draft-route,
-// inclusief afgeleide duur/status, referentiedeling en atomische publicatie. Geen tijdsbudget:
-// de reproduceerbare meting staat in measure-cpm-writeback.mjs en docs/superpowers/evidence/.
 import { deepStrictEqual, strictEqual } from 'node:assert';
 import { produce } from 'immer';
 import { createAppStoreContext } from '@/state/appStoreFactory';
@@ -18,7 +15,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
     const data = generateBenchmarkProject(100, { seed: 0x5eed });
     data.project.schedulingProfile = builtInProfile(profile);
     const leaves = data.tasks.filter(isLeafTask);
-    // De voortgangsrollup schrijft behalve time ook de status van verzameltaken.
     leaves[0].status = 'STARTED';
     leaves[0].time.completion = 0.5;
     leaves[0].time.actualStart = leaves[0].time.scheduleStart;
@@ -43,7 +39,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
     });
     const before = store.getState();
     const savedTasks = structuredClone(before.tasks);
-    // De oude route is het differentiële orakel: solve én resourcebelasting op de draft.
     const expected = produce(before, s => {
       s.cpmResult = solveProject(solveInputFor(s.project, s.tasks, s.sequences, s.calendar, s.calendars));
       s.resourceLoadResult = computeReliableResourceLoad(
@@ -82,7 +77,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
       }
     }
 
-    // Een cyclus publiceert de fout, zonder een deelberekening of belasting door te laten.
     store.setState(s => {
       s.sequences.push({ id: 'cyclus', predecessorId: leaves[1].id, successorId: leaves[0].id, type: 'FINISH_START', lagDays: 0 });
       markScheduleStale(s);
@@ -96,7 +90,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// Een datumwijziging blijft handmatig; F5 vernieuwt het after-snapshot van dezelfde undo-stap.
 {
   const { store } = createAppStoreContext();
   const S = () => store.getState();

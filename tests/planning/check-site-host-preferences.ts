@@ -1,33 +1,3 @@
-// Taal, thema en instellingen van de host (#818) — headless, met een nephost en een nep-localStorage.
-//
-// Wat hier vastligt:
-//   A. `siteHostTheme`: alleen `light`/`dark`, eigen venster vóór de parent, een gooiende getter of
-//      cross-origin parent telt als niets, Tauri nooit.
-//   B. `siteHostSettings`: alleen een object met `get`, `set` en `delete`.
-//   C. De taalkeuze ingebed (`embeddedLocale`): een regiocode valt terug, een onbekende taal telt niet.
-//   K. De sleutellijst: elke `ops-`-sleutel die de app schrijft of wist, staat in `HOST_PERSISTED_KEYS`
-//      of is bewust uitgesloten; elk register-item staat erin. De scanner ziet ook hernoemde en
-//      namespace-imports van de helpers (K8).
-//   S. Volgorde bij de start (review #827, punt 1): de statische imports van `main.tsx` bereiken de store
-//      niet, en een store die ná het hydrateren ontstaat, maakt de startkalender volgens de bouwmodus van
-//      de host.
-//   D. `createHostSettingsSync`: één hostsleutel per `ops-`-sleutel, bundelen, wissen met `delete`, geen
-//      schrijfactie zonder wijziging, opnieuw proberen na een fout van de host, en de scenario's uit de
-//      review: een fout bij lezen, valideren of neerzetten wordt nooit een wisactie (punt 3) en twee
-//      frames draaien elkaars wijzigingen niet terug (punt 5). Een trage host binnen de grens laadt.
-//      Late toepassing (besluit van Ethan, 7 november 2026): boven de grens of na een afwijzing wacht de
-//      module verder en schrijft hij niets naar de host; een laat antwoord wint van wat de gebruiker
-//      intussen wijzigde, daarna staat het bewaren aan (D17); een host die pas na de start kwam telt als
-//      laat antwoord (D18); een afwijzing geeft een nieuwe poging na 30 s, nooit twee tegelijk, met een
-//      plafond (D20-D22); uitgesloten sleutels blijven buiten alles (D23). Review #833 ronde 1: het
-//      bewaren gaat pas aan als de app klaar is, en een oude scrolltimer zet de taakgrid niet terug
-//      (D24, met de echte store, `writeLocal` en `processLateSettings`); thema en taal krijgen weer de
-//      voorrang van de host, ook als de opgeslagen tekst gelijk bleef (D25); een poging is pas voorbij
-//      als elk verzoek klaar is (D26).
-//   E. De echte keten: `writeLocal`/`removeLocal` → host, en `initTheme`/`peekTheme` met het thema van
-//      de host zonder `ops-theme` te schrijven.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -37,7 +7,6 @@ import { pathToFileURL } from 'node:url';
 type AnyRecord = Record<string, unknown>;
 const g = globalThis as unknown as AnyRecord;
 
-// ── Omgeving: eerst de globals, dan pas de app-modules ──────────────────────────────────────────────
 const winListeners: Record<string, (() => void)[]> = {};
 const win: AnyRecord = {
   location: { search: '', hash: '' },
@@ -54,7 +23,6 @@ g.document = {
   visibilityState: 'visible',
 };
 
-/** Een Storage zoals in de browser. `failSet`/`failGet`: gooi bij die sleutel. */
 class MemoryStorage {
   private map = new Map<string, string>();
   failSet = new Set<string>();
@@ -100,7 +68,6 @@ function setHosts(own?: unknown, parent?: unknown): void {
   win.parent = parent === undefined ? win : { openaecHost: parent, addEventListener: () => undefined };
 }
 
-/** Een nephost met één waarde per sleutel. Telt elke aanroep; `hold` houdt `get` vast tot `release`. */
 function fakeHost(initial: Record<string, unknown> = {}, opts: { failGet?: boolean; throwGet?: boolean; hold?: boolean } = {}) {
   const calls: { fn: string; key: string; value?: unknown }[] = [];
   const stored = new Map<string, unknown>(Object.entries(initial));
@@ -139,8 +106,6 @@ function fakeHost(initial: Record<string, unknown> = {}, opts: { failGet?: boole
   };
 }
 
-// ── S1. Volgorde bij de start: hydrateren vóór de store (review #827, punt 1) ──────────────────────
-// Deze sectie staat bewust eerst: de store mag in dit proces pas ná het hydrateren ontstaan.
 const s1Host = fakeHost({ 'ops-constructionMode': 'false', 'ops-showFloatBand': 'true' });
 {
   browserStorage.clear();
@@ -154,7 +119,6 @@ const s1Host = fakeHost({ 'ops-constructionMode': 'false', 'ops-showFloatBand': 
   eq('S1 en het thema van de host', useAppStore.getState().ui.uiTheme, 'light');
 }
 
-// ── S2. De statische imports van main.tsx bereiken de store niet ───────────────────────────────────
 {
   const require = createRequire(path.join(process.cwd(), 'package.json'));
   const esbuild = require('esbuild') as typeof import('esbuild');
@@ -191,7 +155,6 @@ const s1Host = fakeHost({ 'ops-constructionMode': 'false', 'ops-showFloatBand': 
   check('S2 main.tsx hydrateert vóór de dynamische import van App', hydrateAt > 0 && appAt > hydrateAt);
 }
 
-// ── A. Thema van de host ───────────────────────────────────────────────────────────────────────────
 setHosts();
 eq('A1 geen host ⇒ geen thema', siteHostTheme(), null);
 setHosts({ thema: 'light' });
@@ -219,7 +182,6 @@ win.__TAURI_INTERNALS__ = {};
 eq('A10 Tauri ziet nooit een host', siteHostTheme(), null);
 setHosts();
 
-// ── B. Instellingenopslag van de host ──────────────────────────────────────────────────────────────
 const okSettings = { get: async () => null, set: async () => null, delete: async () => null };
 setHosts({ settings: okSettings });
 check('B1 geldige settings', siteHostSettings() === okSettings);
@@ -232,7 +194,6 @@ check('B4 settings op de parent', siteHostSettings() === okSettings);
 setHosts();
 eq('B5 geen host ⇒ null', siteHostSettings(), null);
 
-// ── C. Taal ingebed ────────────────────────────────────────────────────────────────────────────────
 setHosts({ taal: 'de-AT' });
 eq('C1 regiocode valt terug op de taal', embeddedLocale(), 'de');
 setHosts({ taal: 'tr' });
@@ -242,29 +203,23 @@ eq('C3 een onbekende taal telt niet', embeddedLocale(), null);
 setHosts();
 eq('C4 zonder host geen taal van de host', embeddedLocale(), null);
 
-// ── K. De sleutellijst tegen de code ───────────────────────────────────────────────────────────────
 {
   const { SETTINGS } = await import('@/utils/settingsRegistry');
   for (const d of SETTINGS) check(`K1 register-sleutel ops-${d.key} staat in HOST_PERSISTED_KEYS`, isHostPersistedKey(`ops-${d.key}`));
   eq('K2 geen dubbele sleutels', HOST_PERSISTED_KEYS.length, new Set(HOST_PERSISTED_KEYS).size);
   check('K3 uitgesloten en blijvend overlappen niet', HOST_EXCLUDED_KEYS.every(k => !isHostPersistedKey(k)));
 
-  // Alle schrijf- en wisplekken in src/, op de TypeScript-AST (`scripts/lib/host-setting-writes.mjs`).
-  // Het pad is een variabele, zodat esbuild de module niet meebundelt: hij laadt `typescript` zelf.
   const scannerUrl = pathToFileURL(path.join(process.cwd(), 'scripts/lib/host-setting-writes.mjs')).href;
   const { findSettingWrites } = await import(scannerUrl) as {
     findSettingWrites(root: string): { file: string; line: number; func: string; call: string; key: string | null }[];
   };
-  // Plekken met een sleutel die pas bij het uitvoeren vastligt: de generieke helpers zelf, het
-  // neerzetten van de host, en de extensies (`ops-ext:`, uitgesloten). Bestand + functie; een nieuwe
-  // plek met een onbekende sleutel buiten deze lijst is rood.
   const DYNAMIC = new Set([
     'src/utils/settingsStore.ts|writeLocal', 'src/utils/settingsStore.ts|removeLocal',
     'src/utils/settingsStore.ts|setSetting', 'src/utils/settingsStore.ts|syncSettingToLocalStorage',
     'src/services/fileAccess/siteHostSettings.ts|apply',
     'src/extensions/extensionApi.ts|set', 'src/extensions/extensionService.ts|removeExtension',
   ]);
-  const allowed = (key: string) => !key.startsWith('ops-') // geen instelling van de tool (bijv. de oude recentlijst)
+  const allowed = (key: string) => !key.startsWith('ops-')
     || isHostPersistedKey(key) || HOST_EXCLUDED_KEYS.includes(key) || HOST_EXCLUDED_PREFIXES.some(p => key.startsWith(p));
   const sites = findSettingWrites(process.cwd());
   const unknown = sites
@@ -275,8 +230,6 @@ eq('C4 zonder host geen taal van de host', embeddedLocale(), null);
   eq('K6 elke toegestane plek met een onbekende sleutel bestaat nog',
     [...DYNAMIC].filter(entry => !sites.some(site => site.key === null && `${site.file}|${site.func}` === entry)), []);
 
-  // De vormen die een regex mist (review #827 ronde 2): spatie vóór de haak, `x['setItem']`, een
-  // opslagalias, `.bind`, een helperalias. Een fixture in een tijdelijke map.
   const fixture = fs.mkdtempSync(path.join(os.tmpdir(), 'ops-host-keys-'));
   fs.mkdirSync(path.join(fixture, 'src'));
   fs.writeFileSync(path.join(fixture, 'src', 'a.ts'), [
@@ -295,7 +248,6 @@ eq('C4 zonder host geen taal van de host', embeddedLocale(), null);
     "  new Map().clear();",
     "}",
   ].join('\n'));
-  // VERVOLG 4 (review #827 ronde 2): hernoemde imports en namespace-imports, via `valueBindings()`.
   fs.writeFileSync(path.join(fixture, 'src', 'b.ts'), [
     "import { writeLocal as persist, removeLocal as wis } from '@/utils/settingsStore';",
     "import * as settings from '@/utils/settingsStore';",
@@ -323,7 +275,6 @@ eq('C4 zonder host geen taal van de host', embeddedLocale(), null);
     'src/b.ts:9:ops-uit-import', 'src/b.ts:10:?', 'src/b.ts:11:?']);
 }
 
-// ── D. Synchronisatie met nephost en neptimers ─────────────────────────────────────────────────────
 interface Timer { id: number; fn: () => void; ms: number }
 function harness(options: { storage?: MemoryStorage | null; host?: SiteHostSettings | null; keys?: string[] } = {}) {
   let seq = 0;
@@ -343,7 +294,6 @@ function harness(options: { storage?: MemoryStorage | null; host?: SiteHostSetti
     changed: (list) => { changes.push(...list); },
   });
   sync.subscribe(event => { events.push(event); });
-  /** Laat de timers van `ms` aflopen. Eerst de lopende beloften, zoals de echte event loop dat doet. */
   const run = async (ms: number) => {
     await settle();
     for (const t of timers.filter(x => x.ms === ms)) {
@@ -352,12 +302,10 @@ function harness(options: { storage?: MemoryStorage | null; host?: SiteHostSetti
     }
     await settle();
   };
-  /** Een schrijfactie zoals `writeLocal`: lokaal schrijven en melden. */
   const write = (key: string, value: string | null, origin: 'user' | 'start' = 'user') => {
     if (value === null) storage!.removeItem(key); else storage!.setItem(key, value);
     sync.noteChanged(key, origin);
   };
-  /** Wat de app doet met een laat antwoord, zonder store: ophalen en meteen vrijgeven. */
   const app = () => {
     const applied = sync.takeApplied();
     sync.release();
@@ -423,7 +371,6 @@ function harness(options: { storage?: MemoryStorage | null; host?: SiteHostSetti
   eq('D9 vervangen host: geen schrijfactie naar oud of nieuw', [host.writes().length - count, other.writes().length], [0, 0]);
 }
 
-// Punt 3: een fout wordt nooit een wisactie, en ongeldige inhoud van de host wordt nooit overschreven.
 for (const [label, opts] of [['weigert', { failGet: true }], ['gooit meteen', { throwGet: true }]] as const) {
   const host = fakeHost({ 'ops-theme': 'light' }, opts);
   const h = harness({ host: host.settings });
@@ -448,7 +395,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
     [[], { 'ops-showFloatBand': bad, 'ops-theme': 'light' }]);
 }
 {
-  // De review: één mislukte lokale write bij het neerzetten wiste `ops-personalTaskTypes` bij de host.
   const host = fakeHost({ 'ops-theme': 'light', 'ops-a': '[1]' });
   const storage = new MemoryStorage();
   storage.failSet.add('ops-a');
@@ -461,7 +407,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
     [[], { 'ops-a': '[1]', 'ops-theme': 'light' }]);
 }
 {
-  // De review: falende lokale reads vervingen een gezonde map door `{}`.
   const host = fakeHost({ 'ops-theme': 'light', 'ops-a': '1' });
   const h = harness({ host: host.settings });
   eq('D13 hydrateren', await h.sync.hydrate(), 'geladen');
@@ -485,7 +430,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   eq('D14 zonder localStorage geen schrijfactie', host.writes(), []);
 }
 
-// Punt 5: twee frames draaien elkaars onafhankelijke wijzigingen niet terug.
 {
   const host = fakeHost({ 'ops-theme': 'dark', 'ops-showFloatBand': 'false' });
   const a = harness({ host: host.settings });
@@ -500,10 +444,7 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
     { 'ops-showFloatBand': 'true', 'ops-theme': 'light' });
 }
 
-// Ronde 3: lezen alleen bij de start, met een grens. De time-out van de harness is een neptimer: de
-// test laat hem pas aflopen met `run(1000)`.
 {
-  // D16: een trage host binnen de grens. De start wacht, en laadt daarna gewoon.
   const host = fakeHost({ 'ops-a': 'host', 'ops-showFloatBand': 'true' }, { hold: true });
   const h = harness({ host: host.settings });
   let done = false;
@@ -520,8 +461,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   eq('D16 geen melding', h.sync.unavailable(), false);
 }
 {
-  // D17: een host boven de grens die daarna alsnog antwoordt (besluit van Ethan, 7 november 2026). Tijdens
-  // het wachten niets naar de host; daarna winnen de bewaarde instellingen en staat het bewaren aan.
   const host = fakeHost({ 'ops-a': 'host', 'ops-b': 'host', 'ops-theme': 'dark' }, { hold: true });
   const h = harness({ host: host.settings });
   const pending = h.sync.hydrate(1000);
@@ -534,7 +473,7 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   h.write('ops-b', null);
   h.write('ops-theme', 'light');
   h.write('ops-c', 'nieuw');
-  h.write('ops-locale', 'en', 'start'); // een standaardwaarde die de app zelf invult
+  h.write('ops-locale', 'en', 'start');
   await h.run(FLUSH_DELAY_MS);
   await h.sync.flush();
   eq('D17 tijdens het wachten geen enkele set/delete naar de host', host.writes(), []);
@@ -558,8 +497,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
     { key: 'ops-theme', oldValue: 'light', newValue: 'dark' },
   ]);
   eq('D17 de pop-up hoeft niet meer', h.sync.delayed(), false);
-  // Punt 5 (review #833 ronde 1, punt 1): tot de app klaar is met toepassen, niets naar de host, en een
-  // schrijfactie op een sleutel die nog niet is toegepast valt weg.
   eq('D17 tijdens het toepassen: de toegepaste sleutels vastgehouden, de rest niet',
     ['ops-a', 'ops-theme', 'ops-locale', 'ops-showFloatBand'].map(key => h.sync.writeHeld(key)), [true, true, false, false]);
   h.sync.settle(['ops-theme']);
@@ -579,8 +516,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
     { 'ops-a': 'host', 'ops-b': 'host', 'ops-locale': 'en', 'ops-showFloatBand': 'true', 'ops-theme': 'dark' });
 }
 {
-  // D17b: een laat antwoord zonder wijziging van de gebruiker: gewoon toepassen, zonder "teruggezet".
-  // Een wijziging die toevallig gelijk is aan de bewaarde waarde telt ook niet als teruggezet.
   const host = fakeHost({ 'ops-a': 'host', 'ops-theme': 'dark' }, { hold: true });
   const h = harness({ host: host.settings });
   const pending = h.sync.hydrate(1000);
@@ -591,15 +526,11 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   h.write('ops-c', 'standaard', 'start');
   host.release();
   await settle();
-  // De gelijke waarde moet wel opnieuw worden toegepast (`refresh`): bij het thema gaat de host voor
-  // (review #833 ronde 1, punt 2; zie D25).
   eq('D17b geen "teruggezet", wel opnieuw toepassen', h.app(),
     { changed: ['ops-a'], touched: ['ops-theme'], refresh: ['ops-a', 'ops-theme'], reverted: false });
   eq('D17b wat de app zelf invulde, blijft staan', h.storage.snapshot(), { 'ops-a': 'host', 'ops-c': 'standaard', 'ops-theme': 'dark' });
 }
 {
-  // D17c: een sleutel die al vóór de start lokaal stond (geen opaque frame), daarna door de gebruiker
-  // gewijzigd en niet bij de host: terug naar de waarde bij de start, zoals een gewone start.
   const storage = new MemoryStorage();
   storage.setItem('ops-c', 'van-voor-de-start');
   const host = fakeHost({}, { hold: true });
@@ -617,8 +548,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   eq('D17c die gaat daarna naar de host, zoals bij een gewone start', host.writes(), [{ fn: 'set', key: 'ops-c', value: 'van-voor-de-start' }]);
 }
 {
-  // D18: een host die pas na de start kwam (tijdens het laden van `App`, of met `openaec-host-ready`):
-  // een laat antwoord. Wijzigingen van de gebruiker van vóór de host tellen mee.
   const host = fakeHost({ 'ops-a': 'host' });
   const h = harness();
   eq('D18 bij de start nog geen host', await h.sync.hydrate(), 'geen-host');
@@ -640,7 +569,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   eq('D18 een tweede ready-event leest niet opnieuw', host.gets(), 6);
 }
 {
-  // D18b: een late host die niet binnen de grens antwoordt: dan alsnog de pop-up.
   const host = fakeHost({ 'ops-a': 'host' }, { hold: true });
   const h = harness();
   await h.sync.hydrate();
@@ -656,7 +584,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   h.app();
 }
 {
-  // D19: `adoptLateHost` na een geslaagde lezing doet niets (een tweede ready-event van dezelfde host).
   const host = fakeHost({});
   const h = harness({ host: host.settings });
   eq('D19 geladen', await h.sync.hydrate(), 'geladen');
@@ -669,7 +596,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   eq('D19 bewaren blijft aan', host.writes(), [{ fn: 'set', key: 'ops-a', value: 'x' }]);
 }
 {
-  // D20: een afwijzing van de host: elke 30 s opnieuw, tot het lukt. Tijdens het wachten niets naar de host.
   const host = fakeHost({ 'ops-a': '[{"id":"bewaard"}]' }, { failGet: true });
   const h = harness({ host: host.settings });
   eq('D20 afwijzing ⇒ fout, de start wacht niet langer', await h.sync.hydrate(1000), 'fout');
@@ -691,12 +617,10 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   eq('D20 daarna staat het bewaren aan', host.writes(), [{ fn: 'set', key: 'ops-b', value: 'x' }]);
 }
 {
-  // D21: nooit twee verzoeken tegelijk: een poging die blijft hangen, krijgt geen tweede ernaast.
   const host = fakeHost({ 'ops-a': 'host' }, { failGet: true });
   const h = harness({ host: host.settings });
   await h.sync.hydrate(1000);
   host.failGet(false);
-  // Vanaf nu hangt `get`: houd de lezing vast.
   const held = fakeHost({ 'ops-a': 'host' }, { hold: true });
   host.settings.get = held.settings.get;
   await h.run(RETRY_DELAY_MS);
@@ -709,8 +633,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   h.app();
 }
 {
-  // D22: het plafond: na MAX_RETRIES nieuwe pogingen houdt de tool op. Geen schrijfactie, geen melding
-  // over een lokale fout (de pop-up zei het al).
   const host = fakeHost({}, { failGet: true });
   const h = harness({ host: host.settings });
   await h.sync.hydrate(1000);
@@ -724,7 +646,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   eq('D22 een late adopt start niets meer', (h.sync.adoptLateHost(1000), host.gets()), 6 * (1 + MAX_RETRIES));
 }
 {
-  // D23: uitgesloten sleutels (de echte lijst): nooit gelezen, nooit teruggezet, nooit geschreven.
   const host = fakeHost({ 'ops-theme': 'dark', 'ops-mcpToken': 'van-de-host', 'ops-ext:demo:x': 'host' }, { hold: true });
   const h = harness({ host: host.settings, keys: [...HOST_PERSISTED_KEYS] });
   const pending = h.sync.hydrate(1000);
@@ -746,13 +667,7 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   check('D23 geen uitgesloten sleutel naar de host', host.writes().every(c => isHostPersistedKey(c.key)));
 }
 
-// ── D24-D26. Review #833 ronde 1 (GPT-6.1-Sol): de late toepassing in de app ─────────────────────────
 {
-  // D24 (punt 1): het bewaren ging aan vóór de app klaar was. De taal werd eerst geladen (een download),
-  // de taakgrid pas daarna. Een scrolltimer van vóór het antwoord liep tijdens die download af en zette
-  // de oude kolombreedte terug, lokaal én bij de host. Hier met de echte store, de echte scrolltimer van
-  // de taakgrid (120 ms), de echte `writeLocal` en `processLateSettings`, en een taaldownload die de
-  // test vasthoudt.
   const { useAppStore } = await import('@/state/appStore');
   const { bootstrapTaskGridPreferences } = await import('@/state/taskGridBootstrap');
   const { createDefaultTaskGridPreferences } = await import('@/engine/taskGrid/preferences');
@@ -774,7 +689,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   const storeWidth = () => useAppStore.getState().taskGridSurfaces['full-task-grid'].columns[0].width;
   const lateNotices = () => useAppStore.getState().ui.notifications
     .filter(n => n.messageKey.startsWith('notifications.settingsLoadedLate')).map(n => n.messageKey);
-  // Meldingen met dezelfde `dedupeKey` vouwen samen, en de stapel is begrensd: begin leeg.
   useAppStore.getState().setUI({ notifications: [] });
   const noticesBefore = lateNotices().length;
   browserStorage.setItem(KEY, JSON.stringify(prefs(60)));
@@ -786,15 +700,11 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   await settle();
   await h.run(1000);
   eq('D24 boven de grens', await pending, 'time-out');
-  // Tijdens het wachten: de gebruiker kiest een taal en scrolt in de taakgrid. De scrolltimer leest de
-  // store pas bij het aflopen.
   h.write('ops-locale', 'en');
   useAppStore.getState().setTaskGridScrollX('full-task-grid', 30);
   host.release();
   await settle();
   eq('D24 het antwoord staat lokaal; de store heeft nog de oude breedte', [widthOf(browserStorage.getItem(KEY)), storeWidth()], [777, 60]);
-  // De echte `writeLocal`: een schrijfactie van de gebruiker op een sleutel die nog niet is toegepast,
-  // valt weg; op een andere sleutel niet.
   writeLocal(KEY, JSON.stringify(prefs(61)));
   writeLocal('ops-mcpPort', '4100');
   eq('D24 writeLocal slaat de vastgehouden sleutel over, de rest niet',
@@ -811,7 +721,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   });
   await settle();
   eq('D24 de taal wordt geladen, de download loopt nog', localeCalls, 1);
-  // Langer dan de scrolltimer (120 ms): in de oude volgorde liep hij hier af.
   await new Promise(resolve => setTimeout(resolve, 200));
   await settle();
   eq('D24 tijdens de download: de taakgrid staat al goed, lokaal en in de store', [widthOf(browserStorage.getItem(KEY)), storeWidth()], [777, 777]);
@@ -833,11 +742,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   browserStorage.removeItem('ops-mcpPort');
 }
 {
-  // D27 (review #851 ronde 2): "Kolommen automatisch aanpassen" schrijft niet tussen het toepassen van een
-  // laat antwoord van de host en het opnieuw laden van de store. In dat venster heeft de store nog de oude
-  // kopie; een gemeten breedte uit die kopie zou de bewaarde waarde van de host terugzetten (`writeLocal`
-  // laat alleen een `'user'`-schrijfactie op een vastgehouden sleutel vallen, en een automatische
-  // schrijfactie is `'start'`). Daarna, met de nieuwe store, schrijft het weer.
   const { useAppStore } = await import('@/state/appStore');
   const { bootstrapTaskGridPreferences } = await import('@/state/taskGridBootstrap');
   const { createDefaultTaskGridPreferences } = await import('@/engine/taskGrid/preferences');
@@ -887,9 +791,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
     [widthOf(browserStorage.getItem(KEY)), storeWidth()], [55, 55]);
 }
 {
-  // D25 (punt 2): een laat antwoord met dezelfde opgeslagen tekst als wat de gebruiker koos. Een gewone
-  // start met dit antwoord geeft het thema en de taal van de host (`thema: dark`, `taal: fr`), want
-  // die gaan voor. De app moet ze dus opnieuw toepassen, ook al veranderde er lokaal niets.
   const { useAppStore } = await import('@/state/appStore');
   const { processLateSettings } = await import('@/hooks/useSiteHostPreferences');
   const host = fakeHost({ 'ops-theme': 'light', 'ops-locale': 'en' }, { hold: true });
@@ -904,7 +805,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   const themeNotices = () => useAppStore.getState().ui.notifications.filter(n => n.messageKey === 'notifications.hostThemeUntilRestart').length;
   const lateNotices = () => useAppStore.getState().ui.notifications
     .filter(n => n.messageKey.startsWith('notifications.settingsLoadedLate')).map(n => n.messageKey);
-  // De start gaf het thema van de host; de gebruiker kiest licht en Engels (gelijk aan de bewaarde waarden).
   useAppStore.getState().setUI({ uiTheme: 'dark' });
   useAppStore.getState().setUI({ uiTheme: 'light' });
   h.write('ops-theme', 'light');
@@ -921,7 +821,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
     take: () => (seen.applied = h.sync.takeApplied()),
     settle: keys => h.sync.settle(keys),
     release: () => h.sync.release(),
-    // Zoals de echte `initLocale` ingebed: de taal van de host.
     initLocale: async () => { localeCalls++; language = 'fr'; },
     language: () => language,
   });
@@ -938,8 +837,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   setHosts();
 }
 {
-  // D26 (punt 3): één sleutel wijst af terwijl een andere nog hangt. Vroeger gaf `Promise.all` de poging
-  // meteen vrij, en de nieuwe poging vroeg de hangende sleutel nog een keer: twee verzoeken tegelijk.
   const gets: string[] = [];
   const pendingB: (() => void)[] = [];
   let inFlightB = 0;
@@ -963,7 +860,6 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   eq('D26 één afwijzing: de start wacht niet op het verzoek dat nog hangt', await h.sync.hydrate(1000), 'fout');
   eq('D26 de pop-up hoort open', [h.sync.delayed(), h.events], [true, ['vertraagd']]);
   eq('D26 de poging loopt nog: nog geen nieuwe gepland', h.timers.filter(t => t.ms === RETRY_DELAY_MS).length, 0);
-  // 30 s later hangt `ops-b` nog steeds: geen nieuwe poging, dus geen tweede verzoek voor `ops-b`.
   await h.run(RETRY_DELAY_MS);
   h.sync.adoptLateHost(1000);
   await settle();
@@ -980,12 +876,9 @@ for (const bad of [{ kapot: true }, 42, ['x']]) {
   eq('D26 één pop-up, en na de tweede afwijzing weer één poging gepland', [h.events, h.timers.filter(t => t.ms === RETRY_DELAY_MS).length], [['vertraagd'], 1]);
 }
 
-// ── E. De echte keten: writeLocal/removeLocal → de host uit S1 ─────────────────────────────────────
 {
   setHosts({ thema: 'light', settings: s1Host.settings });
-  // De echte instantie las de host van S1 bij de start; een tweede lezing doet niets.
   eq('E0 een tweede hydrate leest niet opnieuw', await hydrateSiteHostSettings(200), 'al-geladen');
-  // Wat eerdere secties via de echte keten schreven (bijv. `loadAllSettings` in D24), eerst wegschrijven.
   await flushSiteHostSettings();
   await new Promise(resolve => setTimeout(resolve, FLUSH_DELAY_MS + 50));
   await settle();

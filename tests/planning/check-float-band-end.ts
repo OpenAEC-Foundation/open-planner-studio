@@ -1,19 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// De spelingsband eindigt op "Laatste einde" — op het scherm, in de afdruk en in het datumbereik
-// van de afdruk (audit weergaven, bevinding 4).
-//
-// AANLEIDING. De band werd getekend als `totalFloat × zoom`: WERKdagen speling maal pixels per
-// KALENDERdag. Over een weekend stopte de band daardoor dagen te vroeg (A met 10 wd speling en
-// "Laatste einde" dinsdag 16-06 kreeg een band tot en met vrijdag 12-06), en in urenmodus schoot hij
-// juist door tot diep in de nacht. De gids (toen `gids-kritiek-pad-analyse.md`) beloofde "tot de laatste
-// einddatum", en raster, paneel en MCP tonen `lateFinish`. Sindsdien leiden scherm, afdruk en het
-// afdrukbereik de band-rand af uit één helper (`floatBandEnd`, `src/utils/taskDates.ts`).
-//
-// Deze batterij draait de ECHTE `GanttRenderer` (opnemende 2D-context) en de ECHTE `renderReport`
-// (opnemende Draw2D) en meet de band tegen de x van het moment van "Laatste einde" (sinds F2 heeft ook
-// een dagtaak momenten; alleen een datum zonder tijd loopt tot het einde van die dag).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
@@ -42,7 +26,6 @@ function eq(label: string, actual: unknown, expected: unknown): void {
 }
 
 
-// ── Opnemende 2D-context voor de scherm-renderer ─────────────────────────────
 interface Rect { x: number; w: number; fill: string }
 function makeCtx(): { ctx: CanvasRenderingContext2D; rects: Rect[] } {
   const rects: Rect[] = [];
@@ -63,7 +46,6 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; rects: Rect[] } {
   };
   return { ctx: ctx as unknown as CanvasRenderingContext2D, rects };
 }
-// Zelfde fallbackkleur als check-gantt-float-cull.ts: `--theme-bar-float` op 25% dekking (onder de arcering).
 const SCREEN_FLOAT = '#05966940';
 
 function renderScreen(viewStartDate: string, zoom: number, extra: Record<string, unknown> = {}) {
@@ -80,7 +62,6 @@ function renderScreen(viewStartDate: string, zoom: number, extra: Record<string,
   return { renderer, bands };
 }
 
-// ── Opnemende Draw2D voor de afdruk ──────────────────────────────────────────
 interface RR { x: number; y: number; w: number; color: string }
 function renderPrint(options: Partial<PrintOptions> = {}) {
   const rr: RR[] = [];
@@ -111,13 +92,10 @@ function renderPrint(options: Partial<PrintOptions> = {}) {
   return { rr, band, result };
 }
 
-/** Kalenderdagen (met een breuk) tussen twee momenten. */
 function daysBetween(from: string, to: string): number {
   return (parseInstant(to).getTime() - parseInstant(from).getTime()) / 86_400_000;
 }
 
-// ── Scenario 1: dagtaken, speling over twee weekenden ────────────────────────
-// A (2d) en B (12d) parallel, C na beide. A: ES ma 01-06, EF di 02-06, LF di 16-06, TF 10 wd.
 function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
   S().newProject();
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays } as WorkCalendar);
@@ -136,22 +114,16 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
   const a = S().tasks.find(t => t.id === A)!;
   eq('1 opzet: A heeft 10 wd speling en LF 16-06', [a.time.totalFloat, a.time.lateFinish, a.time.isCritical], [10, "2026-06-16T16:00", false]);
 
-  // Scherm, kalender-as.
   const { renderer, bands } = renderScreen('2026-05-25', 30);
   eq('1a scherm: precies één spelingsband', bands.length, 1);
   near('1b scherm: band begint op de balkrand (einde van EF-dag 02-06)', bands[0]?.x, renderer.dateToX(parseInstant('2026-06-02T16:00')));
   near('1c scherm: band eindigt op het einde van de "Laatste einde"-dag (16-06)', bands[0] && bands[0].x + bands[0].w, renderer.dateToX(parseInstant(a.time.lateFinish)));
 
-  // Scherm, gecomprimeerde werkdagen-as: daar klopte de oude breedte toevallig (10 wd = 10 kolommen);
-  // dat moet zo blijven.
   const comp = renderScreen('2026-05-25', 30, { compressNonWorkdays: true });
   eq('1d scherm (werkdagen-as): precies één spelingsband', comp.bands.length, 1);
   near('1e scherm (werkdagen-as): band eindigt op het einde van de "Laatste einde"-dag',
     comp.bands[0] && comp.bands[0].x + comp.bands[0].w, comp.renderer.dateToX(parseInstant(a.time.lateFinish)));
 
-  // Afdruk: de balk van A is de meetlat. Sinds de afdruk de balkregel van het scherm volgt (`taskBarSpan`,
-  // aanval na #600) loopt hij van ma 07:00 tot di 16:00 = 33 uur, en eindigt de band net als op het scherm
-  // (1c) op het moment van "Laatste einde".
   const p = renderPrint();
   const bar = p.rr.find(r => r !== p.band && p.band && Math.abs(r.y - p.band.y) < 12);
   checks++;
@@ -160,15 +132,10 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
   } else {
     const pxPerDay = bar.w / daysBetween(a.time.earlyStart!, a.time.earlyFinish!);
     near('1f afdruk: band begint op de balkrand', p.band.x, bar.x + bar.w);
-    // ES 01-06 07:00 → LF 16-06 16:00 = 15 dagen en 9 uur.
     near('1g afdruk: band eindigt op het moment van "Laatste einde"', p.band.x + p.band.w, bar.x + daysBetween(a.time.earlyStart!, a.time.lateFinish) * pxPerDay);
   }
 }
 
-// ── Scenario 2: het datumbereik van de afdruk ────────────────────────────────
-// Bouwvak tussen EF(A) en LF(A): LF ligt weken na EF + TF kalenderdagen. Met alleen de rij van A
-// in de afdruk (WYSIWYG-filter) moet het bereik de hele band dragen — de band mag niet buiten de
-// canvas lopen.
 {
   const A = dayScenario([{ name: 'Bouwvak', startDate: '2026-06-08', endDate: '2026-06-26' }]);
   const a = S().tasks.find(t => t.id === A)!;
@@ -181,7 +148,6 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
     diffs.push('2a afdruk: band of balk van A niet gevonden');
   } else {
     const pxPerDay = bar.w / daysBetween(a.time.earlyStart!, a.time.earlyFinish!);
-    // ES 01-06 07:00 → LF 07-07 16:00 = 36 dagen en 9 uur.
     near('2a afdruk (bouwvak): band eindigt op het moment van "Laatste einde"', p.band.x + p.band.w, bar.x + daysBetween(a.time.earlyStart!, a.time.lateFinish) * pxPerDay);
     checks++;
     if (p.band.x + p.band.w > p.result.width + 0.01) {
@@ -190,8 +156,6 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
   }
 }
 
-// ── Scenario 3: urentaken — de band eindigt op het LF-instant ────────────────
-// 9-uurskalender, A 5h naast B 9h, C na beide: A EF 13:00, LF 17:00 (4 werkuren speling).
 {
   S().newProject();
   const band9 = [{ start: 8 * 60, end: 17 * 60 }];
@@ -214,7 +178,6 @@ function dayScenario(holidays: WorkCalendar['holidays'] = []): string {
   near('3c scherm (uren): band eindigt op het LF-instant, niet in de nacht', bands[0] && bands[0].x + bands[0].w, renderer.dateToX(parseInstant(ha.time.lateFinish)));
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  float-band-end: alle checks groen (${checks})`);
   process.exit(0);

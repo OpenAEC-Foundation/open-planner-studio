@@ -1,13 +1,3 @@
-// Documentwissel behoudt de bronidentiteit — headless tegen de ECHTE store. De crashherstel-delta
-// (`recoveryDelta.ts`) en de 'stale'-toets van automatisch opslaan vergelijken een documentbron op
-// REFERENTIE (`sameIFCSource`). De lees-migratie van `tasks` bij activatie gaf altijd een nieuwe
-// array, dus na elke wissel heen en terug serialiseerde de auto-save het hele document opnieuw naar
-// IFC (8000 taken: ~0,5 s serialiseren en ~7 MB wegschrijven per wissel, gemeten in Node). Oorzaken:
-// `normalizeTaskDurationUnits` en de bibliotheekgrens (`activationPayload`) gaven altijd nieuwe arrays.
-// Deze batterij pint: A → B → A laat de bron van A referentieel gelijk, en een echte legacy-taak wordt
-// nog steeds genormaliseerd.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import { sameIFCSource } from '@/state/ifcSaveInput';
 import { normalizeTaskDurationUnits } from '@/utils/taskDefaults';
@@ -24,7 +14,6 @@ S().addTask({ name: 'A2' });
 const a = S().activeDocumentId;
 const b = S().newDocument();
 S().addTask({ name: 'B1' });
-// Eerste activatie mag nog migreren (de projectkalender wordt bibliotheek-entry, §4.3); daarna niets.
 S().switchDocument(a);
 S().switchDocument(b);
 const before = payloadOf(a);
@@ -35,7 +24,6 @@ S().switchDocument(b);
 S().switchDocument(a);
 ok('03 tweede rondje: nog steeds dezelfde bron', sameIFCSource(before, payloadOf(a)));
 
-// De migratie zelf blijft werken: een taak zonder `durationUnit` krijgt hem, de rest blijft dezelfde.
 const tasks = S().tasks.map((t) => ({ ...t, time: { ...t.time } }));
 const legacy = { ...tasks[0], time: { ...tasks[0].time } } as Task;
 delete (legacy.time as { durationUnit?: unknown }).durationUnit;

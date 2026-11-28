@@ -1,15 +1,3 @@
-/**
- * Resource-accent op het scherm (#21 punt 1-nieuw) — regressiebatterij.
- *
- * Bewaakt: met `showResourceAccent: true` tekent de renderer onder élke bladbalk met resources een
- * dun streepje (h = `barLayout(rowHeight).accentHeight`, direct onder de balk) dat bij meerdere resources gesegmenteerd is naar rato
- * van unitsPerDay; zonder vlag (of `false`) tekent hij niets extra. Mijlpalen en samenvattingstaken
- * krijgen géén accent (geen bladbalk). De balkvulling zelf verandert nooit door de vlag — alleen
- * het streepje komt erbij (supplement, geen vervanging).
- *
- * Zelfde opzet als check-renderer-dateless.ts: de ECHTE GanttRenderer met een opnemende 2D-context-
- * stub; het accent is een fillRect (geen roundRect), dus de stub registreert fillRects.
- */
 import { useAppStore } from '@/state/appStore';
 import { paletteColorForId } from '@/engine/renderer/resourcePalette';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
@@ -19,8 +7,6 @@ import type { Task } from '@/types/task';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { BarColorSelection } from '@/types/barColor';
 
-// Node-shim (zelfde als check-renderer-dateless): readGanttPalette roept
-// getComputedStyle(document.documentElement); zonder stub gooit dat in Node.
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -31,14 +17,9 @@ let failures = 0;
 const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
 const ok = (cond: boolean, msg: string) => { if (!cond) fail(msg); };
 
-// ── Opnemende 2D-context-stub (fillRects zijn het accent; roundRects de balken) ──────────────────
 interface Rect { x: number; y: number; w: number; h: number; color: string; }
 interface RoundShape { x: number; y: number; w: number; h: number; fill: string; stroke: string; }
-// Gevulde veelhoeken (moveTo/lineTo + fill) als omhullende rechthoek: zo tekent de baselinestrook
-// (`baselineStrip.ts`, gedeeld met de afdruk).
 function makeCtx(): { ctx: CanvasRenderingContext2D; fillRects: Rect[]; shapes: RoundShape[]; polys: RoundShape[] } {
-  // shapes: roundRect-aanroepen mét de fill/stroke-stijl die op dat moment gold (renderer zet
-  // fillStyle vóór roundRect+fill, strokeStyle vóór roundRect+stroke — dus lezen op roundRect-tijd klopt).
   const fillRects: Rect[] = [];
   const shapes: RoundShape[] = [];
   const polys: RoundShape[] = [];
@@ -73,7 +54,6 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; fillRects: Rect[]; shapes: 
   return { ctx: ctx as unknown as CanvasRenderingContext2D, fillRects, shapes, polys };
 }
 
-// ── Fixture: echte store-taak (geldige CPM-datums) + resources 1:3 ──────────────────────────────
 S().newProject();
 S().addTask({ name: 'Balktaak' });
 S().runCPM();
@@ -126,10 +106,6 @@ function render(showResourceAccent: boolean, over: {
   return { fillRects, shapes, polys };
 }
 
-// Balk, accent en baseline komen uit `barLayout(ROWH)`. Het accent staat op y = balkY + barH + 1
-// en is uniek herkenbaar aan zijn hoogte (`ACCENT_H`) onder de kopstrook.
-// Bewust GEEN x-filter op een tabelgrens: de renderer bezit alleen de tijdlijn en een taak op de
-// projectstart begint daarom op x = 0.
 const ACCENT_H = barLayout(ROWH).accentHeight;
 const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > HDRH);
 
@@ -149,9 +125,6 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > H
   ok(accents(off).length === 0, 'accent uit: geen streepjes');
 }
 
-// Baseline en resource-accent zijn twee onafhankelijke onderbalken. Als beide aan staan, mogen ze
-// elkaar niet bedekken: de baseline begint pas onder het volledige resource-accent. De baseline
-// krijgt zijn hoogte uit `barLayout`: met accent de rest van de strook.
 {
   const { fillRects, polys } = render(true, { baseline: true });
   const a = accents(fillRects);
@@ -164,8 +137,6 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > H
     ok(baseline.y + baseline.h <= HDRH + ROWH,
       `baseline-combinatie: gestapelde baseline blijft binnen de rij (eindigt ${baseline.y + baseline.h}, rij eindigt ${HDRH + ROWH})`);
   }
-  // Issue #391 + eigenaarsbesluit 2026-10-20: de baseline is even dik met of zonder accent
-  // (regel uit fe70487a2); met beide aan wordt de balk lager. Beide uit `barLayout`.
   const alone = render(false, { baseline: true }).polys.find(sh => sh.fill === '#1F2937' && sh.h < 10);
   ok(!!alone && Math.abs(alone.h - barLayout(ROWH).baselineHeight) < 1e-9, 'baseline-hoogte zonder accent volgt barLayout');
   ok(!!baseline && Math.abs(baseline.h - barLayout(ROWH).baselineHeight) < 1e-9,
@@ -173,9 +144,6 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > H
   ok(!!alone && alone.y + alone.h <= HDRH + ROWH, 'baseline zonder accent blijft binnen de rij');
 }
 
-// ── Donker thema: te donkere resourcekleuren verlicht (#21 user-bevinding) ──────────────────────
-// Slate-achtige accenten waren op de donkere werkruimte onzichtbaar — het accent tekent nu de
-// verlichte variant; de EXPORT blijft de exacte kleur gebruiken (die zit in barColors/print).
 {
   const { fillRects: dark } = render(true, { darkTheme: true });
   const a = accents(dark);
@@ -190,7 +158,6 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > H
   ok(a[0].color !== '#111111', 'donker thema: donkere resourcekleur daadwerkelijk verlicht');
 }
 
-// ── Legacy Task.color is inert in de gedeelde kleurkeuze ───────────────────────────────────────
 {
   const colored = { ...task, id: task.id + '-kleur', color: '#00FF00' } as Task;
   const { shapes } = render(false, { task: colored, selection: { mode: 'critical' } });
@@ -198,14 +165,10 @@ const accents = (rects: Rect[]) => rects.filter(r => r.h === ACCENT_H && r.y > H
   ok(bars.every(b => b.fill !== '#00FF00'), 'legacy Task.color verandert de critical-vulling niet');
 }
 
-// ── Gedeelde schermkleurkeuze: critical, auto en Group-categorie ────────────────────────────────
-// Balken herkenbaar als roundRect-shapes met bar-hoogte (≈15px) in de chartzone.
 const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.h < 20 && sh.w > 3 && sh.x >= -1);
 {
-  // Resource-categorie: 1:3-toewijzing ⇒ twee segmentvullingen in de resourcekleuren.
   const { shapes } = render(false, { selection: { mode: 'category', field: { src: 'resource' } } });
   const bars = barShapes(shapes);
-  // Balkvlakken zijn effen in de basiskleur.
   const seg1 = bars.find(b => b.fill === '#111111');
   const seg2 = bars.find(b => b.fill === '#222222');
   ok(!!seg1 && !!seg2, `scherm resource-modus: beide segmenten getekend (fills: ${[...new Set(bars.map(b => b.fill))].join(', ')})`);
@@ -214,23 +177,19 @@ const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.
     ok(Math.abs(seg1.w / total - 0.25) < 0.03, `scherm resource-modus: verhouding ≈ 25/75 (got ${(seg1.w / total * 100).toFixed(1)}%)`);
     ok(Math.abs(seg2.x - (seg1.x + seg1.w)) < 1.5, 'scherm resource-modus: segmenten aaneengesloten');
   }
-  // Kritieke taak zonder expliciete moduskleur → rode rand.
   ok(bars.some(b => b.stroke === '#DC2626'), 'scherm Resource-categorie: rode rand om kritieke taak');
 }
 {
-  // auto: vulling = palet-hash op taak-id (licht thema ⇒ exacte kleur).
   const { shapes } = render(false, { selection: { mode: 'auto' } });
   const bars = barShapes(shapes);
   ok(bars.some(b => b.fill === paletteColorForId(task.id)), `scherm auto-modus: balk in hash-kleur (fills: ${[...new Set(bars.map(b => b.fill))].join(', ')})`);
 }
 {
-  // Task Type is een gewone Group-categorie; CONSTRUCTION heeft een vaste paletkleur.
   const { shapes } = render(false, { selection: { mode: 'category', field: { src: 'builtin', key: 'taskType' } } });
   const bars = barShapes(shapes);
   ok(bars.some(b => b.fill === '#1E293B'), 'scherm Task-Type-categorie: CONSTRUCTION gebruikt vaste paletkleur');
 }
 {
-  // donker thema + Resource-categorie: segmentkleuren verlicht boven de zichtbaarheidsdrempel.
   const { shapes } = render(false, { selection: { mode: 'category', field: { src: 'resource' } }, darkTheme: true });
   const bars = barShapes(shapes);
   const lum = (hex: string): number => {
@@ -242,16 +201,12 @@ const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.
   ok(bars.length > 0 && bars.every(b => lum(b.fill) >= 0.33), `scherm resource-modus donker: elke vulling zichtbaar (fills: ${[...new Set(bars.map(b => b.fill))].join(', ')})`);
 }
 {
-  // Zonder selectie: critical is de veilige default.
   const { shapes } = render(false);
   const bars = barShapes(shapes);
   ok(!bars.some(b => b.fill === paletteColorForId(task.id)), 'default: geen moduskleuren');
 }
 
 {
-  // Voortgang in resource-modus: het voltooide deel van elk kleurstuk wordt het grijs van ZIJN
-  // EIGEN kleur (`doneBarTones`). Bij 60% voortgang overlapt de voortgang beide stukken (25/75),
-  // dus moeten beide grijzen verschijnen, en het tweede stuk houdt rechts zijn eigen kleur.
   const half: Task = { ...task, time: { ...task.time, completion: 0.6 } };
   const { shapes } = render(false, { task: half, selection: { mode: 'category', field: { src: 'resource' } } });
   const fills = new Set(barShapes(shapes).map(b => b.fill.toLowerCase()));
@@ -263,7 +218,6 @@ const barShapes = (shapes: RoundShape[]) => shapes.filter(sh => sh.h > 10 && sh.
   ok(fills.has('#222222'), `scherm resource-modus: tweede stuk houdt rechts van de voortgang zijn kleur (fills: ${[...fills].join(', ')})`);
 }
 
-// Resource accent is een onafhankelijke overlay: exact dezelfde twee strepen bij elke selectie.
 for (const selection of [
   { mode: 'critical' } as const,
   { mode: 'auto' } as const,

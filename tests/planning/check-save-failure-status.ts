@@ -1,27 +1,3 @@
-// Een mislukte schrijfactie geeft nooit een successtatus (issue #405 deel 2, criteria 1 en 2).
-//
-// Wat hier vastligt, voor elke foutroute van Opslaan en Opslaan als:
-//   - de fout komt als `notifications.saveFailed` (ernst `error`), met de reden in het detail;
-//   - er komt geen andere melding bij (geen info over een download, geen "opgeslagen");
-//   - `isDirty` blijft `true` (titelbalk `* `, statusbalk "Niet opgeslagen");
-//   - het opslagdoel van het document en de recente bestanden veranderen niet;
-//   - het doelbestand houdt zijn oude inhoud.
-//
-// Routes:
-//   §1  de schrijf-en-vervang-kern (`replaceUserFile`) tegen een alleen-lezen doel (nep-fs);
-//   §1R dezelfde kern tegen het ECHTE bestandssysteem (Linux/macOS; overgeslagen als root);
-//   §2  Tauri via de echte store-actie: een nep-`__TAURI_INTERNALS__.invoke` speelt plugin-fs en
-//       plugin-dialog na, met de fouttekst die plugin-fs echt geeft (een string, geen Error);
-//   §3  web met een FileSystemFileHandle: echte fouten uit createWritable/write/close worden vóór
-//       de terugval gemeld; annuleren, mislukte/geslaagde kopie en wijzigen tijdens de kiezer;
-//       NotAllowedError blijft de download-terugval gebruiken;
-//   §4  de site (`window.openaecHost`): Opslaan als naar een nieuw site-bestand mislukt, en Opslaan
-//       naar een bestaand site-bestand mislukt.
-//
-// Wat hier NIET kan: de echte Tauri-desktopapp en een echte Chromium-bestandskiezer. De nep-randen
-// spelen exact de aanroepen na die de app doet (`plugin:fs|…`, `showSaveFilePicker`, `createWritable`).
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 
 type AnyRecord = Record<string, unknown>;
@@ -74,10 +50,6 @@ const truthy = (label: string, cond: unknown) => {
   if (!cond) diffs.push(label);
 };
 
-/**
- * De vier vaste toetsen na een mislukte opslag. `run` doet de opslag; `target` leest het doelbestand.
- * `detail` moet in de foutmelding staan (de reden die de gebruiker te zien krijgt).
- */
 async function eistMislukt(label: string, run: () => Promise<unknown>, opts: {
   target: () => unknown; targetBefore: unknown; detail: RegExp;
 }) {
@@ -106,16 +78,10 @@ async function eistMislukt(label: string, run: () => Promise<unknown>, opts: {
   eq(`${label} (4) het doelbestand is ongewijzigd`, opts.target(), opts.targetBefore);
 }
 
-/** Begin elke toets met een lege meldingenlijst: de lijst is begrensd (MAX_NOTIFICATIONS), dus een
- *  nieuwe fout kan een oude wegduwen en "wat kwam erbij" is dan niet aan de lengte te zien. */
 const leegMeldingen = () => useAppStore.setState((s) => { s.ui.notifications = []; });
 
 const OUD = 'ISO-10303-21; OUD-PROJECT-COMPLEET END-ISO-10303-21;';
 
-// ═══ §1 De kern: alleen-lezen doel tegen een nep-fs ════════════════════════════════════════════
-// Unix: map én bestand alleen-lezen ⇒ het halffabricaat ernaast mag niet ontstaan (EACCES).
-// Windows: het bestand heeft het kenmerk "alleen-lezen" ⇒ het halffabricaat lukt, de rename over het
-// doel wordt geweigerd, en de terugval (direct schrijven) ook — vóór er iets afgekapt is.
 interface Entry { data: string; readonly: boolean }
 function fakeFs(initial: Record<string, Entry>, roDirs: string[], windows: boolean) {
   const files = new Map<string, Entry>(Object.entries(initial));
@@ -167,8 +133,6 @@ function fakeFs(initial: Record<string, Entry>, roDirs: string[], windows: boole
   }
 }
 
-// ═══ §1R Dezelfde kern tegen het echte bestandssysteem ═════════════════════════════════════════
-// Root negeert bestandsrechten; dan bewijst dit deel niets en slaat het zich over (met een regel).
 {
   const isRoot = typeof process.getuid === 'function' && process.getuid() === 0;
   const isWindows = nodePath.sep === '\\';
@@ -181,7 +145,6 @@ function fakeFs(initial: Record<string, Entry>, roDirs: string[], windows: boole
         return { isSymlink: st.isSymbolicLink(), nlink: st.nlink, mode: st.mode };
       },
       createNew: async (p, data, mode) => {
-        // Zoals plugin-fs `write_file` met createNew: één opening, schrijven op die opening.
         const fd = nodeFs.openSync(p, 'wx', mode);
         try { nodeFs.writeFileSync(fd, data); }
         catch (error) { throw new OwnFileWriteError(error); }
@@ -193,7 +156,6 @@ function fakeFs(initial: Record<string, Entry>, roDirs: string[], windows: boole
     };
     const root = nodeFs.mkdtempSync(nodePath.join(nodeOs.tmpdir(), 'ops-alleen-lezen-'));
     try {
-      // 1R-a: map en bestand alleen-lezen ⇒ EACCES, doel ongewijzigd, niets ernaast.
       const dir = nodePath.join(root, 'ro');
       nodeFs.mkdirSync(dir);
       const file = nodePath.join(dir, 'project.ifc');
@@ -206,8 +168,6 @@ function fakeFs(initial: Record<string, Entry>, roDirs: string[], windows: boole
       eq('1R-c echte fs: geen halffabricaat in de map', nodeFs.readdirSync(dir), ['project.ifc']);
       nodeFs.chmodSync(dir, 0o755);
 
-      // 1R-d (meting, geen poort): alleen het BESTAND alleen-lezen, de map schrijfbaar. Op POSIX mag
-      // een rename een alleen-lezen bestand vervangen; de app overschrijft het dan. Zie knownbugs.
       const file2 = nodePath.join(root, 'alleen-bestand.ifc');
       nodeFs.writeFileSync(file2, OUD);
       nodeFs.chmodSync(file2, 0o444);
@@ -217,15 +177,12 @@ function fakeFs(initial: Record<string, Entry>, roDirs: string[], windows: boole
       console.log(`   save-failure-status MEETING 1R-d alleen-lezen bestand in schrijfbare map: fout=${err2 === null ? 'geen' : String(err2)}, inhoud=${inhoud === OUD ? 'oud' : 'NIEUW (overschreven)'}, rechten na afloop=${rechten}`);
     } finally {
       nodeFs.chmodSync(root, 0o755);
-      for (const p of nodeFs.readdirSync(root)) { try { nodeFs.chmodSync(nodePath.join(root, p), 0o755); } catch { /* weg */ } }
+      for (const p of nodeFs.readdirSync(root)) { try { nodeFs.chmodSync(nodePath.join(root, p), 0o755); } catch { } }
       nodeFs.rmSync(root, { recursive: true, force: true });
     }
   }
 }
 
-// ═══ §2 Tauri via de echte store-actie ═════════════════════════════════════════════════════════
-// Een nep-`__TAURI_INTERNALS__` met precies de plugin-commando's die Opslaan/Opslaan als aanroepen.
-// Fouten zijn strings, zoals plugin-fs ze echt teruggeeft (`Error` serialiseert naar zijn tekst).
 const tauri = {
   files: new Map<string, Entry>(),
   roDirs: [] as string[],
@@ -253,7 +210,6 @@ function installTauri() {
           };
         }
         case 'plugin:fs|write_text_file': {
-          // Zoals `write_file_inner` (plugin-fs 2.7.1): opties uit de kop, de tekst als rauwe body.
           const p = decodeURIComponent(options?.headers?.path ?? '');
           const o = JSON.parse(options?.headers?.options ?? 'null') as { createNew?: boolean; mode?: number } | null;
           if (o?.createNew) {
@@ -298,7 +254,6 @@ const uninstallTauri = () => { delete win.__TAURI_INTERNALS__; };
   const RO = '/home/u/alleen-lezen/project.ifc';
   const RW = '/home/u/werk/project.ifc';
 
-  // 2-controle: een schrijfbaar doel slaagt via dezelfde nep-route (anders bewijzen de rode routes niets).
   tauri.files.set(RW, { data: OUD, readonly: false });
   S().newProject();
   S().setProject({ name: 'Tauri-proef', startDate: '2026-06-01' });
@@ -317,7 +272,6 @@ const uninstallTauri = () => { delete win.__TAURI_INTERNALS__; };
     tauri.roDirs = windows ? [] : ['/home/u/alleen-lezen'];
     tauri.files.set(RO, { data: OUD, readonly: true });
 
-    // 2a Opslaan (Ctrl+S) naar een bestaand, alleen-lezen projectbestand.
     S().newDocument();
     S().setProject({ name: `Alleen-lezen ${naam}`, startDate: '2026-06-01' });
     S().addTask({ name: 'Wijziging' });
@@ -328,11 +282,8 @@ const uninstallTauri = () => { delete win.__TAURI_INTERNALS__; };
     });
     eq(`2a Tauri Opslaan, ${naam}: geen halffabricaat`, [...tauri.files.keys()].some(p => dirOf(p) === dirOf(RO) && p.endsWith(USER_FILE_TMP_SUFFIX)), false);
     eq(`2a Tauri Opslaan, ${naam}: geen automatische terugvalkiezer`, tauri.calls.includes('plugin:dialog|save'), false);
-    // #1022: Opslaan als weigert een bestand dat in een ander tabblad open staat. 2b meet de schrijffout, dus het
-    // tabblad van 2a laat het alleen-lezen bestand eerst los.
     useAppStore.setState({ filePath: null });
 
-    // 2b Opslaan als: de gebruiker kiest in de dialoog het alleen-lezen bestand.
     S().newDocument();
     S().addTask({ name: 'Nieuw document' });
     tauri.dialogAnswer = RO;
@@ -340,18 +291,15 @@ const uninstallTauri = () => { delete win.__TAURI_INTERNALS__; };
       target: () => tauri.files.get(RO)?.data, targetBefore: OUD, detail: /Permission denied|Access is denied/,
     });
 
-    // 2c De sluitvraag ("Opslaan" in CloseDocumentDialog en bij afsluiten) krijgt `false` terug: dan
-    // breekt het sluiten af en blijft het document open.
     useAppStore.setState({ filePath: RO });
     const ok = await S().saveFileForDocument(S().activeDocumentId);
     eq(`2c Tauri sluitvraag-opslaan, ${naam}: meldt false (sluiten breekt af)`, [ok, S().isDirty], [false, true]);
-    useAppStore.setState({ filePath: null }); // zie 2a: de volgende ronde kiest hetzelfde bestand in Opslaan als
+    useAppStore.setState({ filePath: null });
   }
   uninstallTauri();
   tauri.windows = false;
 }
 
-// ═══ §3 Web met een bestandshandle ═════════════════════════════════════════════════════════════
 type HandleState = {
   data: string; name?: string; permission?: PermissionState;
   writeError?: () => unknown; failAt?: 'createWritable' | 'write' | 'close';
@@ -393,9 +341,6 @@ const geweigerd = () => new DOMException(
   'NotAllowedError',
 );
 {
-  // 3a Opslaan naar een handle van een vergrendeld/alleen-lezen bestand. In-place schrijven mislukt;
-  // de app meldt de fout VÓÓR de bestandskiezer. Kiest de gebruiker hetzelfde bestand, dan blijft
-  // het één melding (ook geen ×2).
   resetWebWriteRefusalForTests();
   const ro: HandleState = { data: OUD, writeError: vergrendeld };
   const handle = makeHandle(ro);
@@ -412,8 +357,6 @@ const geweigerd = () => new DOMException(
     noticesAtPicker[0]?.map((n) => [n.severity, n.messageKey, n.count]), [['error', 'notifications.saveFailed', 1]]);
   eq('3a de terugval werkt dezelfde melding bij', S().ui.notifications[0]?.id, noticesAtPicker[0]?.[0]?.id);
 
-  // 3b Zelfde, maar de gebruiker annuleert de kiezer: fout blijft zichtbaar, niets opgeslagen. De
-  // sluitvraag krijgt false, zodat dit gewijzigde document niet alsnog sluit.
   installPicker(() => Promise.reject(new DOMException('The user aborted a request.', 'AbortError')));
   let cancelled: boolean | undefined;
   await eistMislukt('3b web Opslaan, terugval geannuleerd', async () => {
@@ -422,7 +365,6 @@ const geweigerd = () => new DOMException(
   eq('3b annuleren na een mislukte schrijfactie meldt false aan de sluitvraag', cancelled, false);
   eq('3b geen dubbele kiezer', pickerCalls, 1);
 
-  // 3c Opslaan als: de kiezer geeft een alleen-lezen bestand terug.
   installPicker(() => Promise.resolve(makeHandle(ro)));
   S().newDocument();
   S().addTask({ name: 'Web opslaan als' });
@@ -430,7 +372,6 @@ const geweigerd = () => new DOMException(
     target: () => ro.data, targetBefore: OUD, detail: /can not be modified/,
   });
 
-  // 3c2 Ook een andere fout in de terugval vervangt de eerste reden in dezelfde melding.
   const vol: HandleState = { data: OUD, writeError: () => new DOMException('disk full', 'QuotaExceededError') };
   useAppStore.setState({ filePath: 'project.ifc', fileHandle: handle });
   installPicker(() => Promise.resolve(makeHandle(vol)));
@@ -440,8 +381,6 @@ const geweigerd = () => new DOMException(
   truthy('3c2 de eerste reden was al vóór de kiezer zichtbaar', /can not be modified/.test(noticesAtPicker[0]?.[0]?.detail ?? ''));
   eq('3c2 dezelfde melding toont nu de reden van de terugval', S().ui.notifications[0]?.id, noticesAtPicker[0]?.[0]?.id);
 
-  // 3c3 Een geslaagde kopie maakt het document schoon en wordt het volgende opslagdoel. De fout
-  // over het origineel blijft staan; geen onterechte algemene uitleg over browserbeperkingen.
   const copy: HandleState = { data: '', name: 'kopie.ifc' };
   const copyHandle = makeHandle(copy);
   installPicker(() => Promise.resolve(copyHandle));
@@ -463,8 +402,6 @@ const geweigerd = () => new DOMException(
   truthy('3c3 de nieuwe wijziging staat in de kopie', copy.data.includes('Naar de kopie'));
   eq('3c3 geen kiezer of melding bij direct opslaan', [pickerCalls, S().ui.notifications.length], [0, 0]);
 
-  // 3c4 Wijzigen terwijl de terugvalkiezer openstaat: de opgeslagen momentopname maakt de latere
-  // wijziging niet schoon. Het nieuwe doel wordt wel onthouden voor de volgende Ctrl+S.
   S().addTask({ name: 'Voor de kiezer' });
   useAppStore.setState({ filePath: 'project.ifc', fileHandle: handle });
   installPicker(async () => { S().addTask({ name: 'Tijdens de kiezer' }); return copyHandle; });
@@ -472,7 +409,6 @@ const geweigerd = () => new DOMException(
   eq('3c4 nieuwe wijziging blijft dirty, kopie is wel het opslagdoel', [S().isDirty, S().fileHandle === copyHandle], [true, true]);
   truthy('3c4 de kopie bevat alleen de momentopname', copy.data.includes('Voor de kiezer') && !copy.data.includes('Tijdens de kiezer'));
 
-  // 3c5 Gewoon annuleren van Opslaan als, zonder eerdere schrijffout: stil en gewijzigd.
   S().newDocument();
   S().addTask({ name: 'Annuleren' });
   installPicker(() => Promise.reject(new DOMException('Geannuleerd', 'AbortError')));
@@ -480,10 +416,6 @@ const geweigerd = () => new DOMException(
   await S().saveFileAs();
   eq('3c5 annuleren zonder schrijffout meldt geen fout en wist dirty niet', [S().ui.notifications.length, S().isDirty, S().fileHandle], [0, true, null]);
 
-  // 3d NotAllowedError: de app behandelt dit BEWUST als weigering door de omgeving (embedded webview
-  // zonder schrijfrecht; check-web-save-fallback §1 en §7) en levert het project als download, met
-  // een uitleg. Dat is geen stille successtatus: het bestand op de oude plek blijft ongewijzigd, de
-  // download bevat het project en de melding zegt waar het bestand staat.
   resetWebWriteRefusalForTests();
   const na: HandleState = { data: OUD, writeError: geweigerd };
   const handleNa = makeHandle(na);
@@ -501,8 +433,6 @@ const geweigerd = () => new DOMException(
   eq('3d het bestand achter de handle is ongewijzigd', na.data, OUD);
   eq('3d de handle is daarna geen opslagdoel meer (volgende Ctrl+S schrijft niet stil naar de oude plek)', S().fileHandle, null);
 
-  // 3e Het backendcontract bewaart de echte exception uit elke schrijffase; de store kan zo vóór
-  // de kiezer melden wat er misging. Geen van deze fouten latcht de omgeving naar downloads.
   resetWebWriteRefusalForTests();
   for (const phase of ['createWritable', 'write', 'close'] as const) {
     for (const name of ['NoModificationAllowedError', 'NotFoundError', 'QuotaExceededError']) {
@@ -517,8 +447,6 @@ const geweigerd = () => new DOMException(
   const abort: HandleState = { data: OUD, writeError: () => new DOMException('Geannuleerd', 'AbortError') };
   eq('3e annulering blijft false in het backendcontract', await saveToRefWeb({ kind: 'handle', handle: makeHandle(abort) }, 'NIEUW'), false);
   eq('3e geweigerde toestemming blijft false in het backendcontract', await saveToRefWeb({ kind: 'handle', handle: makeHandle({ data: OUD, permission: 'denied' }) }, 'NIEUW'), false);
-  // 3f Na de echte schrijffout kan de terugval alsnog een download worden (SecurityError bij de
-  // kiezer). Zowel de eerdere fout als de downloadlocatie worden gemeld; het oude doel vervalt.
   resetBrowserSaveNoticeForTests();
   S().newDocument();
   S().addTask({ name: 'Download na schrijffout' });
@@ -536,7 +464,6 @@ const geweigerd = () => new DOMException(
   delete win.showOpenFilePicker;
 }
 
-// ═══ §4 De site ════════════════════════════════════════════════════════════════════════════════
 {
   const versions = new Map<string, string[]>([['p1', [OUD]]]);
   let saveCalls = 0;
@@ -548,7 +475,6 @@ const geweigerd = () => new DOMException(
   };
   win.openaecHost = { storage: failing };
 
-  // 4a Opslaan als → "Opslaan op de site" → de site weigert.
   resetSiteAskers();
   setSiteSaveAsker(async () => ({ kind: 'site', name: 'Nieuw.ifc' }));
   S().newDocument();
@@ -558,14 +484,11 @@ const geweigerd = () => new DOMException(
   });
   eq('4a de site kreeg één opslagpoging', saveCalls, 1);
 
-  // 4b Opslaan naar een bestaand site-bestand → de site weigert (aanvulling op check-site-storage G4).
   useAppStore.setState({ filePath: 'Project.ifc', siteFileId: 'p1', siteFileVersion: 'v1' });
   await eistMislukt('4b site Opslaan, de site weigert', () => S().saveFile(), {
     target: () => versions.get('p1'), targetBefore: [OUD], detail: /Geen schrijfrecht/,
   });
 
-  // 4c Een lokale browserhandle faalt vóór de site-vraag; ook als daarna de site weigert blijft
-  // het één foutmelding, met de reden van die laatste poging en zonder opslagstatus te wijzigen.
   S().newDocument();
   S().addTask({ name: 'Lokale kopie naar de site' });
   const local: HandleState = { data: OUD, writeError: vergrendeld };

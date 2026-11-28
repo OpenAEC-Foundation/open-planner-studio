@@ -1,9 +1,3 @@
-// Groeperen en sorteren op Resourcetype (issue #173): het scherm moet de tweelaagse indeling van het
-// rapport Resourcediagram kunnen nabouwen — eerst een band per resourcetype in de VASTE volgorde van
-// dat rapport (arbeid, ploeg, onderaannemer, materieel, materiaal), daaronder per resource. Een taak
-// met resources van twee typen staat, net als bij groeperen op resource, onder beide typebanden.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { computeViewRows, type ViewContext, type ViewRow, type ViewRowOpts } from '@/engine/view/visibleRows';
 import { RESOURCE_TYPE_BAND_ORDER as REPORT_ORDER } from '@/engine/reports/resourceGantt';
@@ -33,7 +27,6 @@ const resources = [
   res('r-jan', 'Jan', 'LABOR'),
   res('r-ploeg', 'Ploeg', 'CREW'),
 ];
-// t-graven: materieel; t-storten: arbeid + materiaal; t-ploeg: ploeg; t-leeg: niets.
 const assignments = [
   asg('t-graven', 'r-kraan'),
   asg('t-storten', 'r-beton'), asg('t-storten', 'r-jan'),
