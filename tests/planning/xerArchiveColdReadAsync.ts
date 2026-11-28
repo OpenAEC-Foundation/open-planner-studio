@@ -1,4 +1,3 @@
-// Kindproces B-officieel voor X9: alleen de publieke asynchrone IFC-ingang mag de lazy XER-lezer laden.
 import { readFileSync } from 'node:fs';
 import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { decodeXerSourceArchive, sha256Hex } from '@/services/xerSourceArchive';

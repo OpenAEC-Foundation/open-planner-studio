@@ -41,8 +41,6 @@ function importFixture(): ImportResult {
     '%E',
   ]));
   if (isMultiDocumentImport(opened)) throw new Error('completed suspend/resume fixture moet precies één project openen');
-  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
-  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
   setConvention(opened, 'p6CompletedDataDateWindow', true);
   setConvention(opened, 'p6CompletedLoeActualFinish', true);
   return opened;
@@ -141,9 +139,6 @@ eq('XER completed suspend/resume positive: geldige P6-vorm opent de completed-wi
   scheduled: {
     earlyStart: '2026-08-17T10:00',
     earlyFinish: '2026-08-17T10:00',
-    // p6CompletedLateFromRemainingWindow (diagnose laag 1, klasse (i), default aan voor XER): een
-    // voltooide taak zonder opvolgers staat aan de late zijde ook op de statusdatumklem —
-    // identiek aan de forward-window hierboven, i.p.v. het historische actual-venster.
     lateStart: '2026-08-17T10:00',
     lateFinish: '2026-08-17T10:00',
     earlyFinishAtOrAfterEarlyStart: true,
@@ -219,8 +214,6 @@ const rejectionCases: Array<{
     },
     want: { eligible: false, reason: 'hasSuspendResume' },
   },
-  // Rekenprofielen baan B: de poort is conventie B3 `p6CompletedDataDateWindow`. Twee armen:
-  // expliciet uit (wint van de tijdelijke bronvertaling) en bron weg (vertaling zet haar niet aan).
   {
     label: 'conventie B3 expliciet uit',
     mutate: imported => {

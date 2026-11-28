@@ -1,8 +1,3 @@
-/**
- * X6-contract: de lezer projecteert P6-resources/toewijzingen zonder de bestandsbrede bronrijen
- * te kopiëren. Breuken die dit vangt: TASKRSRC negeren, resource/rol-id's mengen, material-rate
- * als percentage interpreteren, curvepunten weggooien, of mutable parserrijen delen.
- */
 import { readXER } from '@/services/xer/xerReader';
 import { parseXerTables } from '@/services/xer/xerTables';
 import { isMultiDocumentImport } from '@/services/importTypes';
@@ -40,7 +35,6 @@ function rejectsMutation(label: string, mutate: () => void): void {
   }
 }
 
-/** Een clone-regressie mag deze contracttest niet vóór zijn diagnostiek doen crashen. */
 function mutatesProjectView(label: string, mutate: () => void): void {
   checks++;
   try {
@@ -55,13 +49,7 @@ function bytes(lines: readonly string[]): Uint8Array {
 }
 
 const curveFields = Array.from({ length: 21 }, (_, index) => `pct_usage_${index}`);
-// Exacte contour-engine-tabel (CONTOUR_SHAPE_VALUES.BELL): bewust NIET afgerond of herschaald, want
-// `matchCurveValues` matcht op exacte tabelwaarden (tolerantie 1e-6). `curv_name` ('Klok') is met
-// opzet GEEN P6-curvenaam — dit bewijst dat de exacte-tabelmatch de naam-terugval niet nodig heeft.
 const bell = [...CONTOUR_SHAPE_VALUES.BELL];
-// Lineaire aanloop-ramp die GEEN van de acht contour-engine-tabellen exact raakt (front-loaded
-// vorm, maar 6/4 in plaats van FRONT_LOADED's eigen 6.5/3.5) — bewijst de P6_NAME_TO_CURVE-
-// naamterugval: alleen leesbaar via `curv_name` ('Front Loaded'), nooit via een tabelmatch.
 const frontLoadedRamp = [0, 6, 6, 6, 6, 6, 6, 6, 6, 6, 6, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4];
 const fixture = bytes([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
@@ -238,16 +226,9 @@ if (isMultiDocumentImport(opened)) {
     taskResourceIds: opened.tasks.filter(task => !task.isSummary).map(task => [task.id, task.resourceIds]),
   }, {
     assignments: [
-      // C-BELL matcht de contour-engine-tabel EXACT ⇒ `matchCurveValues` beslist, `curv_name`
-      // ('Klok') is geen P6-naam en wordt niet geraadpleegd.
       { taskId: 'T1', resourceId: 'xer-resource:42', unitsPerDay: 0.5, curve: 'BELL' },
-      // Sinds F5b is T2 een urentaak (alleen uren §3.10, T15): het tempo per uur telt met de dag van de
-      // taak zelf (8 u), niet met de resourcekalender (10 u). 3 kg/u × 8 u = 24 kg per dag, en over de
-      // ene dag van de taak 24 kg = `target_qty` (vroeger 30 kg).
       { taskId: 'T2', resourceId: 'xer-resource:MAT', unitsPerDay: 24 },
       { taskId: 'T3', resourceId: 'xer-role:42', unitsPerDay: 0.25 },
-      // C-RAMP matcht GEEN tabel exact ⇒ `matchCurveValues` geeft undefined, de OPS-curve komt
-      // uitsluitend uit de `P6_NAME_TO_CURVE['Front Loaded']`-terugval.
       { taskId: 'T4', resourceId: 'xer-resource:42', unitsPerDay: 0.5, curve: 'FRONT_LOADED' },
     ],
     taskResourceIds: [

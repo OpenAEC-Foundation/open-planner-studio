@@ -1,4 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { explainOpenXerLoeTargetSpanEligibilityResolved } from '@/engine/scheduler/p6OpenLoeTargetSpanTrace';
@@ -24,7 +23,6 @@ function eq(label: string, got: unknown, want: unknown): void {
 
 const workWeek = '(0||CalendarData()(    (0||DaysOfWeek()(      (0||1()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||2()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||3()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||4()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||5()(        (0||0(s|08:00|f|12:00)())        (0||1(s|13:00|f|17:00)())))      (0||6()())      (0||7()())))    (0||Exceptions()())))';
 
-/** Kleine raw-XER-vorm uit Ashspace: SS naar open LOE, FF naar opvolger, geen actuals. */
 interface FixtureOptions {
   targetStart?: string;
   targetEnd?: string;
@@ -132,8 +130,6 @@ if (result.error) throw new Error(result.error);
 const solved = result.tasks.get(loe.id);
 if (!solved) throw new Error('solver mist open LOE');
 
-// Dit is bewust de initiële rode causale eis: de uitgaande FF is geen eigen finish-driver in de
-// generieke hammockroute, dus alleen een geverifieerde XER-targetspanroute mag dit doel halen.
 eq('open XER LOE: expliciet targetvenster bepaalt de eigen span', {
   es: solved.earlyStart, ef: solved.earlyFinish,
   ls: solved.lateStart, lf: solved.lateFinish,
@@ -149,7 +145,6 @@ function diagnose(input: ImportResult) {
   const candidateCalendar = new CalendarEngine(input.calendar);
   return explainOpenXerLoeTargetSpanEligibilityResolved(
     candidate,
-    // Rekenprofielen C2: de diagnose krijgt dezelfde opgeloste set als de solver.
     solveOptionsFor(input.project).schedulingOptions,
     input.sequences.filter(sequence => sequence.successorId === candidate.id),
     input.sequences.filter(sequence => sequence.predecessorId === candidate.id),
@@ -184,15 +179,9 @@ const absurdRaw = importedFixture({ rawYear: '2088' });
 eq('open XER LOE: raw early/late/float/restart/reend/driving blijven meetlat en zijn productinert',
   axes(absurdRaw), baseAxes);
 
-// Permanente echte-reader-regressie: de Ashspace-vorm bewaart XER-provenance, TT_LOE en een
-// positief expliciet targetvenster, maar een XER-kalender zonder klokbanden blijft dagmodus. De
-// uur-native targetspanroute mag dan niet openen; de gewone hammocksemantiek blijft leidend.
 const dayModeImported = importedFixture({ dayMode: true });
 const dayModeLoe = task(dayModeImported);
 const dayModeCalendar = new CalendarEngine(dayModeImported.calendar);
-// De dagmodusprojectie draagt de bronduur in hele dagen; geef de expliciete XER-bronduur hier
-// bewust weer als minuten door aan de solveringang. Zo isoleren we de uurmodusguard zónder de
-// echte readXER-provenance, taakvorm of het gelezen doelvenster te vervangen.
 dayModeLoe.time.durationMinutes = 80 * 60;
 eq('open XER LOE dagmodus: echte reader bewaart provenance en expliciet doelvenster zonder workTime', {
   profile: dayModeImported.project.schedulingProfile?.id,
@@ -250,8 +239,6 @@ for (const mutation of [
   { label: 'omgekeerd targetvenster', mutate: (_input: ImportResult, candidate: Task) => { candidate.time.scheduleStart = '2026-01-17T08:00'; }, reason: 'targetWindowNotPositive' },
   { label: 'half targetvenster', mutate: (_input: ImportResult, candidate: Task) => { candidate.time.scheduleFinish = ''; }, reason: 'missingScheduleFinish' },
   { label: 'ongeldig targetvenster', mutate: (_input: ImportResult, candidate: Task) => { candidate.time.scheduleFinish = 'geen-datum'; }, reason: 'invalidScheduleFinish' },
-  // Rekenprofielen baan B: de poort is conventie B5 `p6OpenLoeTargetSpan`. Twee armen: expliciet
-  // uit (wint van de tijdelijke bronvertaling) en bron weg (vertaling zet haar niet aan).
   { label: 'conventie B5 expliciet uit', mutate: (input: ImportResult) => { setConvention(input, 'p6OpenLoeTargetSpan', false); }, reason: 'conventionOff' },
   { label: 'andere bron', mutate: (input: ImportResult) => { withoutP6Semantics(input); }, reason: 'conventionOff' },
   { label: 'ander taaktype', mutate: (_input: ImportResult, candidate: Task) => { candidate.p6ActivityType = 'TT_Task'; }, reason: 'wrongActivityType' },

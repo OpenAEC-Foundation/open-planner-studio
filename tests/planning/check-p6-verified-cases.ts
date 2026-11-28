@@ -76,8 +76,6 @@ const EXPECTED_P6_CASES_SHA256 = '50a2eb1c8eada4ec0fe6dbeba93c53d78f7d26024bdc21
 const dataPath = join(HERE, 'cases-p6-verified.json');
 const parsed = JSON.parse(readFileSync(dataPath, 'utf-8')) as P6CasesFile;
 
-// Breuken die dit vangt: engine-uitvoer of PASS-oordelen overnemen, de tijd weggooien, of een van
-// de 13 daadwerkelijk P6-vergelijkbare cases stil verliezen.
 eq('1 precies 13 P6-vergelijkbare cases', parsed.cases.length, 13);
 eq('1a precies 27 vastgelegde activiteiten',
   parsed.cases.reduce((sum, item) => sum + item.activities.length, 0), 27);
@@ -125,8 +123,6 @@ for (const item of parsed.cases) {
   }
 }
 
-// Met de publieke bron gemount moet de generator byte-identiek reproduceren. Zonder bron blijft de
-// gecommitte data volledig gevalideerd en wordt alleen deze herkomstpariteitscheck overgeslagen.
 const sourceRoot = process.env.OPS_P6_COMPARISON;
 if (sourceRoot) {
   const generatedPath = join(mkdtempSync(join(tmpdir(), 'ops-p6-verified-')), 'cases.json');

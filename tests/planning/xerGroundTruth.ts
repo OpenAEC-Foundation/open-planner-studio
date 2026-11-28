@@ -1,12 +1,3 @@
-/**
- * Onafhankelijke XER-grondwaarheidscan voor de fidelitymeetlat.
- *
- * Dit is bewust een minimale tweede parser: geen import uit `src/services/xer`, geen gedeelde
- * tokenizer, veldkaart, datumparser of encodinghelper. De latere productielezer kan daardoor niet
- * tegelijk met zijn eigen meetlat dezelfde fout gaan maken. Alleen TASK-%T/%F/%R en de expliciet
- * toegestane P6-orakelvelden worden gelezen.
- */
-
 import type { XerScannerPrecisionFacts } from './xerFidelityTypes';
 
 export type XerGroundTruthEncoding = 'utf-8' | 'utf-16le' | 'utf-16be' | 'windows-1252';
@@ -21,10 +12,8 @@ export interface XerGroundTruthTask {
   taskCode: string;
   statusCode: string;
   axes: Record<XerFidelityAxis, string | number | null>;
-  /** Ruwe secondencomponent per datumas (`null` = de broncel had geen secondencomponent). */
   rawDateSeconds: Record<XerDateFidelityAxis, string | null>;
   drivingPath: boolean | null;
-  /** Niet-lege effectieve broncellen na statussemantiek; parsefouten staan apart in `errors`. */
   presentAxes: Record<XerFidelityAxis, boolean>;
 }
 
@@ -32,11 +21,8 @@ export interface XerGroundTruth {
   encoding: XerGroundTruthEncoding;
   projects: Set<string>;
   tasks: XerGroundTruthTask[];
-  /** Niet-lege onparseerbare waarden en ontbrekende verplichte identiteit zijn fataal. */
   errors: string[];
-  /** Niet-fatale expliciete formaatkeuzes die de onafhankelijke scanner niet stil mag maken. */
   numberFormatIssues: string[];
-  /** Apart gepinde scannerfeiten; geen van deze waarden wordt product- of solverinvoer. */
   precision: XerScannerPrecisionFacts;
 }
 
@@ -73,7 +59,6 @@ function decodeXer(bytes: Uint8Array): { text: string; encoding: XerGroundTruthE
   }
 }
 
-/** Canonieke minuutstring; leeg is niet meetbaar, niet-leeg maar ongeldig is een scannerfout. */
 function parseOracleDate(
   raw: string | undefined,
   taskId: string,
@@ -236,8 +221,6 @@ function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/** P6-float staat in uren; vermenigvuldigen met 60 behoudt halve/fractionele minuten. Er is
- * bewust geen integerafronding of epsilonpad. */
 function parseFloatMinutes(
   raw: string | undefined,
   taskId: string,
@@ -316,9 +299,6 @@ function buildTask(
   if (statusCode && !KNOWN_STATUS_CODES.has(normalizedStatus)) {
     errors.push(`TASK ${taskId}/status_code: onbekende waarde ${JSON.stringify(statusCode)}`);
   }
-  // Deze scanner is uitsluitend de rauwe XER-meetlat. Ook op een completed activiteit zijn
-  // early/late/float opgeslagen P6-uitvoer, nooit reader- of solverinvoer. Actuals blijven
-  // afzonderlijke toegestane bronvelden in de productielezer; ze normaliseren het orakel niet.
   const start = parseOracleDate(row.get('early_start_date'), taskId, 'early_start_date', errors);
   const finish = parseOracleDate(row.get('early_end_date'), taskId, 'early_end_date', errors);
   const lateStart = parseOracleDate(row.get('late_start_date'), taskId, 'late_start_date', errors);

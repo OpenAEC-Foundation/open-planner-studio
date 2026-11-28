@@ -1,4 +1,3 @@
-// X9-compactopslag — corpusloze contracttest voor een zelfstandig, uit ruwe bytes herbouwd archief.
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { archiveDropped } from './xerArchiveFallbackAssert';
 import type { XerArchiveIssueCode } from '@/services/importTypes';
@@ -79,8 +78,6 @@ const parsedCompactBeta = readIFC(compactBetaIfc);
 
 const escapeIfcText = (value: string): string => value.replace(/'/g, "''");
 
-/** Bouw in de test zelf een echte schema-1-container om de leescompatibiliteit te bewaken.
- * Productcode schrijft dit formaat nooit meer; dit is uitsluitend een historische invoerfixture. */
 function appendLegacyExpandedContainer(ifc: string, sourceArchive: XerSourceArchive, sourceProjectId: string): string {
   const project = /#([A-Za-z0-9_]+)=IFCPROJECT\([^,]+,#([A-Za-z0-9_]+)/.exec(ifc);
   if (!project) throw new Error('Basis-IFC mist IFCPROJECT/eigenaar');
@@ -137,8 +134,6 @@ const legacyBase = writeIFC({ ...alpha, xer: undefined, xerSourceArchive: undefi
 const legacyIfc = appendLegacyExpandedContainer(legacyBase, archive, 'P-A');
 const parsedLegacy = readIFC(legacyIfc);
 
-// Eigenaarsbesluit 2026-09-24 ("openen met melding"): een ongeldig compact archief laat het project
-// openen en valt zelf weg — met het verplichte `xerArchiveIssue` (vroeger: IfcParseError).
 const rejectsCompact = (candidate: string, fragment: string, code?: XerArchiveIssueCode): boolean =>
   archiveDropped(() => readIFC(candidate), { fragment, code }).ok;
 

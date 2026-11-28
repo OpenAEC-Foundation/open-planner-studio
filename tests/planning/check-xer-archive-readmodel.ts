@@ -1,5 +1,3 @@
-// X9 reviewronde 1 — het exacte bytearchief draagt één versiegebonden, getypeerd readmodel.
-// De fixture gaat door de echte XER-reader en daarna per project door writeIFC/readIFC.
 import { Buffer } from 'node:buffer';
 import { createHash } from 'node:crypto';
 import { isMultiDocumentImport } from '@/services/importTypes';
@@ -255,10 +253,6 @@ const ifcWithMetadataBytes = (encoded: Uint8Array) => {
 };
 const ifcWithMetadataPayload = (metadataPayload: Record<string, unknown>) =>
   ifcWithMetadataBytes(new TextEncoder().encode(JSON.stringify(metadataPayload)));
-// Eigenaarsbesluit 2026-09-24 ("openen met melding"): elk correct gehasht maar inhoudelijk ongeldig
-// leesmodel liet `readIFC` vroeger GOOIEN (IfcParseError 'xer-source-archive'). Nu opent het project
-// en valt het archief weg met een verplicht `metadata-invalid`-signaal dat de specifieke
-// validatorregel noemt — de strengheid van de validator zelf is ongewijzigd, alleen de gevolgen niet.
 const metadataDropFailures: string[] = [];
 const droppedMetadata = (content: string, fragment?: string): boolean => {
   const verdict = archiveDropped(() => readIFC(content), { code: 'metadata-invalid', fragment });
@@ -269,8 +263,6 @@ const legacySelectorPayload = JSON.parse(new TextDecoder().decode(diagnosticByte
 const legacyTaskRows = (legacySelectorPayload.readModel as Record<string, unknown>)
   .taskSourceRowsByProject as Record<string, Array<Record<string, unknown>>>;
 delete legacyTaskRows['P-A'];
-// Sinds de archief-terugval gooit `readIFC` hier nooit meer; "geaccepteerd" betekent nu: het
-// archief overleeft ÉN er is geen issue-signaal.
 const legacySelectorRead = readIFC(ifcWithMetadataPayload(legacySelectorPayload));
 const legacySelectorAccepted = legacySelectorRead.xerSourceArchive !== undefined
   && legacySelectorRead.xerArchiveIssue === undefined;

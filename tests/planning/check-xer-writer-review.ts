@@ -1,37 +1,3 @@
-/**
- * Regressiegevallen uit de review van PR #393 (XER-schrijver, issue #391): de BLOKKEERT-punten.
- * Elk geval was rood vóór de fix en is groen erna.
- *
- *  R1  De OPS-eenheid geldt PER TAAK (T15, zoals de P6 XML-lezer; `xerOpsMarkers.ts`). Een definitie
- *      `OPS_TaskDurationUnit` zonder waarden verandert niets aan de planning. Een activiteit zonder waarde
- *      (later in P6 toegevoegd) leest als op main, en de andere activiteiten blijven dagtaken (ronde 2,
- *      punt A). Een OPS-definitie is nooit een eigen veld van de gebruiker, net als in de P6 XML-lezer.
- *  RB  Een hernummerde kalender (P6 nummert `clndr_id` om) houdt haar eigen werktijd: de kalenders lezen
- *      met de gewone regels, zonder OPS-markering die naar een kalendernummer wijst (ronde 2, punt B).
- *  RD  Een vaste resourcecapaciteit blijft na heropenen vast: *Max. eenheden* bepaalt daarna weer de
- *      capaciteit (ronde 2, punt D; `OPS_FlatCapacity`).
- *  RE  De standaardwerkregel van het project komt terug (ronde 2, punt E2; `OPS_DefaultWorkRule`).
- *  R2  Een bestaande P6-projectcode met `OPS:` blijft staan; een project zonder code krijgt geen
- *      `OPS:`-code in de XER.
- *  R3  De geërfde werkregel (projectstandaard) gaat mee als `duration_type`.
- *  R4  Een vaste resourcecapaciteit gaat mee als RSRCRATE `max_qty_per_hr`, ook zonder tarief.
- *  R5  Afgeleid restwerk = restduur × inzet, niet begroot − 0.
- *  R6  Een werkende uitzondering over middernacht houdt haar ochtenddeel op de volgende dag.
- *  R7  Een WBS-summary-activiteit (`TT_WBS`) blijft `TT_WBS`.
- *  R8  Activiteit-ID's blijven na normalisatie uniek en binnen 40 tekens; idem resource- en WBS-codes.
- *  R9  Ronde 3, punt 1: een scalaire kalender komt na heropenen terug als urenkalender (knownbug 466); de
- *      export meldt dat (`calendarKinds`), getoetst op de echte route zonder de kalendersoort gelijk te trekken.
- *  R10 Ronde 3, punt 2: een geërfde werkregel blijft geërfd (`OPS_InheritedWorkRule`), zolang
- *      `duration_type` nog het geschreven token draagt.
- *  R11 Ronde 3, punt 3: met OPS-markering rondt de lezer een bronbreuk niet af als het record vervallen is.
- *  R12 Ronde 4: kiest de gebruiker bij een taak uit P6 *Projectstandaard*, dan schrijft de export de actuele
- *      effectieve regel, niet het oude P6-duurtype (`p6DurationType`).
- *  R14 Eindreview: een geïmporteerde mijlpaal mét duur (vlag naast werkminuten, `mppReader.ts`) wordt een gewone
- *      activiteit met zijn duur en rest, en de melding noemt dat. Een nulduur-mijlpaal blijft `TT_Mile`/`TT_FinMile`.
- *  R15 Eindreview: de markering Verplicht kent P6 niet; de melding noemt verplichte mijlpalen.
- *  R16 Eindreview: definities van activiteitcodes en eigen velden gaan niet mee; de melding noemt ze altijd, los van
- *      taakwaarden. Gemengd gebruik (Discipline ingevuld, Locatie niet) mag die regel niet onderdrukken.
- */
 import './domStub';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { writeXER, type XerWriteInput } from '@/services/xer/xerWriter';
@@ -76,15 +42,12 @@ function read(bytes: Uint8Array): XerReadResult {
   return parsed;
 }
 function xer(lines: string[]): Uint8Array { return enc(`${lines.join('\r\n')}\r\n`); }
-/** De rijen van één tabel als cellenkaarten. */
 function rowsOf(bytes: Uint8Array, name: string): Record<string, string>[] {
   return (parseXerTables(bytes).tables.get(name)?.rows ?? []).map(r => ({ ...r.cells }));
 }
-/** Een geïmporteerde planning zonder bron-/diagnosevelden, voor een "leest precies gelijk"-vergelijking. */
 function planOf(r: ImportResult): unknown {
   return {
     project: { ...r.project, createdAt: undefined, modifiedAt: undefined },
-    // Eigen-veldwaarden op taken tellen hier niet: die horen juist zichtbaar te blijven (R1c/R1f).
     calendar: r.calendar, calendars: r.resourceCalendars ?? [], tasks: r.tasks.map(t => ({ ...t, customFields: undefined })), sequences: r.sequences,
     resources: r.resources, assignments: r.assignments,
   };
@@ -110,18 +73,14 @@ const UDFTYPE_DEF = [
   '%R\t77\tTASK\tuser_field_77\tOPS_TaskDurationUnit\tFT_TEXT',
 ];
 
-// ── R1: de OPS-eenheid per taak ──────────────────────────────────────────────────────────────────
 {
   const plain = read(xer([...BASE, '%E']));
   const withDef = read(xer([...BASE, ...UDFTYPE_DEF, '%E']));
   const ochtend = withDef.tasks.find(t => t.name === 'Ochtend')!;
   eq('R1a urentaak blijft urentaak (eenheid, minuten)', [ochtend.time.durationUnit, ochtend.time.durationMinutes], ['hours', 240]);
   eq('R1b planning gelijk aan hetzelfde bestand zonder de UDF-definitie', planOf(withDef), planOf(plain));
-  // Herschreven (oude opzet: "de definitie blijft zichtbaar als eigen veld"). Een OPS-definitie is nooit een
-  // eigen veld van de gebruiker, net als in de P6 XML-lezer; de planning verandert er niet door (R1b).
   ok('R1c een OPS-definitie is geen eigen veld', !(withDef.customFieldDefs ?? []).some(d => d.name === 'OPS_TaskDurationUnit'));
 
-  // Een OPS-export waarin één activiteit geen eenheidswaarde heeft (in P6 toegevoegd, of de waarde gewist).
   const project = createDefaultProject();
   project.id = 'proj-r1'; project.name = 'R1'; project.startDate = '2026-06-01';
   const calendar: WorkCalendar = {
@@ -135,14 +94,11 @@ const UDFTYPE_DEF = [
   const lines = written.text.split('\r\n');
   const udfValueStart = lines.indexOf('%T\tUDFVALUE');
   ok('R1d de export draagt markerwaarden', udfValueStart > 0);
-  // Haal de OPS-waarden van de eerste taak weg, zoals bij een activiteit die in P6 is toegevoegd.
   const taskValue = lines.findIndex((l, i) => i > udfValueStart && l.startsWith('%R\t') && l.split('\t')[1] === '900000001');
   const firstTaskId = lines[taskValue].split('\t')[2];
   const isValueOfFirstTask = (l: string, i: number) => i > udfValueStart && l.startsWith('%R\t') && l.split('\t')[2] === firstTaskId;
   const partial = lines.filter((l, i) => !isValueOfFirstTask(l, i)).join('\r\n');
-  // Alleen de eenheidswaarde weg (de andere OPS-waarden van die taak blijven): de maat leest als op main.
   const unitOnly = lines.filter((_, i) => i !== taskValue).join('\r\n');
-  // Hetzelfde bestand zonder UDFTYPE/UDFVALUE: zo leest de lezer het als gewone P6-XER (zoals op main).
   const stripped: string[] = [];
   let skip = false;
   for (const l of lines) {
@@ -153,22 +109,14 @@ const UDFTYPE_DEF = [
   const plainRead = read(enc(stripped.join('\r\n')));
   const full = read(written.bytes);
   const byName = (r: ImportResult, name: string) => r.tasks.find(t => t.name === name);
-  // Herschreven (oude opzet: "onvolledige markerwaarden ⇒ het hele project leest als gewone P6-XER"). Nu per
-  // taak (ronde 2, punt A): de taak zonder waarde leest precies als zonder OPS-UDF's.
-  // Herschreven in ronde 3: de taak heeft nu GEEN enkele OPS-waarde (zoals een in P6 toegevoegde activiteit).
-  // Met alleen de eenheid weg erft ze nog de werkregel (`OPS_InheritedWorkRule`, punt 2): zie R1e3.
   eq('R1e taak zonder OPS-waarden ⇒ leest als op main', byName(partialRead, 'Een'), byName(plainRead, 'Een'));
   eq('R1e3 alleen de eenheid weg ⇒ de maat leest als op main', byName(read(enc(unitOnly)), 'Een')?.time, byName(plainRead, 'Een')?.time);
   eq('R1e2 taak zonder markerwaarde ⇒ urenmaat', byName(partialRead, 'Een')?.time.durationUnit, 'hours');
-  // Herschreven (oude opzet: "onvolledige markerwaarden ⇒ de UDF's blijven zichtbaar"). Nu: de andere taak
-  // merkt niets van de taak zonder waarde (ronde 2, punt A).
   eq('R1f de andere taak blijft dagtaak, gelijk aan de volledige export', byName(partialRead, 'Twee'), byName(full, 'Twee'));
-  // Volledig: wordt herkend (dagtaak blijft dagtaak) en de markeringen zijn geen eigen veld.
   eq('R1g volledige markerwaarden ⇒ dagtaak blijft dagtaak', full.tasks.find(t => t.name === 'Een')?.time.durationUnit, 'days');
   ok('R1h volledige markerwaarden ⇒ geen eigen veld', !(full.customFieldDefs ?? []).some(d => d.name.startsWith('OPS_')));
   ok('R1h2 onvolledige markerwaarden ⇒ geen eigen veld', !(partialRead.customFieldDefs ?? []).some(d => d.name.startsWith('OPS_')));
 
-  // Ronde 2, punt A: een activiteit die iemand in P6 toevoegt (een nieuwe TASK-rij, zonder OPS-waarde).
   const taskHeader = lines.findIndex(l => l === '%T\tTASK');
   const taskFields = lines[taskHeader + 1].split('\t').slice(1);
   const firstTask = lines[taskHeader + 2].split('\t').slice(1);
@@ -180,7 +128,6 @@ const UDFTYPE_DEF = [
   eq('A2 de OPS-taken blijven dagtaken van 3 d', ['Een', 'Twee'].map(name => [byName(newRead, name)?.time.durationUnit, byName(newRead, name)?.time.scheduleDuration]), [['days', 3], ['days', 3]]);
 }
 
-// ── Ronde 2, punt B: hernummerde kalender ────────────────────────────────────────────────────────
 {
   const project = createDefaultProject();
   project.id = 'proj-rb'; project.name = 'Hernummerd'; project.startDate = '2026-06-01';
@@ -198,7 +145,6 @@ const UDFTYPE_DEF = [
   });
   const written = writeXER({ project, calendar, calendars: [calendar, shortFriday], tasks: [task('Gewoon'), task('Vrijdag', shortFriday.id)],
     sequences: [], resources: [], assignments: [], exportDate: '2026-10-20' });
-  // P6 nummert de kalenders om: hier wisselen de twee nummers van plaats, in elke tabel.
   const ids = rowsOf(written.bytes, 'CALENDAR').map(r => r.clndr_id);
   eq('RB0 twee kalenders geschreven', ids.length, 2);
   const swap = new Map([[ids[0], ids[1]], [ids[1], ids[0]]]);
@@ -221,7 +167,6 @@ const UDFTYPE_DEF = [
     vrijdag?.time.durationUnit, vrijdag?.time.scheduleDuration], ['Korte vrijdag', 'days', 5]);
 }
 
-// ── R2: projectcode met OPS: ─────────────────────────────────────────────────────────────────────
 {
   const bytes = xer(BASE.map(l => l.replace('\tPRJ\t', '\tOPS:BRUG\t')).concat('%E'));
   const r = read(bytes);
@@ -229,7 +174,6 @@ const UDFTYPE_DEF = [
   const w = writeXER({ project: r.project, calendar: r.calendar, calendars: r.resourceCalendars ?? [], tasks: r.tasks, sequences: r.sequences,
     resources: r.resources, assignments: r.assignments, projectCode: documentProjectCode(r.project, r.xer), exportDate: '2026-10-20' });
   eq('R2b de export schrijft OPS:BRUG terug', rowsOf(w.bytes, 'PROJECT')[0].proj_short_name, 'OPS:BRUG');
-  // Een project zonder code: geen OPS:-code, en na heropenen toont de app alleen de naam.
   const project = createDefaultProject();
   project.id = 'proj-zonder'; project.name = 'Brug Zuid';
   const calendar: WorkCalendar = { id: 'cal', name: 'Werkweek', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [] };
@@ -242,7 +186,6 @@ const UDFTYPE_DEF = [
   eq('R2d heropend: documentnaam is de projectnaam', nameWithProjectCode(back.project.name, documentProjectCode(back.project, back.xer)), 'Brug Zuid');
 }
 
-// ── Gedeeld synthetisch project voor R3–R8 ──────────────────────────────────────────────────────
 function baseInput(): XerWriteInput & { tasks: Task[]; resources: Resource[]; assignments: ResourceAssignment[]; calendars: WorkCalendar[] } {
   const project = createDefaultProject();
   project.id = 'proj-rv'; project.name = 'Review'; project.startDate = '2026-06-01'; project.statusDate = '2026-06-08';
@@ -255,21 +198,17 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
     priority: 500, parentId: null, childIds: [], resourceIds: [], time: createDefaultTaskTime('2026-06-01', days), ...extra };
 }
 
-// ── R3: geërfde werkregel ───────────────────────────────────────────────────────────────────────
 {
   const input = baseInput();
   input.project.defaultWorkRule = 'FIXED_WORK';
   input.tasks.push(leaf('Geërfd', 5));
   const w = writeXER(input);
   eq('R3a duration_type = Vast werk (DT_FixedQty)', rowsOf(w.bytes, 'TASK')[0].duration_type, 'DT_FixedQty');
-  // Herschreven (oude opzet: na heropenen een EIGEN werkregel FIXED_WORK). Ronde 3, punt 2: de taak erft weer
-  // de projectstandaard; de effectieve regel blijft Vast werk.
   const r3 = read(w.bytes);
   const r3task = r3.tasks.find(t => t.name === 'Geërfd');
   eq('R3b heropend: geërfd, effectief FIXED_WORK', [r3task?.workRule, r3task && effectiveWorkRule(r3task, r3.project.defaultWorkRule)], [undefined, 'FIXED_WORK']);
 }
 
-// ── R4: vaste capaciteit ─────────────────────────────────────────────────────────────────────────
 {
   const input = baseInput();
   input.tasks.push(leaf('Werk', 5));
@@ -285,7 +224,6 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   eq('R4c heropend: maxUnits 3 en 2', [back.resources.find(r => r.name === 'Ploeg')?.maxUnits, back.resources.find(r => r.name === 'Kraan')?.maxUnits], [3, 2]);
 }
 
-// ── R5: afgeleid restwerk ────────────────────────────────────────────────────────────────────────
 {
   const input = baseInput();
   const t = leaf('Half', 10, { status: 'STARTED' });
@@ -299,12 +237,10 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   const back = read(w.bytes);
   const a = back.assignments[0];
   const backTask = back.tasks.find(x => x.name === 'Half')!;
-  // Effectief restwerk zoals de werkregelbrug het ziet (`remainingWorkOf`): het veld, anders restduur × inzet.
   const effectiveRemaining = a?.remainingWorkMinutes ?? remainingMinutesOf(backTask, { hoursPerDay: 8 }) * (a?.unitsPerDay ?? 0);
   eq('R5b heropend: effectief restwerk 2400 min, verricht 2400 min', [effectiveRemaining, a?.actualWorkMinutes], [2400, 2400]);
 }
 
-// ── R6: werkende uitzondering over middernacht ───────────────────────────────────────────────────
 {
   const input = baseInput();
   input.calendar = {
@@ -322,7 +258,6 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   eq('R6b werkminuten za+zo na heropenen', minutes(back.calendar), before);
 }
 
-// ── R7: WBS-summary-activiteit ───────────────────────────────────────────────────────────────────
 {
   const input = baseInput();
   input.tasks.push(leaf('Samenvattend', 5, { p6ActivityType: 'TT_WBS' }));
@@ -331,7 +266,6 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   eq('R7b heropend: TT_WBS', read(w.bytes).tasks.find(t => t.name === 'Samenvattend')?.p6ActivityType, 'TT_WBS');
 }
 
-// ── R8: codes na normalisatie uniek en binnen de grens ───────────────────────────────────────────
 {
   const input = baseInput();
   const long = 'X'.repeat(40);
@@ -349,7 +283,6 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   eq('R8e heropend: vier taken', back.tasks.filter(t => t.childIds.length === 0).length, 4);
 }
 
-// ── Ronde 2, C: materiaalcapaciteit op dezelfde uurschaal als de materiaalinzet ─────────────────
 {
   const input = baseInput();
   const t = leaf('Storten', 2);
@@ -368,14 +301,12 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   eq('C2 capaciteitsstap: capaciteit/inzet in de XER = 40/40', rate('Zand') / use('Zand'), 1);
 }
 
-// ── Ronde 2, E1: de effectieve projectstandaard, ook zonder eigen keuze ──────────────────────────
 {
   const input = baseInput();
   input.tasks.push(leaf('Gewoon', 3));
   eq('E1 zonder projectstandaard: def_duration_type = DT_FixedDrtn (FIXED_DURATION_RATE)', rowsOf(writeXER(input).bytes, 'PROJECT')[0].def_duration_type, 'DT_FixedDrtn');
 }
 
-// ── Ronde 2, punt D: een vaste capaciteit blijft vast ───────────────────────────────────────────
 {
   const input = baseInput();
   input.tasks.push(leaf('Werk', 5));
@@ -390,7 +321,6 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   eq('D2 Max. eenheden naar 5 ⇒ capaciteit 5', maxUnitsOn({ ...res(back, 'Ploeg'), maxUnits: 5 }, '2026-06-03'), 5);
   eq('D3 materiaal: vaste capaciteit 80 per dag, geen stappen', [res(back, 'Beton').maxUnits, res(back, 'Beton').availabilitySteps], [80, undefined]);
   eq('D4 stappen blijven stappen', res(back, 'Kraan').availabilitySteps, [{ from: '2026-06-01', maxUnits: 1 }, { from: '2026-06-08', maxUnits: 2 }]);
-  // In P6 gewijzigd: de rij draagt niet meer de geschreven capaciteit ⇒ zoals elk ander bestand (een stap).
   const ploegId = rowsOf(w.bytes, 'RSRC').find(r => r.rsrc_name === 'Ploeg')!.rsrc_id;
   let fields: string[] = [];
   const edited = w.text.split('\r\n').map(line => {
@@ -402,10 +332,6 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   eq('D5 capaciteit in P6 gewijzigd ⇒ een stap, zoals op main', res(read(enc(edited)), 'Ploeg').availabilitySteps?.map(s => s.maxUnits), [4]);
 }
 
-// ── Capaciteitsstappen van materiaal (fixronde #393) ─────────────────────────────────────────────
-// OPS kent de capaciteit van materiaal per DAG, XER per uur: de schrijver deelt elke stap door de uren per
-// dag (review ronde 2, punt C). Zonder meer las `readXER` de stappen per uur terug: 40 en 80 per dag
-// werden 5 en 10.
 {
   const input = baseInput();
   input.tasks.push(leaf('Storten', 5));
@@ -423,8 +349,6 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   eq('M2 een breuk per dag komt exact terug', res(back, 'Zand').availabilitySteps?.map(s => s.maxUnits), [50, 100 / 3]);
   eq('M3 Max. eenheden blijft per dag', res(back, 'Beton').maxUnits, 80);
   ok('M3b de OPS-velden zijn geen eigen veld', !(back.customFieldDefs ?? []).some(d => d.name.startsWith('OPS_')));
-  // In P6 gewijzigd: een rij draagt niet meer de geschreven capaciteit ⇒ die rij leest zoals op main (per uur,
-  // ongeschaald); de andere rij houdt haar dagwaarde.
   let fields: string[] = [];
   let changed = false;
   const edited = w.text.split('\r\n').map(line => {
@@ -439,7 +363,6 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
     res(read(enc(edited)), 'Beton').availabilitySteps?.map(s => s.maxUnits), [6, 80]);
 }
 
-// ── Ronde 2, punt E2: de standaardwerkregel van het project ───────────────────────────────────────
 {
   const input = baseInput();
   input.project.defaultWorkRule = 'FIXED_WORK';
@@ -449,18 +372,15 @@ function leaf(name: string, days: number, extra: Partial<Task> = {}): Task {
   const none = baseInput();
   none.tasks.push(leaf('Gewoon', 5));
   eq('E2b zonder eigen keuze: geen projectstandaard na heropenen', read(writeXER(none).bytes).project.defaultWorkRule, undefined);
-  // In P6 gewijzigd: `def_duration_type` draagt niet meer het geschreven token ⇒ zoals op main (geen standaard).
   const edited = w.text.replace('\tDT_FixedQty\tQT_Hour\t', '\tDT_FixedRate\tQT_Hour\t');
   ok('E2c (proef) def_duration_type gewijzigd', edited !== w.text);
   eq('E2c def_duration_type in P6 gewijzigd ⇒ geen projectstandaard', read(enc(edited)).project.defaultWorkRule, undefined);
 }
 
-// ── Ronde 3: de echte route (laden, F5, opnieuw exporteren) ─────────────────────────────────────
 interface Doc {
   project: XerWriteInput['project']; calendar: WorkCalendar; calendars: WorkCalendar[]; tasks: Task[];
   sequences: XerWriteInput['sequences'] extends readonly (infer S)[] ? S[] : never; resources: Resource[]; assignments: ResourceAssignment[];
 }
-/** Openen zoals de app: door de laadgrens (`payloadFromImport`). */
 function load(r: ImportResult): Doc {
   const p = payloadFromImport(r, null);
   return { project: p.project, calendar: p.calendar, calendars: p.calendars, tasks: p.tasks, sequences: p.sequences, resources: p.resources, assignments: p.assignments };
@@ -469,7 +389,6 @@ function importOf(input: ReturnType<typeof baseInput>): ImportResult {
   return { project: input.project, calendar: input.calendar, resourceCalendars: input.calendars, tasks: input.tasks,
     sequences: [...input.sequences], resources: input.resources, assignments: input.assignments };
 }
-/** F5. */
 function f5(doc: Doc): void {
   const error = solveProject(solveInputFor(doc.project, doc.tasks, doc.sequences, doc.calendar, doc.calendars)).error;
   if (error) diffs.push(`F5 faalt: ${error}`);
@@ -480,7 +399,6 @@ function exportDoc(doc: Doc) {
 const P6_OPTIONS = { p6CompletedLateFromRemainingWindow: true, lagCalendar: 'predecessor' as const, totalFloatMode: 'finish' as const,
   criticalDefinition: { mode: 'totalFloat' as const, thresholdHours: 0 } };
 
-// ── R9 (ronde 3, punt 1): de kalendersoort staat in de verliesmelding ───────────────────────────
 {
   const input = baseInput();
   input.project.schedulingProfile = builtInProfile('p6');
@@ -504,18 +422,14 @@ const P6_OPTIONS = { p6CompletedLateFromRemainingWindow: true, lagCalendar: 'pre
   ok('R9a (proef) de scalaire werkweek komt terug als urenkalender', changedKinds === 1);
   eq('R9b de export meldt de kalendersoort', w.loss.find(l => l.code === 'calendarKinds')?.count, changedKinds);
   ok('R9c de melding verschijnt', exportXerLossNotice(w.loss)?.detailLines?.some(line => line.messageKey === 'notifications.exportXerLossItem.calendarKinds'));
-  // Zonder gelijkstelling van de kalendersoort: wijken datums of speling af, dan staat de regel in de melding.
   ok('R9d datums wijken af ⇒ de melding noemt de kalendersoort', !differs || w.loss.some(l => l.code === 'calendarKinds'));
   notes.push(`R9: na heropenen en F5 ${differs ? 'wijken' : 'wijken niet'} datums af (${JSON.stringify(dates(doc0))} → ${JSON.stringify(dates(doc1))})`);
-  // Opnieuw exporteren: de kalender heeft nu eigen werktijdblokken, dus geen melding meer.
   eq('R9e tweede export: geen kalendersoort-melding', exportDoc(doc1).loss.find(l => l.code === 'calendarKinds'), undefined);
 }
 
-// ── R10 (ronde 3, punt 2): een geërfde werkregel blijft geërfd ──────────────────────────────────
 {
   const route = (projectDefault: 'FIXED_DURATION_RATE' | undefined) => {
     const input = baseInput();
-    // P6-profiel en een kalender met eigen werktijdblokken: dan is er geen ander verlies (R10b).
     input.project.schedulingProfile = builtInProfile('p6');
     input.project.schedulingOptions = { ...P6_OPTIONS };
     input.project.progressMode = 'RETAINED_LOGIC';
@@ -543,21 +457,18 @@ const P6_OPTIONS = { p6CompletedLateFromRemainingWindow: true, lagCalendar: 'pre
     const back = doc1.tasks.find(t => t.name === 'Erft')!;
     eq(`R10a ${label}: na heropenen geen eigen werkregel`, back.workRule, undefined);
     eq(`R10b ${label}: geen verlies`, w.loss, []);
-    // Opnieuw exporteren na heropenen (vóór de wissel): hetzelfde duurtype als de eerste export.
     eq(`R10e ${label}: tweede export, zelfde duration_type`, rowsOf(exportDoc(doc1).bytes, 'TASK').map(r => r.duration_type), rowsOf(w.bytes, 'TASK').map(r => r.duration_type));
     const before = switchToFixedWork(doc0);
     const after = switchToFixedWork(doc1);
     eq(`R10c ${label}: standaard naar Vast werk ⇒ origineel urentaak van 960 min`, [before.time.durationUnit, before.time.durationMinutes], ['hours', 960]);
     eq(`R10d ${label}: standaard naar Vast werk ⇒ heropend gelijk aan het origineel`, [after.time.durationUnit, after.time.durationMinutes], [before.time.durationUnit, before.time.durationMinutes]);
   }
-  // In P6 gewijzigd: een ander duurtype ⇒ een eigen regel, zoals op main.
   const { w } = route('FIXED_DURATION_RATE');
   const edited = w.text.split('\r\n').map(line => line.startsWith('%R\t') && line.includes('\tErft\t') ? line.replace('\tDT_FixedDrtn\t', '\tDT_FixedQty\t') : line).join('\r\n');
   ok('R10f (proef) duration_type gewijzigd', edited !== w.text);
   eq('R10f duration_type in P6 gewijzigd ⇒ eigen regel zoals op main', read(enc(edited)).tasks.find(t => t.name === 'Erft')?.workRule, 'FIXED_WORK');
 }
 
-// ── R11 (ronde 3, punt 3): een bronbreuk blijft een breuk ──────────────────────────────────────
 {
   const input = baseInput();
   const uren = leaf('Uren', 2, { status: 'STARTED' });
@@ -569,7 +480,6 @@ const P6_OPTIONS = { p6CompletedLateFromRemainingWindow: true, lagCalendar: 'pre
   f5(doc0);
   const w = exportDoc(doc0);
   ok('R11a (proef) de dagtaak heeft een duurrecord', w.text.includes('target_drtn_hr_cnt'));
-  // Een ander programma zet de standaardvelden op 40,33 u duur en 12,345 u rest.
   let fields: string[] = [];
   const editedLines = w.text.split('\r\n').map(line => {
     if (line.startsWith('%F\t')) fields = line.split('\t');
@@ -591,22 +501,16 @@ const P6_OPTIONS = { p6CompletedLateFromRemainingWindow: true, lagCalendar: 'pre
     const sorted = (time: object) => Object.fromEntries(Object.entries(time).sort(([a], [b]) => a.localeCompare(b)));
     eq(`R11c ${name}: de tijd leest als zonder OPS-velden`, sorted(m.time), sorted(plain.tasks.find(t => t.name === name)!.time));
   }
-  // De route: laden en F5 geven hetzelfde einde als het bestand zonder OPS-velden.
   const docMarked = load(marked); f5(docMarked);
   const docPlain = load(plain); f5(docPlain);
   eq('R11d na laden en F5: zelfde vroeg einde als zonder OPS-velden',
     docMarked.tasks.filter(t => t.name === 'Uren' || t.name === 'Dagen').map(t => t.time.earlyFinish),
     docPlain.tasks.filter(t => t.name === 'Uren' || t.name === 'Dagen').map(t => t.time.earlyFinish));
-  // Opnieuw exporteren: de breuk gaat mee. Het standaardveld draagt de hele minuut, het record de breuk (T14,
-  // zoals P6 XML); heropenen geeft weer 2419,8 en 740,7 min.
   const again = read(exportDoc(docMarked).bytes);
   eq('R11e tweede export en heropenen: 2419,8 en 740,7 min', again.tasks.filter(t => t.name === 'Uren' || t.name === 'Dagen')
     .map(t => [t.time.durationMinutes, t.time.remainingMinutes]), [[2419.8, 740.7], [2419.8, 740.7]]);
 }
 
-// ── R12 (ronde 4): een oud P6-duurtype draait de keuze Projectstandaard niet terug ─────────────────
-// Een XER uit P6, zonder OPS-velden en zonder eigen projectstandaard; de taak staat op een bronregel. De gebruiker
-// kiest bij de taak *Projectstandaard* (`setTaskWorkRule(id, undefined)` → `settleRuleChange`), rekent en exporteert.
 for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FIXED_RATE'], ['DT_FixedDUR2', 'FIXED_DURATION_WORK']] as const) {
   const source = xer([
     ...BASE.slice(0, -2),
@@ -625,13 +529,9 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   const doc1 = load(read(w.bytes));
   const task1 = doc1.tasks.find(t => t.name === 'Bron')!;
   eq(`R12d ${token}: na heropenen erft de taak weer`, [task1.workRule, effectiveWorkRule(task1, doc1.project.defaultWorkRule)], [undefined, 'FIXED_DURATION_RATE']);
-  // Opnieuw exporteren na heropenen: hetzelfde duurtype.
   eq(`R12e ${token}: tweede export, zelfde duration_type`, rowsOf(exportDoc(doc1).bytes, 'TASK').find(r => r.task_name === 'Bron')?.duration_type, 'DT_FixedDrtn');
 }
 
-// ── R13: constraint op een samenvattingstaak (na de merge van #727) ───────────────────────────────
-// Een samenvattingstaak wordt een WBS-element; P6 kent daar geen constraint. De export meldt dat, net als
-// de P6 XML-export (`hasConstraintLoss`), in plaats van het stil te laten vallen.
 {
   const input = baseInput();
   const child = leaf('Kind', 2);
@@ -643,12 +543,10 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   child2.parentId = parent2.id;
   input.tasks.push(parent, child, parent2, child2, leaf('Los', 1, { constraint: { type: 'SNET', date: '2026-06-02' } as Task['constraint'] }));
   const w = writeXER(input);
-  // Ronde 9 (VERVOLG): de telling is per constraint; Fase 2 draagt er twee.
   eq('R13a de export telt drie constraints op samenvattingstaken', w.loss.find(l => l.code === 'summaryConstraints')?.count, 3);
   ok('R13b de constraint van de gewone taak gaat mee (cstr_type)', rowsOf(w.bytes, 'TASK').find(r => r.task_name === 'Los')?.cstr_type);
 }
 
-// ── R14: mijlpaal mét duur ───────────────────────────────────────────────────────────────────────
 {
   const project = { ...createDefaultProject(), startDate: '2026-06-01', statusDate: '2026-06-01' };
   const calendar: WorkCalendar = {
@@ -660,7 +558,6 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
     time: { ...createDefaultTaskTime('2026-06-01', days), ...time }, ...extra,
   });
   const tasks = [
-    // Dezelfde vorm als `mppReader.ts`: de vlag staat naast de werkminuten.
     milestone('Dagen', 5, {}, { durationMinutes: 2400 }),
     milestone('Uren', 5, {}, { durationMinutes: 2400, durationUnit: 'hours' }),
     milestone('Bezig', 5, {}, { durationMinutes: 2400, completion: 0.5 }),
@@ -688,7 +585,6 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   eq('R14k nulduur-mijlpalen blijven mijlpaal', [task('Start')?.isMilestone, task('Slot')?.milestoneKind], [true, 'FINISH']);
 }
 
-// ── R15: verplichte mijlpaal ─────────────────────────────────────────────────────────────────────
 {
   const project = { ...createDefaultProject(), startDate: '2026-06-01', statusDate: '2026-06-01' };
   const calendar: WorkCalendar = {
@@ -707,7 +603,6 @@ for (const [token, rule] of [['DT_FixedQty', 'FIXED_WORK'], ['DT_FixedRate', 'FI
   eq('R15d zonder verplichte mijlpaal: geen regel', write([task('Vrij', {})]).loss.some(l => l.code === 'mandatoryMilestones'), false);
 }
 
-// ── R16: definities ───────────────────────────────────────────────────────────────────────────
 {
   const definitions = (input: Partial<XerExportLossInput>) => {
     const categories = detectXerExportLoss('xer', {

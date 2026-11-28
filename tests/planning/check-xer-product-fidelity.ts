@@ -60,12 +60,6 @@ function solved(bytes: Uint8Array): XerSolvedProject {
     calendar: imported.calendar,
     calendars: imported.resourceCalendars ?? [],
     dataDate: imported.project.statusDate,
-    // Review-bevinding 5: deze harness dráágt het `cellTransitions.previouslyExact`-mechanisme —
-    // de enige plek die "exact → fout" per cel kan afvangen — maar riep `solveProject` aan zónder
-    // `progressMode`/`schedulingOptions`. Elke brongebonden P6-optie (en dus ook
-    // `p6CompletedLateFromRemainingWindow`) was hier per constructie inert, waardoor de poort
-    // structureel blind was voor precies de wijzigingen waarvoor ze bedoeld is. Nu meet ze het
-    // echte product, zoals `check-xer-product-fidelity-x12.ts` en de solver zelf.
     progressMode: imported.project.progressMode,
     schedulingOptions: solveOptionsFor(imported.project).schedulingOptions,
     projectStartDate: imported.project.startDate,
@@ -78,7 +72,6 @@ function solved(bytes: Uint8Array): XerSolvedProject {
   ]);
   return {
     projectId: imported.project.id,
-    // Alleen echte TASK-activiteiten. PROJWBS-samenvattingen zijn expres geen fidelitybladen.
     tasks: imported.tasks.filter(task => task.p6ActivityType !== undefined).map(task => {
       const calendar = (task.calendarId ? calendarById.get(task.calendarId) : undefined) ?? imported.calendar;
       const minutesPerDay = calendar.hoursPerDay * 60;
@@ -125,14 +118,6 @@ if (!root) {
 } else if (!existsSync(root)) {
   diffs.push('OPS_XER_CORPUS wijst niet naar een bestaande corpusmap');
 } else if (baseline.files === undefined || baseline.cellTransitions === undefined) {
-  // BEKEND, NIET DOOR DEZE ETAPPE VEROORZAAKT (gemeten 2026-09-05 op 92e98b8e én op deze branch):
-  // `xer-product-fidelity-baseline.json` draagt sinds de X12-v2-meetlat een ANDER schema
-  // (`version: 2`, gzip-payload) dan deze v1-harness verwacht. De check crashte daardoor met een
-  // kale `TypeError` op `Object.keys(baseline.files)`; hier is dat een leesbare rode regel geworden
-  // die de oorzaak benoemt. Gevolg voor review-bevinding 5: het `cellTransitions.previouslyExact`-
-  // mechanisme — het ENIGE dat per cel "eerder exact, nu fout" kan afvangen — meet sinds die
-  // schemawissel niets meer. Repareren betekent v1 zijn eigen baselinebestand teruggeven; dat is
-  // een eigen etappe en staat als zodanig in docs/TODO.md.
   diffs.push('v1-productbaseline ontbreekt: xer-product-fidelity-baseline.json draagt het v2-schema'
     + ` (version ${String(baseline.version)}) — de per-cel-poort previouslyExact meet niets`);
 } else {
@@ -197,11 +182,6 @@ if (!root) {
 
   const transitionFiles = Object.entries(baseline.cellTransitions.files).sort(([left], [right]) =>
     left.localeCompare(right));
-  // Herbasis 2026-09-07 (zelfde cellTransitions-schema, versie 1; geschiedenis herstart): de harness gaf vóór baan 7a `progressMode`/
-  // `schedulingOptions` niet door, dus de oude v1-cellen (24+13 exact, 16+1 verbeteringen) waren
-  // tegen een OPTIELOZE solve gemeten. Sinds de correctie meet v1 dezelfde solve als X12; de
-  // overgangshistorie start daarom opnieuw vanaf de huidige exacte set (44+16), zonder verbeteringen.
-  // Wat er t.o.v. de oude pin per cel schoof staat in de `reason`-velden van het baselinebestand.
   eq('celovergangscontract pint twee hash-orakels, 60 eerder exacte cellen en (nog) nul verbeteringen', {
     version: baseline.cellTransitions.version,
     measuredHashes: measuredHashes.sort(),
@@ -260,9 +240,6 @@ if (!root) {
     exactSetResults.map(result => ({ fileSha256: result.fileSha256, exact: result.actual })),
     exactSetResults.map(result => ({ fileSha256: result.fileSha256, exact: result.expected })));
 
-  // De vijf openbare bare-token-dragers bestaan uit twee X4b-meerprojectbestanden en precies
-  // deze drie X4a-enkelprojectdragers. Dit is het echte-corpusdeel van het mutatiebewijs: de
-  // kale FS/SS-tak uitschakelen verandert hun gerapporteerde fallback én dus deze telling.
   const bareRelationPins = {
     'P6-Viewer/XER Files/sample.xer': 10,
     'crawl-xer-extra/clause-epc/MER-1-2026_update_2026-05-01.xer': 119,

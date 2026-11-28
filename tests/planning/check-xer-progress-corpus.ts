@@ -1,11 +1,6 @@
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
-/**
- * X7-dossierorakel: leest uitsluitend de ruwe XER-%T/%F/%R-grammatica. Er is
- * bewust geen import uit src/: dit telt en controleert P6-bronfeiten, niet de
- * productiereader of diens mapping.
- */
 type RawTask = Record<string, string>;
 
 function files(dir: string): string[] {
@@ -66,9 +61,6 @@ if (!root) {
     if (task.complete_pct_type === 'CP_Phys') counts.CP_Phys++;
     if (task.complete_pct_type === 'CP_Units') counts.CP_Units++;
   }
-  // De publieke 93 files bevatten exact 22 suspendvelden: twintig geldige
-  // paren en twee stop-only records. Deze telling komt uit de ruwe TASK-rijen,
-  // dus niet uit een door de reader afgeleide projectselectie.
   equal('onafhankelijk P6-X7-telling', counts, {
     suspend: 22, resume: 20, expectedFinish: 246,
     suspendWithClock: 20, resumeWithClock: 19, expectedFinishWithClock: 246,

@@ -1,13 +1,3 @@
-// P6 XML openen via de echte open-pijplijn: `parseOpenedFile` (formatRegistry) → `applyOpenedImport`
-// (store). Bewaakt de meldingen van een P6 XML-bestand:
-// - geen leesbare activiteit ⇒ de import MISLUKT (`P6XmlImportError`, geen tabblad, zoals een lege
-//   XER) en `importFailureNotice` geeft "geen activiteiten", met de reden als die bekend is
-//   (activiteiten zonder ObjectId; XER-kolomnamen in XML);
-// - meerdere projecten, baselines, losse baselineverwijzingen, activiteiten zonder project ⇒ één
-//   verslag (`p6xmlImportNotice`);
-// - een gewoon bestand met één project ⇒ geen melding;
-// - relaties tussen projecten of activiteiten zonder project ⇒ de melding blijft staan (`sticky`).
-// Corpusloos (CI). Fixtures: inline, zelf geschreven.
 import { readFileSync } from 'node:fs';
 import { parseOpenedFile } from '@/services/formatRegistry';
 import { useAppStore } from '@/state/appStore';
@@ -33,13 +23,11 @@ function eq(label: string, got: unknown, want: unknown): void {
 const wrap = (inner: string) => `<?xml version="1.0" encoding="UTF-8"?>
 <APIBusinessObjects xmlns="http://xmlns.oracle.com/Primavera/P6/V8.3/API/BusinessObjects">${inner}</APIBusinessObjects>`;
 
-// Zoals Hospital_GW_Programme: activiteiten zonder ObjectId, relaties via ActivityId.
 const NO_OBJECT_IDS = wrap(`<Project><Name>Zonder ObjectId</Name><PlannedStartDate>2026-02-02T08:00:00</PlannedStartDate>
   <Activity><Id>A1</Id><Name>Fundering</Name><PlannedDuration>40</PlannedDuration>
     <PlannedStartDate>2026-02-02T08:00:00</PlannedStartDate><PlannedFinishDate>2026-02-06T17:00:00</PlannedFinishDate></Activity>
   <Relationship><PredecessorActivityId>A1</PredecessorActivityId><SuccessorActivityId>A2</SuccessorActivityId></Relationship>
 </Project>`);
-// Zoals MER-1-2026: XER-kolomnamen in een XML-jas.
 const XER_COLUMNS = wrap(`<Project><ObjectId>1001</ObjectId><Name>XER in XML</Name>
   <Activity><task_id>1</task_id><task_code>A-1</task_code><task_name>Inkoop</task_name></Activity>
 </Project>`);
@@ -59,9 +47,6 @@ async function open(name: string, text: string): Promise<OpenedImport> {
 const noticeOf = (parsed: OpenedImport) => p6xmlImportNotice(isMultiDocumentImport(parsed) ? parsed.results : [parsed]);
 
 async function main(): Promise<void> {
-  // (1)–(3) Geen leesbare activiteit: `parseOpenedFile` faalt (dus geen `openAsDocument`, geen tabblad),
-  //         en de fout geeft via `importFailureNotice` de melding met reden. De open-paden in
-  //         fileSlice melden elke importfout via `importFailureNotice`.
   const failure = async (name: string, text: string): Promise<unknown> => {
     try { await parseOpenedFile({ name, text }); return undefined; } catch (e) { return e; }
   };
@@ -80,14 +65,11 @@ async function main(): Promise<void> {
     ['notifications.openFailed', 'kapot']);
   let parsed: OpenedImport;
 
-  // (4) Gewoon bestand met één project: geen P6 XML-melding.
   parsed = await open('gewoon.xml', ONE_PROJECT);
   eq('4a één taak', activeImportResult(parsed).tasks.length, 1);
   eq('4b geen melding', noticeOf(parsed), undefined);
   eq('4c geen p6xml-melding in de store', S().ui.notifications.some(n => n.messageKey.startsWith('notifications.p6xml')), false);
 
-  // (6) Meerdere projecten: één tabblad per project mét activiteiten, actief = meeste activiteiten,
-  //     één verslag (geen melding per document).
   const fixture = readFileSync(new URL('./fixtures/p6xml-genest-meerdere-projecten.xml', import.meta.url), 'utf8');
   useAppStore.setState(st => { st.ui.notifications = []; });
   S().newProject();
@@ -99,7 +81,6 @@ async function main(): Promise<void> {
   eq('6c B: actieve baseline', S().activeBaselineId?.startsWith('p6xml-baseline:200:201'), true);
   const p6Notices = S().ui.notifications.filter(n => n.messageKey.startsWith('notifications.p6xml'));
   eq('6d één verslag', p6Notices.map(n => [n.severity, n.messageKey, n.params]), [['info', 'notifications.p6xmlImportOpened', { count: 2 }]]);
-  // Sinds #775 rekent een P6 XML als Primavera P6, zoals een XER: de profielregel staat bovenaan, net als bij XER.
   eq('6e detailregels', p6Notices[0]?.detailLines?.map(l => [l.messageKey, l.params?.count ?? l.params?.profile]), [
     ['notifications.schedulingProfileApplied', 'Primavera P6'],
     ['notifications.xerImportProjectsSeen', 3],
@@ -107,11 +88,8 @@ async function main(): Promise<void> {
     ['notifications.xerImportBaselinesMaterialized', 2],
     ['notifications.p6xmlImportCrossProjectRelations', 1],
   ]);
-  // Integratie ronde 2 (#320 × #330): een relatie tussen projecten is niet overgenomen ⇒ de
-  // openingsmelding blijft staan tot het kruisje (`STICKY_OPEN_NOTICE_KEYS`), blijft wel `info`.
   eq('6f relatie tussen projecten ⇒ melding blijft staan', p6Notices[0]?.sticky, true);
 
-  // (7) Eén project mét baseline: toch een verslag (niet alleen bij meerdere projecten).
   const withBaseline = wrap(`<Project><Id>E</Id><ObjectId>1</ObjectId><Name>Een</Name><CurrentBaselineProjectObjectId>9</CurrentBaselineProjectObjectId>
     <Activity><Id>A1</Id><Name>a</Name><ObjectId>11</ObjectId><PlannedDuration>8</PlannedDuration><PlannedStartDate>2026-03-02T08:00:00</PlannedStartDate><PlannedFinishDate>2026-03-02T17:00:00</PlannedFinishDate></Activity></Project>
     <BaselineProject><Id>E-BL</Id><ObjectId>9</ObjectId><Name>Een</Name><OriginalProjectObjectId>1</OriginalProjectObjectId>
@@ -119,11 +97,9 @@ async function main(): Promise<void> {
   parsed = await open('baseline.xml', withBaseline);
   eq('7 één project + baseline ⇒ verslag met baselineregel', [noticeOf(parsed)?.messageKey, noticeOf(parsed)?.detailLines?.map(l => l.messageKey)],
     ['notifications.p6xmlImportOpened', ['notifications.xerImportProjectsSeen', 'notifications.xerImportBaselinesMaterialized']]);
-  // Alleen "projecten gezien" en een gekoppelde baseline: niets ingevuld of weggelaten ⇒ na 5 s weg.
   eq('7b alleen baseline gekoppeld ⇒ melding blijft niet staan',
     S().ui.notifications.find(n => n.messageKey === 'notifications.p6xmlImportOpened')?.sticky, undefined);
 
-  // (8) Losse baselineverwijzing en een platte activiteit zonder project (twee projecten).
   const edges = wrap(`<Activity><Id>LOS</Id><Name>los</Name><ObjectId>99</ObjectId><PlannedDuration>8</PlannedDuration><PlannedStartDate>2026-03-02T08:00:00</PlannedStartDate><PlannedFinishDate>2026-03-02T17:00:00</PlannedFinishDate></Activity>
     <Project><Id>P1</Id><ObjectId>1</ObjectId><Name>Een</Name><CurrentBaselineProjectObjectId>55</CurrentBaselineProjectObjectId>
       <Activity><Id>A1</Id><Name>a</Name><ObjectId>11</ObjectId><PlannedDuration>8</PlannedDuration><PlannedStartDate>2026-03-02T08:00:00</PlannedStartDate><PlannedFinishDate>2026-03-02T17:00:00</PlannedFinishDate></Activity></Project>
@@ -145,12 +121,10 @@ async function main(): Promise<void> {
     messageKey: 'notifications.p6xmlImportOpened',
     detailLines: [{ messageKey: 'notifications.p6xmlImportUnassignedActivities', params: { count: 1 } }],
   }), true);
-  // Eén project: een platte activiteit zonder ProjectObjectId hoort gewoon bij dat project.
   parsed = await parseOpenedFile({ name: 'een.xml', text: wrap(`<Activity><Id>LOS</Id><Name>los</Name><ObjectId>99</ObjectId><PlannedDuration>8</PlannedDuration><PlannedStartDate>2026-03-02T08:00:00</PlannedStartDate><PlannedFinishDate>2026-03-02T17:00:00</PlannedFinishDate></Activity>
     <Project><Id>P1</Id><ObjectId>1</ObjectId><Name>Een</Name></Project>`) });
   eq('8c één project: de platte activiteit hoort erbij, geen melding', [activeImportResult(parsed).tasks.map(t => t.wbsCode), noticeOf(parsed)], [['LOS'], undefined]);
 
-  // (5) De sleutels bestaan in nl en en (geen lege toast).
   for (const loc of ['nl', 'en']) {
     const json = JSON.parse(readFileSync(new URL(`../../src/i18n/locales/${loc}/common.json`, import.meta.url), 'utf8')) as { notifications: Record<string, string> };
     for (const key of ['p6xmlImportEmpty', 'p6xmlImportEmptyNoObjectIds', 'p6xmlImportEmptyXerColumns', 'p6xmlImportOpened_one', 'p6xmlImportOpened_other', 'p6xmlImportCrossProjectRelations_one', 'p6xmlImportCrossProjectRelations_other', 'p6xmlImportUnassignedActivities_one', 'p6xmlImportUnassignedActivities_other']) {

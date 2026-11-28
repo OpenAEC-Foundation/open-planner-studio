@@ -1,7 +1,3 @@
-/**
- * Compile-time contract: de X8-broncatalogus is volledig en recursief readonly,
- * terwijl de gematerialiseerde documentview juist bewerkbaar blijft.
- */
 import type { XerMetadataCatalog, XerMetadataProjectView } from '@/services/xer/xerMetadata';
 
 declare const catalog: XerMetadataCatalog;
@@ -22,7 +18,6 @@ catalog.issues[0].line = 0;
 // @ts-expect-error Raw row-cellen blijven via dezelfde recursieve catalogustype readonly.
 catalog.sourceData.TASKMEMO[0].cells.task_memo = 'verboden';
 
-// Alleen deze gedupliceerde documentview is bewust mutable.
 projectView.activityCodeTypes[0].name = 'toegestaan';
 projectView.activityCodeTypes[0].values[0].code = 'toegestaan';
 projectView.customFieldDefs[0].name = 'toegestaan';

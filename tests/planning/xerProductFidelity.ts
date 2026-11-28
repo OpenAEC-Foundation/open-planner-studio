@@ -33,11 +33,6 @@ export interface XerProductTaskDelta {
   bucket: 'exact' | 'sameday' | 'diff' | 'missing';
 }
 
-/**
- * De productmeting blijft per project uitlegbaar. `taskCodeExact` is geen alternatieve
- * identiteitssleutel: sourceTaskId blijft de join. Deze vier tellers maken wel zichtbaar dat
- * de tweede identiteitskolom niet stil uit de dekking kan verdwijnen.
- */
 export interface XerProductProjectMeasurement {
   projectId: string;
   truthTasks: number;
@@ -56,21 +51,15 @@ export interface XerProductMeasurement {
   solvedTasks: number;
   counters: Record<XerFidelityAxis, XerProductAxisCounts>;
   drivingPath: XerProductAxisCounts;
-  /** Stabiel gesorteerd; de entrysom moet precies naar de globale tellers rollen. */
   projects: XerProductProjectMeasurement[];
-  /** Alleen fouten uit de onafhankelijke raw-XER-scanner. */
   scannerErrors: string[];
-  /** Alleen project-/taakidentiteitsfouten uit de productuitlijning. */
   identityErrors: string[];
-  /** Compatibel gecombineerd kanaal voor bestaande rapportage. */
   errors: string[];
   detail: XerProductTaskDelta[];
   gatePassed: boolean;
 }
 
 function productCounts(counts: FidelityCounts): XerProductAxisCounts {
-  // fidelityCore telt een afwezig orakelveld bewust als `missing`, omdat MPP dat als rijdiagnose
-  // rapporteert. Voor X12 zijn alleen orakelmeetbare waarden productverplichtingen.
   const missing = counts.deviations - counts.sameday - counts.diff;
   return {
     exact: counts.exact,
@@ -142,7 +131,6 @@ function validateIdentity(
   return { byId, errors: projectErrors };
 }
 
-/** Productlaag: meet alle door readXER geopende projecten, zonder de grondwaarheid of solver te delen. */
 export function measureXerProductFidelity(
   truth: XerGroundTruth,
   solvedProjects: readonly XerSolvedProject[],

@@ -1,16 +1,3 @@
-// XER-WBS-boom: wortel, siblingvolgorde, boomvolgorde, rollup en het taakraster.
-//
-// Aanleiding (2026-10-12, MER-1-2026_epc.xer): de bovenste PROJWBS-rij wees met `parent_wbs_id`
-// naar een knoop die niet in het bestand staat (`0`; in echte P6-exports de EPS-knoop boven de
-// projectknoop). De lezer maakte daar een `parentId` van naar een niet-bestaande taak. Gevolg: geen
-// enkele taak was wortel, dus (1) `computeViewRows` vond geen wortels en zette alles plat op diepte 0
-// via het wees-vangnet, (2) inklappen deed niets, en (3) de verzameltaak-rollup (`applyCpmResult`,
-// alleen vanaf wortels) sloeg elke samenvatting over: duur 0. Daarnaast sorteerde de lezer gelijke
-// `seq_num` op `wbs_id` als TEKST, zodat WBS 10 vóór WBS 02 kwam. Gemeten op het corpus: 35 van de 88
-// documenten hadden geen enkele wortel (vrijwel elke echte P6-export).
-//
-// Deze check draait corpusloos op kleine fixtures, via de echte lezer, de echte solve-route
-// (`solveProject` + `solveInputFor`) en de echte raster-pijplijn (`computeViewRows`).
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { solveProject } from '@/engine/scheduler/solveProject';
@@ -36,10 +23,6 @@ function read(lines: readonly string[]): XerReadResult {
 
 const w = (id: string) => `xer-wbs:P1:${id}`;
 
-// ── Fixture A: zoals MER-1 ──────────────────────────────────────────────────────────────────────
-// WBS 1 is de wortel; zijn ouder `0` bestaat niet (de projectknoop). WBS 2 en 10 hangen onder 1 met
-// GELIJKE seq_num. Activiteiten staan in TASK door elkaar: A1 en A4 onder 1, A2 onder 2, A3 onder 10.
-// Een FS-keten A1 → A2 → A3 → A4 geeft elke WBS een eigen, controleerbare span.
 const merWbsRows = {
   w1: '%R\t1\tP1\t0\t1\tMER.W01\tWBS 01',
   w2: '%R\t2\tP1\t1\t2\tMER.W02\tWBS 02',
@@ -92,7 +75,6 @@ eq('5 de volgorde hangt niet af van de PROJWBS-rijvolgorde in het bestand',
   read(merFixture(['w10', 'w2', 'w1'])).tasks.map(task => task.id),
   mer.tasks.map(task => task.id));
 
-// Rollup via de echte solve-route (zoals `runCPM`): de samenvattingen krijgen de span van hun bladen.
 const solved = mer.tasks.map(task => ({ ...task, time: { ...task.time } }));
 solveProject(solveInputFor(mer.project, solved, mer.sequences, mer.calendar, mer.resourceCalendars ?? []));
 const solvedById = new Map(solved.map(task => [task.id, task]));
@@ -108,7 +90,6 @@ eq('8 rollup: geen samenvatting houdt duur 0',
   [w('1'), w('2'), w('10')].map(id => (solvedById.get(id)?.time.scheduleDuration ?? 0) > 0),
   [true, true, true]);
 
-// Taakraster en Gantt tonen dezelfde `computeViewRows`-uitvoer (boommodus: geen filter/groep/sort).
 const ctx: ViewContext = { activityCodeTypes: [], customFieldDefs: [], resources: [], assignments: [], noneLabel: '(geen)' };
 const treeOpts = (collapsed: readonly string[]): ViewRowOpts => ({
   filter: null, group: [], sort: [], collapsedTaskIds: new Set(collapsed), collapsedGroupKeys: new Set(),
@@ -124,10 +105,6 @@ eq('10 raster: WBS 02 inklappen verbergt alleen zijn activiteit',
 eq('11 raster: WBS 01 inklappen verbergt de hele boom eronder',
   gridRows(mer.tasks, [w('1')]), [`${w('1')}@0`]);
 
-// ── Fixture B: zoals een echte P6-export ────────────────────────────────────────────────────────
-// De projectknoop (proj_node_flag = Y) wijst naar EPS-knoop 9000, die niet in het bestand staat. Hij
-// blijft een samenvattingstaak (zoals bij MPXJ), maar wel als wortel. Activiteit B3 hangt aan een
-// WBS die dit project niet heeft: zij wordt een wortel, geen wees met een loze parentId.
 const p6 = read([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
   '%T\tPROJECT',

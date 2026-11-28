@@ -107,11 +107,6 @@ function validateInventory(labels: readonly string[], manifest: XerCorpusManifes
   }
 }
 
-/**
- * Hergebruikt uitsluitend de bestaande canonieke X12-selectie zonder alle corpusbytes tegelijk te
- * bewaren. Dit replayharnas voert geen eigen dedupcontract in: schemafingerprint en taskId-semantiek
- * blijven ongewijzigd de bestaande X12-meetlat en daarmee een afzonderlijk eigenaarbesluit.
- */
 function selectedLabels(
   corpusRoot: string,
   labels: readonly string[],
@@ -154,7 +149,6 @@ export function runXerTaskReplayCorpus(options: XerTaskReplayCorpusOptions): Xer
   const labels = listXerLabels(options.corpusRoot);
   validateInventory(labels, options.manifest);
   const selected = selectedLabels(options.corpusRoot, labels, options.manifest);
-  // Uitsluiting per project/taak (eigenaarsbesluit): dezelfde populatie als X1 en X12.
   const exclusions = readManifestExclusions(options.manifest);
   if (exclusions.problems.length > 0) throw new Error(`task replay: manifestuitsluitingen ongeldig: ${exclusions.problems.join('; ')}`);
   const aggregate = emptyAggregate();
@@ -164,8 +158,6 @@ export function runXerTaskReplayCorpus(options: XerTaskReplayCorpusOptions): Xer
 
   for (const label of selected) {
     const bytes = readFileSync(join(options.corpusRoot, label));
-    // De kandidaatroute krijgt uitsluitend productimportdata. Pas daarna wordt het oracle aan de
-    // onafhankelijke classificatiekern gekoppeld.
     const product = replayXerProductBeforeOracle(bytes, options.candidate);
     const fileTruth = scanXerGroundTruth(bytes);
     const resolved = resolveExclusions(fileTruth.tasks, exclusions.bySha.get(sha256(bytes)) ?? []);
@@ -206,7 +198,6 @@ export function runXerTaskReplayCorpus(options: XerTaskReplayCorpusOptions): Xer
   };
 }
 
-/** Publieke CLI gebruikt exact dezelfde rode poort als de corpusloze fixture. */
 export function corpusReplayExitCode(summary: XerTaskReplayCorpusSummary): 0 | 1 {
   const result = { aggregate: summary.aggregate } as XerTaskReplayResult;
   return shouldRejectXerTaskReplay(result) ? 1 : 0;

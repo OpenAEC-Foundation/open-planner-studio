@@ -1,22 +1,3 @@
-/**
- * Corpusloze fixtures en mutanten voor de manifestuitsluiting per project/taak
- * (`xerManifestExclusions.ts`): een mini-manifest met een project- en twee taakuitsluitingen tegen een
- * mini-XER met twee projecten.
- *
- *  1. De lezer: geldige uitsluitingen worden canoniek gelezen; zonder `decision` (datum +
- *     "eigenaarsbesluit"), op een niet-orakel, leeg, dubbel of met een onbekende sleutel ⇒ geweigerd.
- *  2. De telling: uitgesloten projecten/taken tellen niet in de zes assen, drivingPath en de
- *     nuldoelregels (X12-meting), noch in de X1-doelbaseline; de schemavingerafdruk blijft die van
- *     het hele bestand; de samenvatting noemt precies "N taken in K projecten" met reden.
- *  3. Oplossen tegen de grondwaarheid: een uitsluiting die niets raakt of een dubbelzinnige taakcode
- *     is een fout, geen stille no-op.
- *  4. De pin: digest en gegenereerd blok (render ⇄ parse), herschrijven alleen vanaf een ongeschonden
- *     blok, en per bestand welke uitsluitingen veranderden.
- *  5. De cel-poort: een cel die door een NIEUWE uitsluiting wegvalt of na het opheffen terugkomt is
- *     `fileset` (alleen `=corpus`), zonder uitsluitingswijziging blijft hij `hard`.
- *  6. Mutanten van het mechanisme: alleen één kant filteren (grondwaarheid óf opgelost) geeft
- *     identiteitsfouten; een filter dat de projectgrens negeert raakt een taak in een ander project.
- */
 import {
   buildCellBaseline, cellDeltaLine, cellGateRedLines, cellOracleRedLines, compareCells, cellMinutesDigest, excludedHiddenRedLines, hiddenPerTask, hiddenTotal, cellRefCounts, parseCellBaseline,
   planCellRepin, serializeCellBaseline,
@@ -40,7 +21,6 @@ function eq(label: string, got: unknown, want: unknown): void {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 }
 
-// ── Mini-XER: project P1 (taken 1, 2, 3) en P2 (taken 10, 11); A2 heeft taakcode "A2". ─────────
 const FIELDS = ['proj_id', 'task_id', 'task_code', 'status_code', 'early_start_date', 'early_end_date',
   'late_start_date', 'late_end_date', 'total_float_hr_cnt', 'free_float_hr_cnt', 'driving_path_flag'];
 function row(project: string, id: string, code: string, day: string, driving: 'Y' | 'N'): string {
@@ -53,7 +33,6 @@ const XER = new TextEncoder().encode([
   row('P2', '10', 'B1', '5', 'Y'), row('P2', '11', 'B2', '6', 'N'), '%E',
 ].join('\n'));
 const SHA = createHash('sha256').update(XER).digest('hex');
-/** Opgeloste taak: exact, of (dev) een uur later op alle datumassen en drivingPath omgedraaid. */
 function solvedTask(id: string, code: string, day: string, driving: boolean, dev = false): XerSolvedProject['tasks'][number] {
   const hour = dev ? '09' : '08';
   return {
@@ -63,7 +42,6 @@ function solvedTask(id: string, code: string, day: string, driving: boolean, dev
     totalFloatMinutes: 0, freeFloatMinutes: 0, drivingPath: dev ? !driving : driving,
   };
 }
-// Afwijkingen: A2 (P1/2) en heel P2 wijken af; A1 en A3 zijn exact.
 const SOLVED: XerSolvedProject[] = [
   { projectId: 'P1', tasks: [solvedTask('1', 'A1', '5', true), solvedTask('2', 'A2', '6', true, true), solvedTask('3', 'A3', '7', false)] },
   { projectId: 'P2', tasks: [solvedTask('10', 'B1', '5', true, true), solvedTask('11', 'B2', '6', false, true)] },
@@ -82,7 +60,6 @@ const VALID = {
   excludeTasks: [{ projId: 'P1', taskCode: 'A2', reason: 'verouderde P6-uitvoer' }],
 };
 
-// ── 1. De lezer ─────────────────────────────────────────────────────────────────────────────
 {
   const read = readManifestExclusions(manifestWith(VALID));
   eq('1a geldige uitsluitingen: geen probleem, twee regels', [read.problems, read.records.length], [[], 2]);
@@ -97,7 +74,6 @@ const VALID = {
   refused('decision zonder het woord eigenaarsbesluit', { ...VALID, decision: '2026-09-24 akkoord' });
   refused('decision met onmogelijke datum', { ...VALID, decision: '2026-13-01 eigenaarsbesluit' });
   refused('decision zonder uitsluiting', { decision: DECISION });
-  // Critreview 2026-09-23: exact "JJJJ-MM-DD eigenaarsbesluit: <tekst>", bestaande datum, niet in de toekomst.
   refused('decision met niet-bestaande datum 2026-02-31', { ...VALID, decision: '2026-02-31 eigenaarsbesluit: fixture' });
   refused('decision in de verre toekomst 2099-01-01', { ...VALID, decision: '2099-01-01 eigenaarsbesluit: fixture' });
   refused('decision "geen eigenaarsbesluit"', { ...VALID, decision: '2026-09-23 geen eigenaarsbesluit: fixture' });
@@ -125,8 +101,6 @@ const VALID = {
   refused('onbekende sleutel', { decision: DECISION, excludeProjects: [{ projId: 'P2', reason: 'fixture-reden-x', proj: 'P2' }] });
   refused('dubbele uitsluiting', { decision: DECISION, excludeTasks: [{ projId: 'P1', taskId: '2', reason: 'fixture-reden-x' }, { projId: 'P1', taskId: '2', reason: 'fixture-reden-y' }] });
   refused('taak onder een al uitgesloten project', { decision: DECISION, excludeProjects: [{ projId: 'P1', reason: 'fixture-reden-x' }], excludeTasks: [{ projId: 'P1', taskId: '2', reason: 'fixture-reden-y' }] });
-  // Regel-decision (critreview C14-landing 24-09, datumherkomst): een latere uitsluiting draagt haar eigen
-  // besluitdatum; de HERPIN-regel volgt die.
   const ruled = readManifestExclusions(manifestWith({ ...VALID, excludeTasks: [{ ...VALID.excludeTasks[0], decision: '2026-09-24 eigenaarsbesluit: later' }] }), '2026-09-24');
   eq('1i regel-decision: eigen datum per regel, entry-decision voor de rest',
     [ruled.problems, ruled.records.map(record => record.decision.slice(0, 10)).sort()], [[], ['2026-09-23', '2026-09-24']]);
@@ -144,7 +118,6 @@ const VALID = {
   eq('1d byte-identieke orakellabels met dezelfde uitsluitingen: één lijst', [readManifestExclusions(twin).problems, readManifestExclusions(twin).records.length], [[], 2]);
 }
 
-// ── 2. De telling (X12-meting en X1-doelbaseline) ─────────────────────────────────────────────
 const truthAll = scanXerGroundTruth(XER);
 eq('2a mini-XER scant zonder fouten', truthAll.errors, []);
 const records = readManifestExclusions(manifestWith(VALID)).records;
@@ -189,7 +162,6 @@ const resolved = resolveExclusions(truthAll.tasks, records);
   eq('2l X1 weigert een uitsluiting die niets raakt', ghost.errors.some(error => error.includes('raakt geen enkele orakeltaak')), true);
 }
 
-// ── 3. Oplossen: nooit een stille no-op ─────────────────────────────────────────────────────
 {
   const record = (extra: Partial<XerExclusionRecord>): XerExclusionRecord => ({ sha256: SHA, kind: 'task', projId: 'P1', reason: 'fixture-reden-x', decision: DECISION, ...extra });
   eq('3a onbekend project ⇒ probleem', resolveExclusions(truthAll.tasks, [record({ kind: 'project', projId: 'P9' })]).problems.length, 1);
@@ -205,7 +177,6 @@ const resolved = resolveExclusions(truthAll.tasks, records);
   eq('3g ... ook via het manifest (X1 weigert)', viaReader.errors.some(error => error.includes('dubbel')), true);
 }
 
-// ── 4. De pin ───────────────────────────────────────────────────────────────────────────────
 {
   const block = renderExclusionPinBlock(records);
   eq('4a blok ⇄ lijst (render en parse)', parseExclusionPinBlock(block), [...records].sort((a, b) => a.kind.localeCompare(b.kind)));
@@ -226,7 +197,6 @@ const resolved = resolveExclusions(truthAll.tasks, records);
   eq('4j gewijzigde bestanden: alleen waar de lijst verschilt', [...changedExclusionFiles(records, [...records, { ...records[0]!, sha256: other }])], [other]);
   eq('4k reden gewijzigd telt als gewijzigd bestand', [...changedExclusionFiles(records, records.map(r => ({ ...r, reason: 'anders' })))], [SHA]);
   eq('4l ongewijzigd ⇒ leeg', changedExclusionFiles(records, [...records].reverse()).size, 0);
-  // Identiteitsset (critreview 2026-09-23): alleen een andere set projecten/taken telt voor de meting.
   const reasonOnly = resolveExclusions(truthAll.tasks, records.map(r => ({ ...r, reason: 'andere reden, zelfde set' })));
   eq('4m alleen een andere reden ⇒ identiteit ongewijzigd (dekking/cellen blijven hard)', exclusionIdentityChanged(resolved, reasonOnly), false);
   eq('4n taskCode ⇄ taskId voor dezelfde taak ⇒ identiteit ongewijzigd',
@@ -239,7 +209,6 @@ const resolved = resolveExclusions(truthAll.tasks, records);
     `HERPIN 2026-09-24 uitsluiting (besluit 2026-09-23): ${LABEL} — P2 niet door P6 doorgerekend`);
 }
 
-// ── 5. De cel-poort ─────────────────────────────────────────────────────────────────────────
 {
   const META = { manifestSha256: 'c'.repeat(64), drivingPathOracle: new Map([[SHA, 'd'.repeat(64)]]) };
   const cells = (list: MeasuredCell[]) => buildCellBaseline(new Map([[SHA, list]]), META);
@@ -269,8 +238,6 @@ const resolved = resolveExclusions(truthAll.tasks, records);
   eq('5j ... zonder uitsluitingswijziging ⇒ hard', cellOracleRedLines(afterExclusion, shifted, new Set()).map(line => line.kind), ['hard']);
   eq('5k CELLDELTA noemt het aantal door uitsluiting weggevallen cellen', cellDeltaLine('p6', excludedDelta, afterExclusion).endsWith(' uitgesloten=2 teruggekeerd=0'), true);
 
-  // Verborgen aantallen: niet-stijgende pin PER TAAK (critreview 2026-09-23 punt 6; per taak sinds de
-  // her-check C14-landfixes 2026-09-24). X = P1/1, Y = P1/2, Z = P2/10 (fictieve taken).
   const c = (sixAxis: number, drivingPath: number): HiddenCounts => ({ sixAxis, drivingPath });
   const kinds = (lines: { kind: string }[]) => lines.map(line => line.kind);
   const ex = (now: string[], was: string[]): CellExclusions => ({ now: (_file, id) => now.includes(id), was: (_file, id) => was.includes(id) });
@@ -287,8 +254,6 @@ const resolved = resolveExclusions(truthAll.tasks, records);
     kinds(excludedHiddenRedLines({ [SHA]: { 'P1/1': c(4, 0), 'P1/2': c(2, 0) } }, { [SHA]: { 'P1/1': c(5, 0), 'P1/2': c(1, 0) } }, none, same).lines), ['hard']);
   eq('5q uitsluiting zonder gepinde aantallen ⇒ hard', kinds(excludedHiddenRedLines(undefined, pin, none, same).lines), ['hard']);
   eq('5r gepinde aantallen zonder uitsluiting ⇒ hard', kinds(excludedHiddenRedLines(pin, {}, none, same).lines), ['hard']);
-  // M1 (her-check 2026-09-24): pin 10 = X 7 + Y 3; Y weer meegeteld zonder afwijking, X stijgt 7 → 10. Met een
-  // bestandstotaal gaf dit [] (Y's 3 werd speelruimte voor X); per taak is het hard.
   const xy = { [SHA]: { 'P1/1': c(7, 0), 'P1/2': c(3, 0) } };
   const yBack = ex(['P1/1'], ['P1/1', 'P1/2']);
   eq('5p M1 Y weer meegeteld, X 7 → 10 ⇒ hard', kinds(excludedHiddenRedLines(xy, { [SHA]: { 'P1/1': c(10, 0) } }, changed, yBack).lines), ['hard']);
@@ -298,7 +263,6 @@ const resolved = resolveExclusions(truthAll.tasks, records);
     kinds(excludedHiddenRedLines(xy, { [SHA]: { 'P1/1': c(7, 0) } }, changed, yBack, {}, { [SHA]: { 'P1/2': c(4, 0) } }).lines), ['hard']);
   eq('5p3 Y weer meegeteld met 3 cellen = eigen pin ⇒ fileset',
     kinds(excludedHiddenRedLines(xy, { [SHA]: { 'P1/1': c(7, 0) } }, changed, yBack, {}, { [SHA]: { 'P1/2': c(3, 0) } }).lines), ['fileset']);
-  // Nieuwe uitsluiting (vorm HarbourPointe EC1420): Z nieuw uitgesloten, gepinde baseline had 1 cel op Z.
   const zNew = ex(['P1/1', 'P2/10'], ['P1/1']);
   const hp = { [SHA]: { 'P1/1': c(33, 0) } };
   const zGone = { [SHA]: { 'P2/10': c(1, 0) } };
@@ -312,8 +276,6 @@ const resolved = resolveExclusions(truthAll.tasks, records);
     kinds(excludedHiddenRedLines(hp, { [SHA]: { 'P1/1': c(32, 0), 'P2/10': c(2, 0) } }, changed, zNew, zGone).lines), ['hard']);
   eq('5p8 pin op een taak die nergens uitgesloten is ⇒ hard',
     kinds(excludedHiddenRedLines({ [SHA]: { 'P1/1': c(1, 0), 'P1/3': c(1, 0) } }, { [SHA]: { 'P1/1': c(1, 0) } }, changed, ex(['P1/1'], ['P1/1'])).lines), ['hard']);
-  // Fable (e), corpusloos met fictieve cellen: P2 heeft in de gepinde baseline 0 zesassige en 2 drivingPath-
-  // cellen; +ff-regressie op alleen P2 en tegelijk excludeProjects P2 ⇒ hard; eerlijke uitsluiting ⇒ fileset.
   const pinnedP2 = cells([
     { axis: 'es', id: 'P1/2', bucket: 'diff', minutes: 1440 },
     { axis: 'drivingPath', id: 'P2/10', bucket: 'diff', minutes: null },
@@ -354,13 +316,11 @@ const resolved = resolveExclusions(truthAll.tasks, records);
     cellMinutesDigest({ ...withHidden, excludedHidden: undefined }), cellMinutesDigest(cells([{ axis: 'es', id: 'P1/1', bucket: 'sameday', minutes: 60 }])));
 }
 
-// ── 6. Mutanten van het mechanisme ─────────────────────────────────────────────────────────
 {
   const truthOnly = measureXerProductFidelity(filterTruthExclusions(truthAll, resolved), SOLVED);
   eq('6a mutant "alleen de grondwaarheid filteren" ⇒ identiteitsfouten', truthOnly.identityErrors.length > 0, true);
   const solvedOnly = measureXerProductFidelity(truthAll, filterSolvedExclusions(SOLVED, resolved));
   eq('6b mutant "alleen de opgeloste kant filteren" ⇒ identiteitsfouten', solvedOnly.identityErrors.length > 0, true);
-  // Een filter op taak-id zonder projectgrens zou in een ander project een gelijknamige taak raken.
   const crossProject = [...truthAll.tasks, { ...truthAll.tasks[3]!, projectId: 'P3', taskId: '2' }];
   const keys = resolveExclusions(crossProject, records.filter(record => record.kind === 'task')).taskKeys;
   eq('6c taakuitsluiting respecteert de projectgrens', [...keys], ['P1/2']);

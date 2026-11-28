@@ -170,3 +170,5 @@ Besluiten van de lezer van P6 XML: `docs/adr/0260-p6xml-lezen-export-van-ops-en-
 `0591-xer-vastgelegde-rekenuitvoer-zonder-correctie.md` en `0592-xer-schrijven-projectknoop-materiaal-en-restwerk.md`.
 
 De Windows-1252-decodering van de XER-lezer (`src/utils/windows1252.ts`): `docs/adr/0622-windows-1252-met-een-eigen-tabel.md`.
+
+De tests van de P6-adapters en de rekenprofielen: eigen orakels, lijsten met de hand en grenzen die niet van de machine afhangen: `docs/adr/1240-p6-tests-eigen-orakels-handlijsten-en-machinevrije-grenzen.md`.

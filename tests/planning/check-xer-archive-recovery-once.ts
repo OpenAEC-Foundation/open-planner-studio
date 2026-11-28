@@ -1,21 +1,3 @@
-// XER-bronarchief één keer schrijven in crashherstel (eigenaarsbesluit plan (9), 2026-09-22; herhaald
-// bij de review van 2026-10-07). Corpusloos, met een synthetisch archief van ±16 MB uit één `.xer` met
-// twee projecten (dus twee documenten die één archief delen).
-//
-// Wat deze batterij bewijst, langs de ECHTE productieroute (`runRecoveryTick` = wat `useAutoSave` per
-// tick doet, `recoveryStore` web-backend tegen de gedeelde IndexedDB-dubbel, `readIFCWithXerReconstruction`
-// met dezelfde resolver als `useRecoveryRestore`):
-//   (a) budgetpoort: een bewerkingstick schrijft ≤ TICK_BUDGET_BYTES en geen archiefblob; ook de eerste
-//       tick schrijft de snapshots zonder archief en precies één blob;
-//   (b) herstel via de verwijzing geeft byte-identieke bronbytes;
-//   (c) twee documenten uit één bestand delen één blob;
-//   (d) ontbrekende blob ⇒ openen zonder archief, mét `xerArchiveIssue` `bytes-missing`;
-//   (e) een oude snapshot met ingebed archief (manifest zonder verwijzing) herstelt nog;
-//   (f) het echte opslaan schrijft het archief volledig, en een blob verdwijnt pas als niets er nog naar
-//       verwijst.
-// Mutant-bewijs: zet `serializeRecoverySnapshot` terug op de ingebedde vorm ⇒ (a) rood.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 import { readFormatForFile, readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -33,7 +15,6 @@ import { buildWriteIFCInput } from '@/state/ifcSaveInput';
 
 declare const process: { exit(code: number): never };
 
-/** Vaste, machine-onafhankelijke grens per bewerkingstick: één klein IFC-document plus manifest. */
 const TICK_BUDGET_BYTES = 256 * 1024;
 
 const failures: string[] = [];
@@ -43,7 +24,6 @@ const expect = (label: string, condition: boolean) => {
   if (!condition) failures.push(label);
 };
 
-// Bytes per put, per store. Strings tellen per teken, Uint8Array per byte.
 const written = { records: 0, archives: 0, archivePuts: 0, read: 0 };
 const sizeOf = (value: unknown): number => {
   if (typeof value === 'string') return value.length;
@@ -61,8 +41,7 @@ const idb = installFakeRecoveryIndexedDb({
 });
 const resetWritten = () => { written.records = 0; written.archives = 0; written.archivePuts = 0; written.read = 0; };
 
-// ── Synthetische bron: twee projecten, één groot onbekend tabelveld (±16 MB) ─────────────────────────
-const PAYLOAD_CHUNKS = 82; // 82 × 196.608 B ≈ 16,1 MB
+const PAYLOAD_CHUNKS = 82;
 const bytes = new TextEncoder().encode([
   'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
   '%T\tPROJECT',
@@ -105,28 +84,22 @@ const tick = async () => {
   return { ms: performance.now() - started, records: written.records, archives: written.archives, archivePuts: written.archivePuts, read: written.read };
 };
 
-// ── (a)/(c) eerste tick: snapshots zonder archief, precies één gedeelde blob ──────────────────────────
 const docsAtStart = store().getOpenDocumentPayloads();
 expect('0a beide documenten dragen het archief in het documentcontract',
   docsAtStart.length === 2 && docsAtStart.every((doc) => doc.payload.xerSourceArchive?.sha256 === sourceSha));
 const first = await tick();
 expect(`a1 eerste tick: de snapshots zelf blijven onder ${TICK_BUDGET_BYTES} B (gemeten ${first.records})`,
   first.records <= TICK_BUDGET_BYTES);
-// De blob telt de bronbytes plus zijn sleutel (64 tekens); meer dan een paar honderd bytes extra
-// zou een tweede kopie of een codering (base64 = +33 %) betekenen.
 expect(`a2 eerste tick: precies één archiefblob met de ruwe bronbytes (gemeten ${first.archivePuts} blob(s), ${first.archives} B)`,
   first.archivePuts === 1 && first.archives >= bytes.length && first.archives <= bytes.length + 256);
 expect('c1 twee documenten uit één bestand delen één blob in de opslag',
   idb.store('xer-archives').size === 1 && idb.store('xer-archives').has(sourceSha));
 
-// Bewerkingstick: één document wijzigt. Het archief mag NIET opnieuw geserialiseerd of geschreven worden.
 store().setProject({ description: 'bewerking-na-de-eerste-tick' });
 const edit = await tick();
 expect(`a3 bewerkingstick schrijft ≤ ${TICK_BUDGET_BYTES} B (gemeten ${edit.records} B snapshots + ${edit.archives} B archief)`,
   edit.records + edit.archives <= TICK_BUDGET_BYTES);
 expect('a4 bewerkingstick schrijft geen archiefblob opnieuw', edit.archivePuts === 0);
-// Prestatiemeting 2026-10-07: `saveWeb` las per tick alle snapshots terug (`getAll`). Nu alleen sleutels
-// en manifesten: de gelezen bytes blijven ver onder één snapshot.
 expect(`a6 bewerkingstick leest alleen sleutels en manifesten terug (gemeten ${edit.read} B gelezen)`,
   edit.read <= 4 * 1024);
 const snapshot = serializeRecoverySnapshot(store().getOpenDocumentPayloads()[0]!.payload);
@@ -134,7 +107,6 @@ expect(`a5 de snapshottekst zelf draagt het archief niet (${snapshot.length} tek
   snapshot.length <= TICK_BUDGET_BYTES && !snapshot.includes('ByteChunk000000'));
 console.log(`X9 recovery-once: bron=${bytes.length} B | tick1 snapshots=${first.records} B archief=${first.archives} B ${first.ms.toFixed(0)} ms | bewerkingstick snapshots=${edit.records} B archief=${edit.archives} B gelezen=${edit.read} B ${edit.ms.toFixed(1)} ms`);
 
-// ── (b)/(c) herstel via de verwijzing ───────────────────────────────────────────────────────────
 const restoreFrom = async () => {
   const loaded = await loadRecovery();
   const parsed = [];
@@ -165,7 +137,6 @@ expect('b5 de store herstelt beide documenten mét archief',
   restoreResult.skippedIds.length === 0
   && store().getOpenDocumentPayloads().every((doc) => doc.payload.xerSourceArchive?.sha256 === sourceSha));
 
-// ── (f) het echte opslaan blijft het archief volledig schrijven (het IFC is de bron) ─────────────
 const savedIfc = writeIFC(buildWriteIFCInput(store().getOpenDocumentPayloads()[0]!.payload, 'planOnly'));
 const reopened = await readFormatForFile('project.ifc').read({ name: 'project.ifc', text: savedIfc }, {});
 const reopenedResult = Array.isArray((reopened as { results?: unknown }).results) ? null : reopened;
@@ -175,7 +146,6 @@ expect('f2 heropenen van het opgeslagen IFC geeft byte-identieke bronbytes, zond
   reopenedResult !== null && 'xerSourceArchive' in reopenedResult && reopenedResult.xerSourceArchive !== undefined
   && sha256Hex(decodeXerSourceArchive(reopenedResult.xerSourceArchive)) === sourceSha);
 
-// ── (d) ontbrekende blob ⇒ openen met melding ─────────────────────────────────────────────────
 idb.store('xer-archives').delete(sourceSha);
 const missing = await restoreFrom();
 expect('d1 zonder blob levert loadRecovery geen archiefbytes', missing.loaded.archives.size === 0);
@@ -193,7 +163,6 @@ const noResolver = await readIFCWithXerReconstruction(snapshot);
 expect('d5 een referentiesnapshot buiten crashherstel (zonder resolver) geeft ook bytes-missing',
   noResolver.xerSourceArchive === undefined && noResolver.xerArchiveIssue?.code === 'bytes-missing');
 
-// ── (e) oude snapshotvorm: ingebed archief, manifest zonder verwijzing ─────────────────────────
 await clearRecovery();
 const legacyDoc = store().getOpenDocumentPayloads()[0]!;
 await saveRecovery(fullRecoverySave(legacyDoc.id, [{
@@ -208,7 +177,6 @@ expect('e2 een oude snapshot met ingebed archief herstelt byte-identiek',
   legacy.parsed[0]?.xerSourceArchive !== undefined
   && sha256Hex(decodeXerSourceArchive(legacy.parsed[0].xerSourceArchive)) === sourceSha);
 
-// ── (f) opruimen: de blob blijft zolang één snapshot ernaar verwijst ───────────────────────────
 await clearRecovery();
 const cleanupTracker = new RecoveryDeltaTracker();
 const all = recoveryDocs();
@@ -224,7 +192,6 @@ await clearRecovery();
 expect('f6 clearRecovery laat geen records of blobs achter',
   idb.store('records').size === 0 && idb.store('xer-archives').size === 0);
 
-// ── (g) native SHA-256 (`crypto.subtle`) = de draagbare JS-versie: de content-adressering blijft gelijk ──
 {
   const samples = [new Uint8Array(0), new TextEncoder().encode('abc'), bytes.subarray(5, 70_000), bytes];
   let same = true;
