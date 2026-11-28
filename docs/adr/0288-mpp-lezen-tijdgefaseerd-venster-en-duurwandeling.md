@@ -13,8 +13,8 @@ rekent. Alleen bladtaken met een start en toewijzingen met een koppeling (ADR 02
 - Venster: alleen als `time.completion` 0 is, uit de toewijzingen met minstens één echte gedecodeerde periode
   (gedecodeerd zonder `referenceFinish`, dus een vlak samenvattend record telt niet). Het einde is het laatste
   `FINISH` van die toewijzingen, het anker de vroegste `START`, letterlijk gelezen. Zonder bruikbaar `FINISH` levert de
-  lezer geen venster. De lezer kijkt alleen naar `completion`, niet naar een werkelijke start. Volgens het weggehaalde
-  commentaar gaf het venster 0 afwijkingen op de contourtaken van het corpus.
+  lezer geen venster. De lezer kijkt alleen naar `completion`, niet naar een werkelijke start. Bij de invoering van
+  het venster gingen 11 tijdgefaseerde corpusbestanden en `mpp14resource.mpp` naar 0 afwijkingen (commit fee9ecb47).
 - Kandidaat voor een wandeling is elke andere gekoppelde toewijzing met tijdgefaseerde gegevens
   (`hasAnyTimephasedData`), een `START`, een resource-id en een gevonden resourcekalender; bij een `completion` boven 0
   ook een toewijzing met echte periodes. Er is bewust geen terugval op het gelezen `FINISH` van zo'n toewijzing: dat
@@ -34,8 +34,7 @@ rekent. Alleen bladtaken met een start en toewijzingen met een koppeling (ADR 02
   `check-mpp-walk-units.ts` toetst vier gevallen in één bytefixture: twee werkresources op 12,5 %, een werk- naast een
   kostenresource, materiaal naast een werkresource, en een inzet van 0 (geen wandeling). Bron: MS Project
   "Duration = Work / Units" en "assigning material resources or cost resources to a task doesn't affect task
-  scheduling" (support.microsoft.com, "How Project schedules tasks: Behind the scenes", geciteerd in het weggehaalde
-  commentaar); dit is de fix van knownbug 187 (PR #722).
+  scheduling" (support.microsoft.com, "How Project schedules tasks: Behind the scenes"); dit is de fix van knownbug 187 (PR #722).
 - De afronding op een tiende minuut (`roundToMspDurationResolution`), omdat werk en inzet met een kleine
   drijvendekommafout in het bestand staan: in `timephased-cost-rollup.mpp` een inzet van 1249,9998779296875 voor
   12,5 % en werk 299999,96875 voor 300 minuten, wat 2399,99998 geeft en een einde om 16:59 in plaats van 17:00

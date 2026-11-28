@@ -18,8 +18,8 @@ van de toewijzing naar de taak, met `CalendarEngine.workMinutesBetween`) staat i
   veld alleen als hij 0 of groter is en het veld binnen het record valt, zodat een corrupte veldkaart alleen dat veld
   kost; elke andere fout geeft een lege koppeling. De lus toetst `varMeta.containsKey` niet: de aanroepers
   vragen alleen uid's op die uit `readAssignmentTimephasedRaw` komen, en die komen al uit VarMeta.
-- Alleen bladtaken met een start krijgen splits en contouren; een samenvattingstaak niet (volgens het weggehaalde
-  commentaar ook in MPXJ `Task.calculateWorkSplits`).
+- Alleen bladtaken met een start krijgen splits en contouren; een samenvattingstaak niet (zoals MPXJ
+  `Task.calculateWorkSplits`).
 - De periodes van een toewijzing beginnen bij haar eigen `START`. `computeShiftedAssignmentPeriods` schuift ze op met
   de werkminuten van taakstart tot `START` (niet negatief; zonder `START` 0), gerekend door een `CalendarEngine` op de
   effectieve taakkalender. Die engine leidt voor een kalender zonder opgeslagen `workTime` de werkblokken af uit de

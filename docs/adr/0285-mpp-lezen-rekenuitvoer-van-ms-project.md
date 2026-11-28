@@ -14,9 +14,8 @@ bij MSPDI (ADR 0255).
 - MPP14 bewaart geen totale speling. `mppTotalSlackTenths` leidt haar af uit start- en finishspeling: bij een taak met
   een werkelijke start de finishspeling, ook als de startspeling ontbreekt; anders het minimum van beide, en dan zonder
   een van de twee geen speling
-  (`check-recorded-times-formats.ts`, 5-0d tot en met 5-0g). Dat dit MPXJ `MicrosoftSlackCalculator.calculateTotalSlack`
-  volgt (de kleinste speling, want een `.mpp` kent geen `TotalSlackCalculationType`), komt uit het weggehaalde
-  commentaar.
+  (`check-recorded-times-formats.ts`, 5-0d tot en met 5-0g). Dit volgt MPXJ `MicrosoftSlackCalculator.calculateTotalSlack`
+  (de kleinste speling, want de `.mpp`-lezer van MPXJ zet geen `TotalSlackCalculationType`).
 - Speling staat in tienden van een minuut. De lezer rekent haar om naar dagen: bij een kalendertijdtaak met een dag
   van 24 uur, op een gepromoveerde kalender (ADR 0283) met `effHoursPerDay` van die kalender (zoals de XER-lezer, niet
   `MINUTES_PER_DAY`), en anders met de `hoursPerDay` van `parseProjectProperties` (`MINUTES_PER_DAY`, of 8).
