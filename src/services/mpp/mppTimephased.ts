@@ -1,9 +1,4 @@
-/**
- * Native MPP14-lezer (MS Project 2010–2021), alleen-lezen.
- * Afgeleid van de MPXJ-broncode (https://github.com/joniles/mpxj, © Jon Iles e.a.,
- * LGPL-2.1) — structuurkennis en veldconstanten geport naar TypeScript voor
- * Open Planner Studio (LGPL-3.0).
- */
+// Bron: MPXJ van Jon Iles e.a., structuurkennis en veldconstanten geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
 import type { TaskSplitGap } from '@/types/task';
 import { gapsBetweenWorkedSpans, intersectAssignmentGaps } from '@/services/contourIo';
 import { getShort, getInt, getDouble, getTimestamp } from './mppPrimitives';
