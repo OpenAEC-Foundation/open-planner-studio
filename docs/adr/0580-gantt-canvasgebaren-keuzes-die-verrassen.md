@@ -8,19 +8,20 @@ erboven in ADR 0570; hier staat wat daar niet in staat.
 
 - Na een pan of een kaderselectie slikt de vlag `justBoxSelectedRef` de click in die op het loslaten volgt, zodat
   die de nieuwe selectie niet meteen weer wist. `usePan` zet de vlag alleen als er echt gepand is
-  (`BOX_SELECT_THRESHOLD`) en alleen voor de linkerknop. Volgens het weggehaalde commentaar geeft een middelklik geen
-  click, zodat de vlag dan bleef staan en de eerstvolgende gewone klik opat; niet nagegaan. Eindigt een gebaar buiten
+  (`BOX_SELECT_THRESHOLD`) en alleen voor de linkerknop. Een middelklik geeft geen `click` (UI Events: `click` alleen
+  voor de primaire knop, de andere knoppen geven `auxclick`), zodat de vlag dan bleef staan en de eerstvolgende gewone
+  klik opat. Eindigt een gebaar buiten
   het canvas, dan komt er geen canvasclick die de vlag opruimt. Daarom wist `onMouseDown` in
   `useGanttPointerCoordinator` de vlaggen bij elke nieuwe mousedown, en zet `useBoxSelect` een eenmalige
   click-luisteraar op `window` in de bubble-fase.
 - `useGanttHistogramInteraction` blijft gemount als het histogram uit gaat; alleen de strook in de portal
   verdwijnt. Het effect op `active` sluit de tooltip daarom zelf, anders verscheen hij zonder nieuwe hover weer zodra
-  het histogram terugkwam. `TOOLTIP_SAFETY_NET_MS` sluit een tooltip die zo lang niet veranderde: volgens het weggehaalde
-  commentaar geeft een tik met touch of pen wel een `mousemove` en een `click` maar geen `mouseleave`; niet nagegaan.
+  het histogram terugkwam. `TOOLTIP_SAFETY_NET_MS` sluit een tooltip die zo lang niet veranderde: een tik met touch geeft wel een `mousemove` en een `click` maar geen
+  `mouseleave` (Touch Events: na een tik volgen `mousemove`, `mousedown`, `mouseup` en `click`).
 - `useGanttViewportCoordinator` bouwt voor de inhoudsbreedte een eigen as zonder scroll en zoom (`spanAxis`). Zo hangt
   de dagspanne niet van scroll af, en `computeContentWidth` rekent haar daarna met de zoom om in pixels; met de gedeelde as, die bij elke scroll verandert, liep de berekening
-  bij elke scroll opnieuw over alle taken, volgens het weggehaalde commentaar het grootste deel van een scrollframe
-  bij 8000 taken.
+  bij elke scroll opnieuw over alle taken (een bevinding uit het profiel met 8000 taken in de commit "perf(gantt):
+  scrollframes zonder volledige taak-, relatie- en toewijzingspasses").
 - De tooltip op de primaire tijdlijn zoekt zijn taak op in de actuele taken (`tooltipTask` in `useGanttPointerCoordinator`) en
   gebruikt niet de taak uit de hit. Een hit hoort bij de laatst getekende frame: na F5 kan die achterlopen, en een
   muis die stilstaat levert geen nieuwe hit.
