@@ -1,11 +1,3 @@
-// T15 — AI-activiteitenlog headless: ring-buffer-gedrag + de server.ts-wiring.
-//
-// Twee lagen: (1) `activityLog` puur (record/getEntries/clear/subscribe + ring-buffer-cap + afkap),
-// en (2) de echte `createRequestHandler`-wiring die een `tools/call` door de ECHTE dispatcher stuurt
-// en één `ActivityEntry` in het log legt. Geen Tauri: emit wordt als fake geïnjecteerd, precies zoals
-// cases-server.ts.
-
-// --- localStorage-shim (vóór elke @/-import; server.ts→settingsStore leest 'm) -------------------
 const backing = new Map<string, string>();
 (globalThis as any).localStorage = {
   getItem: (k: string) => (backing.has(k) ? backing.get(k)! : null),
@@ -51,8 +43,6 @@ function mkEntry(over: Partial<ActivityEntry> = {}): ActivityEntry {
   };
 }
 
-// --- (1) record legt een entry met de juiste velden -----------------------------------------------
-
 test('record voegt één entry toe met alle velden intact', () => {
   clear();
   const e = mkEntry({ tool: 'planner_add_tasks', summary: 'planner_add_tasks: 42 tasks', durationMs: 12, ok: true, argsJson: '{"tasks":[]}', resultJson: '{"ok":true}' });
@@ -76,12 +66,10 @@ test('record bewaart de fout-tak (ok:false + error)', () => {
   assertEq(got.error, '-32602: Invalid params', 'error-string bewaard');
 });
 
-// --- (2) ring-buffer capt op MAX_ENTRIES (501e verdringt de oudste) --------------------------------
-
 test('ring-buffer capt op 500: de 501e verdringt de oudste', () => {
   clear();
   assertEq(MAX_ENTRIES, 500, 'cap is 500 (spec)');
-  for (let i = 0; i <= MAX_ENTRIES; i++) {   // 0..500 = 501 entries
+  for (let i = 0; i <= MAX_ENTRIES; i++) {
     record(mkEntry({ tool: `t${i}`, summary: `t${i}` }));
   }
   const list = getEntries();
@@ -89,8 +77,6 @@ test('ring-buffer capt op 500: de 501e verdringt de oudste', () => {
   assertEq(list[0].tool, 't1', 'de oudste (t0) is verdrongen; nu begint het bij t1');
   assertEq(list[list.length - 1].tool, `t${MAX_ENTRIES}`, 'de nieuwste (t500) staat achteraan');
 });
-
-// --- (3) subscribe vuurt; (4) clear leegt ---------------------------------------------------------
 
 test('subscribe vuurt bij record met de nieuwe snapshot, en unsubscribe stopt het', () => {
   clear();
@@ -118,8 +104,6 @@ test('clear leegt de buffer en notificeert', () => {
   unsub();
 });
 
-// --- (5) afkappen: capField + record garanderen ≤ 20 kB + marker ----------------------------------
-
 test('capField kapt >20 kB af met de marker en is idempotent', () => {
   const big = 'x'.repeat(FIELD_CAP + 5000);
   const cut = capField(big);
@@ -141,8 +125,6 @@ test('record kapt een >20 kB argsJson defensief af (laatste linie)', () => {
   assert(got.argsJson.length <= FIELD_CAP + TRUNCATE_MARKER.length, 'argsJson binnen de cap');
 });
 
-// --- (6) server.ts-wiring: een echte tools/call door de handler legt één entry ---------------------
-
 function registerStub(): void {
   const stub: McpToolDef = {
     name: 'planner_activity_stub',
@@ -156,13 +138,9 @@ function registerStub(): void {
   registerToolModules([[stub]]);
 }
 
-/**
- * De echte request-handler met een geopende MCP-sessie: elk request behalve `initialize` moet een sessie
- * dragen (anders 400). De `initialize` zelf komt ook in het log; daarom daarna `clear()`.
- */
 async function sessionHandler(): Promise<(payload: { id: number; body: string }) => Promise<void>> {
   const handler = createRequestHandler({
-    emit: () => { /* niet relevant voor de log-assertie */ },
+    emit: () => { },
     buildContext: buildMcpContext,
     handleMessage: handleMcpMessage,
     newSessionId: () => 'sessie-activiteit',

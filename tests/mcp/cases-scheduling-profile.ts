@@ -1,6 +1,3 @@
-// Rekenprofielen via MCP (plan taak C9): tonen, opgeloste set, en een eerlijke weigering bij schrijven.
-// Mutatiebewijs: `schedulingProfile` uit PROJECT_REFUSED halen ⇒ de derde case rood (generieke
-// "onbekend veld"-tekst zonder Projectinfo).
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpToolOk, McpToolResult } from '@/services/mcp/contracts';
@@ -30,9 +27,6 @@ test('get_project_info toont ook een OPS-project expliciet', async () => {
   assertEq([profile?.id, profile?.baseId, Object.keys(profile?.conventions ?? {}).length], ['ops', 'ops', 29], 'ops expliciet, negenentwintig conventies');
 });
 
-// Projectoptie `startToStartLagFrom` (P6 "Calculate Start-to-Start lag from", de variant van C6): altijd
-// zichtbaar, afwezig ⇒ earlyStart. Mutatiebewijs: de expliciete terugval in `getProjectInfo` weglaten ⇒
-// de eerste assertie rood; de spread van de projectopties weglaten ⇒ de tweede rood.
 test('get_project_info toont de SS-lag-variant (projectoptie) expliciet', async () => {
   S().newProject();
   type OptionsView = { schedulingOptions?: { startToStartLagFrom?: string; lagCalendar?: string } };
@@ -52,10 +46,6 @@ test('update_project weigert schedulingOptions (ook de SS-lag-variant) met een v
     `weigertekst noemt de optie en Projectinstellingen: ${res.ok ? '' : res.error}`);
 });
 
-// Nivelleerfundament: `schedulingOptions.leveling` komt letterlijk en alleen-lezen mee; schrijven via de
-// bridge wordt geweigerd met een eigen, eerlijke reden (niet de Projectinfo-tekst: daar staat het blok
-// niet). Mutatiebewijs: de `leveling`-regel uit PROJECT_REFUSED halen ⇒ de tweede test rood (generieke
-// "onbekend veld"-tekst zonder "nog NIET toegepast").
 test('get_project_info toont het nivelleerblok alleen-lezen en letterlijk', async () => {
   S().newProject();
   const leveling = {

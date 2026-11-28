@@ -1,17 +1,3 @@
-// G5 — een MCP-transactie zonder datawijziging telt GEEN undo-stap (bijvondst G1, 2026-09-25).
-//
-// Waargenomen, en hier via de ECHTE dispatcher (`handleMcpMessage`) gereproduceerd: elke geslaagde
-// MCP-mutatie legde een "MCP-bewerking"-undo-stap vast, ook als hij per saldo niets veranderde
-// (dezelfde naam nog eens, een deels geweigerde call waarvan de rest een no-op is, een lege batch-
-// stap). Oorzaak: de transactie draaide altijd haar eind-`runCPM`, `cpmResult` kreeg een nieuwe
-// referentie, en de history-vergelijking (`snapshotsEqual`) gaat op referentie. Gevolgen voor de
-// gebruiker: een loze undo-stap, zijn REDO-stapel gewist, een verouderde planning stil herrekend,
-// "datums zoals opgeslagen" stil verlaten, en het document op "gewijzigd".
-//
-// De regel is die van de UI-routes (no-op-guards met `sameValue`): per saldo niets gewijzigd ⇒ er is
-// niets gebeurd. De MCP-transactie meet dat op haar ene commit-plek met `documentDataChanged`
-// (dezelfde meting die al `isDirty` bepaalde), vóór de eindherberekening. Geen datawijziging ⇒ geen
-// undo-stap, geen herberekening, en `cpmResult`/`scheduleStale`/`isDirty` blijven zoals ze waren.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -23,12 +9,9 @@ const store = useAppStore;
 const S = () => store.getState();
 registerAllTools();
 
-// Warm-up (zoals cases-recorded-dates.ts): projectkalender tot bibliotheek-entry promoten via één
-// undo, zodat restore-paden een steady state hebben.
 S().addTask({ name: 'warmup' });
 S().undo();
 
-/** Roep een tool aan via de ECHTE JSON-RPC-weg en geef het tool-resultaat (structuredContent). */
 async function rpc(name: string, args: unknown, guards: { paused?: boolean; readOnly?: boolean } = {}): Promise<any> {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
@@ -48,10 +31,6 @@ const applied = () => S().historyEvents.filter((e) => e.state === 'applied').len
 const undone = () => S().historyEvents.filter((e) => e.state === 'undone').length;
 const task = (id: string) => S().tasks.find((t) => t.id === id)!;
 
-/**
- * Doorgerekend project met twee gekoppelde taken (A op 50%), een REDO-stapel die een no-op niet mag
- * wissen, en daarna "opgeslagen" (isDirty=false).
- */
 function savedProject(): { a: string; b: string } {
   S().newProject();
   S().setProject({ startDate: '2026-03-02', statusDate: '2026-03-04' });
@@ -61,18 +40,13 @@ function savedProject(): { a: string; b: string } {
   S().setTaskProgress(a, 0.5);
   S().runCPM();
   S().addTask({ name: 'weer weg' });
-  S().undo(); // ⇒ één redo-stap
+  S().undo();
   store.setState((s) => { s.isDirty = false; });
   assertEq(S().scheduleStale, false, 'opzet: planning is vers');
   assert(undone() > 0, 'opzet: er ligt een redo-stapel');
   return { a, b };
 }
 
-/**
- * Maak de planning ECHT verouderd, zoals een UI-bewerking met automatisch berekenen uit: A wordt
- * langer, maar de berekende datums (en dus B's start) staan nog op de oude stand. Een herberekening
- * zou ze verzetten — wie dan "niets herrekend" pint, pint ook dat de datums blijven staan.
- */
 function makeStale(a: string, b: string): string | undefined {
   S().updateTask(a, { time: { ...task(a).time, scheduleDuration: 8 } });
   assertEq(S().scheduleStale, true, 'opzet: planning is verouderd');
@@ -80,7 +54,6 @@ function makeStale(a: string, b: string): string | undefined {
   return task(b).time.earlyStart;
 }
 
-/** Pin "er is niets gebeurd": geen undo-stap, redo intact, rekenstand en dirty ongewijzigd. */
 function expectNothingHappened(label: string, before: { applied: number; undone: number; cpm: unknown; stale: boolean; dirty: boolean; tasks: unknown }): void {
   assertEq(applied(), before.applied, `${label}: geen undo-stap`);
   assertEq(undone(), before.undone, `${label}: de redo-stapel van de gebruiker blijft staan`);
@@ -94,7 +67,6 @@ function snap() {
   return { applied: applied(), undone: undone(), cpm: S().cpmResult, stale: S().scheduleStale, dirty: S().isDirty, tasks: S().tasks };
 }
 
-// --- 1) Het gemelde geval ------------------------------------------------------------------------
 test('update_tasks met dezelfde naam: geen undo-stap, redo blijft, niets herrekend, niet dirty', async () => {
   const { a } = savedProject();
   const before = snap();
@@ -114,7 +86,6 @@ test('controle: een echte naamswijziging is precies één undo-stap', async () =
   assertEq(task(a).name, 'Grondwerk', 'undo zet de naam terug');
 });
 
-// --- 2) Per saldo: een nieuw object met dezelfde inhoud is geen wijziging ------------------------
 test('update_tasks met de huidige duur of dezelfde constraint: geen undo-stap', async () => {
   const { a } = savedProject();
   ok(await rpc('planner_update_tasks', { updates: [{ id: a, fields: { constraint: { type: 'SNET', date: '2026-03-02' } } }] }));
@@ -140,7 +111,6 @@ test('update_project met de huidige naam: geen undo-stap (modifiedAt telt niet, 
   assert(S().project === project, 'het project is exact het oude (ook modifiedAt)');
 });
 
-// --- 3) Deels geweigerd, deels no-op -------------------------------------------------------------
 test('update_tasks: één item geweigerd, het andere een no-op ⇒ weigering gemeld, verder niets', async () => {
   const { a, b } = savedProject();
   const before = snap();
@@ -152,7 +122,6 @@ test('update_tasks: één item geweigerd, het andere een no-op ⇒ weigering gem
   expectNothingHappened('geweigerd + no-op', before);
 });
 
-// --- 4) planner_batch -----------------------------------------------------------------------------
 test('planner_batch met alleen no-op-stappen (ook een geweigerd item): geen undo-stap', async () => {
   const { a, b } = savedProject();
   const before = snap();
@@ -191,9 +160,6 @@ test('planner_batch die een naam wijzigt en weer terugzet: per saldo niets, dus 
   assertEq(task(a).name, 'Grondwerk', 'naam zoals hij was');
 });
 
-// Sinds leestools zelf bijrekenen (besluit 2026-10): een leesstap in een batch leest verse datums. De
-// batch rekent daarvoor VÓÓR de transactie door, zoals F5 — dus nog steeds geen undo-stap, de
-// redo-stapel blijft en het document wordt niet vuil; alleen de berekende datums zijn ververst.
 test('planner_batch: no-op-stap gevolgd door een leesstap op een verouderde planning ⇒ verse datums, geen undo-stap', async () => {
   const { a, b } = savedProject();
   const staleStartB = makeStale(a, b);
@@ -280,7 +246,6 @@ test('controle: planner_batch met een echte wijziging blijft één undo-stap', a
   assertEq(S().isDirty, true, 'document gewijzigd');
 });
 
-// --- 5) Verouderde planning en "datums zoals opgeslagen" -----------------------------------------
 test('no-op op een verouderde planning: blijft verouderd, cpmResult ongemoeid', async () => {
   const { a, b } = savedProject();
   const staleStartB = makeStale(a, b);
@@ -304,7 +269,6 @@ test('no-op in "datums zoals opgeslagen": de modus blijft aan, geen undo-stap', 
   assertEq(task(bId).time.earlyStart, recordedStart, 'de opgeslagen datum blijft staan');
 });
 
-// --- 6) De transactie zelf, en wat géén no-op is -------------------------------------------------
 test('een lege MCP-transactie laat geen undo-stap achter', () => {
   savedProject();
   const before = snap();

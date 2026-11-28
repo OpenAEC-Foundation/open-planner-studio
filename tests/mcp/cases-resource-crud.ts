@@ -1,35 +1,3 @@
-// RESOURCEBEHEER — `planner_manage_resources` (src/services/mcp/tools/resourceTools.ts).
-//
-// Het gat dat deze tool dicht: de bridge kon resources lezen, toewijzen en nivelleren, maar er was
-// geen enkele manier om er één AAN TE MAKEN, te hernoemen, te verwijderen of zijn capaciteit/tarief/
-// kalender/beschikbaarheid te wijzigen. "Zet er een tweede kraan bij" liep dood op
-// `manage_assignments`' `resource '<id>' bestaat niet`.
-//
-// Draait headless tegen de ECHTE Zustand-store (via de harness), net als cases-mutate-cal-res.ts.
-//
-// Testlijst:
-//   1. create ⇒ resource bestaat; list_resources spiegelt ELK geschreven veld terug (leeskant↔schrijfkant)
-//   2. bulk (2× create + update) ⇒ precies ÉÉN undo-stap; één undo draait alles terug
-//   3. hernoemen + capaciteit/tarief wijzigen
-//   4. `null` WIST een optioneel veld; een lege availabilitySteps-lijst wist de stappen
-//   5. update zónder velden ⇒ zachte weigering (nooit `ok` zonder effect)
-//   6. onbekend id ⇒ zachte weigering + lege-batch-snelpad (geen undo-snapshot, redo intact)
-//   7. onbekende SLEUTEL ⇒ weigering die de sleutel NOEMT
-//   8. onbekend `type` / ongeldige `maxUnits` ⇒ weigering die de geldige waarden noemt
-//   9. delete mét toewijzingen ZONDER cascade ⇒ zachte weigering met het exacte aantal; niets weg
-//  10. delete mét `cascade: true` ⇒ resource + toewijzingen weg, task.resourceIds schoon, exact rapport
-//  11. delete van een CREW ⇒ leden verliezen hun parentId, gerapporteerd
-//  12. parentId-guards: onbekend, niet-CREW, zichzelf
-//  13. unitOfMeasure alleen op MATERIAL
-//  14. planner_batch: create met tempId → manage_assignments met diezelfde tempId ⇒ toewijzing landt
-//  15. planner_batch: dezelfde per-item-weigeringen gelden ook via een draaiboek
-//  16. schemapoort (dispatcher): onbekende TOP-LEVEL sleutel ⇒ VALIDATION vóór enige mutatie
-//  17. IFC-round-trip: elk schrijfbaar veld overleeft opslaan + herladen
-//  17b. create krijgt dezelfde automatische paletkleur als de store-actie
-//  18. tooldefinitie-vorm: prefix, description, vier annotaties, batchable + batchStep
-//  19. waarschuwing "TOEGEPASTE nivellering" na een capaciteitswijziging ziet dezelfde nivelleeruitvoer
-//      als "Nivellering wissen" (`hasLevelingOutput`): ook alleen nivelleergaten of alleen sub-dag-
-//      vertraging; een gebruikersgat of een planning zonder nivelleeruitvoer geeft géén waarschuwing
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { resourceTools } from '@/services/mcp/tools/resourceTools';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
@@ -46,12 +14,9 @@ import type { Task } from '@/types/task';
 
 const store = useAppStore;
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`; het
-// restore-pad promoot de projectkalender-cache tot bibliotheek-entry (syncProjectCalendar §9.1).
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
-// --- helpers -------------------------------------------------------------------------------------
 function reset(): void {
   store.getState().newProject();
 }
@@ -79,18 +44,15 @@ function okData(res: McpToolResult): any {
 function rejections(res: McpToolResult): { id: string; reason: string }[] {
   return (res as McpToolOk).itemRejections ?? [];
 }
-/** Eén weigeringsreden; faalt als er niet exact één is. */
 function soleReason(res: McpToolResult): string {
   const r = rejections(res);
   assertEq(r.length, 1, `verwachtte precies één weigering, kreeg ${JSON.stringify(r)}`);
   return r[0].reason;
 }
-/** Maak één resource aan via de tool en geef het echte id terug. */
 async function makeResource(fields: Record<string, unknown>): Promise<string> {
   const data = okData(await call('planner_manage_resources', { actions: [{ action: 'create', ...fields }] }));
   return data.resources[0].id as string;
 }
-/** Voeg een blad-taak met een duur toe (store-actie, buiten de tools om). */
 function addTask(name: string, durationDays = 5): string {
   const id = store.getState().addTask({ name });
   const t = store.getState().tasks.find((x) => x.id === id)!;
@@ -98,9 +60,6 @@ function addTask(name: string, durationDays = 5): string {
   return id;
 }
 
-// =================================================================================================
-// 1) create ⇒ de leeskant spiegelt ELK geschreven veld terug
-// =================================================================================================
 test('create: alle schrijfbare velden landen en komen 1-op-1 terug uit list_resources', async () => {
   reset();
   store.getState().ensureProjectCalendarInLibrary();
@@ -138,7 +97,6 @@ test('create: alle schrijfbare velden landen en komen 1-op-1 terug uit list_reso
   assertEq(res.availabilitySteps, [{ from: '2026-07-01', maxUnits: 2 }, { from: '2026-09-01', maxUnits: 1 }],
     'availabilitySteps chronologisch gesorteerd opgeslagen');
 
-  // LEESKANT ↔ SCHRIJFKANT: precies deze veldnamen komen terug uit de leestool.
   const list = okData(await call('planner_list_resources', {}));
   const row = list.resources.find((r: any) => r.id === id);
   assert(row, 'de nieuwe resource staat in list_resources');
@@ -149,9 +107,6 @@ test('create: alle schrijfbare velden landen en komen 1-op-1 terug uit list_reso
   assertEq(row.parentId, crewId, 'parentId identiek gelezen');
 });
 
-// =================================================================================================
-// 2) bulk ⇒ ÉÉN undo-stap
-// =================================================================================================
 test('bulk: 2× create + 1 update = precies één undo-stap; één undo draait alles terug', async () => {
   reset();
   const bestaand = await makeResource({ name: 'Betonploeg' });
@@ -173,9 +128,6 @@ test('bulk: 2× create + 1 update = precies één undo-stap; één undo draait a
   assertEq(store.getState().resources[0].name, 'Betonploeg', 'en draait de hernoeming terug');
 });
 
-// =================================================================================================
-// 3) hernoemen + capaciteit/tarief
-// =================================================================================================
 test('update: hernoemen en capaciteit/tarief wijzigen', async () => {
   reset();
   const id = await makeResource({ name: 'Kraan', type: 'EQUIPMENT', maxUnits: 1, costPerHour: 50 });
@@ -187,9 +139,6 @@ test('update: hernoemen en capaciteit/tarief wijzigen', async () => {
   assertEq([r.name, r.maxUnits, r.costPerHour], ['Torenkraan', 4, 120], 'alle drie de waarden staan in de store');
 });
 
-// =================================================================================================
-// 4) `null` wist een optioneel veld
-// =================================================================================================
 test('update: `null` WIST een optioneel veld (en laat de sleutel niet als undefined achter)', async () => {
   reset();
   store.getState().ensureProjectCalendarInLibrary();
@@ -208,9 +157,6 @@ test('update: `null` WIST een optioneel veld (en laat de sleutel niet als undefi
   }
 });
 
-// =================================================================================================
-// 4b) een stap naar 0 (niet beschikbaar) mag; de vlakke maxUnits blijft > 0
-// =================================================================================================
 test('update: availabilitySteps met een stap naar 0 (bv. uit MS Project XML) blijft bewerkbaar', async () => {
   reset();
   const id = await makeResource({ name: 'Kraan' });
@@ -225,9 +171,6 @@ test('update: availabilitySteps met een stap naar 0 (bv. uit MS Project XML) bli
   assert(JSON.stringify(neg).includes('>= 0'), `een negatieve stap wordt geweigerd: ${JSON.stringify(neg).slice(0, 300)}`);
 });
 
-// =================================================================================================
-// 5) update zonder velden ⇒ zachte weigering
-// =================================================================================================
 test('update zonder velden ⇒ zachte weigering (nooit `ok` zonder effect)', async () => {
   reset();
   const id = await makeResource({ name: 'Timmerman' });
@@ -238,13 +181,10 @@ test('update zonder velden ⇒ zachte weigering (nooit `ok` zonder effect)', asy
   assertEq(okData(res).updated, [], 'niets als gewijzigd gerapporteerd');
 });
 
-// =================================================================================================
-// 6) onbekend id ⇒ weigering + lege-batch-snelpad
-// =================================================================================================
 test('onbekend id ⇒ zachte weigering; nul uitvoerbare items betreedt GEEN transactie', async () => {
   reset();
   addTask('A');
-  store.getState().updateTask(store.getState().tasks[0].id, { name: 'A2' }); // vult de undo-stack
+  store.getState().updateTask(store.getState().tasks[0].id, { name: 'A2' });
   store.getState().undo();
   const redoLen = store.getState().historyEvents.filter(event => event.state === 'undone').length;
   assert(redoLen > 0, 'er staat iets op de redo-stack (voorwaarde van deze test)');
@@ -258,9 +198,6 @@ test('onbekend id ⇒ zachte weigering; nul uitvoerbare items betreedt GEEN tran
   assertEq(store.getState().historyEvents.filter(event => event.state === 'undone').length, redoLen, 'de redo-stack van de gebruiker blijft intact');
 });
 
-// =================================================================================================
-// 7) onbekende SLEUTEL ⇒ weigering die de sleutel noemt
-// =================================================================================================
 test('onbekende sleutel ⇒ weigering die de SLEUTEL noemt én het alternatief opsomt', async () => {
   reset();
   const id = await makeResource({ name: 'Kraan', type: 'EQUIPMENT' });
@@ -272,15 +209,11 @@ test('onbekende sleutel ⇒ weigering die de SLEUTEL noemt én het alternatief o
   assert(reason.includes('maxUnits'), `de reden noemt het juiste veld: ${reason}`);
   assertEq(store.getState().resources.find((r) => r.id === id)!.maxUnits, 1, 'er is niets stil gewijzigd');
 
-  // Ook bij `create`, en met de juiste opsomming voor die actie.
   const res2 = await call('planner_manage_resources', { actions: [{ action: 'create', name: 'X', units: 2 }] });
   assert(soleReason(res2).includes('`units`'), 'ook create weigert een onbekende sleutel bij naam');
   assertEq(store.getState().resources.length, 1, 'er is geen resource aangemaakt');
 });
 
-// =================================================================================================
-// 8) ongeldige waarden ⇒ weigering die het domein noemt
-// =================================================================================================
 test('onbekend `type` en ongeldige `maxUnits` worden zacht geweigerd, met het geldige domein erbij', async () => {
   reset();
   const res = await call('planner_manage_resources', {
@@ -295,13 +228,9 @@ test('onbekend `type` en ongeldige `maxUnits` worden zacht geweigerd, met het ge
   assert(r[0].reason.includes('EQUIPMENT'), `het type-domein staat erbij: ${r[0].reason}`);
   assert(r[0].reason.includes('case-sensitive'), `en dat het hoofdlettergevoelig is: ${r[0].reason}`);
   assert(r[1].reason.includes('> 0'), `de maxUnits-regel staat erbij: ${r[1].reason}`);
-  // ZACHTE weigering: het geldige item is gewoon aangemaakt.
   assertEq(store.getState().resources.map((x) => x.name), ['Goed'], 'één rot item rolt de bulk niet terug');
 });
 
-// =================================================================================================
-// 9) delete mét toewijzingen ZONDER cascade ⇒ weigering met het exacte aantal
-// =================================================================================================
 test('delete van een resource mét toewijzingen wordt zonder `cascade` zacht geweigerd', async () => {
   reset();
   const t1 = addTask('Storten');
@@ -325,9 +254,6 @@ test('delete van een resource mét toewijzingen wordt zonder `cascade` zacht gew
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen, 'en er is geen undo-stap verbruikt');
 });
 
-// =================================================================================================
-// 10) delete mét cascade ⇒ exact voor/na-rapport
-// =================================================================================================
 test('delete met `cascade: true` ⇒ toewijzingen weg, task.resourceIds schoon, VOLLEDIG rapport', async () => {
   reset();
   const t1 = addTask('Storten');
@@ -361,9 +287,6 @@ test('delete met `cascade: true` ⇒ toewijzingen weg, task.resourceIds schoon, 
     `de respons WAARSCHUWT over het meegewiste werk: ${JSON.stringify(data.warnings)}`);
 });
 
-// =================================================================================================
-// 11) delete van een CREW ⇒ leden verliezen hun lidmaatschap, en dat wordt gemeld
-// =================================================================================================
 test('delete van een CREW ⇒ leden raken hun parentId kwijt en dat staat in het rapport', async () => {
   reset();
   const crew = await makeResource({ name: 'Ploeg A', type: 'CREW' });
@@ -381,9 +304,6 @@ test('delete van een CREW ⇒ leden raken hun parentId kwijt en dat staat in het
     `er staat een waarschuwing over de verweesde leden: ${JSON.stringify(data.warnings)}`);
 });
 
-// =================================================================================================
-// 12) parentId-guards
-// =================================================================================================
 test('parentId: onbekend, niet-CREW en zichzelf worden alle drie zacht geweigerd', async () => {
   reset();
   const gewoon = await makeResource({ name: 'Metselaar' });
@@ -403,25 +323,18 @@ test('parentId: onbekend, niet-CREW en zichzelf worden alle drie zacht geweigerd
   assert(r[2].reason.includes('own crew'), `zelf-ouderschap: ${r[2].reason}`);
 });
 
-// =================================================================================================
-// 13) unitOfMeasure alleen op MATERIAL (spiegelt het resourcepaneel, waar het veld dan uit staat)
-// =================================================================================================
 test('unitOfMeasure geldt alleen voor MATERIAL — óók wanneer het type in dezelfde actie meeverandert', async () => {
   reset();
   const id = await makeResource({ name: 'Zand', type: 'LABOR' });
   const bad = await call('planner_manage_resources', { actions: [{ action: 'update', id, unitOfMeasure: 'm3' }] });
   assert(soleReason(bad).includes('MATERIAL'), 'de reden noemt de regel');
 
-  // Type + eenheid in ÉÉN actie moet wél kunnen: de check kijkt naar het RESULTERENDE type.
   okData(await call('planner_manage_resources', {
     actions: [{ action: 'update', id, type: 'MATERIAL', unitOfMeasure: 'm3' }],
   }));
   assertEq(store.getState().resources.find((r) => r.id === id)!.unitOfMeasure, 'm3', 'de eenheid staat er');
 });
 
-// =================================================================================================
-// 14) planner_batch — create met tempId, daarna toewijzen met diezelfde tempId
-// =================================================================================================
 test('planner_batch: nieuwe resource aanmaken en in de VOLGENDE stap toewijzen via de tempId', async () => {
   reset();
   registerAllTools();
@@ -442,9 +355,6 @@ test('planner_batch: nieuwe resource aanmaken en in de VOLGENDE stap toewijzen v
   assertEq(store.getState().historyEvents.filter(event => event.state === 'applied').length, undoLen + 1, 'de hele batch is één undo-stap');
 });
 
-// =================================================================================================
-// 15) planner_batch — de validaties gelden óók via een draaiboek (geen omweg om de poort)
-// =================================================================================================
 test('planner_batch: onbekende sleutel en onbekend id worden ook binnen een batch geweigerd', async () => {
   reset();
   registerAllTools();
@@ -462,9 +372,6 @@ test('planner_batch: onbekende sleutel en onbekend id worden ook binnen een batc
   assertEq(store.getState().resources.find((r) => r.id === id)!.maxUnits, 1, 'er is niets stil gewijzigd');
 });
 
-// =================================================================================================
-// 16) schemapoort in de dispatcher
-// =================================================================================================
 test('schemapoort: een onbekende TOP-LEVEL sleutel wordt vóór enige mutatie afgekeurd', async () => {
   reset();
   registerAllTools();
@@ -482,14 +389,9 @@ test('schemapoort: een onbekende TOP-LEVEL sleutel wordt vóór enige mutatie af
   assertEq(store.getState().resources.length, 0, 'en er is niets aangemaakt');
 });
 
-// =================================================================================================
-// 17) IFC-round-trip — het native formaat mag niets verliezen
-// =================================================================================================
 test('IFC-round-trip: elk schrijfbaar resourceveld overleeft opslaan + herladen', async () => {
   reset();
   store.getState().ensureProjectCalendarInLibrary();
-  // Een EIGEN bibliotheek-kalender (niet de projectkalender): alleen dán bewijst de round-trip dat
-  // `calendarId` echt meegaat i.p.v. terug te vallen op de default.
   const calRes = okData(await call('planner_update_calendar', {
     calendars: [{ id: 'nacht', create: true, name: 'Nachtploeg', hoursPerDay: 6 }],
   }));
@@ -525,12 +427,8 @@ test('IFC-round-trip: elk schrijfbaar resourceveld overleeft opslaan + herladen'
   assertEq(zand.maxUnits, 100, 'maxUnits van het materiaal overleeft');
 });
 
-// =================================================================================================
-// 17b) kleur-default — dezelfde automatische paletkleur als de store-actie (resourceSlice.addResource)
-// =================================================================================================
 test('create: een via MCP aangemaakte resource krijgt dezelfde paletkleur als via de UI', async () => {
   reset();
-  // Referentie: de store-actie kent de eerste vrije paletkleur toe.
   const viaStore = store.getState().addResource({ name: 'UI', type: 'LABOR', description: '', maxUnits: 1 });
   const storeColor = store.getState().resources.find((r) => r.id === viaStore)!.color;
   assertEq(storeColor, nextFreePaletteColor([]), 'de store geeft de eerste vrije paletkleur');
@@ -542,9 +440,6 @@ test('create: een via MCP aangemaakte resource krijgt dezelfde paletkleur als vi
     'de volgende vrije paletkleur, net als een tweede resource via de UI');
 });
 
-// =================================================================================================
-// 18) tooldefinitie-vorm
-// =================================================================================================
 test('registratie: één tool met prefix, description, vier annotaties, batchable + synchrone kern', () => {
   assertEq(resourceTools.length, 1, 'de module levert één tool');
   const def = resourceTools[0] as any;
@@ -563,20 +458,10 @@ test('registratie: één tool met prefix, description, vier annotaties, batchabl
     'de beschrijving wijst naar de zustertool, zodat de AI de twee niet verwart');
 });
 
-// =================================================================================================
-// 19) nivelleerwaarschuwing na een capaciteitswijziging — dezelfde definitie als "Nivellering wissen"
-// =================================================================================================
-// De waarschuwing keek eerst alleen naar `levelingDelay`. Een planning met UITSLUITEND nivelleergaten
-// (`splitGaps` met `source: 'leveling'`) of UITSLUITEND sub-dag-vertraging uit een `.mpp`
-// (`levelingDelayMinutes`) kreeg daardoor stil géén waarschuwing, terwijl de ribbonknop, de
-// store-actie `clearLeveling` en `planner_clear_leveling` daar wél nivelleeruitvoer zien.
 const LEVELING_WARNING = 'APPLIED leveling';
 const LEVELING_GAP = { afterMinutes: 1440, gapMinutes: 480, source: 'leveling' as const };
 const USER_GAP = { afterMinutes: 1440, gapMinutes: 480, source: 'user' as const };
 
-/** Eén taak met `seed` erop (rechtstreeks gezet, zoals een `.mpp`-import of een eerdere nivellering
- *  dat achterlaat), dan een CAPACITEITSwijziging (`maxUnits`) via de tool. Geeft de waarschuwingen
- *  en de verse taak ná de call terug. */
 async function capacityChange(seed: (t: Task) => void): Promise<{ warnings: string[]; task: Task }> {
   reset();
   const taskId = addTask('Metselwerk');
@@ -620,9 +505,6 @@ test('19e: capaciteitswijziging + ALLEEN een gebruikersgat (source: user) ⇒ GE
 });
 
 
-// =================================================================================================
-// 20) Kostenresource (issue #815): een vast bedrag per toewijzing, geen inzet/werk/belasting
-// =================================================================================================
 test('20a: COST aanmaken; tarief/capaciteit/eenheid/kalender/ploeg zacht geweigerd', async () => {
   reset();
   const id = await makeResource({ name: 'Leges', type: 'COST' });
@@ -678,7 +560,6 @@ test('20c: manage_assignments: bedrag toevoegen, wijzigen, wissen; inzet/werk/cu
   assertEq('costAmount' in store.getState().assignments.find((a) => a.id === onTask.id)!, false, '`null` wist het bedrag');
   store.getState().undo();
   assertEq(store.getState().assignments.find((a) => a.id === onTask.id)?.costAmount, 99.5, 'undo zet het bedrag terug');
-  // Werkresource met costAmount geweigerd.
   okData(await call('planner_manage_assignments', { actions: [{ action: 'add', taskId: t, resourceId: labor, unitsPerDay: 1 }] }));
   const laborA = store.getState().assignments.find((a) => a.taskId === t && a.resourceId === labor)!;
   assert(/COST/.test(soleReason(await call('planner_manage_assignments', { actions: [{ action: 'update', assignmentId: laborA.id, costAmount: 5 }] }))),
