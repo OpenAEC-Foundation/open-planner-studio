@@ -1,17 +1,3 @@
-// check-work-rule-explain.ts — de uitleg achter het i-icoon van het veld *Werkregel* naast de
-// rekenkern (`src/engine/work/workTriangle.ts`). Besluit eigenaar 2026-10-15: per regel drie delen
-// (wat volgt, wat er gebeurt als je de andere grootheid wijzigt, wat een extra resource doet).
-//
-// Drie lagen:
-//   (a) MEANING: per zin wat hij beweert, met de letterlijke nl- en en-tekst. Een gewijzigde tekst in
-//       `task.json` zonder bijgewerkte betekenis hier is rood.
-//   (b) Per combinatie van regel × effortDriven (undefined, true, false) en elke bewerking (duur,
-//       inzet, werk, resource erbij) rekent de kern de uitkomst; elke bewering van de uitleg moet
-//       daarmee kloppen. Een zin die niet klopt met de kern is rood.
-//   (c) Volledigheid: elke uitleg zegt voor ELKE bewerking (duur, inzet, werk) precies één keer wat
-//       zich aanpast, en heeft precies één resourcezin.
-//
-// Draait via run.sh (esbuild-bundel, Node). Exit 0 = groen.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
@@ -34,15 +20,12 @@ function ok(label: string, cond: boolean): void {
 type Q = 'duration' | 'units' | 'work';
 type ResourceEffect = 'workUp' | 'durationSame' | 'unitsDown' | 'durationDown';
 interface Meaning {
-  /** Bewerking van de sleutel ⇒ de grootheid die zich aanpast (de derde blijft gelijk). */
   edits?: Partial<Record<Q, Q>>;
-  /** Wat een extra resource doet (zelfde inzet als de bestaande). */
   resource?: readonly ResourceEffect[];
   nl: string;
   en: string;
 }
 
-// (a) De betekenis van elke zin, naast de letterlijke tekst.
 const MEANING: Record<WorkRuleSentence, Meaning> = {
   followsWork: { edits: { duration: 'work', units: 'work' },
     nl: 'Het werk volgt uit de duur en de inzet.', en: 'Work follows from duration and units.' },
@@ -75,12 +58,10 @@ const MEANING: Record<WorkRuleSentence, Meaning> = {
     en: 'An extra resource adds work; the duration stays the same.' },
 };
 
-// Alleen bereikbare uitlegzinnen vormen het contract; ongebruikte vertaalsleutels horen daar niet bij.
 const reachable = new Set(WORK_RULES.flatMap(rule => [undefined, true, false].flatMap(ed => {
   const ex = workRuleExplanation(rule, ed);
   return [ex.lead, ...ex.rest];
 })));
-// De tekst in task.json moet letterlijk de tekst zijn waarvan hierboven de betekenis staat.
 const here = dirname(fileURLToPath(import.meta.url));
 for (const lang of ['nl', 'en'] as const) {
   const json = JSON.parse(readFileSync(join(here, '../../src/i18n/locales', lang, 'task.json'), 'utf8')) as {
@@ -94,8 +75,6 @@ for (const lang of ['nl', 'en'] as const) {
   }
 }
 
-// (b) De rekenkern: 8 u/dag, 5 werkdagen, één werkresource op 1,0 (40 u).
-// De kern rekent in werkminuten; één dag wordt met een tweede resource exact een halve dag.
 const SLOT = 8 * 60;
 function base(rule: WorkRule, effortDriven: boolean | undefined, days = 5): TriangleState {
   return {
@@ -114,7 +93,6 @@ const stateOf = (r: TriangleResult, label: string): TriangleState | null => {
   return r.ok ? r.state : null;
 };
 
-/** Welke grootheid paste zich aan bij een bewerking van `edited`? `null` = geen of meer dan één. */
 function adjusted(rule: WorkRule, ed: boolean | undefined, edited: Q): Q | null {
   const s0 = base(rule, ed);
   const label = `${rule}/${String(ed)}/${edited}`;
@@ -148,7 +126,6 @@ for (const rule of WORK_RULES) {
     const ex = workRuleExplanation(rule, ed);
     const sentences = [ex.lead, ...ex.rest];
     const label = `${rule} effortDriven=${String(ed)}`;
-    // (c) volledigheid: elke bewerking precies één bewering, precies één resourcezin.
     const claims = new Map<Q, Q>();
     for (const s of sentences) {
       for (const [edited, adj] of Object.entries(MEANING[s].edits ?? {}) as [Q, Q][]) {
@@ -161,7 +138,6 @@ for (const rule of WORK_RULES) {
     ok(`${label}: ${resourceSentences.length} resourcezinnen, verwacht 1`, resourceSentences.length === 1);
     ok(`${label}: de vette zin moet zeggen wat volgt`, MEANING[ex.lead].edits !== undefined);
 
-    // (b) naast de rekenkern.
     const row: string[] = [];
     for (const [edited, claim] of claims) {
       const actual = adjusted(rule, ed, edited);
@@ -169,7 +145,6 @@ for (const rule of WORK_RULES) {
       ok(`${label}: zin zegt "${edited} gewijzigd ⇒ ${claim} past aan", de rekenkern past ${actual ?? 'niet precies één grootheid'} aan`,
         actual === claim);
     }
-    // De resourcezin moet kloppen bij 5 dagen én bij 1 dag (uitkomst: een halve dag).
     for (const days of [5, 1]) {
       const effects = resourceEffects(rule, ed, days);
       row.push(`resource(${days}d): ${[...effects].join('+')}`);
@@ -183,7 +158,6 @@ for (const rule of WORK_RULES) {
   }
 }
 
-// T14: de kern verdeelt één werkdag exact in twee helften.
 {
   const state = stateOf(applyAssignmentAdded(base('FIXED_WORK', undefined, 1), { id: 'b', unitsPerDay: 1 }), '1 werkdag');
   ok(`1 werkdag + resource: duur ${state?.remainingMinutes} min, verwacht ${SLOT / 2}`, state?.remainingMinutes === SLOT / 2);
@@ -194,8 +168,6 @@ for (const rule of WORK_RULES) {
   ok('extra resource behoudt de inzet per resource', state !== null && state.assignments.every(a => a.unitsPerDay === 1));
 }
 
-// #954: de gids mag eigen werkinvoer niet langer als oorzaak uitsluiten. Het concrete voorbeeld
-// wordt zowel in nl/en gelezen als tegen beide genoemde werkregels doorgerekend.
 const guideExample = {
   nl: 'Bij een taak van 10 werkdagen van 8 uur kan één resource na eigen invoer 40 uur werk hebben bij inzet 1, terwijl een andere resource de duur op 10 werkdagen houdt.',
   en: 'On a task of 10 working days of 8 hours, one resource can have 40 hours of work after your own input at units of 1, while another resource keeps the duration at 10 working days.',

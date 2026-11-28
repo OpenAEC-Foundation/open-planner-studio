@@ -31,7 +31,6 @@ function eq(label: string, got: unknown, want: unknown) {
 const parsed = readIFC(externIfc('b5'));
 const raw = migrateToMinuteModel(payloadFromImport(parsed, null)).payload;
 raw.minuteModelPending = true;
-// De eerste commit toetst het protocol los; de motor gaat in de volgende stap naar werkblokken.
 const computed = prepareLoadedPayload(raw, { recompute: true });
 const source = { times: Object.fromEntries(raw.tasks.map(t => [t.id, {
   start: t.time.earlyStart, finish: t.time.earlyFinish,
@@ -51,7 +50,6 @@ const normalized = normalizeRecordedTimes(raw, { times: { [raw.tasks[0].id]: { s
 eq('vastlegging start wordt D1', normalized.times[raw.tasks[0].id].start, '2026-03-02T07:00');
 eq('vastlegging einde wordt D2', normalized.times[raw.tasks[0].id].finish, '2026-03-06T16:00');
 
-// Echte laadroute: het vorige document mag nooit de vóór-snapshot worden.
 const context = createAppStoreContext();
 const store = context.store;
 const load = readIFC(externIfc('b5-store'));
@@ -72,7 +70,6 @@ eq('undo houdt vlag', store.getState().minuteModelPending, true);
 eq('undo is niet verouderd', store.getState().scheduleStale, false);
 eq('save na undo zonder markering', readIFC(writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'))).timeModel, undefined);
 eq('save na undo zonder bronformaat', readIFC(writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'))).recordedSourceFormat, undefined);
-// Knownbug 340: crashherstel hervat de expliciete modus na B5-undo, ook zonder bronformaat.
 {
   const recoveredIfc = writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'));
   for (const active of [true, false]) {
@@ -100,7 +97,6 @@ eq('save na undo zonder bronformaat', readIFC(writeIFC(buildWriteIFCInput(store.
     app.getState().undo();
     eq(`340 ${label}: undo geeft modus en open omzetting terug`,
       [app.getState().datesAsRecorded, app.getState().minuteModelPending], [true, true]);
-    // Dezelfde IFC zonder expliciete herstelvlag mag de modus niet opnieuw aanzetten.
     const off = createAppStoreContext().store;
     off.getState().restoreDocuments([{ ...restored, datesAsRecorded: false }, other], active ? restored.id : other.id);
     const withoutMode = active ? capturePayload(off.getState()) : off.getState().documents.find(d => d.id === restored.id)!.payload!;
@@ -122,7 +118,6 @@ const saved = writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'));
 store.getState().applyLoadedProject(readIFC(saved), { recompute: true });
 eq('heropenen na undo rondt opnieuw af', bStart(), '2026-03-09T07:00');
 
-// Projecteinde D2: maandag 16:00 geeft geen kunstmatige negatieve dag speling.
 {
   const app = createAppStoreContext().store;
   const p = freshPayload();
@@ -144,7 +139,6 @@ for (const id of ['ops', 'p6', 'msproject'] as const) {
 }
 
 
-// Slapend herstel rekent een nog open omzetting niet stil op de achtergrond weg.
 {
   const app = createAppStoreContext().store;
   const source = readIFC(externIfc('slapend'));
@@ -162,7 +156,6 @@ for (const id of ['ops', 'p6', 'msproject'] as const) {
   eq('undo na activeren houdt modus en vlag', [app.getState().datesAsRecorded, app.getState().minuteModelPending], [true, true]);
 }
 
-// Eerst bewerken en daarna Bereken: de bewerking en de overgang houden hun eigen undo-grens.
 {
   const app = createAppStoreContext().store;
   app.setState(s => hydratePayload(s, raw));
@@ -178,7 +171,6 @@ for (const id of ['ops', 'p6', 'msproject'] as const) {
   eq('tweede undo geeft de toestand vóór de bewerking', app.getState().tasks.find(t => t.id === b.id)!.name, 'B');
 }
 
-// Een planningstransactie voegt de omzetting aan haar eigen event toe.
 {
   const context = createAppStoreContext();
   const app = context.store;
@@ -195,7 +187,6 @@ for (const id of ['ops', 'p6', 'msproject'] as const) {
     [b.priority, '2026-03-16T07:00', true]);
 }
 
-// Verdeling loopt door dezelfde route voor het actieve en het slapende document.
 {
   const app = createAppStoreContext().store;
   app.setState(s => hydratePayload(s, raw));
@@ -229,7 +220,6 @@ for (const id of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// B7 en I11: een halve werkdag blijft een halve werkdag, ook bij een dagvoorganger.
 {
   const pred = { ...raw.tasks[0], time: { ...raw.tasks[0].time, scheduleDuration: 3 } };
   const seq = { id: 'lag', predecessorId: pred.id, successorId: 'B', type: 'FINISH_START' as const, lagDays: 0 };
@@ -237,7 +227,6 @@ for (const id of ['ops', 'p6', 'msproject'] as const) {
   eq('I11 minutenlag naar een dagvoorganger blijft exact', resolveEffectiveLagDays({ ...seq, lagMinutes: 240 }, pred, 8), 0.5);
 }
 
-// Geen daadwerkelijke verschuiving: geen melding, event of vuile toestand.
 {
   const app = createAppStoreContext().store;
   const text = writeIFC(buildWriteIFCInput({ ...computed, minuteModelPending: false }, 'planOnly'));
@@ -252,7 +241,6 @@ for (const id of ['ops', 'p6', 'msproject'] as const) {
   eq('nieuw bestand normaliseert een ankerdatum ook', modern.tasks[0].time.earlyStart.includes('T'), true);
   eq('nieuw bestand heeft geen open omzetting', modern.minuteModelPending, false);
 }
-// T17: ook een gewone rastercel normaliseert; dit mag niet alleen bij meerdere relatiewrites lopen.
 {
   const app = createAppStoreContext().store;
   app.getState().setProject({ startDate: '2026-06-01', statusDate: '2026-06-10' });
@@ -267,7 +255,6 @@ for (const id of ['ops', 'p6', 'msproject'] as const) {
   eq('raster normaliseert één cel met D2', app.getState().tasks.find(t => t.id === id)!.time.actualFinish, '2026-06-04T16:00');
 }
 async function finish() {
-  // Het echte MCP-oppervlak, ook een leesstap midden in een batch.
   store.getState().undo();
   const ctx = makeMcpContext(context);
   const nameResult = await getTool('planner_update_tasks')!.handler({ updates: [{ id: bId, fields: { name: 'B via tool' } }] }, ctx) as McpToolResult;
@@ -283,10 +270,6 @@ async function finish() {
   store.getState().undo();
   const r = store.getState().addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1, costPerHour: 0 });
   store.getState().assignResource(bId, r, 1);
-  // Geval 11 (spec §5.2) gaat over een wissel die de maat NIET verandert. Alleen uren B1a: vast werk maakt
-  // een dagenmaat-taak urenmaat (geval 11c, planning). B wordt hier daarom eerst urenmaat met dezelfde
-  // lengte (5 d = 2400 min); de datums in de modus blijven staan. 11c zelf staat in
-  // `check-work-rule-measure-switch.ts`.
   store.setState(s => {
     const b = s.tasks.find(t => t.id === bId)!;
     b.time.durationUnit = 'hours';

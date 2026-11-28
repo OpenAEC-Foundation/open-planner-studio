@@ -1,25 +1,3 @@
-// Issue #405 deel 5 — "Bestaande Excel/CSV-voortgangsronde veilig afronden". Bewijs op bestaand
-// gedrag, geen nieuwe importmodule. Vier delen:
-//
-//   Deel A — ALLEEN voortgangsvelden. Een rijk project (de IFC-schemafixture: twee+ kalenders,
-//            relaties met elke lag-vorm, resources met toewijzingen en werkvelden, baselines,
-//            notities, eigen velden) krijgt een blad dat voltooiing, werkelijke start en
-//            werkelijk einde wijzigt, plus kolommen met een afwijkende naam, geplande start/einde en
-//            duur. Daarna wordt ELK `DOCUMENT_FIELDS`-veld, en per taak en per toewijzing elk veld,
-//            met het origineel vergeleken. Alleen de lijst `TOEGESTANE_TAAKPADEN` (+ de
-//            toewijzingswerkvelden en de documentvlaggen) mag verschillen.
-//   Deel B — annuleren en opnieuw inlezen op store-niveau: preview + annuleren laat het HELE
-//            document ongewijzigd (isDirty gelijk, geen undo-stap); hetzelfde blad twee keer
-//            toepassen geeft de tweede keer nul wijzigingen en geen extra undo-stap; één Ctrl+Z
-//            herstelt het HELE document exact (niet alleen `completion`, zoals check-progress-import
-//            Deel 4 toetst).
-//   Deel C — Nederlandse notatie als tekstcel: dd-mm-jjjj naast ISO en de decimale komma, door de
-//            echte detectie → finalizer → store. (Het echte .xlsx: zie check-progress-import-xlsx.ts.)
-//   Deel D — onbekende id, dubbele rij en dubbelzinnige WBS in de preview: elk een eigen `reason`,
-//            en welke ervan onder "Wacht op koppeling" (`needsLinkCount`) vallen.
-//
-// Exit 0 = alles groen. De exitcode is het enige geldige oordeel.
-
 import { useAppStore } from '@/state/appStore';
 import { capturePayload, DOCUMENT_FIELDS, hydratePayload, payloadFromImport } from '@/state/documentContract';
 import { detectDateOrder, finalizeProgressRows } from '@/services/progressImport/sheetValues';
@@ -45,7 +23,6 @@ function ok(label: string, condition: boolean): void {
 
 const S = () => useAppStore.getState();
 
-/** Diepe kopie die ook Map/Set vergelijkbaar maakt (cpmResult draagt kaarten). */
 function plain(value: unknown): unknown {
   if (value instanceof Map) return { __map: [...value.entries()].map(([k, v]) => [plain(k), plain(v)]) };
   if (value instanceof Set) return { __set: [...value].map(plain) };
@@ -61,7 +38,6 @@ function plain(value: unknown): unknown {
   return value;
 }
 
-/** Alle paden waarop `a` en `b` verschillen (bladniveau). */
 function diffPaths(a: unknown, b: unknown, path: string, out: string[]): void {
   if (JSON.stringify(a) === JSON.stringify(b)) return;
   const isObj = (v: unknown) => v !== null && typeof v === 'object';
@@ -76,8 +52,6 @@ function diffPaths(a: unknown, b: unknown, path: string, out: string[]): void {
 }
 
 type Snapshot = Record<string, unknown>;
-/** Het HELE document volgens het contract: elk `DOCUMENT_FIELDS`-veld, met taken en toewijzingen per
- *  id (een volgorde-onafhankelijke vergelijking: de import vervangt een taak op dezelfde index). */
 function documentSnapshot(): Snapshot {
   const payload = capturePayload(S()) as unknown as Record<string, unknown>;
   const out: Snapshot = {};
@@ -98,7 +72,6 @@ function documentDiff(before: Snapshot, after: Snapshot): string[] {
   return out;
 }
 
-/** Leest een blad zoals de dialoog: lezer → datumvolgorde → finalizer. */
 function rowsFromCsv(csv: string, tasks: readonly Task[]): { rows: readonly ProgressRow[]; order: string } {
   const sheet = sheetFromText(csv);
   if (sheet.fileIssue) throw new Error(`testblad geweigerd: ${sheet.fileIssue}`);
@@ -114,42 +87,12 @@ function resetHistory(): void {
   useAppStore.setState((s) => { s.historyEvents = []; s.nextHistorySequence = 1; s.isDirty = false; });
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// Deel A — alleen voortgangsvelden
-// ════════════════════════════════════════════════════════════════════════════════════════════
-/**
- * Taakvelden die de import mag veranderen, met de bron:
- *  - `time.completion`, `time.actualStart`, `time.actualFinish`: de drie invulkolommen
- *    (gids `howto-voortgang-importeren.md` §2: "De app leest daaruit alleen drie waarden per taak";
- *    `buildPlan.ts` stap 5 maakt alleen voor deze drie een `CellEditIntent`).
- *  - `status`: `applyProgressInvariants` (`src/engine/taskMutationRules.ts`) leidt hem af uit de
- *    drie velden (NOT_STARTED/STARTED/COMPLETED).
- *  - `time.remainingTime`, `time.remainingMinutes`: idem, via `applyRemainingDuration` — restduur
- *    volgt uit de voltooiing.
- *  - `time.actualStart`/`time.actualFinish` worden ook AFGELEID als het blad ze niet geeft (een
- *    percentage > 0 zet een start, 100 % een einde) — zelfde invariant, zelfde velden.
- *  - `time.progressBeforeRecalculation`: tijdelijke momentopname van de eerdere voortgang voor
- *    een latere afmelding vóór F5, via `rememberProgressBeforeRecalculation`.
- *  - `splitGaps`: alleen nivelleerpauzes (`source: 'leveling'`) vallen weg (`clearLevelingGaps` in
- *    `planTaskCellEdits`, taskEditPlan.ts) — een voortgangsboeking maakt de nivellering ongeldig.
- */
 const TOEGESTANE_TAAKPADEN = new Set([
   'time.completion', 'time.actualStart', 'time.actualFinish',
   'status', 'time.remainingTime', 'time.remainingMinutes',
   'time.progressBeforeRecalculation',
 ]);
-/**
- * Toewijzingsvelden die mogen veranderen: `settleProgressWork` (`src/engine/work/workRuleApply.ts`)
- * schuift werk van rest naar verricht voor een toewijzing MET een opgeslagen restveld; het totaal
- * blijft gelijk (`applyProgressImport` in taskSlice.ts, "Zelfde werkverplaatsing als setTaskProgress").
- */
 const TOEGESTANE_TOEWIJZINGSPADEN = new Set(['remainingWorkMinutes', 'actualWorkMinutes']);
-/**
- * Documentvlaggen die elke mutatie zet (`finishMutation` met `stale: true`, storeRuntime.ts):
- * `isDirty` (markDocumentEdited), `importPristine` (gewist bij elke bewerking), `scheduleStale`
- * (markDateMutation: "Het inlezen rekent zelf niet door", gids §5), en in de modus "datums zoals
- * opgeslagen" ook `datesAsRecorded`/`recordedDates`.
- */
 const TOEGESTANE_DOCUMENTVLAGGEN = new Set(['isDirty', 'importPristine', 'scheduleStale', 'datesAsRecorded', 'recordedDates']);
 
 let partA: {
@@ -165,12 +108,9 @@ let partA: {
   const leaves = S().tasks.filter(t => t.childIds.length === 0 && !t.isMilestone
     && t.time.completion === 0 && !t.time.actualStart && !t.time.actualFinish);
   ok(`A0 de rijke fixture heeft minstens vier ongestarte bladtaken (${leaves.length})`, leaves.length >= 4);
-  // Bij voorkeur taken mét toewijzing, zodat de werkverplaatsing echt meedoet.
   const withAssignment = leaves.filter(t => S().assignments.some(a => a.taskId === t.id));
   const pick = [...withAssignment, ...leaves.filter(t => !withAssignment.includes(t))];
   const [tPct, tDates, tFull, tNone] = pick;
-  // Geef de toewijzingen van de percentagetaak opgeslagen werkvelden (rest = alles, verricht = 0):
-  // alleen dan schrijft `settleProgressWork` iets, en moet de vergelijking die schrijfactie toestaan.
   useAppStore.setState((s) => {
     for (const a of s.assignments) {
       if (a.taskId !== tPct.id && a.taskId !== tFull.id) continue;
@@ -186,7 +126,6 @@ let partA: {
   ok('A0 het project heeft notities', S().tasks.some(t => (t.notes ?? []).length > 0));
   ok('A0 het project heeft eigen velden', S().customFieldDefs.length > 0 && S().tasks.some(t => t.customFields && Object.keys(t.customFields).length > 0));
 
-  // Statusdatum ná alle gebruikte datums, zodat geen rij om `actualAfterStatusDate` sneuvelt.
   const latestFinish = S().tasks.map(t => day(shownFinish(t))).sort().at(-1)!;
   S().setStatusDate(latestFinish);
   S().runCPM();
@@ -195,18 +134,15 @@ let partA: {
   const startOf = (t: Task) => day(shownStart(S().tasks.find(x => x.id === t.id)!));
   const finishOf = (t: Task) => day(shownFinish(S().tasks.find(x => x.id === t.id)!));
 
-  // Kolommen die de import MOET negeren: een afwijkende naam, een verschoven geplande start/einde en
-  // een duurkolom (die kent het blad niet eens). `Name`/`Start`/`Finish` bestaan wel als kolom, maar
-  // dienen alleen voor herkenning en datumvolgorde (rules `import-export.md`).
   const header = 'OPS Task ID;WBS;Name;Start;Finish;Duration;Completion (%);Actual Start;Actual Finish';
   const line = (t: Task, completion: string, actualStart: string, actualFinish: string) =>
     [t.id, t.wbsCode, `ANDERE NAAM ${t.id}`, '2031-03-17', '2031-04-18', '99', completion, actualStart, actualFinish].join(';');
   const csv = [
     header,
-    line(tPct, '40', '', ''),                                   // alleen een percentage
-    line(tDates, '', startOf(tDates), finishOf(tDates)),         // alleen werkelijke datums (ISO)
-    line(tFull, '45,5', startOf(tFull), ''),                     // percentage met komma + start
-    line(tNone, '', '', ''),                                     // geen voortgang, wel "gewijzigde" naam/start/duur
+    line(tPct, '40', '', ''),
+    line(tDates, '', startOf(tDates), finishOf(tDates)),
+    line(tFull, '45,5', startOf(tFull), ''),
+    line(tNone, '', '', ''),
   ].join('\r\n');
   const { rows } = rowsFromCsv(csv, S().tasks);
   partA = { rows, ids: { pct: tPct.id, dates: tDates.id, full: tFull.id, noProgress: tNone.id } };
@@ -261,41 +197,32 @@ let partA: {
   eq('A3 werkelijk einde ⇒ 100 % en COMPLETED (invariant)', [get(tDates.id).time.completion, get(tDates.id).status], [1, 'COMPLETED']);
   eq('A3 "45,5" met komma ⇒ 0,455', get(tFull.id).time.completion, 0.455);
 
-  // Werk: het totaal per toewijzing blijft gelijk; alleen de verdeling rest/verricht schuift.
   const assignmentsBefore = before.assignments as Record<string, { remainingWorkMinutes?: number; actualWorkMinutes?: number; taskId: string }>;
   for (const a of S().assignments.filter(x => touched.has(x.taskId) && x.remainingWorkMinutes !== undefined)) {
     const b = assignmentsBefore[a.id];
     const doneBefore = b.actualWorkMinutes;
-    if (doneBefore === undefined) continue; // zonder verricht-veld wordt het verrichte afgeleid; het totaal is dan niet uit de velden te lezen
+    if (doneBefore === undefined) continue;
     ok(`A4 toewijzing ${a.id}: totaal werk gelijk (${b.remainingWorkMinutes}+${doneBefore} → ${a.remainingWorkMinutes}+${a.actualWorkMinutes})`,
       Math.abs((b.remainingWorkMinutes! + doneBefore) - (a.remainingWorkMinutes! + (a.actualWorkMinutes ?? 0))) < 1e-6);
   }
 
-  // Deel B3: één Ctrl+Z herstelt het HELE document, niet alleen `completion`.
   S().undo();
   const undone = documentSnapshot();
   const residue = documentDiff(before, undone).filter(p => !['isDirty', 'importPristine'].includes(p.split('.')[0]));
   eq('B3 één Ctrl+Z herstelt het hele document exact (taken, toewijzingen, project, statusdatum)', residue, []);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// Deel B — annuleren en opnieuw inlezen op store-niveau
-// ════════════════════════════════════════════════════════════════════════════════════════════
 {
   const { rows } = partA!;
   useAppStore.setState((s) => { s.isDirty = false; });
   resetHistory();
   const before = documentSnapshot();
 
-  // B1: preview bouwen en dan annuleren. Annuleren is in de dialoog "het venster sluiten zonder
-  // `applyProgressImport`" — er bestaat geen eigen store-actie voor; de dialoog houdt het plan in
-  // eigen React-state (ProgressImportDialog). Dus: preview, en daarna niets.
   const preview = S().previewProgressImport(rows);
   eq('B1 sanity: de preview zou drie rijen toepassen', preview.appliedCount, 3);
   eq('B1 preview + annuleren: document exact gelijk (ook isDirty)', documentDiff(before, documentSnapshot()), []);
   eq('B1 …en geen undo-stap', S().historyEvents.length, 0);
 
-  // B2: hetzelfde blad twee keer.
   const first = S().applyProgressImport(rows);
   eq('B2 eerste keer: drie toegepast', first.appliedCount, 3);
   const afterFirst = documentSnapshot();
@@ -310,9 +237,6 @@ let partA: {
   ok('B2 sanity: de eerste keer veranderde wel iets', documentDiff(before, afterFirst).length > 0);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// Deel C — Nederlandse notatie (CSV), door de echte lezer en de store
-// ════════════════════════════════════════════════════════════════════════════════════════════
 {
   S().newProject();
   S().setProject({ startDate: '2026-02-16' });
@@ -323,7 +247,6 @@ let partA: {
   S().runCPM();
   resetHistory();
 
-  // dd-mm-jjjj (dag > 12 ⇒ eenduidig), ISO ernaast in hetzelfde blad, en een decimale komma.
   const csv = [
     'OPS Task ID;Completion (%);Actual Start;Actual Finish',
     `${idA};33,3;${toDmy('2026-02-17')};`,
@@ -336,27 +259,19 @@ let partA: {
   eq('C1 drie rijen toegepast', [plan.appliedCount, plan.refusedCount], [3, 0]);
   const t = (id: string) => S().tasks.find(x => x.id === id)!.time;
   ok(`C2 "33,3" (komma) ⇒ 0,333 (kreeg ${t(idA).completion})`, Math.abs(t(idA).completion - 0.333) < 1e-9);
-  // F2 (spec §3.6, invoer; §4.2 D1/D2): een datum uit het blad wordt een moment; de start het begin,
-  // het einde het einde van de werkdag (07:00–16:00). Het lezen van het datumformaat zelf blijft
-  // getoetst. Fixronde 1 deel B, B1.
   eq('C2 "17-02-2026" ⇒ 2026-02-17', t(idA).actualStart, '2026-02-17T07:00');
   eq('C3 ISO naast dd-mm-jjjj in hetzelfde blad', [t(idB).actualStart, t(idB).actualFinish], ['2026-02-18T07:00', '2026-02-24T16:00']);
   eq('C4 "12.5" (punt) ⇒ 0,125 en "17-2-2026" zonder voorloopnul', [t(idC).completion, t(idC).actualStart], [0.125, '2026-02-17T07:00']);
 
-  // De valkuil uit de gids: een komma die een andere landinstelling als duizendtalscheider las.
   const { rows: outRows } = rowsFromCsv(`OPS Task ID;Completion (%)\r\n${idA};838`, S().tasks);
   eq('C5 "838" ⇒ percentOutOfRange (eigen reden, niet "onleesbaar")', S().previewProgressImport(outRows).rows[0]?.reason, 'percentOutOfRange');
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════
-// Deel D — onbekende id's, dubbele rijen en dubbelzinnige WBS in de preview
-// ════════════════════════════════════════════════════════════════════════════════════════════
 {
   S().newProject();
   const idA = S().addTask({ name: 'A', time: createDefaultTaskTime('2026-02-16', 5) });
   const idB = S().addTask({ name: 'B', time: createDefaultTaskTime('2026-02-16', 5) });
   const idC = S().addTask({ name: 'C', time: createDefaultTaskTime('2026-02-16', 5) });
-  // B en C delen een WBS-code (bv. uit een ander pakket).
   useAppStore.setState((s) => {
     s.tasks.find(x => x.id === idB)!.wbsCode = '9.9';
     s.tasks.find(x => x.id === idC)!.wbsCode = '9.9';
@@ -366,12 +281,12 @@ let partA: {
   resetHistory();
   const csv = [
     'OPS Task ID;WBS;Completion (%)',
-    `onbekend-id;;10`,        // onbekende id, geen WBS
-    `onbekend-id-2;77.77;10`, // onbekende id en onbekende WBS
-    `${idA};;20`,              // eerste claim op A
-    `${idA};;30`,              // tweede claim op A
-    `;${wbsA};40`,             // derde claim op A, via WBS
-    `;9.9;50`,                 // WBS met twee dragers
+    `onbekend-id;;10`,
+    `onbekend-id-2;77.77;10`,
+    `${idA};;20`,
+    `${idA};;30`,
+    `;${wbsA};40`,
+    `;9.9;50`,
   ].join('\r\n');
   const { rows } = rowsFromCsv(csv, S().tasks);
   const plan = S().previewProgressImport(rows);
@@ -379,8 +294,6 @@ let partA: {
     plan.rows.map(r => [r.rowNumber, r.outcome, r.reason ?? null]),
     [[2, 'refused', 'unmatched'], [3, 'refused', 'unmatched'], [4, 'apply', null],
       [5, 'refused', 'duplicateRow'], [6, 'refused', 'duplicateRow'], [7, 'refused', 'ambiguousWbs']]);
-  // "Wacht op koppeling" (needsLinkCount) telt ALLEEN unmatched + ambiguousWbs (buildPlan.ts stap 1);
-  // de dubbele rijen tellen als geweigerd, niet als wachtend.
   eq('D2 Wacht op koppeling = onbekende id + dubbelzinnige WBS', plan.needsLinkCount, 3);
   eq('D2 Geweigerd telt alle vijf', plan.refusedCount, 5);
   eq('D3 de preview muteert niets', [S().historyEvents.length, S().isDirty], [0, false]);

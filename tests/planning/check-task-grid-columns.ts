@@ -79,8 +79,6 @@ eq('Resize gebruikt de UX-grenzen 40..480', [
   resizeTaskGridColumn(initial, id('f-a'), 9_000).find(column => column.id === 'f-a')?.width,
 ], [40, 480]);
 
-// Kolommen automatisch aanpassen: slepen markeert een kolom als handmatig, optimale breedte
-// (dubbelklik) wist die markering, en automatisch aanpassen laat een handmatige kolom ongemoeid.
 const dragged = resizeTaskGridColumn(initial, id('f-a'), 123, true);
 eq('Slepen zet manualWidth op die ene kolom',
   dragged.map(column => `${column.id}:${column.width}:${column.manualWidth === true}`),
@@ -102,9 +100,6 @@ eq('De gedeelde kolomvergelijking ziet manualWidth, ook bij gelijke breedte', [
   sameTaskGridColumns(dragged, resizeTaskGridColumn(dragged, id('f-a'), 123, false)),
   sameTaskGridColumns(initial, resizeTaskGridColumn(initial, id('f-a'), 123, false).map(c => ({ ...c, width: initial.find(i => i.id === c.id)!.width }))),
 ], [true, false, true]);
-// Review #851 ronde 2, blokkade 2: automatisch aanpassen wacht op een lopende bewerking (het
-// eigenschappenpaneel dat per toetsaanslag naar de store schrijft houdt `holdAutoCalc` vast) en meet
-// daarna één keer. Eigen klok en echte `editHold`.
 {
   const timers: { fn: () => void; ms: number }[] = [];
   const fire = async () => {
@@ -129,19 +124,19 @@ eq('De gedeelde kolomvergelijking ziet manualWidth, ook bij gelijke breedte', [
   await fire();
   eq('Planner: één meting zonder bewerking', plain.runs(), 1);
 
-  const typing = holdAutoCalc(); // de gebruiker typt in het eigenschappenpaneel
+  const typing = holdAutoCalc();
   const waiting = make(async () => 'done');
   await fire();
   eq('Planner: tijdens het typen geen meting', [waiting.runs(), isAutoCalcHeld()], [0, true]);
   eq('Planner: tijdens het typen staat er geen nieuwe timer klaar', timers.length, 0);
-  typing(); // Enter of het veld verlaten
+  typing();
   eq('Planner: na het typen volgt een nieuwe rustperiode', timers.length, 1);
   await fire();
   eq('Planner: na het typen precies één meting', waiting.runs(), 1);
 
   let hold: (() => void) | null = null;
   const midway = make(async () => {
-    if (!hold) { hold = holdAutoCalc(); return 'blocked'; } // een bewerking begint tijdens het meten
+    if (!hold) { hold = holdAutoCalc(); return 'blocked'; }
     return 'done';
   });
   await fire();
@@ -152,7 +147,7 @@ eq('De gedeelde kolomvergelijking ziet manualWidth, ook bij gelijke breedte', [
 
   let heldAtCheck: (() => void) | null = null;
   const raced = make(async () => {
-    if (heldAtCheck === null) { heldAtCheck = () => undefined; return 'blocked'; } // al vrij vóór het wachten
+    if (heldAtCheck === null) { heldAtCheck = () => undefined; return 'blocked'; }
     return 'done';
   });
   await fire();
@@ -206,10 +201,6 @@ eq('Alle tien vaste categorieën bestaan in vaste volgorde, ook wanneer sommige 
   chooser.categories.map(category => category.category),
   ['task', 'planning', 'constraints', 'relations', 'resources', 'progress', 'computed', 'baseline', 'custom', 'technical']);
 
-// Screenshotbevinding: het kolomkiezerpaneel (bij het plusje) hing puur rechts-verankerd aan de
-// trigger, zonder linkerklem — bij een trigger dicht bij de linker vensterrand (smal
-// Gantt-taakgridpaneel, vlak bij de splitter) stak het brede paneel voorbij x=0 en werd het daar
-// afgesneden. `clampColumnChooserLeft` is de pure klemfunctie achter de fix.
 eq('Past het paneel rechts-verankerd binnen het venster, dan is geen klem nodig',
   clampColumnChooserLeft(900, 310, 1280), null);
 eq('Trigger vlak bij de linker vensterrand (reproductie: plusje naast de gantt-splitter, browserreview): '
@@ -252,7 +243,6 @@ await computeTaskGridAutoFitWidth({
   cache: measureCache, measureText, chunkSize: 500, yieldToMain: async () => undefined,
 });
 eq('De per-rij/per-kolom/valueversion-cache voorkomt hermeting van alle datacellen', measured, 1);
-// Met de instelling "Kolommen automatisch aanpassen" telt de kop niet mee (20 px per teken).
 const shortRows = [{ rowKey: 'r1', valueVersion: 'v', text: 'Ja' }];
 const fitWith = (includeHeader?: boolean) => computeTaskGridAutoFitWidth({
   columnId: id('task.time.isCritical'), headerText: 'Kritiek pad', rows: shortRows,
@@ -357,15 +347,9 @@ eq('Een zichtbare header biedt verwijderen en resizen zonder sorteersignaal', [
   oneColumnMarkup.toLocaleLowerCase().includes('sort'),
 ], [true, true, false]);
 
-// ── resolveColumnDropTarget (browserreview, observatie 7) ─────────────────────────────────────
-// Gebiedsdekkende kolomherordening: elke positie in de headerbalk moet een geldig doel opleveren,
-// nooit een dode zone — inclusief ver voorbij de eerste/laatste kolom (geklemd naar de
-// dichtstbijzijnde grens) en zonder de gesleepte kolom zelf of kolommen uit een andere pin-groep
-// als kandidaat.
 {
   const rect = (rectId: string, left: number, right: number, pinned = false): ColumnHeaderRect =>
     ({ id: id(rectId), left, right, pinned });
-  // a: 0-40, b: 40-140 (midden op 90), c: 140-200, d: 200-260 — geen kolom is de gesleepte.
   const rects = [rect('a', 0, 40), rect('b', 40, 140), rect('c', 140, 200), rect('d', 200, 260)];
 
   eq('Linkerhelft van een kolom ⇒ before', resolveColumnDropTarget(rects, id('z'), 60), { columnId: id('b'), placement: 'before' });

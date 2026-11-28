@@ -36,7 +36,6 @@ function ok(label: string, value: boolean): void {
   if (!value) diffs.push(`${label}: verwacht waar, kreeg onwaar`);
 }
 
-// Excel-TSV: rechthoek, quoting en regeleinden moeten bytegetrouw roundtrippen.
 {
   const matrix = [
     ['', 'a\tb', 'regel 1\nregel 2'],
@@ -63,7 +62,6 @@ function ok(label: string, value: boolean): void {
   });
 }
 
-// Persoonlijke datumweergave blijft aan de rand; de planningswaarde is ISO.
 eq('Datum dmy naar ISO', parseGridDate('31-12-2026', 'dmy'), '2026-12-31');
 eq('Datum mdy naar ISO', parseGridDate('12/31/2026', 'mdy'), '2026-12-31');
 eq('Datum ymd naar ISO', parseGridDate('2026.12.31', 'ymd'), '2026-12-31');
@@ -168,9 +166,6 @@ function liveEnvironment(
   };
 }
 
-/** Zoals `liveEnvironment`, maar over meerdere taken tegelijk — nodig voor FIX 6 (§8.6):
- * Excel-tegelherhaling (R×K-bron op een veelvoud-selectie) en het overslaan van read-only
- * doelcellen bewijzen zich alleen over een echte meerrijige selectie. */
 function liveMultiRowEnvironment(
   taskIds: readonly string[],
   visibleColumns: readonly TaskColumnId[],
@@ -228,7 +223,6 @@ function planAndCommitPaste(
   return { planned: true, committed: S().runGridMutation([planned.value]).ok };
 }
 
-// Kopie volgt visuele volgorde; groepskop levert geen lege TSV-rij.
 {
   const env = environment(
     [taskRow(first), groupRow, taskRow(second)], columns,
@@ -240,7 +234,6 @@ function planAndCommitPaste(
     'Eerste\t"A\tB"\r\nTweede\t"Regel 1\nRegel 2"');
 }
 
-// Mapping: alleen 1×1 vult; grotere matrices moeten passen of exact matchen.
 {
   const range = environment(
     [taskRow(first), taskRow(second)], columns,
@@ -268,7 +261,6 @@ function planAndCommitPaste(
     planTaskGridPaste('n1\td1\r\nn2\td2', atEdge).ok, false);
 }
 
-// Duplicate occurrences: dezelfde write dedupliceert, verschillende waarden blokkeren alles.
 {
   const duplicateRows = [taskRow(first, 'band-a/eerste'), taskRow(first, 'band-b/eerste')];
   const oneColumn = [taskColumnId('task.description')];
@@ -296,7 +288,6 @@ function planAndCommitPaste(
     emptyOptional.ok ? emptyOptional.value.writes.length : emptyOptional.errors, 0);
 }
 
-// Registryparsers en read-only gelden vóór er één PasteIntent ontstaat.
 {
   const rows = [taskRow(first)];
   const parsedCases: Array<[string, TaskColumnId, string, unknown]> = [
@@ -320,7 +311,6 @@ function planAndCommitPaste(
       expected);
   }
 
-  // Alleen één procentteken achteraan telt; '5%0' of '50%%' is geen getal.
   for (const bad of ['5%0', '50%%']) {
     const completion = taskColumnId('task.time.completion');
     const planned = planTaskGridPaste(bad, environment(rows, [completion], { rowKey: first.id, columnId: completion }));
@@ -371,7 +361,6 @@ function planAndCommitPaste(
   });
 }
 
-// Delete/Backspace gebruikt dezelfde atomaire lege-planner.
 {
   const mixed = environment(
     [taskRow(first)], columns,
@@ -391,8 +380,6 @@ function planAndCommitPaste(
     : cleared.errors, ['', '']);
 }
 
-// Productieketen: dynamisch schrijfbare cellen worden tegen de gezamenlijke paste-eindtoestand
-// beoordeeld. Deze regressies lopen bewust via planTaskGridPaste én de echte storetransactie.
 {
   S().newProject();
   const ordinaryNoop = S().addTask({ name: 'Ongewijzigd doel' });
@@ -512,8 +499,6 @@ function planAndCommitPaste(
     eq(`Constraint type/datum/hard permutatie ${index} commit`,
       planAndCommitPaste(taskId, order.map(key => ids[key]), order.map(key => values[key]).join('\t')),
       { planned: true, committed: true });
-    // F2 (spec §3.6, invoer; §4.2 D1): een geplakte MSO-datum zonder tijd wordt het begin van de
-    // werkdag op de standaardkalender (07:00). Fixronde 1 deel B, B1.
     eq(`Constraint type/datum/hard permutatie ${index} eindtoestand`,
       S().tasks.find(candidate => candidate.id === taskId)?.constraint,
       { type: 'MSO', date: '2026-08-27T07:00', hard: true });
@@ -532,8 +517,6 @@ function planAndCommitPaste(
       [task.isMilestone, task.isHammock ?? false], [false, false]);
   }
 
-  // Ook de hangmatschakelaar is een controller: duur en assignments zijn in de gezamenlijke
-  // eindtoestand alleen schrijfbaar vóór respectievelijk ná die overgang.
   for (const reverse of [false, true]) {
     S().newProject();
     const taskId = S().addTask({ name: `Hangmat uit met duur ${reverse}`, isHammock: true });
@@ -600,9 +583,6 @@ function planAndCommitPaste(
       .map(assignment => [assignment.resourceId, assignment.unitsPerDay, assignment.curve]),
     [[resourceId, 2, 'BELL']]);
 
-  // Units en curve zijn afgeleide editors van bestaand assignmentlidmaatschap. Zonder een
-  // resources-write in dezelfde transactie mogen zij een lege taak nooit stil een assignment
-  // geven, ook niet wanneer hun rijke klembordpayload alle bronvelden bevat.
   for (const column of [taskColumnId('assignment.unitsPerDay'), taskColumnId('assignment.curve')]) {
     const emptyId = S().addTask({ name: `Leeg doel voor ${column}` });
     const copied = copyTaskGridSelection(liveEnvironment(sourceTaskId, [column]));
@@ -621,7 +601,6 @@ function planAndCommitPaste(
     }), before);
   }
 
-  // Iedere visuele volgorde van de drie assignmentkolommen gebruikt dezelfde volledige payload.
   const assignmentOrders = [
     assignmentColumns,
     [assignmentColumns[0], assignmentColumns[2], assignmentColumns[1]],
@@ -643,7 +622,6 @@ function planAndCommitPaste(
       [[resourceId, 2, 'BELL']]);
   }
 
-  // Een tegenstrijdige eindtoestand (mijlpaal mét assignment) wordt volledig teruggerold.
   const conflictingTarget = S().addTask({ name: 'Atomair conflict' });
   const beforeConflict = JSON.stringify({
     task: S().tasks.find(candidate => candidate.id === conflictingTarget),
@@ -662,12 +640,10 @@ function planAndCommitPaste(
     }), beforeConflict);
 }
 
-// ── FIX 6 (§8.6, eindreview): Excel-tegelherhaling + read-only-cellen overslaan in een plak ────
 {
   S().newProject();
   const descColumn = [taskColumnId('task.description')];
 
-  // 1) Rij-herhaling: een 2×1-bron vult een 4×1-selectie door zichzelf te herhalen (A,B,A,B).
   {
     const ids = [0, 1, 2, 3].map(index => S().addTask({ name: `Rijherhaling ${index}` }));
     const env = liveMultiRowEnvironment(ids, descColumn);
@@ -680,12 +656,8 @@ function planAndCommitPaste(
       ids.map(id => S().tasks.find(task => task.id === id)?.description), ['A', 'B', 'A', 'B']);
   }
 
-  // 2) Blokherhaling: een 2×2-bron vult een 2×4-selectie (twee tegels naast elkaar).
   {
     const ids = [0, 1].map(index => S().addTask({ name: `Blokherhaling ${index}` }));
-    // Vier tekstkolommen (geen number/enum), zodat de tegelherhaling op even/oneven kolomposities
-    // consistent tekst blijft: kolom 0 en 2 krijgen bronkolom 0 (N1/N2), kolom 1 en 3 bronkolom 1
-    // (D1/D2) — task.notes is de tweede vrije tekstkolom naast description.
     const blockColumns = [
       taskColumnId('task.name'), taskColumnId('task.notes'),
       taskColumnId('task.description'), taskColumnId('task.color'),
@@ -706,9 +678,6 @@ function planAndCommitPaste(
       ['N2', 'D2', 'N2', 'D2']);
   }
 
-  // 3) Niet-passend veelvoud: een 2×1-bron op een 3×1-selectie past niet en wordt geweigerd —
-  //    de bestaande vanaf-actieve-cel-plak blijft dan gelden (hier: 3 > 2 beschikbare rijen na de
-  //    actieve cel, dus alsnog pasteBounds/pasteDimensions, geen stille afkap of foutieve tiling).
   {
     const ids = [0, 1, 2].map(index => S().addTask({ name: `Nietpassend ${index}` }));
     const env = liveMultiRowEnvironment(ids, descColumn);
@@ -718,9 +687,6 @@ function planAndCommitPaste(
       ids.map(id => S().tasks.find(task => task.id === id)?.description), ['', '', '']);
   }
 
-  // 4) Auto-WBS-plak: task.wbsCode is conditioneel read-only zolang wbsAutoNumber aanstaat. De
-  //    plak slaat die cellen over (in plaats van de hele transactie te weigeren) en de rest — hier
-  //    task.description — gaat gewoon door. Eén geaggregeerde K8a-melding meldt het aantal.
   {
     useAppStore.setState(state => { state.ui.notifications = []; });
     S().setWbsAutoNumber(true);
@@ -740,14 +706,11 @@ function planAndCommitPaste(
       S().ui.notifications.filter(n => n.messageKey === 'notifications.pasteSkippedReadOnly').length, 1);
     eq('De melding telt beide overgeslagen WBS-cellen samen',
       S().ui.notifications.find(n => n.messageKey === 'notifications.pasteSkippedReadOnly')?.params?.count, 2);
-    // Eigenaarsbesluit 2026-10-17: ook een deels gelukte weigering is rood, en noemt de taken.
     const skippedNote = S().ui.notifications.find(n => n.messageKey === 'notifications.pasteSkippedReadOnly');
     eq('Deels gelukte plak: de melding is een rode weigering', [skippedNote?.severity, skippedNote?.refusal], ['error', true]);
-    // De omschrijving van beide taken is wél geschreven: "Niet aangepast" zou onwaar zijn.
     eq('De melding noemt de taken als "niet toegepast bij" (een andere cel is wél geschreven)', skippedNote?.detailLines,
       [{ messageKey: 'notifications.notAppliedTaskNames', params: { names: 'AutoWBS 0, AutoWBS 1' } }]);
 
-    // Alleen de WBS-kolom plakken: in deze taken is niets geschreven ⇒ "Niet aangepast".
     useAppStore.setState(state => { state.ui.notifications = []; });
     const wbsOnly = liveMultiRowEnvironment(ids, [taskColumnId('task.wbsCode')]);
     const plannedWbs = planTaskGridPaste('999\r\n999', wbsOnly, { skipReadOnlyCells: true });
@@ -758,10 +721,6 @@ function planAndCommitPaste(
       [{ messageKey: 'notifications.refusedTaskNames', params: { names: 'AutoWBS 0, AutoWBS 1' } }]);
   }
 
-  // 5) Mijlpaalmetadata-case uit de reviewbrief: task.milestoneKind/task.mandatory plakken zonder
-  //    task.isMilestone in dezelfde paste blijven conditioneel read-only (niets in déze transactie
-  //    zet isMilestone aan) — vroeger weigerde dat de hele transactie; nu worden alleen die twee
-  //    cellen overgeslagen terwijl overige schrijfbare cellen (naam) gewoon doorgaan.
   {
     useAppStore.setState(state => { state.ui.notifications = []; });
     const targetId = S().addTask({ name: 'Mijlpaalmetadata voor' });
@@ -784,9 +743,6 @@ function planAndCommitPaste(
       [{ messageKey: 'notifications.notAppliedTaskNames', params: { names: 'Mijlpaalmetadata na' } }]);
   }
 
-  // 6) Delete/Backspace (planTaskGridClear) behoudt de BESTAANDE "één niet-leegbare cel ⇒
-  //    volledige rollback"-semantiek: skipReadOnlyCells staat daar bewust NIET aan (zie FIX 1 in
-  //    de review-evidence — dit is een andere UX-vraag dan een echte Ctrl+V-paste).
   {
     S().setWbsAutoNumber(true);
     const targetId = S().addTask({ name: 'Clear blijft hard' });
@@ -800,12 +756,6 @@ function planAndCommitPaste(
   }
 }
 
-// FIX 8b (eindreview, onderzoek): de no-op-eliminatie in clipboard.ts vergelijkt de geparseerde
-// bronwaarde tegen de geparseerde HUIDIGE waarde, en beide parses gebruiken hetzelfde `task`-
-// object — dus altijd de kalender van VÓÓR de paste, ook als diezelfde paste ook task.calendarId
-// wijzigt. De review vermoedde dat dit een echte wijziging stil kan wegfilteren. Empirisch
-// onderzocht met een controllerkolom (kalender) samen met een afhankelijke kolom (duur) waarvan
-// de weergegeven tekst gelijk blijft:
 {
   S().newProject();
   const fastCalendarId = S().addCalendar({ ...createDefaultCalendar(), name: 'Kalender4u', hoursPerDay: 4 });
@@ -814,8 +764,6 @@ function planAndCommitPaste(
 
   const columns = [taskColumnId('task.calendarId'), taskColumnId('task.time.scheduleDuration')];
   const env = liveMultiRowEnvironment([taskId], columns);
-  // "5d" is exact de tekst die de duurcel nu al toont (copy() geeft `${scheduleDuration}d`) — de
-  // gebruiker plakt bewust dezelfde duurtekst terug, samen met een NIEUWE kalender.
   const planned = planTaskGridPaste(`${fastCalendarId}\t5d`, env);
   eq('Kalender+duur-plak plant alleen de kalenderwrite (duur blijft, tekstueel, een no-op)',
     planned.ok ? planned.value.writes.map(write => write.kind === 'cell-edit' ? String(write.columnId) : write) : planned.errors,
@@ -824,17 +772,6 @@ function planAndCommitPaste(
   eq('Kalender+duur-plak committeert', committed.ok, true);
   const after = S().tasks.find(task => task.id === taskId);
   eq('De kalender is gewijzigd', after?.calendarId, fastCalendarId);
-  // BEVINDING: dit is GEEN gat dat "verplaats de vergelijking naar de eindtoestand" simpelweg kan
-  // dichten. scheduleDuration is een kalenderRELATIEVE dagteller; "5d" blijft na deze paste
-  // letterlijk 5 — precies wat de gebruiker plakte, nu onder de nieuwe 4u/dag-kalender (dus minder
-  // totale uren, wat de bedoeling van een kalenderwissel is). Een variant die de duur-write NIET
-  // elimineert is apart geprobeerd (met dezelfde, onder de OUDE kalender geparseerde 2.400
-  // minuten): die komt via de eindtoestand-omgeving (die de NIEUWE kalender al meerekent) uit op
-  // scheduleDuration = 10 — een getal dat de gebruiker nooit typte en dat de paste onvoorspelbaarder
-  // maakt, niet correcter. Een echte fix vereist dat de duurcel opnieuw wordt GEPARSED onder de
-  // kalender die de paste zelf meebrengt (in plaats van louter "niet elimineren") — een structurele
-  // wijziging die buiten de scope van deze gerichte reparatie valt. Deze regressie legt daarom het
-  // GEDRAG vast zoals het nu is (voorspelbaar, tekstgetrouw) in plaats van het te "verplaatsen".
   eq('De duur blijft letterlijk 5 (tekstgetrouw, kalenderrelatief) — niet stil herrekend naar 10',
     after?.time.scheduleDuration, 5);
 }

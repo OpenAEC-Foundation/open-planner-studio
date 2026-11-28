@@ -1,20 +1,3 @@
-// De statusdatumlijn staat op het echte tijdstip van de statusdatum (besluit eigenaar 2026-10-17:
-// label en lijn zeggen hetzelfde) — maar alleen als de solver die tijd gebruikt: projectkalender in
-// uur-modus (besluit orkestrator 2026-10-19: toon wat de motor gebruikt). In dag-modus blijven lijn
-// en label op de dagrand, zonder tijd, zoals op main. De ECHTE GanttRenderer met een opnemende 2D-context-stub (zelfde
-// opzet als check-arrow-hour-anchor.ts). Vóór de fix kapte `parseDate` de tijd weg: de lijn stond op
-// het begin van de dag terwijl het label "17:00" zei.
-//
-// Keuze: kalendertijd op de as, net als een uurtaakbalk (`parseInstant` + `dateToX`). Op de lineaire
-// kalenderas is 17:00 dus 17/24 van de dagbreedte, ook bij dagzoom. Zonder tijd: begin van de dag.
-//
-//  §1 gestippelde statusdatumlijn (voortgangslijn uit): 17:00, 12:00 en zonder tijd, op drie zooms.
-//  §2 voortgangslijn (de rechte rug op een niet-gestarte taak) ligt op dezelfde X.
-//  §3 het label staat naast die X (rechts, 4 px) en noemt de tijd alleen in uur-modus.
-//  §4 voortgangslijn in uur-modus vergelijkt op het tijdstip (achterlopende taak), dag-modus per dag.
-//  Elke § draait twee keer: dag-kalender (lijn op de dagrand) en uur-kalender (lijn op het tijdstip).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -65,7 +48,6 @@ useAppStore.setState((s) => {
 S().recomputeViewRows();
 
 const DAY = '2026-03-02';
-// [statusdatum, fractie van de dag in uur-modus, labeltekst in uur-modus]
 const CASES: Array<[string, number, string]> = [
   [`${DAY}T17:00`, 17 / 24, '02-03-2026 17:00'], [`${DAY}T12:00`, 12 / 24, '02-03-2026 12:00'], [DAY, 0, '02-03-2026'],
 ];
@@ -94,7 +76,6 @@ for (const [mode, calendar] of [['dag', DAY_CAL], ['uur', HOUR_CAL]] as const) {
       const fraction = mode === 'uur' ? hourFraction : 0;
       const wantLabel = mode === 'uur' ? hourLabel : '02-03-2026';
       const tag = `${mode} zoom ${zoom} ${statusDate}`;
-      // §1 gestippelde lijn
       const a = render(calendar, statusDate, zoom, false);
       const want = a.dayStartX + fraction * zoom;
       const vertical = a.lines.filter(p => p.length === 4 && p[0] === p[2]);
@@ -103,13 +84,11 @@ for (const [mode, calendar] of [['dag', DAY_CAL], ['uur', HOUR_CAL]] as const) {
         ok(`§1 ${tag}: lijn op ${(fraction * 24).toFixed(0)}:00 van de dag`,
           Math.abs(vertical[0][0] - want) < 0.01, `lijn ${vertical[0][0].toFixed(2)}, verwacht ${want.toFixed(2)}`);
       }
-      // §3 label rechts naast de lijn (vlakje begint 4 px rechts; tekst nog de padding verder)
       const label = a.texts.find(x => x.text.startsWith('02-03-2026'));
       ok(`§3 ${tag}: label naast de lijn`, !!label && label.x > want + 4 && label.x < want + 20,
         label ? `label ${label.x.toFixed(2)}, lijn ${want.toFixed(2)}` : 'geen label');
       ok(`§3 ${tag}: labeltekst`, label?.text === wantLabel, `kreeg ${JSON.stringify(label?.text)}, verwacht ${JSON.stringify(wantLabel)}`);
 
-      // §2 voortgangslijn: rechte rug op de rij van de niet-gestarte taak
       const b = render(calendar, statusDate, zoom, true);
       const spine = b.lines.flat().filter((_, i) => i % 2 === 0);
       ok(`§2 ${tag}: voortgangslijn op dezelfde X`,
@@ -118,10 +97,6 @@ for (const [mode, calendar] of [['dag', DAY_CAL], ['uur', HOUR_CAL]] as const) {
   }
 }
 
-// §4 achterlopende taak in uur-modus (review 2026-10-19): een niet-gestarte taak van 08:00–12:00 op
-// de statusdag, statusdatum 17:00. In uur-modus vergelijkt de voortgangslijn op het tijdstip: de taak
-// had al moeten lopen ⇒ uitstulping naar het begin van de balk (08:00). In dag-modus blijft de
-// vergelijking per dag: zelfde dag ⇒ "niet gestart", rechte lijn op de dagrand.
 const late = S().addTask({ name: 'Ochtendwerk' });
 useAppStore.setState((s) => {
   const task = s.tasks.find((x) => x.id === late)!;

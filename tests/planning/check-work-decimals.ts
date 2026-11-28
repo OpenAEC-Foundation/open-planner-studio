@@ -1,8 +1,3 @@
-// Werk- en inzetkolommen van het taakraster (releasecheck, Roads_Project_TEC.xer): uren en inzet
-// staan in de getalnotatie van de taal (nl "617,14", en "617.14"), met hoogstens twee decimalen en
-// zonder overbodige nullen. Invoer met komma breekt de "naam: uren; naam: uren"-scheiding niet, en
-// de getoonde (afgeronde) tekst onveranderd terugschrijven laat de exacte opgeslagen waarde staan.
-// Kopiëren: de mensentekst volgt de taal, het machine-deel (tokens) blijft exact.
 import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server.browser';
 import { TaskCellEditor } from '@/components/task-grid/TaskCellEditor';
@@ -64,7 +59,6 @@ function adapterFor(numberLocale: string | undefined) {
 const col = (id: string) => taskColumnId(id);
 const cellText = (locale: string | undefined, id: string) => adapterFor(locale).getCell('occ-1', col(id))?.text;
 
-// ── Weergave ────────────────────────────────────────────────────────────────────────────────
 eq('nl inzet: komma, twee decimalen', cellText('nl', 'assignment.unitsPerDay'), 'Draughtman: 1,71; Ploeg, Noord: 0,5');
 eq('en inzet: punt, twee decimalen', cellText('en', 'assignment.unitsPerDay'), 'Draughtman: 1.71; Ploeg, Noord: 0.5');
 eq('nl begroot werk (uren)', cellText('nl', 'assignment.plannedWork'), 'Draughtman: 617,14');
@@ -77,7 +71,6 @@ eq('zonder taal: neutrale punt-notatie', cellText(undefined, 'assignment.unitsPe
 eq('bewerktekst inzet blijft exact (tekstroute rondt niet stil af)',
   adapterFor('nl').getCell('occ-1', col('assignment.unitsPerDay'))?.editText, `Draughtman: ${UNITS}; Ploeg, Noord: 0.5`);
 
-// ── Kopiëren: mensentekst in de taal, tokens exact ─────────────────────────────────────────
 const copyNl = adapterFor('nl').getCell('occ-1', col('assignment.unitsPerDay'))!.copyText;
 const marker = '⁣ops-assignment:';
 const [visible, encoded] = copyNl.split(marker);
@@ -89,13 +82,11 @@ eq('kopie werk nl: tokens dragen de exacte minuten',
   (JSON.parse(decodeURIComponent(copyWork.split(marker)[1])) as TaskAssignmentToken[]).map(token => token.remainingWorkMinutes),
   [37028.57, 14400]);
 
-// ── Plakken binnen de app blijft exact ─────────────────────────────────────────────────────
 const pasteResult = adapterFor('nl').planEdit('occ-1', col('assignment.unitsPerDay'), copyNl);
 eq('plakken van eigen kopie: tokens exact',
   pasteResult.ok ? (pasteResult.value[0] as unknown as { tokens: TaskAssignmentToken[] }).tokens.map(token => token.unitsPerDay) : pasteResult,
   [UNITS, 0.5]);
 
-// ── Tekstinvoer met komma ──────────────────────────────────────────────────────────────────
 function plannedTokens(locale: string, id: string, text: string): unknown {
   const result = adapterFor(locale).planEdit('occ-1', col(id), text);
   return result.ok ? (result.value[0] as unknown as { tokens: TaskAssignmentToken[] }).tokens : result.errors.map(e => e.code);
@@ -117,7 +108,6 @@ eq('nl werk: de getoonde tekst onveranderd ⇒ exacte minuten blijven',
   [37028.57, 14400]);
 eq('nl inzet "1,2,3" is geen getal', plannedTokens('nl', 'assignment.unitsPerDay', 'Draughtman: 1,2,3'), ['assignmentUnits']);
 
-// ── Cel-editor: tekstvelden in de taal; bevestigen zonder wijziging is exact ───────────────
 const unitsMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   adapter: adapterFor('nl'), cell: { rowKey: 'occ-1', columnId: col('assignment.unitsPerDay') },
   label: 'Eenh./dag', messageForError: key => key, onCancel: () => undefined, onFocusCell: () => undefined,
