@@ -13,7 +13,8 @@ toets. Ook laten een paar checks bewust iets ongetoetst, zodat een gewone wijzig
   getter van `localStorage` gooit), importeert de app-modules dynamisch, ná het zetten van die getter; de
   store-modules lezen de opslag al bij het laden. Maak van die imports geen statische imports en zet geen
   importsorteerder op deze bestanden.
-- **De `localStorage` van `domStub.ts` is een echte `Map`,** geen no-op, zodat een check kan toetsen dat een
+- **De `localStorage` van `domStub.ts` bewaart zijn waarden echt,** in een interne `Map` achter de opslagmethoden,
+  geen no-op, zodat een check kan toetsen dat een
   instelling is weggeschreven.
 - **`fakeRecoveryIndexedDb.ts` roept `oncomplete` in een microtask aan na elke `put` en `delete`,** dus bij een
   transactie met meer writes ook meer dan eens. Dat klopt alleen omdat `recoveryStore` alle writes van één ronde
@@ -29,9 +30,14 @@ toets. Ook laten een paar checks bewust iets ongetoetst, zodat een gewone wijzig
   verschil op de raster van `FLOAT_EXACT_TOLERANCE_MIN` (0,001 min) naar 0 afrondt. Dat is dezelfde grens als
   `roundMinutes` in `fidelityCells.ts`, zodat er geen afwijkende cel met grootte 0 kan bestaan. De tolerantie geldt
   alleen voor tf/ff: de datum-assen zijn canonieke minuutstrings (`CANONICAL_MINUTE`).
+- **Vaste projectstart in `check-context-menu-scope.ts`.** `verseVier` zet de projectstart op 1 juni 2026, zodat de
+  voortgangsproef niet afhangt van de lokale kalenderdag. Zonder die regel neemt `newProject()` vandaag als start; bij
+  de review van #1417 faalden op zaterdag 28 november (UTC) zo vijf controles, omdat de bulkbewerking naar 50 % een
+  vraag om de werkelijke start opende in plaats van de voortgang toe te passen. In `Pacific/Midway`, waar het toen
+  vrijdag was, slaagden ze.
 - **Prestatiegrenzen van het taakraster** (`taskGridPerformanceHarness.ts`). `pasteCommitMs` (3.000 ms) is ongeveer
   twee keer de gemeten mediaan na de reparatie van het bulkplakken (`docs/superpowers/evidence/tabel-overhaul-review-fixes.md`).
-  De selectie→adaptermeting duurt per keer minder dan een milliseconde; met twee warmups liepen de eerste samples nog
+  De selectie→adaptermeting heeft normaal een mediaan van 0,16–0,31 ms; met twee warmups liepen de eerste samples nog
   in ongeoptimaliseerde code en haalde de mediaan op CI soms de grens van 2 ms. Alleen die meting krijgt daarom
   `TASK_GRID_SELECTION_ADAPTER_PROTOCOL` (30 warmups, 21 runs) tegen dezelfde 2 ms; de bewaakte regressie (adapterdomein
   en relatie-index bij iedere selectie opnieuw bouwen) zit in elke sample, dus de warmups verbergen haar niet (commit
