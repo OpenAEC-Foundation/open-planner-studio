@@ -6608,6 +6608,13 @@ en noem het in je rapport of PR-tekst.
      eist dat `src/services/ifc/ifcReader.ts` het enige gewijzigde bestand in `src/` is. Zo ging het op #1407; daarom
      bleven die drie bestanden daar buiten de opruiming. Voorstel: de meting alleen starten als `ifcReader.ts` wijzigt. — B
 
+2812. **Een extensie die het project via `data.loadProject` terugzet, wist de koppeling met de resourcebibliotheek.**
+     `retainActiveDocument` (`src/extensions/retainActiveDocument.ts`) neemt bij een lees-wijzig-laad op hetzelfde
+     project-id wel andere niet-publieke projectvelden over, maar niet `companyId` en `companyName`. In een gerichte
+     proef bij de review van #1416 (GPT-6.2-Sol, xhigh): project gekoppeld aan een bibliotheek, via de extensie-API
+     alleen de projectnaam gewijzigd; het id bleef gelijk en beide bibliotheekvelden vielen weg. Verwant aan 127 (de
+     IFC-tab). Voorstel: de binding bij hetzelfde project-id behouden, zoals de andere bronvelden. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
