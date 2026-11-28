@@ -1,6 +1,6 @@
 ---
 name: progress-update
-description: Record Open Planner Studio progress via planner_* (status date, actual dates, % complete); for building use goed-plannen.
+description: "Record Open Planner Studio progress via planner_* (status date, actual dates, % complete); for building use goed-plannen."
 ---
 
 # Progress update with `planner_*`
