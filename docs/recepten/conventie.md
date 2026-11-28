@@ -14,8 +14,8 @@ Zie *Rekenprofielen* in `.claude/rules/rekenprofielen.md` en de spec `docs/super
 
 ## De stappen
 
-1. **Type.** Voeg de boolean toe aan `SchedulingOptions` (`src/types/project.ts`) met een docblok (wat,
-   waar in de motor, P6/MS Project/OPS), en aan de unie `ConventionKey`. De compiler dwingt daarna
+1. **Type.** Voeg de boolean toe aan `SchedulingOptions` (`src/types/project.ts`) zonder commentaar
+   (ADR 0001; een keuze die verrast gaat naar een ADR), en aan de unie `ConventionKey`. De compiler dwingt daarna
    stap 2 af (`_everyConventionNamed` in het register) en houdt `ProjectOptionKey` disjunct.
 2. **Register-rij** in `CONVENTIONS` (`src/engine/scheduler/conventions/registry.ts`): groep (`A`, `B`
    of `C`; de groep zet niets aan in oude bestanden, zie hieronder), de drie
@@ -29,7 +29,7 @@ Zie *Rekenprofielen* in `.claude/rules/rekenprofielen.md` en de spec `docs/super
    een nieuwe conventie bestond in zo'n bestand niet. De regel: een nieuwe conventie gaat voor oude
    bestanden NOOIT vanzelf aan, welke groep ook, tenzij ze met een meting expliciet in een gepinde set
    wordt gezet — zoals C1–C9, C11, C12 en C14 in `LEGACY_XER_ALSO_ON_X12` (orkestratorbesluit 2026-09-23, X12
-   15.056 → 10.947 gemeten met C1–C6, 0 slechter; C7/C8 daarna per cel gemeten, 0 slechter; C9 in brok 6 idem, X12 350 → 308). Breid `LEGACY_XER_ALWAYS_ON` nooit uit zonder meting en eigenaarsbesluit (A19 kwam er op 2026-09-24 bij, zie het docblok). Twee sets, twee
+   15.056 → 10.947 gemeten met C1–C6, 0 slechter; C7/C8 daarna per cel gemeten, 0 slechter; C9 in brok 6 idem, X12 350 → 308). Breid `LEGACY_XER_ALWAYS_ON` nooit uit zonder meting en eigenaarsbesluit (A19 kwam er op 2026-09-24 bij, zie `docs/superpowers/plans/2026-09-22-rekenprofielen-overdracht.md`). Twee sets, twee
    betekenissen: `LEGACY_XER_ALWAYS_ON` (A19, B1–B5) geeft `d.builtIn.p6` — B1–B5 hingen vroeger letterlijk aan
    `p6Source`, A19 staat sinds 2026-09-24 in de P6-basis —, `LEGACY_XER_ALSO_ON_X12` (C1–C9, C11, C12 en C14) geeft `d.builtIn.p6`, de P6-profielwaarde (zo'n bestand
    rekent als een herimport). Een expliciet gezette vlag in het oude blok wint altijd, ook `false`.
