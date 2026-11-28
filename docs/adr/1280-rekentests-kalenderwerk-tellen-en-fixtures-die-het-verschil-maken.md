@@ -2,7 +2,7 @@
 
 Een test in `tests/planning/` die bewaakt hoe de kosten van een rekenstap groeien, telt aanroepen van de kalender en
 geen wandkloktijd. Zo'n telling hangt niet af van de machine of de drukte op de CI-runner, dus de grens kan scherp
-liggen zonder te haperen. Wandkloktijd keurt alleen nog als ruim vangnet tegen een hang. Echte tijden staan in de
+liggen zonder te haperen. Wandkloktijd keurt alleen met een ruime grens (de twee gevallen hieronder). Echte tijden staan in de
 aparte meetscripts `tests/planning/measure-cpm-writeback.mjs` en `tests/planning/measure-leveler.ts` (via
 `docs/superpowers/evidence/resource-leveler-performance.mjs`), met hun uitkomst in `docs/superpowers/evidence/`.
 Vervang een telling niet door een tijdmeting.
