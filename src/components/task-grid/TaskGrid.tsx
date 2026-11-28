@@ -22,7 +22,6 @@ import { DataGridCore, type DataGridCoreProps } from './DataGridCore';
 import { TASK_GRID_CHOOSER_STRIP } from '@/engine/taskGrid/scrollExtent';
 import type { DataGridColumnModel, DataGridLabels } from './taskGridContext';
 
-/** Rust vóór een automatische meting (ms). */
 const AUTO_FIT_DELAY_MS = 250;
 
 export interface TaskGridHistoryLabels {
@@ -61,25 +60,17 @@ export interface TaskGridProps extends CoreProps {
   surfacePreferences: Readonly<TaskGridSurfacePreferences>;
   recentColumnIds: readonly TaskColumnId[];
   availableColumns: readonly TaskGridColumnOption[];
-  /** De standaardindeling van dit oppervlak (`defaultTaskGridSurfaceColumns`), voor "Herstel standaard". */
   defaultColumns: readonly TaskGridColumnPreference[];
   labels: TaskGridLabels;
-  /** Commit een al gevalideerde gebruikersvoorkeur als precies één history-event. */
   onCommitColumns: (label: string, columns: readonly TaskGridColumnPreference[]) => void;
   onRecordRecentColumn: (columnId: TaskColumnId) => void;
-  /** Commit een geldige actieve editor synchroon; geef false terug zolang de waarde ongeldig is. */
   beforeColumnAction?: () => boolean;
-  /** De adapter scant alle actuele taak-occurrences en geeft null terug als de bron onderweg verdwijnt. */
   onComputeAutoFitWidth?: (columnId: TaskColumnId) => Promise<number | null>;
-  /** Instelling "Kolommen automatisch aanpassen". Kolommen met `manualWidth` blijven staan. */
   autoFitColumns?: boolean;
-  /** Tijdelijk geen automatisch aanpassen, bijvoorbeeld tijdens het bewerken van een cel. */
   autoFitPaused?: boolean;
-  /** Schrijft de automatisch gemeten breedtes weg: bewaard, maar geen eigen undo-stap. Moet stabiel zijn. */
   onApplyAutoFit?: (columns: readonly TaskGridColumnPreference[]) => void;
   chooserOpen?: boolean;
   onChooserOpenChange?: (open: boolean) => void;
-  /** Zie `ColumnChooserProps.externalToggleSelector`. */
   chooserExternalToggleSelector?: string;
 }
 
@@ -143,16 +134,8 @@ export function TaskGrid({
     return true;
   };
 
-  // Tijdens het slepen van een kolomrand grijpt automatisch aanpassen niet in.
   const resizing = previewWidths.size > 0;
 
-  // Automatisch aanpassen (instelling): na een korte rust meten we alle kolommen zonder
-  // `manualWidth` en schrijven de nieuwe breedtes weg. `onComputeAutoFitWidth` krijgt een nieuwe
-  // identiteit zodra rijen, tekst, taal of lettergrootte veranderen en is daarmee de trigger. Tijdens
-  // het bewerken van een cel in dit raster (`autoFitPaused`), tijdens het slepen van een kolomrand en
-  // zolang een andere bewerking loopt (`holdAutoCalc`: het eigenschappenpaneel dat per toetsaanslag
-  // schrijft, een sleepgebaar) wacht de meting, zodat een kolom niet onder de hand beweegt; daarna
-  // volgt één nieuwe meting (`autoFitScheduler.ts`).
   useEffect(() => {
     if (!autoFitColumns || autoFitPaused || resizing || !onComputeAutoFitWidth || !onApplyAutoFit) return;
     return startAutoFitScheduler({
@@ -263,7 +246,6 @@ export function TaskGrid({
         onOpenChange={onChooserOpenChange}
         externalToggleSelector={chooserExternalToggleSelector}
         beforeOpen={allowAction}
-        // Dezelfde commitroute als elke andere kolomhandeling: één history-event, direct opgeslagen.
         resetDisabled={sameTaskGridColumns(surfacePreferences.columns, defaultColumns)}
         onReset={() => commitAction(labels.history.resetColumns, () => cloneColumns(defaultColumns))}
         onChoose={option => {

@@ -34,7 +34,6 @@ export interface CommitTaskCellEditorValueInput {
   messageForError: (messageKey: string, error: CellValidationError) => string;
 }
 
-/** Komma of punt als decimaalteken, zoals de tekstparsers van de kolommen; leeg ⇒ NaN (geen stille 0). */
 function decimalFromText(text: string): number {
   const trimmed = text.trim();
   return trimmed === '' ? NaN : Number(trimmed.replace(',', '.'));
@@ -72,7 +71,6 @@ function localError(
   return editorError(cell, error, messageForError);
 }
 
-/** Voert de synchrone prepare → plan → commitgrens uit zonder een store- of slicenaam te kennen. */
 export function commitTaskCellEditorValue(input: CommitTaskCellEditorValueInput): GridEditorCommitResult {
   const { adapter, cell, text, messageForError } = input;
   const meta = adapter.rowMetaByKey.get(cell.rowKey);
@@ -122,10 +120,6 @@ export interface TaskCellEditorProps {
   onOpenExternal?: (taskId: string, relationId?: string) => void;
 }
 
-/**
- * Dunne React-schil. Task 12 vervangt het tekstveld per descriptor-editorKind; validatie,
- * schrijfplanning en commit blijven via dezelfde adaptergrens lopen.
- */
 export function TaskCellEditor({
   adapter,
   cell,
@@ -143,8 +137,6 @@ export function TaskCellEditor({
 }: TaskCellEditorProps) {
   const initialCell = adapter.getCell(cell.rowKey, cell.columnId);
   const descriptor = adapter.descriptorsById.get(cell.columnId);
-  // Een keuzelijst (ja/nee, keuze, code) start altijd op de huidige waarde; een getypt teken springt
-  // in de open lijst naar een passende optie (#970) in plaats van als waarde te gelden.
   const isListEditor = opensListEditor(descriptor);
   const listTypeahead = isListEditor && initialText ? initialText : undefined;
   const [text, setText] = useState(
@@ -160,7 +152,6 @@ export function TaskCellEditor({
   const dateEditorKind = descriptor?.editorKind === 'date' || descriptor?.editorKind === 'datetime'
     ? descriptor.editorKind
     : null;
-  // De eigen datumkiezer (#904) achter een knop in de datumeditor: hij opent op de getypte datum.
   const parsedDateText = dateEditorKind === 'date'
     ? parseGridDate(text, dateNotation)
     : dateEditorKind === 'datetime' ? parseGridDateTime(text, dateNotation) : null;
@@ -196,10 +187,6 @@ export function TaskCellEditor({
   const editsAssignmentUnits = assignmentColumnId === 'assignment.unitsPerDay';
   const editsAssignmentCurve = assignmentColumnId === 'assignment.curve';
   const editsAssignmentWork = assignmentColumnId === 'assignment.remainingWork';
-  // Inzet en werk staan in de getalnotatie van de taal (nl "1,71", en "1.71"; hoogstens twee
-  // decimalen). Het veld is daarom tekst, geen `type="number"`. Een concepttekst per toewijzing;
-  // zolang die gelijk is aan de getoonde tekst blijft de EXACTE opgeslagen waarde staan, zodat
-  // openen en bevestigen zonder wijziging niets schrijft (geen afronding naar 1,71).
   const numberLocale = adapter.context.numberLocale;
   const [numberDrafts, setNumberDrafts] = useState<Readonly<Record<string, string>>>({});
   const initialTokenByKey = new Map((Array.isArray(initialCell?.value)
@@ -207,7 +194,6 @@ export function TaskCellEditor({
     : []).map(token => [token.assignmentId ?? token.resourceId, token] as const));
   const resourceOptions = descriptor?.editorOptions ?? [];
   const resourceOptionById = new Map(resourceOptions.map(option => [option.value, option] as const));
-  // Nog niet toegewezen resources die bij de zoekterm passen — voor de lijst én voor Enter.
   const resourceQueryKey = resourceQuery.trim().toLocaleLowerCase();
   const resourceCandidates = resourceQueryKey === '' ? [] : resourceOptions.filter(option => (
     !assignmentTokens.some(token => token.resourceId === option.value)
@@ -218,11 +204,6 @@ export function TaskCellEditor({
     'UNIFORM', 'FRONT_LOADED', 'BACK_LOADED', 'BELL', 'EARLY_PEAK', 'LATE_PEAK', 'DOUBLE_PEAK', 'TURTLE',
   ];
   const inputRef = useRef<HTMLInputElement | HTMLSelectElement>(null);
-  // `commit()` leest hieruit i.p.v. rechtstreeks uit de `text`-state.
-  // De enum/boolean-editor commit meteen bij het kiezen (klik of Enter — zie de onChange hieronder),
-  // in DEZELFDE synchrone afhandeling als de `setText`-aanroep die de keuze vastlegt. Zonder deze
-  // ref zou `commit` (via zijn `useCallback`-closure) nog de VORIGE render se `text` zien, want React
-  // herrendert pas ná deze functie — een ref is wél meteen bij, dus altijd de verse waarde.
   const textRef = useRef(text);
   textRef.current = text;
   useEffect(() => {
@@ -233,9 +214,6 @@ export function TaskCellEditor({
       else node.setSelectionRange(node.value.length, node.value.length);
     }
   }, [cell.rowKey, cell.columnId, initialText]);
-  // De eerste letter die vanuit een geselecteerde cel de editor start (`initialText`), is een gewone toetsaanslag: hij
-  // komt niet als `input`-event binnen, dus meldt de editor hem zelf aan de rustklok van Automatisch opslaan
-  // (`textEntryActivity.ts`, fixronde 2 van de review van #1033).
   useEffect(() => {
     if (initialText !== undefined) noteTextEntry();
   }, [cell.rowKey, cell.columnId, initialText]);
@@ -265,17 +243,6 @@ export function TaskCellEditor({
     return () => onCommitReady(null);
   }, [commit, onCommitReady]);
 
-  // Gedeeld door de enum- en boolean-editor. Een klik op een optie
-  // heeft geen keydown om op te bubbelen, dus commit hier ZELF, meteen na het bijwerken van
-  // `textRef`/`text` — niet via `commit()`s closure (die pas ná de eerstvolgende render de nieuwe
-  // waarde ziet), maar via de synthetische Enter naar `inputProps.onKeyDown`, die `commit()` intern
-  // aanroept en dan al wél `textRef.current` (synchroon bijgewerkt) leest. Diezelfde weg voor een
-  // Enter-keuze in `Select` zelf: die stopt de propagatie van zijn eigen Enter (zie Select.tsx),
-  // dus dit is de ENIGE plek die de commit voor een gekozen waarde triggert — geen dubbele afhandeling.
-  // `Select` roept `onChange` niet aan als de gebruiker de al gekozen optie opnieuw kiest. De cel
-  // legt dan via `onReselect` toch vast en sluit, bij klik, Enter en Spatie, net als bij een andere
-  // waarde. Shift+Enter gaat zoals overal in de grid een rij omhoog: de capture hieronder onthoudt of
-  // de laatste toets Shift+Enter was, want `Select` geeft bij een keuze alleen de waarde door.
   const pickedWithShiftEnterRef = useRef(false);
   const commitPickedValue = (value: string, inputProps: GridEditorInputProps) => {
     textRef.current = value;
@@ -288,9 +255,6 @@ export function TaskCellEditor({
     } as KeyboardEvent<HTMLElement>);
   };
 
-  /** Een dag uit de kiezer: dezelfde tekst als typen, met de getypte tijd erbij, en meteen vastleggen
-   *  (een keuze is één handeling, zoals in een keuzelijst). Zonder getypte tijd blijft het een datum:
-   *  de store zet die op de dagrand van het veld, net als een getypte datum. */
   const pickGridDate = (iso: string, inputProps: GridEditorInputProps) => {
     inputRef.current?.focus();
     setPickerOpen(false);
@@ -302,8 +266,6 @@ export function TaskCellEditor({
       : formatGridDate(iso, dateNotation), inputProps);
   };
 
-  // Escape in een keuzelijst-editor (enum/boolean): annuleer de celbewerking vóórdat `Select` de
-  // toets ziet. `Select` stopt Escape in een open lijst; zonder deze capture bleef de editor open.
   const onListKeyDownCapture = (e: KeyboardEvent<HTMLElement>, inputProps: GridEditorInputProps) => {
     pickedWithShiftEnterRef.current = e.key === 'Enter' && e.shiftKey;
     if (e.key === 'Escape') inputProps.onKeyDown(e);
@@ -481,18 +443,6 @@ export function TaskCellEditor({
             )}
           </div>
         ) : descriptor?.editorKind === 'enum' && descriptor.editorOptions ? (
-          // Een kaal native <select> toont bij het starten van
-          // bewerken geen uitgeklapte lijst — pijltjes cyclen alleen de waarde, zonder overzicht van
-          // alle opties. `Select` (src/components/common/Select.tsx) is het volwaardige
-          // component (open/highlight/typeahead/Enter-commit/Escape-annuleer) — hier met `autoOpen`
-          // zodat de volledige lijst er meteen staat. Select stopt Escape in een open lijst (anders
-          // sloot dezelfde toets ook een omringende dialoog). Daarom vangt de WRAPPER Escape al in de
-          // capture-fase af (`onListKeyDownCapture`): één Escape sluit de lijst én annuleert de
-          // celbewerking, zoals vroeger. `onKeyDown={inputProps.onKeyDown}` op de wrapper (niet op
-          // Select zelf, dat kent die prop niet) blijft voor de overige toetsen. Enter/klik op een
-          // optie roept `onChange` hieronder aan (of `onReselect` bij de al gekozen optie), die de
-          // commit ZELF triggert via een synthetische Enter naar `inputProps.onKeyDown` — Select
-          // stopt bij een keuze de propagatie van zijn eigen Enter, dus geen dubbele commit.
           <div
             className="task-grid-editor-input"
             data-task-editor-kind="enum"
@@ -567,7 +517,6 @@ export function TaskCellEditor({
               aria-haspopup="dialog"
               aria-expanded={pickerOpen}
               aria-keyshortcuts="Alt+ArrowDown"
-              // De focus blijft in het tekstveld (of in het open paneel).
               onMouseDown={event => event.preventDefault()}
               onClick={() => {
                 if (pickerOpen) inputRef.current?.focus();

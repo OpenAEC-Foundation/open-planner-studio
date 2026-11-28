@@ -58,10 +58,6 @@ function relationLabelParts(label: string): { reference: string; detail: string 
   return match ? { reference: match[1], detail: match[2] } : { reference: label, detail: '' };
 }
 
-/** De relatiedetails (type/lag, vrije speling, sturend, waarschuwingen) staan als extra regels
- * ONDER de taakkaart van de referentie (geen aparte native `title` op de chip, die daarmee zou
- * botsen), zodat een link precies één tooltip heeft. */
-/** Vertaalde waarschuwingsteksten van een relatie-item, inclusief de stale-markering. */
 function relationWarningTexts(item: RelationCellItem, t: TFunction<'task'>): string[] {
   return [
     ...item.warnings.map(warning => t(RELATION_WARNING_KEYS[warning] ?? warning, { defaultValue: warning })),
@@ -90,7 +86,6 @@ function RelationTooltipDetails({ item }: { item: RelationCellItem }) {
   );
 }
 
-/** De herkomst van het anker als tooltipregel (keuze 4); `null` als er niets bekend is. */
 function provenanceText(
   link: Parameters<typeof externalAnchorProvenance>[0],
   t: TFunction<'task'>,
@@ -139,10 +134,6 @@ export interface RelationCellContentProps {
   onExternalContextMenu?: (item: RelationCellItem, event: MouseEvent<HTMLElement>) => void;
 }
 
-/** Compacte celweergave; alleen de taakreferentie is interactief, type en lag blijven gewone tekst.
- * Tooltips: boven de link staat uitsluitend de taakkaart van de referentie mét de
- * relatiedetails; elders in de cel geldt de gewone celregel (volledige waarde alleen bij afknippen,
- * zie GridCell). De link draagt daarom een lege `title`, wat de native celtooltip erboven onderdrukt. */
 export function RelationCellContent({ items, onFocusTask, onExternalContextMenu }: RelationCellContentProps) {
   const { t } = useTranslation('task');
   const [hover, setHover] = useState<RelationHover | null>(null);
@@ -190,9 +181,6 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
                 {parts.reference}
               </button>
               {parts.detail && <span className="task-grid-relation-detail"> {parts.detail}</span>}
-              {/* De iconen staan buiten de link en dus buiten de hoverkaart; ze houden hun eigen
-                * native title zodat "sturend" en de concrete waarschuwing met de muis leesbaar
-                * blijven — de gewone celtooltip wordt eronder onderdrukt (dichtstbijzijnde title wint). */}
               {item.driving && (
                 <span className="task-grid-relation-icon task-grid-relation-icon--driving" title={t('relations.driving')}>
                   <Icon id="planning.driving" size={10} aria-label={t('relations.driving')} />
@@ -231,7 +219,6 @@ export function RelationCellContent({ items, onFocusTask, onExternalContextMenu 
 }
 
 export interface RelationCellEditorProps {
-  /** Welke kant de cel toont: in de kolom Voorgangers is de eigen taak de opvolger. */
   direction: 'predecessor' | 'successor';
   inputProps: GridEditorInputProps;
   inputRef: Ref<HTMLInputElement>;
@@ -246,14 +233,10 @@ export interface RelationCellEditorProps {
   onOpenExternal?: (relationId?: string) => void;
 }
 
-/** Enter/spatie op een knop of keuzelijst in een celeditor bedient dát element, niet de cel. */
 export function controlKeyDown(event: KeyboardEvent<HTMLElement>): void {
   if (event.key === 'Enter' || event.key === ' ') event.stopPropagation();
 }
 
-/** Toetsen rond een `Select` in een celeditor: staat de lijst open, dan zijn alle toetsen behalve
- *  Tab van die lijst (Escape sluit alleen de lijst, pijltjes verspringen niet van cel). Dicht gedraagt
- *  hij zich als elke andere knop in de editor. */
 function selectControlKeyDown(event: KeyboardEvent<HTMLElement>): void {
   const open = (event.target as Element | null)?.closest?.('[aria-expanded="true"]') != null;
   if (open && event.key !== 'Tab') {
@@ -284,7 +267,6 @@ export function RelationCellEditor({
     'aria-describedby': inputProps['aria-describedby'],
   };
   const [query, setQuery] = useState('');
-  // De uitlegzin over het type staat alleen onder de relatie waar de focus in zit.
   const [focusedToken, setFocusedToken] = useState<number | null>(null);
   const ownerTask = tasks.find(candidate => candidate.id === ownerTaskId);
   const sentenceFor = (type: ExternalRelationType, otherName: string) => (
@@ -410,9 +392,6 @@ export function RelationCellEditor({
       className="task-grid-relation-editor"
       data-task-editor-kind="relations"
       style={{ left: position.left, top: position.top, width: position.width }}
-      // Besturing binnen de cel is geen nieuwe cel-/rijselectie en mag ook geen rijdrag starten.
-      // Zonder deze grens herbouwde de Gantt-surface de editor al op pointer-down, vóór de klik op
-      // type, lag of verwijderen zijn lokale tokenstate kon bijwerken.
       onPointerDown={event => event.stopPropagation()}
       onMouseDown={event => event.stopPropagation()}
     >

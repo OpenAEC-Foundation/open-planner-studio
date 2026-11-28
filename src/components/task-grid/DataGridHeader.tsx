@@ -41,20 +41,8 @@ export function computePinnedColumnLayout(
   return { stickyEnabled, totalPinnedWidth, leftByColumnId };
 }
 
-/** Laagste laag van een vastgezette kolomkop (de laatste van het vastgezette blok). */
 const PINNED_HEADER_Z_INDEX = 6;
 
-/**
- * Laag (`z-index`) van een kolomkop in de kopregel. De breedtegreep (4 px, `.task-grid-resize-handle`)
- * hangt deels over de volgende kop. Kreeg elke kop een eigen laag, dan lag die volgende kop (later
- * in de DOM, zelfde laag) over dat deel en was de greep feitelijk 3 px (ltr) of 2 px (rtl) pakbaar.
- *
- * - Een gewone kop krijgt GEEN laag (`undefined`): zijn greep (z 2) en invoegstreep (z 4) liggen dan
- *   in de kopregel zelf, boven alle gewone koppen.
- * - Een vastgezette (sticky) kop moet boven de wegscrollende koppen en hun grepen blijven en krijgt
- *   dus wel een laag; binnen het vastgezette blok ligt elke kop boven zijn rechterbuur, zodat ook
- *   daar de hele greep pakbaar is.
- */
 export function columnHeaderZIndex(layout: PinnedColumnLayout, columnId: TaskColumnId): number | undefined {
   let rank = 0;
   for (const id of layout.leftByColumnId.keys()) {
@@ -77,8 +65,6 @@ export function keyboardResizeWidth(
   return clampWidth(width + (key === 'ArrowRight' ? step : -step));
 }
 
-/** Eén kolomkop-rechthoek (viewport-coördinaten, zoals `getBoundingClientRect()` teruggeeft) t.b.v.
- *  `resolveColumnDropTarget`. */
 export interface ColumnHeaderRect {
   id: TaskColumnId;
   pinned: boolean;
@@ -86,21 +72,6 @@ export interface ColumnHeaderRect {
   right: number;
 }
 
-/**
- * Bepaalt de kolom-invoegpositie voor kolomherordenen GEBIEDSDEKKEND
- * over de volledige headerbreedte i.p.v. een smalle strook op de kolomgrens zelf — en klemt de
- * pointerpositie naar de dichtstbijzijnde geldige grens zodra hij BUITEN alle kolomkoppen valt (te
- * ver naar links, te ver naar rechts voorbij de laatste kolom, of — via de window-brede
- * dragover/drop-luisteraars die deze functie aanroepen, zie de useEffect hieronder — een paar pixels
- * te laag, over de rijen). Zonder die klem valt een drop die net niet op een headercel landt stil
- * terug op niets: geen enkele kolomkop krijgt het dragover/drop-event, dus de herordening wordt
- * zwijgend genegeerd ("je moet exact op de grens droppen").
- *
- * Elke kandidaat (alle kolommen behalve de gesleepte zelf, en alleen uit dezelfde pin-groep — een
- * vastgezette kolom mag niet tussen losse kolommen belanden en andersom)
- * levert zijn linkerhelft op als "before" en zijn rechterhelft als "after", zodat ELKE positie in de
- * headerbalk een geldig doel is — nooit een dode zone.
- */
 export function resolveColumnDropTarget(
   rects: readonly ColumnHeaderRect[],
   draggedColumnId: TaskColumnId,
@@ -325,16 +296,6 @@ export function DataGridHeader({
     onResizeCommit?.(column.id, column.width, after);
   };
 
-  // Window-brede dragover/drop-luisteraars i.p.v. per-kolomkop
-  // handlers. Zolang draggedColumnId gezet is (een kolomherordening loopt),
-  // vangt dit ELKE dragover/drop in het hele document — ook ver voorbij de laatste kolom, of een
-  // paar pixels onder de headerrij (over de tabelrijen). resolveColumnDropTarget klemt de
-  // pointerpositie altijd naar de dichtstbijzijnde geldige grens; zonder deze window-luisteraars
-  // krijgt zo'n net-mis drop GEEN dragover/drop-event op een headercel (native dragover/drop vuurt
-  // alleen op het element letterlijk onder de cursor), en wordt de herordening zwijgend genegeerd.
-  // `preventDefault()` moet
-  // vallen op ÉÉN van de dragover-events in de keten om de browser een drop toe te staan; een
-  // window-listener (bubble-fase, standaard) is daar een geldige plek voor.
   const collectHeaderRects = (): ColumnHeaderRect[] => {
     const row = headerRowRef.current;
     if (!row) return [];
@@ -375,13 +336,6 @@ export function DataGridHeader({
 
   const contextMenuPortal = contextMenu && contextColumn && typeof document !== 'undefined'
     ? createPortal(
-      // `font: inherit` in een createPortal naar `document.body` zou de `body`-rol `--text-large`
-      // erven i.p.v. de compacte `text-small leading-4` van het taakmenu (ContextMenu.tsx). Daarom
-      // dezelfde getokeniseerde klassen als dat menu
-      // (CONTEXT_MENU_CONTAINER_CLASS/CONTEXT_MENU_ITEM_CLASS, geëxporteerd vanuit ContextMenu.tsx)
-      // — één bron voor de maatvoering, zodat ze niet uit elkaar kunnen groeien. De
-      // role="menu"/role="menuitem"-opbouw is van dit menu zelf (
-      // ContextMenu.tsx's eigen MenuItem heeft die ARIA-rollen niet).
       <div
         ref={contextMenuRef}
         role="menu"
@@ -474,11 +428,6 @@ export function DataGridHeader({
               event.dataTransfer.setData('text/plain', column.id);
               setDraggedColumnId(column.id);
             }}
-            // onDragOver/onDrop staan niet per kolomkop — de window-brede luisteraars
-            // hierboven vangen ELKE dragover/drop tijdens een actieve
-            // herordening, geklemd naar de dichtstbijzijnde geldige grens. onDragEnd blijft als
-            // vangnet voor het geval de sleep buiten het venster eindigt (bv. losgelaten buiten
-            // de browser) zonder dat er ooit een 'drop' vuurt.
             onDragEnd={() => {
               setDraggedColumnId(null);
               setDropTarget(null);

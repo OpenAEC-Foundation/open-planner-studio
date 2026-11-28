@@ -15,7 +15,6 @@ export interface DataGridDataRowModel {
   rowKey: string;
   depth: number;
   dimmed?: boolean;
-  /** De spookregel onderaan (zie `engine/taskGrid/ghostRow.ts`): nog geen taak. */
   ghost?: boolean;
   selected?: boolean;
   traceClass?: string | null;
@@ -45,11 +44,8 @@ export interface DataGridCellModel {
   readOnly: boolean;
   stale?: boolean;
   statusText?: string;
-  /** Volledige celwaarde; alleen als native title getoond wanneer de cel afknipt. */
   title?: string;
-  /** Kolomeigen uitleg; altijd als native title getoond. */
   tooltip?: string;
-  /** Een ⚠ naast de waarde, met eigen uitleg als native title. */
   warning?: TaskCellWarning;
   error?: DataGridError;
 }
