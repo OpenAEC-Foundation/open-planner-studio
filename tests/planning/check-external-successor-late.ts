@@ -1,16 +1,3 @@
-// Een relatie naar een OPVOLGER in een ander project rekent met de laatst toelaatbare datum van de
-// brontaak: de late start (FS, SS) of de late finish (FF, SF), niet de geplande (vroege) datum.
-// Besluit van Ethan, 2026-11-02 (voorstel 1 uit #792): zo rekent P6 als twee projecten samen open
-// zijn (External Late Finish). Wie toch aan de geplande datum vast wil houden, zet een gewone
-// datumbeperking.
-//
-// Terugval: heeft de brontaak geen late datum (een vers MSPDI-bestand zonder herberekening), dan
-// telt de vroege datum, zoals vroeger. Staat de gebruikte kant van de brontaak al vast als werkelijke
-// datum (gestart, of klaar), dan is er daar geen speling meer en telt de rekendatum, ook zoals vroeger.
-// Een externe VOORGANGER verandert niet: die rekent met de vroege datum van de brontaak.
-//
-// Voorbeeld uit het besluit (sectie 4): Installatie staat gepland op 1 maart en mag uiterlijk op
-// 15 maart beginnen. De ruwbouw krijgt dan 10 werkdagen speling, niet 0.
 import { externalSourceFromImport, readExternalSource } from '@/state/externalSource';
 import { createAppStoreContext } from '@/state/appStore';
 import { refreshExternalAnchors, sourceAnchorDate } from '@/engine/externalLinks';
@@ -54,20 +41,17 @@ const planned = {
 const anchors = (task: Task, direction: ExternalLink['direction']) =>
   TYPES.map(relType => sourceAnchorDate(link(direction, relType), task));
 
-// (1) Opvolger: de laatst toelaatbare datum. Voorganger: ongewijzigd de vroege datum.
 {
   const task = sourceTask(planned);
   eq('1a opvolger FS/SS/FF/SF: late start, late start, late finish, late finish', anchors(task, 'successor'),
     ['2027-03-15T07:00', '2027-03-15T07:00', '2027-03-19T16:00', '2027-03-19T16:00']);
   eq('1b voorganger FS/SS/FF/SF: ongewijzigd vroege finish, vroege start, vroege finish, vroege start',
     anchors(task, 'predecessor'), ['2027-03-05T16:00', '2027-03-01T07:00', '2027-03-05T16:00', '2027-03-01T07:00']);
-  // Negatieve speling in de bron: de late datum ligt vóór de vroege. Ook dan telt de late datum.
   const tight = sourceTask({ ...planned, lateStart: '2027-02-22T07:00', lateFinish: '2027-02-26T16:00' });
   eq('1c bron met negatieve speling: de late datum, ook als die vóór de geplande ligt', anchors(tight, 'successor'),
     ['2027-02-22T07:00', '2027-02-22T07:00', '2027-02-26T16:00', '2027-02-26T16:00']);
 }
 
-// (2) Terugval zonder late datums: de vroege datum, zoals vroeger.
 {
   const task = sourceTask({ ...planned, lateStart: '', lateFinish: '' });
   eq('2a zonder late datums: opvolger valt terug op de vroege datum', anchors(task, 'successor'),
@@ -76,9 +60,6 @@ const anchors = (task: Task, direction: ExternalLink['direction']) =>
   eq('2b alleen een late start: FS/SS de late start, FF/SF terug op de vroege finish', anchors(onlyStart, 'successor'),
     ['2027-03-15T07:00', '2027-03-15T07:00', '2027-03-05T16:00', '2027-03-05T16:00']);
 
-  // Een vers MSPDI-bestand zonder LateStart/LateFinish, ingelezen met de kale lezer. De lezer vult de
-  // late datums dan met de geplande (`mspdiReader.ts`: `lateStart: start`), dus ook hier wordt het
-  // anker de geplande start.
   const mspdi = readMSPDI(`<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="http://schemas.microsoft.com/project"><Name>Installateur</Name>
   <StartDate>2027-03-01T08:00:00</StartDate><MinutesPerDay>480</MinutesPerDay><Tasks>
@@ -95,7 +76,6 @@ const anchors = (task: Task, direction: ExternalLink['direction']) =>
     computedStart(fresh));
 }
 
-// (3) Een kant die al gebeurd is, heeft geen speling meer: de rekendatum, zoals vroeger.
 {
   const started = sourceTask({ ...planned, actualStart: '2027-03-01T07:00', completion: 0.4 });
   eq('3a gestarte brontaak: FS/SS de rekendatum van de start, FF/SF de late finish', anchors(started, 'successor'),
@@ -107,10 +87,7 @@ const anchors = (task: Task, direction: ExternalLink['direction']) =>
     ['2027-03-01T07:00', '2027-03-01T07:00', '2027-03-05T16:00', '2027-03-05T16:00']);
 }
 
-// (4) "Bron vernieuwen" uit een echt bronbestand, met het voorbeeld uit het besluit.
 {
-  // Het bronproject van de installateur: Installatie (5 d) en Leidingwerk (15 d) gaan beide vooraf
-  // aan Oplevering. Installatie start op maandag 1 maart en mag uiterlijk op maandag 15 maart starten.
   const src = createAppStoreContext().store;
   const s = () => src.getState();
   s().newProject();
@@ -133,8 +110,6 @@ const anchors = (task: Task, direction: ExternalLink['direction']) =>
     [installatie.time.earlyStart, installatie.time.earlyFinish, installatie.time.lateStart, installatie.time.lateFinish],
     ['2027-03-01T07:00', '2027-03-05T16:00', '2027-03-15T07:00', '2027-03-19T16:00']);
 
-  // De eigen planning: Ruwbouw (20 d, 1–26 februari) en Afbouw (40 d) zonder onderlinge relatie, zodat
-  // het projecteinde de speling van de ruwbouw niet begrenst.
   const own = createAppStoreContext().store;
   const o = () => own.getState();
   own.setState({ parseExternalSource: async () => readExternalSource(sourcePath, io) });
@@ -143,7 +118,6 @@ const anchors = (task: Task, direction: ExternalLink['direction']) =>
   const shell = o().addTask({ name: 'Ruwbouw', time: createDefaultTaskTime('2027-02-01', 20, 'days') });
   o().addTask({ name: 'Afbouw', time: createDefaultTaskTime('2027-02-01', 40, 'days') });
   const ref = { projectId: source.projectId, taskId: installatie.id, filePath: sourcePath };
-  // Zo zette de app het anker vóór dit besluit: de geplande start van Installatie.
   o().updateTask(shell, {
     externalLinks: TYPES.map(relType => ({ ...link('successor', relType), sourceRef: ref,
       anchorDate: relType[1] === 'S' ? '2027-03-01T07:00' : '2027-03-05T16:00' }))
@@ -162,20 +136,16 @@ const anchors = (task: Task, direction: ExternalLink['direction']) =>
     ['successor-SF', '2027-03-19T16:00'],
     ['predecessor-SS', '2027-03-01T07:00'],
   ]);
-  // Alleen de FS-opvolger begrenst nu de ruwbouw; de andere koppelingen gaan eraf.
   o().updateTask(shell, { externalLinks: shellTask().externalLinks!.filter(l => l.id === 'successor-FS') });
   o().runCPM();
   eq('4e met het anker op de laatst toelaatbare start: 10 werkdagen speling, laatste einde 12 maart',
     [shellTask().time.totalFloat, shellTask().time.lateFinish], [10, '2027-03-12T16:00']);
 }
 
-/** Leest `text` als bron via het laadpad van de app (`readExternalSource`), vanaf `path`. */
 const memorySource = (path: string, text: string) => readExternalSource(path, {
   readTextFile: async () => text,
   readFile: async () => new TextEncoder().encode(text),
 });
-/** Eigen planning: Ruwbouw (20 d) en Afbouw (40 d, begrenst het projecteinde niet), met de
- *  koppelingen `links` op de ruwbouw. Ververst uit `path` en rekent; geeft de ruwbouw terug. */
 async function refreshShell(path: string, text: string, links: ExternalLink[]) {
   const own = createAppStoreContext().store;
   const o = () => own.getState();
@@ -191,7 +161,6 @@ async function refreshShell(path: string, text: string, links: ExternalLink[]) {
   return { result, task, anchors: Object.fromEntries(task.externalLinks!.map(l => [l.id, l.anchorDate])) };
 }
 
-/** IFCTASKTIME-argumenten met het vroege en het geplande paar, en naar keuze de late slots. */
 const tt = (o: { start: string; finish: string; days: number; lateStart?: string; lateFinish?: string }) => {
   const a: string[] = new Array(IFC_TASKTIME_SLOTS.length).fill('$');
   a[TASKTIME_SLOT.name] = "'T'";
@@ -207,13 +176,6 @@ const tt = (o: { start: string; finish: string; days: number; lateStart?: string
   return a.join(',');
 };
 
-// (5) Review #794 ronde 1, punt 1: een bronbestand ZONDER late datums, via het laadpad van de app.
-// Het laadpad rekent de bron door, dus de brontaak heeft daarna wél late datums. Die komen dan uit
-// onze berekening, niet uit het bestand; het anker moet de vroege datum blijven (het besluit).
-// Bron: een IFC uit een ander pakket (vaste id's, dus "Bron vernieuwen" vindt de taak terug), met
-// Installatie 1–5 maart en een langere Leidingwerk 1–19 maart, beide vóór Oplevering op 22 maart.
-// De datums kloppen met de berekening, dus de bron opent niet in "datums zoals opgeslagen".
-// (Een MSPDI-bron kan dit niet tonen: die lezer geeft bij elk inlezen nieuwe taak-id's, knownbug 837.)
 {
   const foreignIfc = (late: { start: boolean; finish: boolean }) => {
     const rows = [
@@ -267,8 +229,6 @@ const tt = (o: { start: string; finish: string; days: number; lateStart?: string
     'successor-FF': '2027-03-05T16:00', 'successor-SF': '2027-03-05T16:00',
   });
 
-  // Het andere kanaal (`recordedTimes`: XER, P6 XML, MSPDI, `.mpp`, CSV) volgt dezelfde regel: een
-  // ontbrekende late as in de vastlegging ⇒ de vroege datum.
   const viaTimes = (record: Record<string, string>) => {
     const parsed = readIFC(foreignIfc({ start: false, finish: false }));
     const instId = parsed.tasks.find(t => t.name === 'Installatie')!.id;
@@ -281,10 +241,6 @@ const tt = (o: { start: string; finish: string; days: number; lateStart?: string
     ['2027-03-15T07:00', '2027-03-19T16:00']);
 }
 
-// (6) Review #794 ronde 1, punt 2: een FASE in de bron telt voortgang zoals een bladtaak.
-// Fase A met één voltooid kind (Installatie, werkelijk 1–5 maart); fase B met één gestart kind
-// (Montage, werkelijk gestart op 1 maart). Een langere Leidingwerk geeft beide fasen een late start
-// ná hun vroege start.
 {
   const src = createAppStoreContext().store;
   const s = () => src.getState();
@@ -323,8 +279,6 @@ const tt = (o: { start: string; finish: string; days: number; lateStart?: string
   eq('6c gestarte fase B: FS op de rekendatum van de start, FF op de late finish',
     [anchors['faseB-FS'], anchors['faseB-FF']], [computedStart(b), b.time.lateFinish]);
 
-  // Het kanaal `recordedTimes` (XER, P6 XML, MSPDI, `.mpp`, CSV) bewaart alleen bladtaken
-  // (`leafRecordedTimes`). Een fase telt een late as dan als al haar bladen hem droegen.
   const parsed = readIFC(text);
   const montageId = parsed.tasks.find(t => t.name === 'Montage')!.id;
   const phaseFF = (record: Record<string, string>) => {
@@ -339,10 +293,6 @@ const tt = (o: { start: string; finish: string; days: number; lateStart?: string
   eq('6e fase B, haar blad droeg geen late finish: FF op de vroege finish van de fase', withoutLate, earlyFinish);
 }
 
-// (7) Review #794 ronde 2: een fase MET eigen vastlegging telt per kant alleen die vastlegging; de
-// bladen tellen alleen als de fase zelf niets vastlegt. Bron: een IFC uit een ander pakket met
-// Fase (Installatie eronder), Leidingwerk en Oplevering, zoals sectie 5. Het kind Installatie draagt
-// altijd late slots (15–19 maart); de fase draagt er per variant wel of geen.
 {
   const phaseIfc = (phase: 'own-none' | 'own-start' | 'own-both' | 'no-record') => {
     const rows = [

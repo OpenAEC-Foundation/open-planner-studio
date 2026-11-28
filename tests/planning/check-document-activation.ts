@@ -24,8 +24,6 @@ function taskRowNames(state: AppState): string[] {
   return state.viewRows.flatMap(row => row.kind === 'task' ? [row.task.name] : []);
 }
 
-// De pure bibliotheekgrens ververst uitsluitend behind, telt open-boundarysignalen vóór die
-// verversing en muteert zijn invoer niet.
 {
   const store = createAppStore();
   const companyId = store.getState().addCompany('Activatiebibliotheek BV');
@@ -91,8 +89,6 @@ function taskRowNames(state: AppState): string[] {
   });
 }
 
-// Een expliciete laadprepare mag alleen solven wanneer de aanroeper dat vraagt en er nog geen
-// berekenstand beschikbaar is. De invoer blijft in beide gevallen onaangeroerd.
 {
   const payload = freshPayload();
   const untouched = prepareLoadedPayload(payload, { recompute: false });
@@ -113,8 +109,6 @@ function taskRowNames(state: AppState): string[] {
   eq('Activatie publiceert geen schijnbelasting bij een solverfout', erroredActivation.resourceLoadResult, null);
 }
 
-// Een echte kalender-refresh maakt de planning alleen stale wanneer de gebruiker niet bewust de
-// opgeslagen datums bekijkt. Datums-als-opgeslagen blijft dus ook aan de activatiegrens leidend.
 {
   const payload = freshPayload();
   const companyId = 'calendar-boundary-company';
@@ -153,9 +147,6 @@ function taskRowNames(state: AppState): string[] {
   eq('Behind-kalender laat datums-als-opgeslagen aan', recorded.payload.datesAsRecorded, true);
 }
 
-// V1 (eigenaarsbesluit 2026-10-12): een kalenderverversing aan de activatiegrens laat de modus aan en
-// de getoonde datums staan, maar het strookgetal telt opnieuw tegen de NIEUWE kalender — precies wat
-// F5 daarna verschuift.
 {
   const store = createAppStore();
   store.getState().setProject({ startDate: '2026-06-01' });
@@ -192,7 +183,6 @@ function taskRowNames(state: AppState): string[] {
   eq('V1 getoonde datums blijven staan', out.tasks.map(task => [task.time.earlyStart, task.time.earlyFinish]),
     input.tasks.map(task => [task.time.earlyStart, task.time.earlyFinish]));
   eq('V1 strookgetal: alleen de vijfdaagse taak verschuift', out.recordedDates?.shifted, 1);
-  // Onafhankelijke F5 op het resultaat: dezelfde store-actie als de knop Berekenen.
   const f5 = createAppStore();
   f5.setState(state => { Object.assign(state, { ...out, datesAsRecorded: false, recordedDates: null }); });
   f5.getState().runCPM();
@@ -202,7 +192,6 @@ function taskRowNames(state: AppState): string[] {
   eq('V1 de tweedaagse taak verschuift niet', moved.includes(two), false);
 }
 
-// Nieuw document: nooit één render met de rijen van het uitgaande document.
 {
   const store = createAppStore();
   store.getState().addTask({ name: 'Oud document' });
@@ -222,7 +211,6 @@ function taskRowNames(state: AppState): string[] {
   eq('newDocument start geen stille solver', states.map(state => state.cpmResult), [null]);
 }
 
-// Dupliceren: brondata en afgeleiden horen in dezelfde publicatie bij de nieuwe kopie.
 {
   const store = createAppStore();
   store.getState().addTask({ name: 'Bron voor kopie' });
@@ -240,8 +228,6 @@ function taskRowNames(state: AppState): string[] {
   eq('duplicateDocument behoudt de berekenstand en start geen solver', states[0]?.cpmResult === sourceCpm, true);
 }
 
-// Wisselen: een bewust ongeldige slapende resourceLoad-cache mag nooit gezaghebbend worden en de
-// rijen van A mogen niet zichtbaar zijn nadat B al actief is.
 {
   const store = createAppStore();
   store.getState().addTask({ name: 'Document A' });
@@ -270,7 +256,6 @@ function taskRowNames(state: AppState): string[] {
   eq('switchDocument behoudt cpmResult exact en start geen solver', states[0]?.cpmResult === documentBCpm, true);
 }
 
-// Sluiten van het actieve document naar zijn buur gebruikt dezelfde activatiegrens.
 {
   const store = createAppStore();
   store.getState().addTask({ name: 'Te sluiten A' });
@@ -288,7 +273,6 @@ function taskRowNames(state: AppState): string[] {
   eq('closeDocument publiceert direct de rijen van de buur', states.map(taskRowNames), [['Buur B']]);
 }
 
-// Recovery: ook de parse-/herstelroute mag niet eerst brondata, dan rijen en daarna CPM publiceren.
 {
   const store = createAppStore();
   store.getState().addTask({ name: 'Voor recovery' });
@@ -322,8 +306,6 @@ function taskRowNames(state: AppState): string[] {
     states.map(state => state.resourceLoadResult === null), [false]);
 }
 
-// De gedeelde open/importgrens rekent op de geïsoleerde payload en publiceert brondata, CPM en
-// afgeleiden in één keer.
 {
   const source = createAppStore();
   source.getState().setProject({ name: 'Ingelezen project' });
@@ -363,8 +345,6 @@ function taskRowNames(state: AppState): string[] {
     states.map(state => state.resourceLoadResult === null), [false]);
 }
 
-// De compatibele loadState-ingang draagt dezelfde recompute-intentie zelf. UI- en extensiecallers
-// hoeven dus geen tweede, live runCPM-publicatie meer achter de load aan te zetten.
 {
   const source = createAppStore();
   source.getState().addTask({ name: 'LoadState-doel' });
@@ -383,7 +363,7 @@ function taskRowNames(state: AppState): string[] {
     activeBaselineId: payload.activeBaselineId,
   };
   const store = createAppStore();
-  store.getState().setZoom(77); // normale producer maakt de actuele view diep bevroren
+  store.getState().setZoom(77);
   const states: AppState[] = [];
   const unsubscribe = store.subscribe(state => states.push(state));
   let threw = false;
@@ -400,8 +380,6 @@ function taskRowNames(state: AppState): string[] {
   eq('loadState publiceert viewStartDate in dezelfde doelstaat', states.map(state => state.view.viewStartDate), ['2035-04-06']);
 }
 
-// Pool vervangen is zelf de externe open-boundary. De nieuwe pool en een achterlopende kopie in
-// het actieve document mogen niet als twee achtereenvolgende storetoestanden zichtbaar worden.
 {
   const store = createAppStore();
   const companyId = store.getState().addCompany('Poolactivatie BV');
@@ -424,8 +402,6 @@ function taskRowNames(state: AppState): string[] {
     states.map(state => state.resourceLoadResult === null), [false]);
 }
 
-// Een stille behind-refresh is niet undoable, maar moet een botsende redo van precies dit document
-// wissen. Dat gebeurt in dezelfde brondata/afgeleiden-commit.
 {
   const store = createAppStore();
   const companyId = store.getState().addCompany('Redo-activatie BV');
@@ -449,12 +425,6 @@ function taskRowNames(state: AppState): string[] {
     store.getState().historyEvents.filter(event => event.state === 'undone').length, 0);
 }
 
-// Fable-critreview PR #109 bevinding 1 (benoemde gedragswijziging): de laadsolve
-// (`prepareLoadedPayload`) en de efemere bezettingssolve rekenen met exact dezelfde projectinvoer
-// als F5 (`runCPM`) — óók `project.endDate` onder `useProjectEndDateForFloat`. Verwachtingen komen
-// uit F5 zelf, niet uit hard-gecodeerde datums. Mutatiebewijs: zonder `projectEndDate` in
-// `prepareLoadedPayload` resp. `ephemeralSolve` zijn LOAD-01 resp. LOAD-03 rood; LOAD-02 bewijst dat
-// de fixture het verschil kan zien. Idem voor `projectStartDate` (taken D/E, LOAD-02b).
 {
   const store = createAppStore();
   const S = () => store.getState();
@@ -462,17 +432,11 @@ function taskRowNames(state: AppState): string[] {
   const a = S().addTask({ name: 'A', time: createDefaultTaskTime('2026-06-01', 5) });
   const b = S().addTask({ name: 'B', time: createDefaultTaskTime('2026-06-01', 3) });
   const c = S().addTask({ name: 'C', time: createDefaultTaskTime('2026-06-01', 2) });
-  // D (wortel, geen voorganger) staat vóór de projectstart en houdt zijn eigen anker (T7 `ownAnchor`),
-  // maar zijn opvolger E wordt door de projectstart-ondergrens (`rootFloor`) op 1 juni gezet. Zonder
-  // `projectStartDate` in de laad-/bezettingssolve begint E al op 28 mei — LOAD-01/LOAD-03 rood.
   const d = S().addTask({ name: 'D', time: createDefaultTaskTime('2026-05-26', 2) });
   const e = S().addTask({ name: 'E', time: createDefaultTaskTime('2026-06-01', 1) });
   S().addSequence({ predecessorId: d, successorId: e, type: 'FINISH_START', lagDays: 0 } as Omit<Sequence, 'id'>);
   S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 } as Omit<Sequence, 'id'>);
-  // Het anker moet ná de berekende einddatum liggen, anders test de fixture niets.
   S().setProject({ endDate: '2026-06-30' });
-  // `setProject` klemt wortelankers op de projectstart (projectStartAnchorClamp); een ingelezen
-  // bestand doet dat niet, dus zetten we D's anker ná de laatste `setProject` rechtstreeks terug.
   store.setState(state => {
     const time = state.tasks.find(t => t.id === d)!.time;
     time.scheduleStart = '2026-05-26';
@@ -495,7 +459,6 @@ function taskRowNames(state: AppState): string[] {
     docId: 'occ', title: '', scheduleStale: true, companyId: null, resources: [], assignments: [],
     tasks: payload.tasks, calendar: payload.calendar, calendars: payload.calendars,
     loadOptions: solveOptionsFor(payload.project).schedulingOptions,
-    // De ENIGE productiebouwplek (`occupancySolveInputFor`, ook door ResourceOccupancyView gebruikt).
     solveInput: occupancySolveInputFor(payload),
   });
   eq('LOAD-03 efemere bezettingssolve ≡ F5-solve', solved ? pick(solved) : null, f5);

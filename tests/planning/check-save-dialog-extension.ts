@@ -1,14 +1,4 @@
-// Opslaan als op de desktop: het opslagvenster geeft toestemming (scope) en stelt de overschrijfvraag voor de naam
-// die het teruggeeft. Op Linux/GTK komt een getypte naam zonder extensie terug (`kopie`); de app schrijft `kopie.ifc`.
-// Deze batterij bewijst dat de app de eindnaam dan nog één keer door het venster haalt als die buiten de scope valt of
-// al bestaat, en anders bij één venster blijft (`pickSavePathTauri` in `tauriBackend.ts`).
-//
-// Nagebootst: de ECHTE plugin-fs- en plugin-dialog-JS-clients via nep-IPC (`nodeFileIpc.ts`) op Node-fs. Het venster
-// hieronder geeft, zoals plugin-dialog 2.7.0 (`commands.rs` `save`: `allow_file`), het pad vrij dat het teruggeeft, in
-// de twee vormen die tauri 2.12.3 `push_pattern` opneemt: zoals gegeven, en met `canonicalize_parent` (`scope/fs.rs`:
-// de dichtstbijzijnde bestaande voorouder canoniek, de rest erachter). Het stelt zoals GTK (rfd 0.16.0,
-// `gtk_file_chooser_set_do_overwrite_confirmation`) de overschrijfvraag voor dat pad. Hoe plugin-fs een pad tegen de
-// scope legt, staat per versie in `SCOPE_RULES`. Niet bewezen: de echte Rust-scope, het echte venster, Windows/macOS.
+// Bron: tauri 2.12.3 en de plugins dialog 2.7.0 en fs 2.5.0/2.7.1 als referentie voor de nagebootste scope en het opslagvenster (Apache-2.0 OR MIT, github.com/tauri-apps).
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
@@ -23,26 +13,14 @@ const FILTERS = [{ name: 'IFC', extensions: ['ifc'] }];
 const NEW_TEXT = 'NIEUWE INHOUD\r\n';
 const OLD_TEXT = 'OUDE INHOUD\n';
 
-/** tauri 2.12.3 `canonicalize_parent` (`scope/fs.rs:162-191`): het pad canoniek, of anders zijn dichtstbijzijnde
- *  voorouder die canoniek te maken is, met de overige delen erachter (een dode link telt als niet te maken). */
 function canonicalParent(p: string): string {
-  try { return fs.realpathSync.native(p); } catch { /* bestaat niet: één map hoger */ }
+  try { return fs.realpathSync.native(p); } catch { }
   const parent = path.dirname(p);
   return parent === p ? p : path.join(canonicalParent(parent), path.basename(p));
 }
 
-/**
- * Hoe plugin-fs een pad tegen de scope legt, per versie één regel, met wat de app in een map in de thuismap doet die
- * een link naar buiten is: hoeveel vensters een nieuwe naam zonder extensie kost (`linkDialogs`), en of het hulpbestand
- * `save-<id>.ops-save.tmp` daar achterblijft (`linkHelperLeft`).
- */
 const SCOPE_RULES: { plugin: string; scopePath: (p: string) => string; linkDialogs: number; linkHelperLeft: boolean }[] = [
-  // plugin-fs 2.5.0 + tauri 2.12.3 `is_allowed`: bestaat het pad, dan het opgeloste pad; anders het pad zoals gegeven.
-  // Het nieuwe hulpbestand mag dus (lexicaal onder `$HOME`), maar `rename` en `remove` ervan niet (opgelost buiten).
   { plugin: 'plugin-fs 2.5.0', scopePath: p => (fs.existsSync(p) ? fs.realpathSync(p) : p), linkDialogs: 1, linkHelperLeft: true },
-  // plugin-fs 2.7.1 `resolve_path` (`commands.rs:1615-1657`): de toestemming geldt het echte pad (`resolve_real_path`),
-  // ook de voorouders van een nieuw pad. `kopie.ifc` naast een gekozen `kopie` is dan niet vrij (tweede venster), en het
-  // hulpbestand wordt al bij het aanmaken geweigerd: Opslaan schrijft direct (knownbug 1752).
   { plugin: 'plugin-fs 2.7.1', scopePath: p => realPath(p), linkDialogs: 2, linkHelperLeft: false },
 ];
 
@@ -53,7 +31,6 @@ async function check(name: string, run: () => Promise<void>) {
   catch (error) { failed++; console.error(`XX ${name}`, error); }
 }
 
-/** Wat de gebruiker in één venster doet: een pad kiezen (met de overschrijfvraag als dat pad bestaat), of annuleren. */
 type Round = { pick: string; overwrite?: boolean } | 'annuleren';
 interface SeenRound { defaultPath: string | undefined; askedOverwrite: boolean }
 
@@ -73,14 +50,12 @@ async function main() {
     };
     ipc.faults.forbidden = p => !inScope(p);
 
-    // Het venster: geeft het gekozen pad terug en zet alleen dat pad in de scope.
     let rounds: Round[] = [];
     let seen: SeenRound[] = [];
     const internals = (globalThis as unknown as { window: { __TAURI_INTERNALS__: { invoke: (...a: unknown[]) => Promise<unknown> } } })
       .window.__TAURI_INTERNALS__;
     const nodeInvoke = internals.invoke;
     internals.invoke = async (command: unknown, args: unknown, options: unknown) => {
-      // plugin-fs `rename` en `remove` toetsen elk pad via `resolve_path`; de adapter zelf toetst ze niet.
       if (command === 'plugin:fs|rename') {
         const a = args as { oldPath: string; newPath: string };
         for (const p of [a.oldPath, a.newPath]) if (!inScope(p)) throw `forbidden path: ${p}`;
@@ -91,17 +66,14 @@ async function main() {
       }
       if (command !== 'plugin:dialog|save') return nodeInvoke(command, args, options);
       const round = rounds.shift();
-      // Een venster dat de proef niet verwachtte: hard stoppen in plaats van een eindeloze lus.
       if (round === undefined) throw new Error('onverwacht extra opslagvenster');
       const shown: SeenRound = { defaultPath: (args as { options: { defaultPath?: string } }).options.defaultPath, askedOverwrite: false };
       seen.push(shown);
       if (round === 'annuleren') return null;
       if (fs.existsSync(round.pick)) {
         shown.askedOverwrite = true;
-        // GTK: "Nee" op de overschrijfvraag laat het venster open; de proef annuleert dan.
         if (!round.overwrite) return null;
       }
-      // `allow_file` → `push_pattern`: het pad zoals gegeven én in de vorm van `canonicalize_parent`.
       granted.add(round.pick);
       granted.add(canonicalParent(round.pick));
       return round.pick;
@@ -206,7 +178,6 @@ async function main() {
           const outcome = await save(variant, [{ pick: typed }, { pick: typed }, { pick: full }]);
           assert.deepEqual(seen.map(r => r.defaultPath), ['standaard.ifc', full, full]);
           savedTo(outcome, full);
-          // Elke herhaling is een venster: annuleren in de derde ronde stopt zonder bestand.
           reset();
           assert.equal(await save(variant, [{ pick: typed }, { pick: typed }, 'annuleren']), null);
           assert.equal(seen.length, 3);
@@ -224,14 +195,11 @@ async function main() {
           assert.equal(fs.readFileSync(full, 'utf8'), OLD_TEXT);
         });
 
-        // Een map in de thuismap die een link naar buiten is (`~/projecten` → `/data/projecten`). Met plugin-fs 2.7.1 is
-        // dit het geval dat de review van #978 als blokkade vond: zonder de tweede ronde van #979 weigert het schrijven.
         const linked = () => {
           reset();
           fs.symlinkSync(outside, path.join(home, 'projecten'));
           return path.join(home, 'projecten', 'kopie');
         };
-        /** In de echte map: het doel, plus alleen het hulpbestand als de regel dat laat staan. */
         const realDirHolds = (file: string) => {
           const rest = fs.readdirSync(outside).filter(n => n !== file);
           assert.ok(fs.readdirSync(outside).includes(file), `${file} staat er`);

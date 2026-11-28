@@ -103,7 +103,6 @@ ok('G1 is ook zonder actief document toepasbaar', isSessionHistoryEventApplicabl
 ok('Compound A+grid is alleen bij A toepasbaar',
   isSessionHistoryEventApplicable(compoundA, 'A') && !isSessionHistoryEventApplicable(compoundA, 'B'));
 
-// De array staat bewust niet op sequence gesorteerd: sequence, niet opslagpositie, bepaalt de keuze.
 const chronology = [g1, a1, b1];
 eq('Undo met A actief kiest eerst de nieuwste globale G1',
   selectUndoHistoryEvent(chronology, 'A')?.id, 'G1');

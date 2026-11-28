@@ -1,9 +1,3 @@
-// Geweigerde webopslag voor crashherstel, deel "later" (issue #582, review PR #644): werkte de opslag
-// in deze sessie al, dan zet een latere `SecurityError` crashherstel NIET stil uit. Die fout houdt de
-// bestaande zichtbare foutroute: geen sessievlag, de fout zelf, `notifyRecoveryError` geeft `false`
-// (dus de gewone melding `autoSaveFailed` in `useAutoSave`). Zie ook `check-recovery-refused*.ts`.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { spawnSync } from 'node:child_process';
 import {
   clearRecovery, fullRecoverySave, holdRecoveryForLater, loadRecovery, saveRecovery,
@@ -12,7 +6,6 @@ import {
 import { notifyRecoveryError } from '@/state/recoveryManifestNotice';
 import { installFakeRecoveryIndexedDb } from './fakeRecoveryIndexedDb';
 
-// Elke route krijgt een schone module- en sessietoestand; geen product-resetpoort voor de test.
 const routes = ['read', 'save', 'both', 'overlap', 'fallback'] as const;
 const route = process.argv[2];
 if (!route) {
@@ -71,7 +64,6 @@ const security = () => new DOMException('Access is denied for this document.', '
 const isPlainSecurityError = (error: unknown) =>
   error instanceof DOMException && error.name === 'SecurityError' && !(error instanceof RecoveryStorageUnavailableError);
 
-// Bewijs de lees- en schrijfroute afzonderlijk: geen tweede actie mag een ontbrekende vlag maskeren.
 if (route === 'read' || route === 'both' || route === 'fallback') {
   eq('L1 opstartlezing levert leeg', (await loadRecovery()).docs.length, 0);
 }
@@ -84,8 +76,6 @@ if (route === 'overlap') {
   let saved = false;
   const reading = loadRecovery().then(() => { loaded = true; });
   const writing = saveRecovery(fullRecoverySave('A', [doc])).then(() => { saved = true; });
-  // Laat ook de via recoveryWriteTail ingeplande save en alle microtasks aan bod komen.
-  // Eén microtask kon een aparte, vrijgegeven schrijfclaim nog maskeren (421).
   await new Promise<void>(resolve => { setImmediate(resolve); });
   eq('O1 beide acties wachten op de claim', [loaded, saved, typeof releaseClaim], [false, false, 'function']);
   eq('O1b lezen en opslaan delen precies één lockaanvraag', claims, 1);
@@ -98,7 +88,6 @@ if (route === 'overlap') {
 eq('L2b vóór de weigering staat crashherstel niet uit', recoveryStorageUnavailable(), false);
 failRead = false;
 if (route === 'fallback') {
-  // Een lege terugval na een gewone leesfout bewijst géén werkende opslag.
   failTransaction = security;
   const refused = await caught(() => saveRecovery(fullRecoverySave('A', [doc])));
   eq('F1 volgende SecurityError is nog een eerste weigering', refused instanceof RecoveryStorageUnavailableError, true);
@@ -107,7 +96,6 @@ if (route === 'fallback') {
   eq('F3 stille afhandeling zonder gewone foutmelding', [notifyRecoveryError(refused, () => { notified++; }), notified], [true, 0]);
   eq('F4 precies één consoleregel', infoLines.length, 1);
 } else {
-  // Daarna weigert de browser alsnog: dat is een gewone, zichtbare fout.
   failTransaction = security;
   const later = await caught(() => saveRecovery(fullRecoverySave('A', [doc])));
   eq('L3 saveRecovery geeft de SecurityError zelf door', isPlainSecurityError(later), true);
@@ -119,7 +107,6 @@ if (route === 'fallback') {
   eq('L8 nog steeds geen sessievlag', recoveryStorageUnavailable(), false);
   eq('L9 geen consoleregel over uitgezet crashherstel', infoLines.length, 0);
 
-  // Herstelt de opslag zich, dan schrijft crashherstel gewoon weer.
   failTransaction = null;
   eq('L10 na herstel slaagt de volgende schrijfronde', await caught(() => saveRecovery(fullRecoverySave('A', [doc]))), null);
 

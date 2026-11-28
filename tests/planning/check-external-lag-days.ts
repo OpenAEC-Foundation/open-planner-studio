@@ -1,6 +1,3 @@
-// knownbugs #1: minutenlag op externe links mag in dagmodus niet verdwijnen.
-// §3.3/I11: de minutenlag blijft exact. Een scalaire kalender geeft dezelfde uitkomst
-// als dezelfde expliciete werkblokken; afronden naar hele daglag is sinds F2 verdwenen.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -44,7 +41,6 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
             eq(`${base}/${hoursPerDay}/${direction}/${relType}/${sourceMissing}/${fraction}`,
               solve({ lagMinutes: minutes }), solve({ lagMinutes: minutes }, true));
           }
-          // Een expliciete nul in minuten blijft de bron, ook bij een oud conflicterend dagveld.
           eq(`${base}/${hoursPerDay}/${direction}/${relType}/${sourceMissing}/nul overschrijft dagveld`,
             solve({ lagMinutes: 0, lagDays: 9 }), solve({ lagDays: 0 }));
           eq(`${base}/${hoursPerDay}/${direction}/${relType}/${sourceMissing}/ontbrekende lag`,

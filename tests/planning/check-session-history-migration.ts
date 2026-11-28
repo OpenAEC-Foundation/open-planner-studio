@@ -36,8 +36,6 @@ function hasLegacyHistoryFields(value: unknown): boolean {
 
 const oldMarker = 'oude-history-mag-nooit-terugkomen';
 
-// Een oude slapende documentpayload kan de verdwenen arrays nog als extra runtimekeys dragen.
-// Hydrate leest uitsluitend DOCUMENT_FIELDS: projectdata landt, de oude historykeys niet.
 const payloadStore = createAppStore();
 const legacyBase = freshPayload();
 const legacyPayload = {
@@ -55,8 +53,6 @@ ok('Capture schrijft oude historykeys nooit opnieuw naar een documentpayload',
 ok('Capture lekt ook de oude marker niet via een andere key',
   !JSON.stringify(capturePayload(payloadStore.getState())).includes(oldMarker));
 
-// Een recovery-invoer uit een oude sessie mag dezelfde extra keys bevatten. payloadFromInput bouwt
-// een verse payload uit de bekende IFC-/identiteitsvelden en neemt de oude arrays niet over.
 const base = freshPayload();
 const legacyRecovery = {
   id: 'legacy-recovery',
@@ -84,8 +80,6 @@ ok('Recoverymigratie neemt geen legacy historykeys over',
 ok('Recoverymigratie lekt de oude marker nergens in de nieuwe payload',
   !JSON.stringify(migratedRecoveryPayload).includes(oldMarker));
 
-// De echte multi-documentherstelgrens wist bestaande sessiehistory, hydrateert de oude invoer en
-// schrijft bij de eerstvolgende capture uitsluitend het nieuwe documentcontract terug.
 const recoveryStore = createAppStore();
 const R = () => recoveryStore.getState();
 R().addTask({ name: 'Bestaande sessiehandeling' });
@@ -101,7 +95,6 @@ ok('De recovery-output bevat de oude marker nergens',
   !JSON.stringify(R().getOpenDocumentPayloads()).includes(oldMarker));
 eq('Het negeren van oude history maakt een schoon document niet dirty', R().isDirty, false);
 
-// Nieuwe payloads hebben uitsluitend het huidige contract en beginnen zonder sessiehistoryvelden.
 const currentPayload = freshPayload();
 ok('Een nieuwe payload bevat geen legacy historykeys', !hasLegacyHistoryFields(currentPayload));
 ok('Een nieuwe payload draagt evenmin de globale session-historyledger',

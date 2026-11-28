@@ -1,18 +1,3 @@
-// De ZIP-laag (issue #27, etappe 3, T4/T5).
-//
-// Twee dingen worden hier bewaakt die je in een extensietest niet ziet:
-//
-//   1. DE LEZER weigert vijandige archieven VOORDAT hij ze uitpakt. Een uitpaklimiet die pas ná het
-//      uitpakken toetst is geen limiet — een bestandje van 40 KB dat naar gigabytes inflateert heeft
-//      het tabblad dan al om zeep geholpen. Daarom draagt de weigering `bytesSeen`: dat getal is het
-//      mutatiebewijs. Verhuist de toets naar ná de lus, dan springt het van "budget + één chunk"
-//      naar de volle payload en valt de assertie hieronder om.
-//   2. DE SCHRIJVER produceert een archief dat een échte consument (Excel, LibreOffice) accepteert.
-//      De CRC-32-vectoren komen van buiten (de bekende IEEE-802.3-checkwaarden), niet uit onze eigen
-//      implementatie — een zelfgeschreven CRC die consequent hetzelfde foute antwoord geeft, komt
-//      pas bij de gebruiker aan het licht als "Excel wil het bestand herstellen".
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import {
   EXTENSION_ZIP_LIMITS,
   ZipCompressionUnsupportedError,
@@ -58,28 +43,18 @@ const deflateRaw = async (data: Uint8Array): Promise<Uint8Array> => {
   return concat(chunks);
 };
 
-// ── Een ruwe ZIP-fixturebouwer ───────────────────────────────────────────────
-// Bewust NIET onze eigen `writeZip`: de lezertests moeten ook archieven kunnen maken die `writeZip`
-// nooit zou produceren (Zip64-sentinels, gelogen maten, te veel entries).
-
 interface RawZipEntry {
   name: string;
   method: number;
   comp: Uint8Array;
   uncompSize: number;
-  /** De CRC-32 van de UITGEPAKTE bytes; de lezer toetst hem. `storedEntry`/`deflatedEntry` vullen
-   *  hem uit de echte data, zodat alleen een fixture die er expliciet mee liegt rood staat. */
   crc?: number;
-  /** Overschrijft `uncompSize` in UITSLUITEND de central directory (voor sentinel-fixtures). */
   centralUncompSize?: number;
 }
 
 interface RawZipOptions {
-  /** Overschrijft het entryaantal in de EOCD (voor de Zip64-sentinel en te-veel-entries). */
   eocdTotal?: number;
-  /** Overschrijft de central-directory-offset in de EOCD (voor de Zip64-sentinel). */
   cdOffset?: number;
-  /** Laat de central directory + EOCD weg, zodat de local-header-scanroute wordt gebruikt. */
   localOnly?: boolean;
 }
 
@@ -150,22 +125,14 @@ const caught = async (fn: () => Promise<unknown>): Promise<unknown> => {
   return undefined;
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// DEEL 1 — de lezer (T4)
-// ═══════════════════════════════════════════════════════════════════════════
-
 const BUDGET = 64 * 1024;
 const BOMB_LIMITS: ZipReadLimits = {
   maxEntryBytes: BUDGET,
   maxTotalBytes: BUDGET,
   maxEntries: 16,
-  // Ruim, zodat déze fixture uitsluitend op de absolute grens strandt en niet op de ratio.
   maxRatio: 1_000_000,
 };
 
-// 8 MiB nullen comprimeert tot een paar kilobyte: de klassieke zip-bom in het klein. De header
-// LIEGT over de uitgepakte maat (1 KiB) — dat is nu juist het punt: een aanvaller vult daar in wat
-// door de voorcontrole komt, dus de echte grens moet tijdens het inflaten zelf worden getrokken.
 const bomb: RawZipEntry = {
   ...await deflatedEntry('bom.bin', new Uint8Array(8 * 1024 * 1024)),
   uncompSize: 1024,
@@ -175,12 +142,10 @@ const bomb: RawZipEntry = {
   const err = await caught(() => parseZipEntries(rawZip([bomb]), BOMB_LIMITS));
   eq('1 bom: weigering', err instanceof ZipValidationError, true);
   const bytesSeen = err instanceof ZipValidationError ? err.bytesSeen ?? -1 : -1;
-  // Het budget plus hooguit één inflatie-chunk. Zit de toets ná de lus, dan staat hier 8 MiB.
   ok('1a …vóórdat alles is uitgepakt', bytesSeen > 0 && bytesSeen <= BUDGET + 1024 * 1024);
 }
 
 {
-  // Ruime absolute grenzen, krap ratio-plafond: nu moet de RATIO de bindende reden zijn.
   const ratioLimits: ZipReadLimits = { ...EXTENSION_ZIP_LIMITS, maxRatio: 10 };
   const err = await caught(() => parseZipEntries(rawZip([bomb]), ratioLimits));
   eq('2 ratio-plafond weigert',
@@ -196,20 +161,17 @@ const bomb: RawZipEntry = {
   const limits: ZipReadLimits = { ...EXTENSION_ZIP_LIMITS, maxEntries: 2 };
   eq('3 te veel entries weigert',
     (await caught(() => parseZipEntries(rawZip(many), limits))) instanceof ZipValidationError, true);
-  // …en met een ruime grens is precies dezelfde fixture gewoon leesbaar.
   eq('3a onder de grens leest hij normaal',
     (await parseZipEntries(rawZip(many), EXTENSION_ZIP_LIMITS)).map((e) => e.name),
     ['a.txt', 'b.txt', 'c.txt']);
 }
 
 {
-  // Zip64-sentinel in de EOCD: de central-directory-offset staat op 0xffffffff.
   const err = await caught(() => parseZipEntries(
     rawZip([storedEntry('a.txt', bytes('a'))], { cdOffset: 0xffffffff }), EXTENSION_ZIP_LIMITS));
   eq('4 Zip64-sentinel in de EOCD weigert',
     err instanceof ZipValidationError && err.message.includes('Zip64'), true);
 
-  // …en op entryniveau: een uncompressedSize van 0xffffffff betekent "zie het Zip64-extra-veld".
   const entryErr = await caught(() => parseZipEntries(
     rawZip([{ ...storedEntry('a.txt', bytes('a')), centralUncompSize: 0xffffffff }]),
     EXTENSION_ZIP_LIMITS));
@@ -218,9 +180,6 @@ const bomb: RawZipEntry = {
 }
 
 {
-  // `select`: wat niet gevraagd is, wordt niet uitgepakt. Geteld op de echte DecompressionStream,
-  // want dát is de allocatie die we willen vermijden — een assertie op de uitkomst alleen zou een
-  // implementatie die alles uitpakt en daarna filtert niet betrappen.
   const twee = rawZip([
     await deflatedEntry('a.txt', bytes('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaa')),
     await deflatedEntry('b.txt', bytes('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbb')),
@@ -242,7 +201,6 @@ const bomb: RawZipEntry = {
 }
 
 {
-  // Zonder `select` blijft het bestaande extensiegedrag: alles komt eruit.
   const alles = await parseZipEntries(rawZip([
     storedEntry('a.txt', bytes('een')),
     storedEntry('b.txt', bytes('twee')),
@@ -252,21 +210,11 @@ const bomb: RawZipEntry = {
 }
 
 {
-  // De local-header-fallback (geen EOCD) draagt dezelfde grenzen; anders is de hardening te omzeilen
-  // door de central directory simpelweg weg te laten.
   const err = await caught(() => parseZipEntries(
     rawZip([bomb], { localOnly: true }), BOMB_LIMITS));
   eq('7 de fallbackroute weigert de bom ook', err instanceof ZipValidationError, true);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// DEEL 2 — de schrijver (T5)
-// ═══════════════════════════════════════════════════════════════════════════
-
-// De drie CRC-32-vectoren zijn de bekende IEEE-802.3-checkwaarden (o.a. de "check"-waarde 0xCBF43926
-// voor "123456789" uit de CRC-catalogus). Ze komen NIET uit onze eigen implementatie: een
-// zelfgeschreven CRC die consequent hetzelfde foute antwoord geeft, ziet de gebruiker pas als
-// "Excel wil het bestand herstellen".
 eq('8 crc32 leeg', crc32(bytes('')) >>> 0, 0x00000000);
 eq('8a crc32 check-waarde "123456789"', crc32(bytes('123456789')) >>> 0, 0xCBF43926);
 eq('8b crc32 quick brown fox',
@@ -275,7 +223,6 @@ eq('8b crc32 quick brown fox',
 const hex = (data: Uint8Array): string =>
   Array.from(data, (b) => b.toString(16).padStart(2, '0')).join('');
 
-/** Loopt de local headers af en levert de gebruikte compressiemethode per entry. */
 const methodsOf = (zip: Uint8Array): number[] => {
   const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
   const out: number[] = [];
@@ -293,8 +240,6 @@ const firstEntryName = (zip: Uint8Array): string => {
   return new TextDecoder().decode(zip.subarray(30, 30 + view.getUint16(26, true)));
 };
 
-/** Leest de CRC-velden uit de CENTRAL DIRECTORY en vergelijkt ze met een eigen CRC over de
- *  UITGEPAKTE bytes. Rekent de schrijver het CRC over de gecomprimeerde data, dan valt dit om. */
 const centralCrcsKloppen = async (zip: Uint8Array): Promise<boolean> => {
   const view = new DataView(zip.buffer, zip.byteOffset, zip.byteLength);
   let eocd = -1;
@@ -328,7 +273,6 @@ const files: ZipFileInput[] = [
   { name: 'leeg.bin', data: new Uint8Array(0) },
 ];
 
-/** Schrijven → lezen → namen en bytes exact terug. */
 const roundTrip = async (
   input: readonly ZipFileInput[],
   opts: { deflate?: ((data: Uint8Array) => Promise<Uint8Array>) | null },
@@ -351,15 +295,12 @@ eq('9 store: round-trip', await roundTrip(files, { deflate: null }), 'ok');
 eq('9a deflate: round-trip', await roundTrip(files, {}), 'ok');
 
 {
-  // Goed samendrukbaar: dan hoort de deflate-tak daadwerkelijk kleiner uit te komen.
   const big: ZipFileInput[] = [{ name: 'groot.txt', data: bytes('herhaal '.repeat(20000)) }];
   eq('10 deflate is kleiner',
     (await writeZip(big)).length < (await writeZip(big, { deflate: null })).length, true);
 }
 
 {
-  // Incompressibel: deflate maakt het gróter, dus de schrijver hoort store te kiezen. Zonder die
-  // keuze zou elk .xlsx met een al-gecomprimeerde part onnodig opzwellen.
   const random = new Uint8Array(4096);
   for (let i = 0; i < random.length; i++) random[i] = (i * 2654435761) % 251 ^ ((i >> 3) * 97);
   const zip = await writeZip([{ name: 'ruis.bin', data: crypto.getRandomValues(random) }]);
@@ -378,8 +319,6 @@ eq('14a …ook in de store-tak',
   await centralCrcsKloppen(await writeZip(files, { deflate: null })), true);
 
 {
-  // Al onze partnamen zijn ASCII. Een niet-ASCII naam gooit liever dan stilzwijgend in een
-  // onduidelijke codepage te belanden — daarmee is de UTF-8-vlag (bit 11) een non-issue.
   ok('15 niet-ASCII naam gooit',
     (await caught(() => writeZip([{ name: 'blad€.xml', data: bytes('x') }]))) instanceof Error);
   ok('15a lege naam gooit',
@@ -393,18 +332,12 @@ eq('14a …ook in de store-tak',
 }
 
 {
-  // ── CRC-32-verificatie (fixronde na de eindreview) ────────────────────────
-  // De ZIP legt van elke entry een checksum vast; die controleren is het enige wat een geflipte
-  // byte zichtbaar maakt. Zonder de toets komt de gecorrumpeerde inhoud gewoon als geldige data
-  // terug en landt de fout ergens verderop — of nergens.
   const data = bytes('voortgangsblad');
   const goed = rawZip([storedEntry('a.txt', data)]);
   eq('17 een ongeschonden entry leest gewoon',
     new TextDecoder().decode((await parseZipEntries(goed, EXTENSION_ZIP_LIMITS))[0]!.data),
     'voortgangsblad');
 
-  // Eén byte in de payload omdraaien. De maten en de naam blijven kloppen, dus ALLEEN de CRC
-  // verraadt het. Payload van een stored entry begint op 30 + naamlengte.
   const stuk = goed.slice(0);
   const payloadStart = 30 + 'a.txt'.length;
   new Uint8Array(stuk)[payloadStart] ^= 0xff;
@@ -412,16 +345,12 @@ eq('14a …ook in de store-tak',
   eq('17a een geflipte byte ⇒ beschadigd archief',
     err instanceof ZipValidationError && err.message.includes('CRC-32'), true);
 
-  // Dezelfde corruptie langs de LOCAL-HEADER-route: de central directory weglaten mag de toets
-  // niet omzeilen, net als bij de overige grenzen.
   const localStuk = rawZip([storedEntry('a.txt', data)], { localOnly: true }).slice(0);
   new Uint8Array(localStuk)[payloadStart] ^= 0xff;
   const localErr = await caught(() => parseZipEntries(localStuk, EXTENSION_ZIP_LIMITS));
   eq('17b …ook zonder central directory',
     localErr instanceof ZipValidationError && localErr.message.includes('CRC-32'), true);
 
-  // …en een gedeflate entry, zodat de toets aantoonbaar op de UITGEPAKTE bytes slaat en niet op
-  // wat er toevallig in het bestand stond.
   const gedeflate = rawZip([await deflatedEntry('b.txt', bytes('x'.repeat(400)))]);
   eq('17c een gedeflate entry haalt zijn eigen CRC',
     (await parseZipEntries(gedeflate, EXTENSION_ZIP_LIMITS))[0]!.data.length, 400);
@@ -432,9 +361,6 @@ eq('14a …ook in de store-tak',
 }
 
 {
-  // Bit 3 (data descriptor): de CRC staat NIET in het local header — daar staat een nul — maar
-  // achter de data. Zonder die correctie zou elke bit-3-entry vals afgekeurd worden; met een
-  // descriptor die over de checksum liegt moet de weigering er juist wél komen.
   const data = bytes('descriptor-entry');
   const naam = bytes('d.txt');
   const bit3 = (crcInDescriptor: number): ArrayBuffer => {
@@ -442,11 +368,11 @@ eq('14a …ook in de store-tak',
     const view = new DataView(chunk.buffer);
     view.setUint32(0, 0x04034b50, true);
     view.setUint16(4, 20, true);
-    view.setUint16(6, 0x08, true);   // bit 3
-    view.setUint16(8, 0, true);      // stored
-    view.setUint32(14, 0, true);     // CRC hoort hier NUL te zijn bij bit 3
-    view.setUint32(18, 0, true);     // idem compSize
-    view.setUint32(22, 0, true);     // idem uncompressedSize
+    view.setUint16(6, 0x08, true);
+    view.setUint16(8, 0, true);
+    view.setUint32(14, 0, true);
+    view.setUint32(18, 0, true);
+    view.setUint32(22, 0, true);
     view.setUint16(26, naam.length, true);
     chunk.set(naam, 30);
     chunk.set(data, 30 + naam.length);
@@ -467,10 +393,6 @@ eq('14a …ook in de store-tak',
 }
 
 {
-  // ── Omgeving zonder DecompressionStream (fixronde na de eindreview) ───────
-  // Geïnjecteerd, niet vervalst — zelfde naadvorm als `writeZip`'s `deflate: null`. Zonder deze
-  // guard komt een gedeflate blad als "geen ZIP" terug, en gaat de gebruiker een bestand zoeken
-  // dat niets mankeert.
   const gedeflate = rawZip([await deflatedEntry('a.txt', bytes('y'.repeat(400)))]);
   const err = await caught(() =>
     parseZipEntries(gedeflate, EXTENSION_ZIP_LIMITS, undefined, { inflate: null }));
@@ -480,14 +402,12 @@ eq('14a …ook in de store-tak',
   eq('18b …en niet vervlakt tot een budgetweigering',
     err instanceof Error && !err.message.includes('budget') && !err.message.includes('uitpaklimiet'),
     true);
-  // Een STORED entry heeft geen inflater nodig en moet dus gewoon leesbaar blijven.
   eq('18c een stored entry blijft leesbaar zonder inflater',
     (await parseZipEntries(rawZip([storedEntry('a.txt', bytes('hoi'))]), EXTENSION_ZIP_LIMITS,
       undefined, { inflate: null }))[0]?.name,
     'a.txt');
 }
 
-// ── Uitslag ─────────────────────────────────────────────────────────────────
 if (diffs.length > 0) {
   console.log(`XX zip-laag — ${diffs.length} van de ${checks} checks rood:`);
   for (const diff of diffs) console.log(`   XX ${diff}`);

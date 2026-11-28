@@ -1,6 +1,3 @@
-// Documenttabstrook met pijlknoppen (#339): de pure kern die DocumentTabBar gebruikt voor
-// "pijlen nodig?", de randen (knop uit) en het doel van één klik (twee tabbladen, uitgelijnd).
-// De browserproef (tests/browser/tabstrip-scroll-arrows.spec.ts) toetst de echte DOM.
 import {
   DOCUMENT_TAB_HIDE_MARGIN,
   DOCUMENT_TABS_PER_SCROLL_STEP,
@@ -20,20 +17,17 @@ function eq(label: string, got: unknown, want: unknown): void {
   }
 }
 
-// Pijlen nodig? Verschijnen zodra het niet past, verdwijnen pas met marge (geen aan-uit-lus).
 eq('past precies, geen pijlen', documentTabNeedsArrows(1000, 1000, false), false);
 eq('één pixel te breed, pijlen', documentTabNeedsArrows(1001, 1000, false), true);
 eq('pijlen staan, past precies: blijven staan (marge)', documentTabNeedsArrows(1000, 1000, true), true);
 eq('pijlen staan, binnen de marge: blijven staan', documentTabNeedsArrows(1000, 1000 + DOCUMENT_TAB_HIDE_MARGIN - 1, true), true);
 eq('pijlen staan, ruimte = inhoud + marge: weg', documentTabNeedsArrows(1000, 1000 + DOCUMENT_TAB_HIDE_MARGIN, true), false);
 eq('marge is een paar pixels', DOCUMENT_TAB_HIDE_MARGIN >= 3 && DOCUMENT_TAB_HIDE_MARGIN <= 8, true);
-// Geen lus: wat "verschijnen" zegt, keert "verdwijnen" bij dezelfde maat nooit om.
 for (let available = 990; available <= 1010; available += 0.5) {
   const shown = documentTabNeedsArrows(1000, available, false);
   if (shown) eq(`maat ${available}: verschenen pijlen blijven bij dezelfde maat`, documentTabNeedsArrows(1000, available, true), true);
 }
 
-// Randen, LTR (scrollLeft ≥ 0) en RTL (scrollLeft ≤ 0).
 eq('LTR begin', documentTabScrollEdges(0, 2000, 1000), { atStart: true, atEnd: false });
 eq('LTR midden', documentTabScrollEdges(500, 2000, 1000), { atStart: false, atEnd: false });
 eq('LTR eind (subpixel)', documentTabScrollEdges(999.5, 2000, 1000), { atStart: false, atEnd: true });
@@ -41,7 +35,6 @@ eq('RTL begin', documentTabScrollEdges(0, 2000, 1000), { atStart: true, atEnd: f
 eq('RTL eind', documentTabScrollEdges(-1000, 2000, 1000), { atStart: false, atEnd: true });
 eq('geen overloop: beide uit', documentTabScrollEdges(0, 1000, 1000), { atStart: true, atEnd: true });
 
-// Doel van een klik: precies twee tabbladen, uitgelijnd op een tabbladrand.
 const starts = Array.from({ length: 12 }, (_, i) => i * 161);
 const max = 12 * 161 - 3 - 1100;
 eq('twee tabbladen per klik', DOCUMENT_TABS_PER_SCROLL_STEP, 2);
@@ -55,7 +48,6 @@ eq('< vanaf half tabblad 5: tabblad 4 (half telt als stap)', documentTabScrollTa
 eq('< vanaf het eind (half tabblad): uitgelijnd', documentTabScrollTarget(starts, max, max, 'start') % 161, 0);
 eq('subpixel naast de rand telt als op de rand', documentTabScrollTarget(starts, starts[2]! - 0.5, max, 'end'), starts[4]);
 
-// Wiel: regels × 16, pixels ongewijzigd.
 eq('wiel in pixels', wheelDeltaInPixels(53, 0), 53);
 eq('wiel in regels', wheelDeltaInPixels(3, 1), 48);
 
