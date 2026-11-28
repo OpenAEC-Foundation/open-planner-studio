@@ -1,15 +1,6 @@
-// Benchmark-runner. Draait een meetreeks over vijf fasen op lokaal gegenereerde data en
-// rapporteert per fase mediaan/min/max (`performance.now()`). ISOLATIE: raakt de store/het open
-// project NIET aan — de engine-klassen (CalendarEngine/CPMSolver), writeIFC/readIFC en GanttRenderer
-// worden rechtstreeks op de gegenereerde `ImportResult` aangeroepen. Tussen de fasen (en tussen
-// iteraties bij grote planningen) wordt geyield zodat de UI responsief blijft en de voortgang
-// zichtbaar bijwerkt.
-
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
 import { expandSummaryRelations, leafTasksForSolve } from '@/engine/scheduler/expandSummaryRelations';
-// Hetzelfde terugschrijven als de app (`applyCpmResult`), geen eigen kopie: anders meet de
-// benchmark niet meer wat de app doet.
 import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
@@ -27,9 +18,9 @@ export const PHASE_ORDER: PhaseId[] = ['generate', 'cpm', 'ifcWrite', 'ifcRead',
 export interface PhaseResult {
   phase: PhaseId;
   iterations: number;
-  median: number; // ms
-  min: number;    // ms
-  max: number;    // ms
+  median: number;
+  min: number;
+  max: number;
 }
 
 export interface BenchmarkResult {
@@ -40,26 +31,23 @@ export interface BenchmarkResult {
   resources: number;
   assignments: number;
   ifcBytes: number;
-  /** True ⇒ IFC-write→read leverde exact hetzelfde aantal taken terug (round-trip klopt). */
   roundTripOk: boolean;
   roundTripTasks: number;
   criticalTasks: number;
-  /** Aantal gerenderde rijen (render-fase) + canvasafmetingen — voor de Detail-kolom. */
   renderRows: number;
   renderWidth: number;
   renderHeight: number;
-  /** False ⇒ er was geen 2D-canvascontext; de render-fase kon niet draaien. */
   renderAvailable: boolean;
   phases: PhaseResult[];
   version: string;
-  timestamp: string; // ISO
+  timestamp: string;
 }
 
 export interface ProgressUpdate {
   phase: PhaseId;
-  phaseIndex: number;   // 0-based
+  phaseIndex: number;
   totalPhases: number;
-  iteration: number;    // 1-based
+  iteration: number;
   iterations: number;
 }
 
@@ -72,16 +60,13 @@ function stats(samples: number[]): { median: number; min: number; max: number } 
   return { median, min: sorted[0], max: sorted[sorted.length - 1] };
 }
 
-/** Iteratie-aantal per fase, afgeschaald op grootte zodat een 5.000-taken-run bruikbaar snel blijft. */
 function iterationsFor(size: number, phase: PhaseId): number {
   const base = size <= 500 ? 7 : size <= 1000 ? 5 : size <= 2500 ? 3 : 2;
-  // Genereren alloceert veel; houd dat wat lager. Render/CPM krijgen de volle `base`.
   if (phase === 'generate') return Math.max(2, Math.ceil(base / 2));
   return base;
 }
 
 
-/** Bouw de gedeelde `viewRows` (pure boommodus: geen filter/groep/sort) voor de render-fase. */
 function buildViewRows(data: GeneratedProject): ViewRow[] {
   const ctx: ViewContext = {
     activityCodeTypes: [],
@@ -100,16 +85,10 @@ function buildViewRows(data: GeneratedProject): ViewRow[] {
 export interface RunOptions {
   size: number;
   version: string;
-  /** Aantal resources in de gegenereerde planning (zie `generateProject.ts`). Weglaten ⇒ de
-   *  standaard van de generator, zodat eerdere meetreeksen vergelijkbaar blijven. */
   resourceCount?: number;
   onProgress?: (u: ProgressUpdate) => void;
 }
 
-/**
- * Draai de volledige benchmark voor één grootte. Asynchroon met yields, zodat de dialoog de
- * voortgang kan tonen en de UI niet blokkeert.
- */
 export async function runBenchmark({ size, version, resourceCount, onProgress }: RunOptions): Promise<BenchmarkResult> {
   const phases: PhaseResult[] = [];
   const totalPhases = PHASE_ORDER.length;
@@ -117,7 +96,6 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   const report = (phase: PhaseId, phaseIndex: number, iteration: number, iterations: number) =>
     onProgress?.({ phase, phaseIndex, totalPhases, iteration, iterations });
 
-  // --- Fase 1: genereren -------------------------------------------------------
   const genIters = iterationsFor(size, 'generate');
   const genSamples: number[] = [];
   let data!: GeneratedProject;
@@ -130,27 +108,14 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   }
   phases.push({ phase: 'generate', iterations: genIters, ...stats(genSamples) });
 
-  // Leaf-taken = taken zonder kinderen; dit is EXACT het criterium dat de generator ook voor
-  // `data.leafCount` gebruikt, zodat het gerapporteerde aantal overeenkomt met
-  // wat de CPM-fase daadwerkelijk verwerkt.
   const leafTasks = leafTasksForSolve(data.tasks);
-  // Samenvattingsrelatie-propagatie (zie `scheduleSlice.runCPM`): de generator maakt vandaag alleen
-  // bladtaak-naar-bladtaak relaties (`generateProject.ts`), dus dit is hier een no-op passthrough —
-  // maar de benchmark-fase moet, net als elke andere CPMSolver-aanroeper, door dezelfde poort gaan
-  // i.p.v. impliciet op die aanname te leunen. Eén keer buiten de iteratielus (pure functie van
-  // data die niet wijzigt tussen iteraties), zodat de gemeten CPM-tijd niet vervuild raakt.
   const { sequences: expandedSequences } = expandSummaryRelations(data.tasks, data.sequences);
 
-  // --- Fase 2: CPM-kern (CalendarEngine + CPMSolver, direct) -------------------
   const cpmIters = iterationsFor(size, 'cpm');
   const cpmSamples: number[] = [];
   let lastResult: CPMResult | null = null;
   for (let i = 0; i < cpmIters; i++) {
     report('cpm', 1, i + 1, cpmIters);
-    // Rekenprofielen: dezelfde projectinvoer als F5. Kalenderregister: de
-    // benchmarkdata kent geen kalenderlijst, alleen `data.calendar`; die geven we als register mee
-    // (net als `applyCpmResult` hieronder) — voor dit ééncalenderproject is dat wat F5 met
-    // `s.calendars` doet.
     const solver = new CPMSolver(leafTasks, expandedSequences, data.calendar, [data.calendar], solveOptionsFor(data.project));
     const t0 = performance.now();
     lastResult = solver.solve();
@@ -160,13 +125,11 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   const criticalTasks = lastResult ? [...lastResult.tasks.values()].filter((t) => t.isCritical).length : 0;
   phases.push({ phase: 'cpm', iterations: cpmIters, ...stats(cpmSamples) });
 
-  // Resultaat terugschrijven zodat write/read/render met echte datums werken.
   if (lastResult && !lastResult.error) {
     applyCpmResult(data.tasks, lastResult, { projectCalendar: data.calendar, calendars: [data.calendar] });
   }
   await yieldToUi();
 
-  // --- Fase 3: IFC schrijven ---------------------------------------------------
   const writeIters = iterationsFor(size, 'ifcWrite');
   const writeSamples: number[] = [];
   let ifc = '';
@@ -180,15 +143,12 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   const ifcBytes = ifc.length;
   phases.push({ phase: 'ifcWrite', iterations: writeIters, ...stats(writeSamples) });
 
-  // --- Fase 4: IFC inlezen -----------------------------------------------------
   const readIters = iterationsFor(size, 'ifcRead');
   const readSamples: number[] = [];
   let parsedTasks = 0;
   for (let i = 0; i < readIters; i++) {
     report('ifcRead', 3, i + 1, readIters);
     const t0 = performance.now();
-    // Geen `labels`: dienstlaag zonder `t(...)` — de benchmark leest zijn eigen zojuist geschreven IFC. `readIFC` valt dan terug op de Engelse
-    // default voor een bestand zonder IFCPROJECT (zie ImportLabels).
     const parsed = await readIFCWithXerReconstruction(ifc);
     readSamples.push(performance.now() - t0);
     parsedTasks = parsed.tasks.length;
@@ -197,7 +157,6 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   const roundTripOk = parsedTasks === data.tasks.length;
   phases.push({ phase: 'ifcRead', iterations: readIters, ...stats(readSamples) });
 
-  // --- Fase 5: Gantt-renderer (offscreen canvas) ------------------------------
   const renderIters = iterationsFor(size, 'render');
   const renderSamples: number[] = [];
   const rows = buildViewRows(data);
@@ -227,8 +186,6 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   if (renderAvailable) {
     for (let i = 0; i < renderIters; i++) {
       report('render', 4, i + 1, renderIters);
-      // Constructie BUITEN de timing: net als de CPMSolver-constructie hierboven
-      // meten we alleen het eigenlijke werk — hier `render()` — niet het opbouwen van de renderer.
       const renderer = new GanttRenderer(ctx2d, opts);
       const t0 = performance.now();
       renderer.render();
@@ -237,15 +194,13 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
     }
     phases.push({ phase: 'render', iterations: renderSamples.length, ...stats(renderSamples) });
   } else {
-    // Geen 2D-context: luid falen — 0 iteraties + `renderAvailable:false`, zodat de
-    // dialoog/markdown een expliciete "render niet beschikbaar"-melding tonen i.p.v. stille 0,00 ms.
     phases.push({ phase: 'render', iterations: 0, median: NaN, min: NaN, max: NaN });
   }
 
   return {
     size,
     tasks: data.tasks.length,
-    leafTasks: leafTasks.length, // == data.leafCount (zelfde childless-criterium)
+    leafTasks: leafTasks.length,
     sequences: data.sequences.length,
     resources: data.resources.length,
     assignments: data.assignments.length,
@@ -263,9 +218,6 @@ export async function runBenchmark({ size, version, resourceCount, onProgress }:
   };
 }
 
-/** Engelse detail-tekst per fase, opgebouwd uit de gestructureerde velden — geen
- *  hardgecodeerde runner-strings. De dialoog rendert dezelfde data via `t(...)`; deze functie
- *  is bewust i18n-vrij Engels zodat de export universeel deelbaar is. */
 export function phaseDetailEnglish(phase: PhaseId, r: BenchmarkResult): string {
   switch (phase) {
     case 'generate': return `${r.tasks} tasks · ${r.sequences} relationships`;
@@ -278,13 +230,8 @@ export function phaseDetailEnglish(phase: PhaseId, r: BenchmarkResult): string {
   }
 }
 
-/** ms-weergave: NaN (bv. render niet beschikbaar) toont een streepje i.p.v. "NaN"/"0.00". */
 export const fmtMs = (v: number) => (Number.isNaN(v) ? '—' : v.toFixed(2));
 
-/**
- * Resultaten als Markdown-tekst — handig om aan een AI of een issue te plakken. Bewust i18n-vrij
- * (technische rapport-output, Engelse kolomkoppen) zodat het universeel deelbaar is.
- */
 export function formatResultsMarkdown(r: BenchmarkResult): string {
   const lines: string[] = [];
   lines.push(`# Open Planner Studio — benchmark`);
