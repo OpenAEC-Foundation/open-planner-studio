@@ -1,27 +1,3 @@
-// Om-en-om weekbanden onder compressie (issue #21 punt 2). Gebruikersklacht: met
-// `compressNonWorkdays` AAN verdwijnen de weekendkolommen — en dus ook de weekend-arcering die in
-// de praktijk als visuele WEEKSCHEIDING fungeert ("de weekenddagen … zijn namelijk lichter").
-// Fix: in de gecomprimeerde tak van `drawGridBackground` krijgen de dagkolommen van ONEVEN
-// weeknummers een licht getinte achtergrondband (`palette.gridWeekBand`), even weken blijven
-// neutraal. De pariteit hangt aan het WEEKNUMMER (`getWeekNumberFor`, met `weekStartDay`), niet
-// aan de beeldrand — anders zou de banding bij elke horizontale scroll verspringen.
-//
-// Deze batterij draait de ECHTE GanttRenderer met een opnemende 2D-context-stub en een
-// GEÏNJECTEERD palet met unieke kleuren (model: check-arrow-routing.ts), en bewijst:
-//   1. (compressie AAN) elke getekende band-kolom hoort bij een ONEVEN weeknummer en elke
-//      zichtbare werkdag-kolom van een oneven week ÍS geband — d.w.z. de bandkleur wisselt
-//      precies op de weekgrens (zelfde `weekStartDay`-grens als de dikke weekscheidingslijn),
-//      en beide pariteiten komen daadwerkelijk voor (er is écht afwisseling te zien).
-//   2. (compressie UIT) er wordt NUL keer met de band-kleur gevuld — het niet-gecomprimeerde pad
-//      (weekend-arcering als scheiding) blijft ongewijzigd.
-//   3. (scroll-invariantie) de band-status van een DATUM is identiek over sterk verschillende
-//      scrollX-standen: de pariteit hangt aan het weeknummer, niet aan de scrollpositie.
-//   4. (weekStartDay) met 'sunday' volgt de banding de zondag-gebaseerde weeknummering
-//      (`getWeekNumberFor(d,'sunday')`) — zelfde grens als de dikke weeklijn in die stand.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen.
-
-// ── DOM-stubs (vóór het importeren/instantiëren) ─────────────────────────────
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {}, createElement: () => ({ getContext: () => null }) };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -41,7 +17,6 @@ function ok(label: string, cond: boolean, detail = ''): void {
   if (!cond) diffs.push(`${label}${detail ? `: ${detail}` : ''}`);
 }
 
-// ── Palet met unieke, herkenbare kleuren: band en weekend eenduidig herkenbaar ───────────────
 const BAND = '#0e0e01';
 const WEEKEND = '#0e0e02';
 const palette = {
@@ -50,7 +25,6 @@ const palette = {
   gridWeekend: WEEKEND,
 };
 
-// ── Opnemende 2D-context-stub: registreert elke fillRect mét de actieve fillStyle ────────────
 interface RectOp { x: number; y: number; w: number; h: number; color: string }
 function makeCtx(): { ctx: CanvasRenderingContext2D; rects: RectOp[] } {
   const rects: RectOp[] = [];
@@ -74,7 +48,6 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; rects: RectOp[] } {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, rects };
 }
 
-// ── Scenario: ma-vr-kalender met feestdagen (compressie doet er dus echt iets) + lange taak ──
 const S = () => useAppStore.getState();
 S().newProject();
 const cal = createDefaultCalendar(2026);
@@ -88,7 +61,7 @@ S().updateTask(ta.id, { time: { ...S().tasks[0].time, scheduleStart: '2026-01-01
 S().runCPM();
 
 const W = 1200, H = 600, HEADER_H = 44;
-const VIEW_START = '2026-03-02'; // een maandag
+const VIEW_START = '2026-03-02';
 
 function renderRects(zoom: number, scrollX: number, compress: boolean, weekStartDay: 'monday' | 'sunday'): RectOp[] {
   const { ctx, rects } = makeCtx();
@@ -110,9 +83,6 @@ function renderRects(zoom: number, scrollX: number, compress: boolean, weekStart
   return rects;
 }
 
-/** Herleidt per zichtbare werkdag-kolom (dezelfde iteratie als `drawGridBackground`s
- *  gecomprimeerde tak) de kolom-x en de datum, zodat de opgenomen band-fillRects op x
- *  teruggekoppeld kunnen worden aan een concrete kalenderdag. */
 function visibleWorkdayColumns(zoom: number, scrollX: number): { x: number; date: Date }[] {
   const engine = new CalendarEngine(S().calendar);
   const axis = resolveGanttAxis({
@@ -136,7 +106,6 @@ function visibleWorkdayColumns(zoom: number, scrollX: number): { x: number; date
 const ZOOMS = [10, 26, 45];
 const SCROLLS = [0, 500, 1500, 4000, 9000];
 
-// ── 1 + 4. Compressie AAN: band-kolommen ⇔ oneven weeknummer, voor beide weekStartDay-standen ─
 for (const wsd of ['monday', 'sunday'] as const) {
   for (const zoom of ZOOMS) {
     for (const scrollX of SCROLLS) {
@@ -156,10 +125,7 @@ for (const wsd of ['monday', 'sunday'] as const) {
         );
         if (banded) sawBanded = true; else sawPlain = true;
       }
-      // Afwisseling moet écht zichtbaar zijn: het venster toont meerdere weken, dus beide
-      // pariteiten moeten voorkomen (anders test punt 1 stiekem een leeg universum).
       ok(`beide pariteiten zichtbaar (wsd=${wsd} z=${zoom} sx=${scrollX})`, sawBanded && sawPlain);
-      // Geen weekend-arcering in de gecomprimeerde tak (die kolommen bestaan niet).
       ok(
         `geen weekend-fill onder compressie (wsd=${wsd} z=${zoom} sx=${scrollX})`,
         rects.every((r) => r.color !== WEEKEND),
@@ -168,7 +134,6 @@ for (const wsd of ['monday', 'sunday'] as const) {
   }
 }
 
-// ── 2. Compressie UIT: nul band-fills; de weekend-arcering (de bestaande scheiding) blijft ───
 for (const zoom of ZOOMS) {
   for (const scrollX of SCROLLS) {
     const rects = renderRects(zoom, scrollX, false, 'monday');
@@ -184,11 +149,6 @@ for (const zoom of ZOOMS) {
   }
 }
 
-// ── 3. Scroll-invariantie: de band-status van een DATUM verandert niet met scrollX ───────────
-// (Punt 1 bewijst dit al indirect — banded ⇔ weeknummer-pariteit, en een weeknummer kent geen
-// scrollpositie — maar deze directe vergelijking betrapt óók een implementatie die per ongeluk
-// consistent-met-pariteit rendert op elk raster afzonderlijk maar tussen scrollstanden wisselt,
-// bv. door een off-by-one in de kolom-iteratie.)
 for (const zoom of ZOOMS) {
   const perScroll = SCROLLS.map((sx) => {
     const rects = renderRects(zoom, sx, true, 'monday');
@@ -203,7 +163,7 @@ for (const zoom of ZOOMS) {
     for (let b = a + 1; b < perScroll.length; b++) {
       for (const [dateStr, banded] of perScroll[a]) {
         const other = perScroll[b].get(dateStr);
-        if (other === undefined) continue; // datum niet zichtbaar in de andere scrollstand
+        if (other === undefined) continue;
         ok(
           `scroll-invariant (z=${zoom} sx=${SCROLLS[a]}↔${SCROLLS[b]} d=${dateStr})`,
           banded === other,
@@ -213,7 +173,6 @@ for (const zoom of ZOOMS) {
   }
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  week-banding: alle checks groen (${checks})`);
   process.exit(0);

@@ -58,7 +58,6 @@ function drag(
   });
 }
 
-// Body-drag bewaart de urenduur, maar plaatst met dezelfde werkbanden als CPM.
 {
   const result = drag('body', '2026-09-07T07:00:00Z', '2026-09-07T12:00:00Z');
   eq('body over lunch start na pauze', formatInstant(result.start, 'hour'), '2026-09-07T13:00');
@@ -66,14 +65,12 @@ function drag(
   eq('body over lunch bewaart minuten', result.durationMinutes, 480);
 }
 
-// De feestdag op dinsdag telt niet als werktijd; een visuele beweging naar die dag landt woensdag.
 {
   const result = drag('body', '2026-09-07T07:00:00Z', '2026-09-08T07:00:00Z');
   eq('body over feestdag start op volgende werkband', formatInstant(result.start, 'hour'), '2026-09-09T07:00');
   eq('body over feestdag eindigt acht werkuren later', formatInstant(result.finish, 'hour'), '2026-09-09T16:00');
 }
 
-// Een maandag-vrijdag kalender houdt ook de weekendnaad uit de werkduur.
 {
   const friday7 = new Date('2026-09-11T07:00:00Z');
   const friday16 = new Date('2026-09-11T16:00:00Z');
@@ -82,14 +79,12 @@ function drag(
   eq('body over weekend eindigt maandag', formatInstant(result.finish, 'hour'), '2026-09-14T16:00');
 }
 
-// Rechterrand telt uitsluitend concrete werkminuten en schrijft weer een canonieke bandgrens.
 {
   const result = drag('right', '2026-09-07T16:00:00Z', '2026-09-07T12:00:00Z');
   eq('rechterrand bij lunch eindigt op bandgrens', formatInstant(result.finish, 'hour'), '2026-09-07T12:00');
   eq('rechterrand bij lunch telt vijf werkuren', result.durationMinutes, 300);
 }
 
-// Linkerrand en kwartierschaal blijven uur-identiteit en precieze werkduur gebruiken.
 {
   const left = drag('left', '2026-09-07T07:00:00Z', '2026-09-07T13:00:00Z');
   eq('linkerrand na pauze begint op 13:00', formatInstant(left.start, 'hour'), '2026-09-07T13:00');
@@ -107,9 +102,6 @@ function drag(
   eq('kwartiersleep verplaatst die duur zonder stil naar een uur te groeien', formatInstant(shortQuarter.finish, 'hour'), '2026-09-07T07:30');
 }
 
-// Kalendertijd (ELAPSEDTIME, aanval na #600 fout 2): de sleep rekent op de klok, met 1440 minuten per dag en
-// zonder snap naar een werkmoment. 2 d van ma 00:00 tot wo 00:00, bij Dag één dag naar rechts: di 00:00 –
-// do 00:00 (48 klokuren). Met de werkkalender werd dat di 07:00 – wo 16:00.
 {
   const elapsed = (edge: 'body' | 'left' | 'right', to: string) => resolveHourBarDrag({
     calendar: ELAPSED_DRAG_CLOCK, edge,
@@ -128,9 +120,6 @@ function drag(
   eq('kalendertijd: een start op zaterdag blijft zaterdag 00:00', formatInstant(weekend.start, 'hour'), '2026-06-06T00:00');
 }
 
-// Een gesplitste urentaak (aanval na #600 fout 3): de balk spant werk plus pauzes (de splitsom van de motor), en
-// een rand verandert alleen het laatste werkstuk. 1920 min met een pauze van 480 min na 480 min, in een week
-// zonder de vrije dinsdag van deze kalender (14–18 september): ma werk, di pauze, wo–vr werk.
 {
   const gaps = [{ afterMinutes: 480, gapMinutes: 480, source: 'user' as const }];
   const split = (edge: 'body' | 'left', to: string) => resolveHourBarDrag({

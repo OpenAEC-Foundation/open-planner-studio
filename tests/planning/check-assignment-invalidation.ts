@@ -1,24 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// Toewijzingswijziging — ÉÉN set gevolgregels over alle routes (headless tegen de ECHTE store en de
-// ECHTE gridtransactie).
-//
-// Nivelleren schrijft nivelleerpauzes (`splitGaps` met `source: 'leveling'`) die bij de toewijzingen
-// van dát moment horen; een .mpp-import schrijft MSP-sturing (laag 3 `timephasedFinishFloor`/
-// `timephasedStartAnchor`, laag 4 `timephasedDurationWalks`) die dat óók doen. Verandert de
-// toewijzingenset van een taak, dan gelden de gevolgregels van `invalidateForAssignmentChange`
-// (`taskDefaults.ts`): laag 3 + laag 4 wissen, nivelleergaten wissen, importsplits (gaten zónder
-// `source`) laten staan, en melden wanneer er MSP-sturing verloren ging.
-//
-// De store-acties `assignResource`/`unassignResource` deden dat al; deze batterij pint dat ELKE route
-// dezelfde uitkomst geeft:
-//   A. taakraster, kolom "Toegewezen resources" — toevoegen en verwijderen (gridtransactie) gaven
-//      vóór de fix de nivelleerpauze NIET vrij (andere EF dan de store);
-//   B. `removeResource` — verwijderde de toewijzingen zonder enige invalidatie (nivelleerpauze én
-//      laag 3/4 bleven staan, geen melding), terwijl `unassignResource` per toewijzing beide wist;
-//   C. taken zonder die resource blijven ongemoeid; een resource zonder toewijzingen raakt niets.
-// De MCP-kant (`planner_manage_resources` delete) staat in `tests/mcp/cases-assignment-invalidation.ts`.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStore } from '@/state/appStore';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
@@ -38,13 +17,10 @@ function eq(label: string, got: unknown, want: unknown): void {
 
 type Store = ReturnType<typeof createAppStore>;
 
-/** Importsplit (geen `source`): brondata, blijft altijd staan. */
 const IMPORT_SPLIT: TaskSplitGap = { afterMinutes: 480, gapMinutes: 480 };
-/** Nivelleerpauze zoals `writeLevelingResult` die schrijft. */
 const LEVELING_GAP: TaskSplitGap = { afterMinutes: 1440, gapMinutes: 480, source: 'leveling' };
 const LOST_KEY = 'notifications.mppTimephasedSteeringLost';
 
-/** Wat een toewijzingswijziging mag raken: gaten + laag 3 + laag 4. */
 function steering(task: Task) {
   return {
     splitGaps: task.splitGaps ?? null,
@@ -53,11 +29,8 @@ function steering(task: Task) {
     walks: task.timephasedDurationWalks ?? null,
   };
 }
-/** De verwachte toestand ná een toewijzingswijziging: alleen de importsplit blijft. */
 const CLEARED = { splitGaps: [IMPORT_SPLIT], floor: null, anchor: null, walks: null };
 
-/** Zet nivelleeruitvoer (+ optioneel MSP-sturing) rechtstreeks op de taak — dit is wat een eerdere
- *  nivellering resp. een .mpp-import achterlaat; geen enkele bewerkroute schrijft deze velden. */
 function seed(store: Store, taskId: string, withMsp: boolean): void {
   store.setState((s) => {
     const t = s.tasks.find((x) => x.id === taskId)!;
@@ -93,7 +66,6 @@ function assignmentIntent(taskId: string, tokens: readonly TaskAssignmentToken[]
   return { kind: 'assignment-set', taskId, columnId: taskColumnId('assignment.resources'), tokens };
 }
 
-// ── A. Eén taak, één toewijzing: store-route als referentie, taakraster moet hetzelfde doen ──────────
 interface Single { store: Store; t: string; r1: string; r2: string; a1: string }
 function single(withMsp: boolean): Single {
   const store = createAppStore();
@@ -154,20 +126,13 @@ for (const op of ['add', 'remove'] as const) {
     eq(`A ${tag}: taakraster en store houden dezelfde resourceIds`, viaGrid.resourceIds, viaStore.resourceIds);
   }
 }
-// De meting uit de bugmelding, in absolute datums: 5 werkdagen vanaf ma 2026-06-01 eindigen op vr
-// 06-05; de importsplit (1 dag) maakt dat ma 06-08, de nivelleerpauze (1 dag) di 06-09. Na de
-// toewijzingswijziging hoort alleen de importsplit mee te tellen ⇒ 06-08 (vóór de fix bleef het
-// taakraster op 06-09 staan).
 {
   const viaGrid = runSingle('grid', 'remove', false);
   eq('A meting: vóór de bewerking EF 2026-06-09 (importsplit + nivelleerpauze tellen mee)', viaGrid.efBefore, "2026-06-09T16:00");
   eq('A meting: na verwijderen via het taakraster EF 2026-06-08 (alleen de importsplit telt nog)', viaGrid.efAfter, "2026-06-08T16:00");
 }
 
-// ── B. removeResource: elke taak die de resource droeg krijgt de toewijzingen-trigger ─────────────────
 interface Multi { store: Store; t1: string; t2: string; t3: string; t4: string; r1: string; r2: string; r3: string }
-/** T1: alleen R1. T2: R1 + R2. T3: alleen R2 (bystander). T4: geen toewijzing (bystander). R3: geen
- *  toewijzingen. Alle vier de taken dragen nivelleerpauze + importsplit (+ MSP-sturing). */
 function multi(withMsp: boolean): Multi {
   const store = createAppStore();
   const S = () => store.getState();
@@ -191,7 +156,6 @@ function multi(withMsp: boolean): Multi {
 
 for (const withMsp of [true, false]) {
   const tag = withMsp ? '+ MSP-sturing' : '(alleen nivelleerpauze)';
-  // Referentie: dezelfde toewijzingen één voor één via unassignResource.
   const ref = multi(withMsp);
   for (const a of ref.store.getState().assignments.filter((x) => x.resourceId === ref.r1)) {
     ref.store.getState().unassignResource(a.id);
@@ -219,8 +183,6 @@ for (const withMsp of [true, false]) {
     [steering(taskOf(f.store, f.t3)), steering(taskOf(f.store, f.t4))], bystanderBefore);
   eq(`B ${tag}: bystanders dragen nog steeds hun nivelleerpauze`,
     taskOf(f.store, f.t3).splitGaps, [IMPORT_SPLIT, LEVELING_GAP]);
-  // Meldingspatroon: zoals de store dat per bewerking doet (één melding, `count` = aantal taken dat
-  // sturing verloor — zie `moveAssignment`/`removeCalendar`), en ALLEEN bij echt verloren MSP-sturing.
   eq(`B ${tag}: removeResource meldt verloren MSP-sturing zoals unassignResource`,
     notices(f.store), withMsp ? [{ key: LOST_KEY, count: 2 }] : []);
   eq(`B ${tag}: unassignResource-referentie meldde evengoed (eenmalig per document)`,
@@ -232,7 +194,6 @@ for (const withMsp of [true, false]) {
     [f.t1, f.t2, f.t3, f.t4].map((id) => taskOf(f.store, id).time.earlyFinish),
     [ref.t1, ref.t2, ref.t3, ref.t4].map((id) => taskOf(ref.store, id).time.earlyFinish));
 
-  // Eén undo-stap zet ALLES terug, ook de gewiste sturing.
   f.store.getState().undo();
   eq(`B ${tag}: één undo herstelt resource, toewijzingen en de gewiste sturing`, {
     resource: f.store.getState().resources.some((r) => r.id === f.r1),
@@ -241,7 +202,6 @@ for (const withMsp of [true, false]) {
   }, { resource: true, t1: [IMPORT_SPLIT, LEVELING_GAP], t1Floor: withMsp ? '2026-06-10T17:00' : null });
 }
 
-// ── C. Resource zonder toewijzingen verwijderen raakt geen enkele taak ─────────────────────────────
 {
   const f = multi(true);
   const before = [f.t1, f.t2, f.t3, f.t4].map((id) => steering(taskOf(f.store, id)));

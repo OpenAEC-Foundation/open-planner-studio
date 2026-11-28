@@ -1,12 +1,3 @@
-// Audit 2026-09-26 — dag-voorganger → uur-opvolger met een lange lag (backward pass).
-//
-// De late finish van de dag-voorganger werd gezocht met een dag-voor-dag-scan van hoogstens 400
-// kalenderdagen terug vanaf de opvolger. Een lag groter dan dat bereik (≈ 280 werkdagen) vond niets
-// en viel terug op de snap ZÓNDER lag: A kreeg een late finish vlak vóór B en honderden dagen
-// onterechte speling, het kritieke pad verdween. Nu een monotone (galopperend + binaire) zoektocht:
-// binnen het oude bereik exact dezelfde dag, daarbuiten het juiste antwoord.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { createAppStoreContext } from '@/state/appStoreFactory';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
@@ -47,8 +38,6 @@ for (const type of ['FINISH_START', 'START_START'] as const) {
   }
 }
 
-// Knownbug 346: een procentlag weegt de voorganger op diens eigen kalender.
-// A = één dag van 8 uur; B heeft dagen van 10 uur. 50% van A blijft 4 uur.
 for (const profile of ['p6', 'msproject'] as const) {
   for (const hours of [false, true]) {
     for (const lagCalendar of ['predecessor', 'successor', 'projectDefault', '24hour'] as const) {
