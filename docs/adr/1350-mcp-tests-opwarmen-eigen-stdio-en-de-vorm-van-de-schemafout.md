@@ -13,7 +13,8 @@ Een paar keuzes in de MCP-tests in `tests/mcp/` zien eruit als iets wat je kunt 
 - **Een eigen stdio-transport in `cases-mcpb.ts`.** De case start de meegeleverde server met een eigen minimaal
   stdio-clienttransport, niet met `StdioClientTransport` van `@modelcontextprotocol/sdk`. Dat transport importeert
   `cross-spawn`, een CommonJS-pakket, en `run.sh` bundelt de cases met esbuild als ESM; de bundel gooit dan bij het
-  laden "Dynamic require of "child_process" is not supported".
+  laden "Dynamic require of "child_process" is not supported". Het eigen transport schrijft en leest één regel JSON
+  per bericht, zoals de MCP-specificatie voor stdio voorschrijft.
 - **De batchtoetsen in `cases-schemavalidatie.ts` eisen de vorm van de poortfout.** `expectBatchSchemaReject` eist
   `step N: invalid arguments for <tool> —` (de prefix die `executeSteps` in `batchTool.ts` voor het foutdetail van
   `validateToolArgs` zet), niet alleen een mislukte batch. De leestools toetsen hun argumenten ook zelf (0401); een toets op alleen `ok === false` bleef dan
