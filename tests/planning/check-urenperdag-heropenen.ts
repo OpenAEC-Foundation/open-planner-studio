@@ -1,15 +1,3 @@
-// Uren per dag na eigen export en heropenen (P6 XML, MSPDI, `.mpp`). Fout gevonden bij de review van
-// PR #363 (2026-10-15): `promoteHourCalendar` zette `hoursPerDay` altijd op de modale dagsom van de
-// blokken. Een kalender met `hoursPerDay` 8 en blokken van 10 h opende na export met 10; de volgende
-// export schreef 10, en een dagtaak van 5 d werd 4 d.
-//
-// Eigenaarsbesluit 2026-10-15 ("een dag", optie 2, PR #363): de opgeslagen uren per dag blijven bewaard
-// en gaan ongewijzigd terug bij export; de werktijd (de blokken) rekent en toont. De lezers zetten de
-// bestandswaarde daarom NA de promotie terug, zoals XER en IFC.
-//
-// De fixture maakt elk verschil zichtbaar: blokken 07:00–17:30 (werktijd 10,5 h) bij een bestandswaarde
-// van 8. Een kalender zonder eigen waarde krijgt vóór de promotie einde − begin in hele uren (10) of de
-// standaard 8; na de promotie volgt hij de blokken (10,5). Zo valt elke verwisseling op.
 import './domStub';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
@@ -54,9 +42,8 @@ function quiet<T>(fn: () => T): T {
   try { return fn(); } finally { console.log = log; console.warn = warn; }
 }
 
-// ── Fixture ────────────────────────────────────────────────────────────────────────────────────
 const START = 7 * 60;
-const END = 17 * 60 + 30; // 07:00–17:30: 630 min werktijd, einde − begin in hele uren = 10
+const END = 17 * 60 + 30;
 const BAND = [{ start: START, end: END }];
 const WERKTIJD = 10.5;
 const FILE_HPD = 8;
@@ -96,13 +83,9 @@ type Format = {
   name: string;
   write: (cal: WorkCalendar, tasks: Task[], lib: WorkCalendar[], baselines?: Baseline[]) => string;
   read: (xml: string) => ImportResult;
-  /** De geschreven uren per dag van de projectkalender, zoals ze in het bestand staan. */
   writtenHpd: (xml: string) => string | undefined;
-  /** Wat de geschreven uren per dag moeten zijn bij `FILE_HPD`. */
   wantWritten: string;
-  /** Zet de waarde uit het bestand op `raw` (`null` = weg). */
   setFileHpd: (xml: string, raw: string | null) => string;
-  /** Voeg opgeslagen speling toe aan de urentaak: 105 werkuren = 10 werkdagen van 10,5 h. */
   addTotalFloat: (xml: string) => string;
 };
 const firstTag = (tag: string) => (xml: string) => xml.match(new RegExp(`<${tag}>([^<]*)</${tag}>`))?.[1];
@@ -118,7 +101,6 @@ const P6: Format = {
   writtenHpd: firstTag('HoursPerDay'),
   wantWritten: String(FILE_HPD),
   setFileHpd: setTag('HoursPerDay'),
-  // Een vastlegging vraagt ook begin en einde; de eigen writer schrijft die P6-velden niet.
   addTotalFloat: insertInBlock('Activity', 'Urentaak',
     '<StartDate>2026-07-06T07:00:00</StartDate><FinishDate>2026-07-10T17:30:00</FinishDate><TotalFloat>105</TotalFloat>'),
 };
@@ -129,7 +111,6 @@ const MSPDI: Format = {
   writtenHpd: firstTag('MinutesPerDay'),
   wantWritten: String(FILE_HPD * 60),
   setFileHpd: setTag('MinutesPerDay'),
-  // Tienden van een minuut: 105 h = 6300 min = 63000.
   addTotalFloat: insertInBlock('Task', 'Urentaak', '<TotalSlack>63000</TotalSlack>'),
 };
 
@@ -147,11 +128,6 @@ function checkTasks(label: string, tasks: Task[], dayName: string): void {
     ['hours', HOUR_MINUTES, HOUR_MINUTES / (WERKTIJD * 60)]);
 }
 
-// ── §1 Twee keer exporteren en heropenen ─────────────────────────────────────────────────────────
-// P6 XML schrijft per kalender een eigen `HoursPerDay`: ook de bibliotheekkalender houdt 8.
-// MSPDI kent alleen `<MinutesPerDay>` op projectniveau: een bibliotheekkalender heeft daar geen veld
-// voor en volgt na heropenen de blokken. De dagtaak blijft toch 5 d: sinds F5a-2 (T13, §3.10) schrijft
-// OPS een dag als de werktijd per dag (10,5 u) en leest hij hem zo terug.
 function route(fmt: Format, libHpdAfter: number, libDayAfter: [number, number]): void {
   let cal = CAL;
   let lib = [LIB];
@@ -165,8 +141,6 @@ function route(fmt: Format, libHpdAfter: number, libDayAfter: [number, number]):
     checkTasks(label, back.tasks, 'Dagtaak');
     const backLib = back.resourceCalendars?.find(c => c.name === LIB.name);
     checkCalendar(`${label} bibliotheekkalender`, backLib, libHpdAfter);
-    // De dagtaak op de bibliotheekkalender blijft 5 d, in beide formaten. Tot en met F5a-1 gaf MSPDI
-    // 40 h ÷ 10,5 = 3,81 d (de geschreven 5 × 8 u gedeeld door de werktijd); T13 (F5a-2) lost dat op.
     eq(`${label} dagtaak op bibliotheekkalender`,
       back.tasks.find(t => t.name === LIB_TASK.name)?.time.scheduleDuration, libDayAfter[round - 1]);
     cal = back.calendar;
@@ -177,19 +151,16 @@ function route(fmt: Format, libHpdAfter: number, libDayAfter: [number, number]):
 route(P6, FILE_HPD, [5, 5]);
 route(MSPDI, WERKTIJD, [5, 5]);
 
-// ── §2 Zonder eigen of met ongeldige waarde volgt de kalender de blokken ────────────────────────────
 for (const fmt of [P6, MSPDI]) {
   const xml = quiet(() => fmt.write(CAL, TASKS, []));
   eq(`§2 ${fmt.name} zonder eigen waarde: de blokken (10,5)`,
     quiet(() => fmt.read(fmt.setFileHpd(xml, null))).calendar.hoursPerDay, WERKTIJD);
   eq(`§2 ${fmt.name} met waarde 0: de blokken (10,5)`,
     quiet(() => fmt.read(fmt.setFileHpd(xml, '0'))).calendar.hoursPerDay, WERKTIJD);
-  // Een andere geldige waarde komt letterlijk terug (geen vaste 8 in de lezer).
   eq(`§2 ${fmt.name} met waarde 7,5: 7,5`,
     quiet(() => fmt.read(fmt.setFileHpd(xml, fmt === P6 ? '7.5' : '450'))).calendar.hoursPerDay, 7.5);
 }
 
-// ── §3 Opgeslagen speling op een uurkalender: in werktijd per dag, zoals XER ─────────────────────────
 for (const fmt of [P6, MSPDI]) {
   const back = quiet(() => fmt.read(fmt.addTotalFloat(fmt.write(CAL, TASKS, []))));
   const hour = back.tasks.find(t => t.name === 'Urentaak');
@@ -197,7 +168,6 @@ for (const fmt of [P6, MSPDI]) {
     hour ? back.recordedTimes?.[hour.id]?.totalFloat : 'geen taak', 10);
 }
 
-// ── §4 MSPDI-baseline: dag- en urentaak komen terug zoals ze gingen (samen met #363) ────────────────
 {
   const baseline: Baseline = {
     id: 'b0', name: 'Basis', createdAt: '2026-07-01T00:00',
@@ -215,7 +185,6 @@ for (const fmt of [P6, MSPDI]) {
   eq('§4 MSPDI-baseline urentaak in werktijd', durationOf('Urentaak'), HOUR_MINUTES / (WERKTIJD * 60));
 }
 
-// ── §5 De echte openroute (store, herberekenen) na export: samenloop met #363 ──────────────────────
 const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 for (const fmt of [P6, MSPDI]) {
   const xml = quiet(() => fmt.write(CAL, TASKS, []));
@@ -225,11 +194,9 @@ for (const fmt of [P6, MSPDI]) {
   const s = ctx.store.getState();
   eq(`§5 ${fmt.name} store: hoursPerDay 8, werktijd 10,5`, [s.calendar.hoursPerDay, effHoursPerDay(s.calendar)], [FILE_HPD, WERKTIJD]);
   checkTasks(`§5 ${fmt.name} store`, s.tasks, 'Dagtaak');
-  // Een dagtaak van 5 d op deze kalender eindigt op de vijfde werkdag (vrijdag), niet een dag eerder.
   eq(`§5 ${fmt.name} store: dagtaak eindigt vrijdag`, s.tasks.find(t => t.name === 'Dagtaak')?.time.scheduleFinish.slice(0, 10), '2026-07-10');
 }
 
-// ── §6 `.mpp`: MINUTES_PER_DAY blijft na de promotie staan, net als MSPDI ──────────────────────────
 {
   const register = (c: WorkCalendar) => {
     const { bands, deviates } = canonicalizeBands({ 1: BAND, 2: BAND, 3: BAND, 4: BAND, 5: BAND });
@@ -246,7 +213,6 @@ for (const fmt of [P6, MSPDI]) {
   eq('§6 .mpp-promotie: MINUTES_PER_DAY-kalender houdt 8, de andere volgt de blokken',
     [cal.hoursPerDay, other.hoursPerDay], [FILE_HPD, WERKTIJD]);
 }
-// Met corpus: drie MSPDI/.mpp-tweelingen geven dezelfde projectkalender en dezelfde speling.
 const corpus = process.env.OPS_XER_CORPUS;
 const twinDir = corpus ? join(corpus, 'mpxj/junit/data') : '';
 if (corpus && existsSync(join(twinDir, 'mpp14timephased.mpp'))) {
@@ -258,7 +224,6 @@ if (corpus && existsSync(join(twinDir, 'mpp14timephased.mpp'))) {
       return t ? r.recordedTimes?.[t.id]?.totalFloat : undefined;
     };
     eq(`§6 tweeling ${xml}/${mpp}: hoursPerDay gelijk`, a.calendar.hoursPerDay, b.calendar.hoursPerDay);
-    // Speling alleen als beide bestanden hem dragen (mpp14nulltasks.mpp heeft er geen).
     if (tfOf(a) !== undefined && tfOf(b) !== undefined) {
       eq(`§6 tweeling ${xml}/${mpp}: speling Task 1 gelijk`, tfOf(a), tfOf(b));
     }
@@ -268,10 +233,6 @@ if (corpus && existsSync(join(twinDir, 'mpp14timephased.mpp'))) {
   console.log('   .. §6 tweelingen overgeslagen: corpus niet aanwezig (OPS_XER_CORPUS)');
 }
 
-// ── §7 XER: de tweede promotie (uursignaal in TASK) houdt day_hr_cnt ───────────────────────────────
-// Een kalender zonder klokblokken (lege clndr_data) promoveert pas in `xerReader` door een tijdstip in
-// een taak. De lezer leidt daar blokken van 8 h af (08:00–16:00); `day_hr_cnt` 10 moet blijven staan,
-// zoals bij de eerste promotie in `xerCalendarData.ts`.
 {
   const xer = [
     'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
@@ -290,11 +251,6 @@ if (corpus && existsSync(join(twinDir, 'mpp14timephased.mpp'))) {
   eq('§7 XER tweede promotie: day_hr_cnt 10 blijft', c?.hoursPerDay, 10);
 }
 
-// ── §8 MSPDI-toewijzing op een dagtaak: het werk rekent met de werktijd per dag ────────────────────
-// Sinds F5a-2 (T14, §3.11) schrijft `mspdiWriter` `<Work>` als dagen × inzet × werktijd per dag
-// (5 d × 10,5 u = 52,5 u; tot en met F5a-1 was dat 5 × `hoursPerDay` 8 = 40 u). De lezer rekent met
-// dezelfde werktijd terug. Rekent hij anders, dan legt hij het werk vast als afwijkend werk, en groeit het
-// werk niet meer mee als de gebruiker de duur verandert.
 {
   const res = { id: 'r1', name: 'Timmerman', type: 'LABOR', description: '', maxUnits: 1 } as Resource;
   const asg: ResourceAssignment = { id: 'a1', taskId: 't-Dagtaak', resourceId: 'r1', unitsPerDay: 1 };
@@ -314,10 +270,6 @@ if (corpus && existsSync(join(twinDir, 'mpp14timephased.mpp'))) {
   const xml2 = quiet(() => writeMSPDI(project, back.calendar, back.tasks, [], back.resources ?? [], back.assignments ?? [], [], [], null));
   eq('§8 MSPDI-toewijzing: na 10 d groeit het werk mee naar 105 u', workHours(xml2), '105h0m');
 }
-// Een dagkalender (geen blokken, geen promotie) waarvan een ander programma `<MinutesPerDay>` naar 600
-// (10 u) zette, naast werktijden van 8 u. `LinkLag` draagt 14400 tienden = 24 werkuur, en het record (T21)
-// zegt `[3, 1440]`. Op deze kalender is een dag nu 10 u: 3 d zou 30 u zijn. De context past dus niet meer
-// (review #585 r1, punt 2), het record telt niet, en de vertraging blijft 1440 minuten urenmaat.
 {
   const dayCal: WorkCalendar = { ...CAL, id: 'cal-dag', workStartHour: 8, workEndHour: 16, workTime: undefined };
   const dayOnly = (name: string): Task => {

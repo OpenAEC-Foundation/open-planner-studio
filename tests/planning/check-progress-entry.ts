@@ -1,24 +1,3 @@
-// F2: D1/D2/D7 normaliseren de ingevoerde kalenderdatum vóór de vergelijking (§4.2).
-// Voortgang INVULLEN via de UI (`engine/progressEntry.ts`) — de besluiten van de eigenaar, per regel
-// headless tegen de ECHTE store, via exact de functies die de UI-routes aanroepen:
-//   - eigenschappenpaneel: `enterTaskProgress` (TaskPropertiesPanel.tsx);
-//   - contextmenu: `contextMenuBulk.setProgress` (GanttCanvas/FullTaskGrid);
-//   - taakraster: `runGridMutation(intents, { progressEntry })` (FullTaskGrid.tsx);
-//   - "Taak bewerken": `planTaskDialogProgress` + `createTaskDialogSave` (TaskDialog.tsx).
-//
-// Regel 1 (Z1): voortgang invullen zonder statusdatum ⇒ de statusdatum gaat op VANDAAG (zoals het
-// statusdatumveld hem oplevert: datum zonder tijd), in dezelfde undo-stap, met één melding. Zonder
-// statusdatum rekende de solver een lopende taak vooruit met haar restduur en achteruit met de volle
-// duur: speling −1 en onterecht kritiek (audit/weergaven z1-voortgang-zonder-statusdatum.ts).
-// De headless setters (`setTaskProgress` & co.) blijven het vangnet, zonder deze regel.
-//
-// Regel 2 (Z1b): voortgang op een taak zonder vastgelegde werkelijke start, waarvan de geplande
-// start NA de statusdatum ligt ⇒ de app vraagt de werkelijke start vóór de voortgang wordt toegepast;
-// annuleren verandert niets; een antwoord na de statusdatum of na het werkelijke einde wordt gemeld.
-// Vóór deze regel leidde elke route die start af uit de geplande start — een datum na de statusdatum.
-//
-// De browserkant (echte klikken/toetsen) staat in tests/browser/progress-entry.spec.ts.
-// Draait via run.sh. Exit 0 = alles groen.
 import './domShim';
 import { createAppStoreContext, useAppStore, type AppState, type AppStoreContext } from '@/state/appStore';
 import { contextMenuBulk } from '@/components/canvas/contextMenuScope';
@@ -41,20 +20,15 @@ function eq(label: string, got: unknown, want: unknown): void {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 }
 
-// "Vandaag" zoals de gebruiker hem in het statusdatumveld typt: de LOKALE kalenderdag, zonder tijd.
-// Bewust hier los uitgeschreven (niet `localTodayIso` importeren): de check toetst die functie.
 const now = new Date();
 const pad = (n: number) => String(n).padStart(2, '0');
 const TODAY = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-/** Kalenderdag `days` vóór vandaag (UTC-rekenwerk op de datumstring, tijdzone-onafhankelijk). */
 function daysBeforeToday(days: number): string {
   const d = new Date(`${TODAY}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() - days);
   return d.toISOString().slice(0, 10);
 }
 
-/** Het Z1-scenario: A (5 wd) → B (3 wd) FS, projectstart vier weken vóór vandaag, geen statusdatum.
- *  B's geplande start ligt dus vóór vandaag. */
 function setup(S: () => AppState): { A: string; B: string; C: string } {
   S().newProject();
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [] } as WorkCalendar);
@@ -79,7 +53,6 @@ function cell(taskId: string, columnId: string, value: unknown): CellEditIntent 
   return { kind: 'cell-edit', taskId, columnId: columnId as CellEditIntent['columnId'], route: 'task-progress', value };
 }
 
-/** Referentie: dezelfde voortgang, maar de gebruiker zette de statusdatum eerst zelf op vandaag. */
 function referenceB(): { es?: string; ef?: string; tf?: number } {
   const { S } = fresh();
   const { B } = setup(S);
@@ -121,7 +94,6 @@ for (const withSuccessor of [false, true]) {
   eq('#998 raster behoudt beide datums en de nieuwe duur na IFC-heropening', facts(), expected);
 }
 
-/** Wat elke UI-route na "B op 50 %" moet opleveren. */
 function expectRule1(label: string, S: () => AppState, B: string, depthBefore: number): void {
   eq(`${label}: statusdatum = vandaag (datum zonder tijd)`, S().project.statusDate, TODAY);
   eq(`${label}: voortgang staat`, taskOf(S, B).time.completion, 0.5);
@@ -138,7 +110,6 @@ function expectRule1(label: string, S: () => AppState, B: string, depthBefore: n
     { statusDate: S().project.statusDate ?? null, completion: taskOf(S, B).time.completion }, { statusDate: null, completion: 0 });
 }
 
-// ── 1. Regel 1 per UI-route ──────────────────────────────────────────────────────────────────────
 {
   const { S } = fresh();
   const { B } = setup(S);
@@ -181,15 +152,12 @@ function expectRule1(label: string, S: () => AppState, B: string, depthBefore: n
   const { B } = setup(S);
   const d0 = undoDepth(S);
   const t = taskOf(S, B);
-  // De dialoog rekent de concepttaak zonder statusdatum met vandaag (TaskDialog.tsx).
   const plan = planTaskDialogProgress(S(), t, undefined, { field: 'completion', value: 0.5 }, { today: TODAY });
   if (!plan.ok || !plan.change) throw new Error('De dialoog legde geen voortgang vast');
   createTaskDialogSave(ctx)({ editingTaskId: B, draft: plan.change.task, today: TODAY });
   expectRule1('1e Taak bewerken', S, B, d0);
 }
 
-// Vóór de eerste F5 loopt de relatie al mee in de afleiding. Elke schuifstap gebruikt
-// hetzelfde venster, ook nadat de eerste stap de statusdatum op vandaag heeft gezet.
 {
   const { S } = fresh();
   const today = '2026-11-18';
@@ -242,10 +210,7 @@ for (const route of ['paneel', 'raster', 'dialoog', 'voortgangsblad', 'andere ta
   eq(`#998 ${route}: één Ctrl+Z herstelt de toestand op 50%`, taskOf(S, B).time, before);
 }
 
-// ── 2. Wat NIET verandert ────────────────────────────────────────────────────────────────────────
 {
-  // Geen voortgang over (0 %) ⇒ geen statusdatum en geen melding. (De eerste 0 % legt op een verse
-  // taak de restduur vast — het bestaande vangnetgedrag; daarna is 0 % een echte no-op.)
   const { S } = fresh();
   const { B } = setup(S);
   S().enterTaskProgress(B, { field: 'completion', value: 0 }, { today: TODAY });
@@ -257,7 +222,6 @@ for (const route of ['paneel', 'raster', 'dialoog', 'voortgangsblad', 'andere ta
     { sd: null, steps: 0, notices: 0 });
 }
 {
-  // Een werkelijke datum ná vandaag bestaat niet zodra de statusdatum vandaag wordt ⇒ geweigerd.
   const { S } = fresh();
   const { B } = setup(S);
   const future = new Date(`${TODAY}T00:00:00Z`);
@@ -269,7 +233,6 @@ for (const route of ['paneel', 'raster', 'dialoog', 'voortgangsblad', 'andere ta
     { res: { ok: false, reason: 'afterStatusDate' }, sd: null, as: null });
 }
 {
-  // Met een statusdatum: die blijft staan, geen melding.
   const { S } = fresh();
   const { B } = setup(S);
   S().setStatusDate(daysBeforeToday(1));
@@ -278,7 +241,6 @@ for (const route of ['paneel', 'raster', 'dialoog', 'voortgangsblad', 'andere ta
     { sd: S().project.statusDate, notices: todayNotices(S).length }, { sd: daysBeforeToday(1), notices: 0 });
 }
 {
-  // Het headless vangnet (generatoren, testharnassen, extensies): ongewijzigd, geen statusdatum.
   const { S } = fresh();
   const { B } = setup(S);
   S().setTaskProgress(B, 0.5);
@@ -286,8 +248,6 @@ for (const route of ['paneel', 'raster', 'dialoog', 'voortgangsblad', 'andere ta
   eq('2d setters en raster zonder invoerbeleid: geen statusdatum', S().project.statusDate ?? null, null);
 }
 
-// ── 3. Regel 2 (Z1b): voortgang op een taak die pas na de statusdatum begint ⇒ eerst vragen ───────
-// Project start twee weken ná vandaag: A en B liggen helemaal na de statusdatum (gisteren).
 function daysAfterToday(days: number): string { return daysBeforeToday(-days); }
 const SD = daysBeforeToday(1);
 function setupFuture(S: () => AppState, statusDate: string | undefined): { A: string; B: string; C: string; M: string } {
@@ -385,14 +345,10 @@ for (const scenario of ['voor F5', 'voorganger afmelden'] as const) {
   const date = daysBeforeToday(2);
   eq('3d mijlpaal met een werkelijke datum: geen vraag (start = einde)',
     S().enterTaskProgress(M, { field: 'actualFinish', value: date }, { today: TODAY }), { ok: true });
-  // Een losse mijlpaal zonder soort staat in OPS om 16:00 (B6). Afgemeld met alleen een datum houdt hij
-  // die klokketijd (besluit Ethan 2026-10-29; D7 gaf 07:00). Zie check-mijlpaal-afmelden.ts.
   eq('3d mijlpaal: geplande tijd 16:00', taskOf(S, M).time.earlyStart?.slice(11), '16:00');
   eq('3d mijlpaal: werkelijke datum staat, met de geplande tijd', progressOf(S, M), { completion: 1, status: 'COMPLETED', as: `${date}T16:00`, af: `${date}T16:00` });
 }
 {
-  // Regel 1 + 2: geen statusdatum, taak begint na vandaag ⇒ vraag tegen VANDAAG; pas het antwoord
-  // zet de statusdatum (samen één undo-stap).
   const { S } = fresh();
   const { B } = setupFuture(S, undefined);
   const d0 = undoDepth(S);
@@ -406,7 +362,6 @@ for (const scenario of ['voor F5', 'voorganger afmelden'] as const) {
     { sd: TODAY, as: `${TODAY}T07:00`, steps: 1 });
 }
 {
-  // Geen vraag: taak met een vastgelegde werkelijke start, of een taak die volgens plan al begonnen is.
   const { S } = fresh();
   const { B } = setupFuture(S, SD);
   const as = daysBeforeToday(5);
@@ -430,7 +385,6 @@ for (const scenario of ['voor F5', 'voorganger afmelden'] as const) {
     { ok: grid.ok, start: taskOf(past.S, pastB).time.actualStart }, { ok: true, start: plannedStart });
 }
 {
-  // Een startbeperking in dezelfde plak telt mee vóór voortgang een werkelijke start afleidt.
   const { S } = fresh();
   const { B } = setup(S);
   S().setStatusDate(TODAY);
@@ -494,8 +448,6 @@ for (const scenario of ['voor F5', 'voorganger afmelden'] as const) {
     { ok: past.ok, start: taskOf(S, B).time.actualStart }, { ok: true, start: nextStart });
 }
 {
-  // Taakraster: de hele handeling wordt geweigerd met per taak `actualStartRequired`; dezelfde
-  // handeling mét een werkelijke start per taak slaagt (zo herhaalt FullTaskGrid hem na de vraag).
   const { S } = fresh();
   const { B, C } = setupFuture(S, SD);
   const d0 = undoDepth(S);
@@ -522,7 +474,6 @@ for (const scenario of ['voor F5', 'voorganger afmelden'] as const) {
   eq('3g raster status "gestart": ook de vraag', status.ok ? 'ok' : status.errors.map(e => e.code), ['actualStartRequired']);
 }
 {
-  // Contextmenu: alle taken die het nodig hebben in één vraag; annuleren verandert niets.
   const S = () => useAppStore.getState();
   const { B, C } = setupFuture(S, SD);
   S().selectTask(B, false);
@@ -545,7 +496,6 @@ for (const scenario of ['voor F5', 'voorganger afmelden'] as const) {
     { b: `${daysBeforeToday(2)}T07:00`, c: `${daysBeforeToday(3)}T07:00`, steps: 1 });
 }
 {
-  // "Taak bewerken": de concepttaak volgt dezelfde beslissing (planProgressEntry).
   const { S } = fresh();
   const { B } = setupFuture(S, SD);
   const draft = taskOf(S, B);
@@ -555,14 +505,12 @@ for (const scenario of ['voor F5', 'voorganger afmelden'] as const) {
   eq('3i dialoog-concept met antwoord', answered.ok && answered.change ? answered.change.task.time.actualStart : null, `${SD}T07:00`);
 }
 {
-  // Het vangnet: de setters zonder invoerbeleid leiden de start nog steeds af (import, generatoren).
   const { S } = fresh();
   const { B } = setupFuture(S, SD);
   S().setTaskProgress(B, 0.5);
   eq('3j vangnet setTaskProgress: afgeleide start zoals voorheen', taskOf(S, B).time.actualStart, taskOf(S, B).time.earlyStart);
 }
 
-// Werkelijke datums rechtstreeks invoeren: dezelfde volgordecontrole als raster/startvraag.
 for (const edit of [
   { field: 'actualStart' as const, value: '2026-09-21' },
   { field: 'actualFinish' as const, value: '2026-09-09' },

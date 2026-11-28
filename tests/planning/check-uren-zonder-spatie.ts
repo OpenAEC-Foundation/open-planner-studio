@@ -1,14 +1,3 @@
-// Uren als "10u" (nl) en "10h" (en), zonder spatie (eigenaarsbesluit 2026-10-20).
-//
-// AANLEIDING. De kolom Duur toonde in het Nederlands "80h" (de suffix `common:duration.suffixHour` was
-// "h"), de restwerkmelding schreef "320 u → 88 u" met een spatie, en de lag stond in elke taal als
-// "+2u" (ook in het Engels). Nu volgt alles de taal: nl "80u", "320u → 88u", "+2u"; en "80h",
-// "320h → 88h", "+2h". De invoer blijft taalonafhankelijk: "80u" en "80h" werken allebei.
-//
-// Deze check draait met de ECHTE locale-bestanden (setLocale) en dezelfde labelkoppeling als het
-// taakraster (`FullTaskGrid`: `duration.`-sleutels uit `common`).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import i18n, { setLocale } from '@/i18n/config';
 import { useAppStore } from '@/state/appStore';
@@ -46,7 +35,6 @@ function adapter() {
     scheduleStale: s.scheduleStale, wbsAutoNumber: false,
     effectiveHoursPerDay: t => effHoursPerDay(effectiveCalendarOf(t, s.calendar, s.calendars)),
     labelForColumn: k => k,
-    // Dezelfde koppeling als FullTaskGrid: `duration.`-sleutels uit `common`, de rest uit `task`.
     labelForText: (key, values) => (key.startsWith('duration.')
       ? i18n.t(`common:${key}`, { ...values, defaultValue: key })
       : i18n.t(`task:${key}`, { ...values, defaultValue: key })) as string,
@@ -62,14 +50,12 @@ function rowKeyOf(taskId: string): string {
 const DURATION = taskColumnId('task.time.scheduleDuration') as TaskColumnId;
 const PREDECESSORS = 'relation.predecessors' as TaskColumnId;
 
-/** De ene relatie A → B. */
 const seqAB = () => S().sequences.find(q => q.predecessorId === A && q.successorId === B)!.id;
 const lagOf = () => {
   const q = S().sequences.find(x => x.id === seqAB())!;
   return { lagDays: q.lagDays, lagMinutes: q.lagMinutes };
 };
 
-/** Plak `text` in de cel Voorgangers van B zoals de gebruiker doet (planEdit → gridtransactie). */
 function pasteRelation(text: string): { lagDays: number; lagMinutes?: number } | string {
   const plan = adapter().planEdit(rowKeyOf(B), PREDECESSORS, text);
   if (!plan.ok) return `geweigerd: ${plan.errors.map(e => e.code).join(',')}`;
@@ -78,14 +64,12 @@ function pasteRelation(text: string): { lagDays: number; lagMinutes?: number } |
   return lagOf();
 }
 
-/** CSV-export zoals `fileSlice` hem aanroept, met het uurteken van de huidige app-taal. */
 function exportCsv(): string {
   const s = S();
   return writeCSV(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.customTaskTypes,
     undefined, parseableHourSuffix(i18n.t('common:duration.suffixHour')));
 }
 
-/** De lag van de ene relatie na `readCSV`. */
 function csvLag(csv: string): { lagDays: number; lagMinutes?: number } | string {
   const result = readCSV(csv);
   if (result.sequences.length !== 1) return `${result.sequences.length} relaties`;
@@ -98,7 +82,6 @@ function durationCell(taskId: string) {
   return a.getCell(rowKeyOf(taskId), DURATION);
 }
 
-/** Typ `text` in de Duur-cel zoals de gebruiker doet (planEdit → gridtransactie); geeft de minuten terug. */
 function typeDuration(taskId: string, text: string): number | string {
   const plan = adapter().planEdit(rowKeyOf(taskId), DURATION, text);
   if (!plan.ok) return `geweigerd: ${plan.errors.map(e => e.code).join(',')}`;
@@ -107,7 +90,6 @@ function typeDuration(taskId: string, text: string): number | string {
   return S().tasks.find(t => t.id === taskId)!.time.durationMinutes ?? -1;
 }
 
-// ── Opzet: urenplanning aan, een urentaak van 80 uur en een opvolger met 2 uur lag ──
 S().newProject();
 S().setProject({ startDate: '2026-06-01', name: 'Uren zonder spatie' });
 const A = S().addTask({ name: 'A ontwerp', time: { durationUnit: 'hours', durationMinutes: 80 * H } as TaskTime });
@@ -120,24 +102,19 @@ for (const [lang, u] of [['nl', 'u'], ['en', 'h']] as const) {
   await setLocale(lang);
   eq(`${lang} 0 taal staat goed`, i18n.language, lang);
 
-  // 1. Weergave: kolom Duur, kopieertekst, voorgangerscel.
   const cell = durationCell(A)!;
   eq(`${lang} 1a kolom Duur toont 80${u}`, cell.text, `80${u}`);
   eq(`${lang} 1b kopieertekst Duur is 80${u}`, cell.copyText, `80${u}`);
   const pred = adapter().getCell(rowKeyOf(B), PREDECESSORS)!;
   eq(`${lang} 1c voorgangerscel toont de lag als +2${u}`, pred.text, `${wbsA} FS+2${u}`);
-  // 1d. De getoonde tekst terugplakken in de cel geeft weer precies 2 uur (review-VERVOLG a). Eerst de
-  //     lag op 0 zetten, zodat de plak echt iets moet doen.
   S().updateSequence(seqAB(), { lagDays: 0, lagMinutes: undefined });
   eq(`${lang} 1d0 lag eerst op 0`, lagOf(), { lagDays: 0, lagMinutes: undefined });
   eq(`${lang} 1d terugplakken van "${pred.text}" ⇒ lagMinutes 120`, pasteRelation(pred.text), { lagDays: 0, lagMinutes: 120 });
 
-  // 2. Restwerkmelding (de tekst van het meldingenkanaal met de parameters uit de store).
   eq(`${lang} 2 restwerkmelding zonder spatie`,
     i18n.t('common:notifications.remainingWorkRecomputed', { name: 'A', before: 320, after: 88 }).includes(`320${u} → 88${u}`),
     true);
 
-  // 3. Invoer blijft taalonafhankelijk: "80u" én "80h" werken, ook in de cel.
   eq(`${lang} 3a cel: "72u" ⇒ 72 uur`, typeDuration(A, '72u'), 72 * H);
   eq(`${lang} 3b cel: "80h" ⇒ 80 uur`, typeDuration(A, '80h'), 80 * H);
   eq(`${lang} 3c cel: "72h" ⇒ 72 uur`, typeDuration(A, '72h'), 72 * H);
@@ -145,28 +122,22 @@ for (const [lang, u] of [['nl', 'u'], ['en', 'h']] as const) {
   eq(`${lang} 3e na de invoer toont de cel 80${u}`, durationCell(A)!.text, `80${u}`);
 }
 
-// 4. De parsers zelf (taalonafhankelijk).
 eq('4a parseDuration "80u"', parseDuration('80u', 8), 80 * H);
 eq('4b parseDuration "80h"', parseDuration('80h', 8), 80 * H);
 eq('4c parseTaskDurationInput "80u"', parseTaskDurationInput('80u', 'hours'), { unit: 'hours', durationMinutes: 80 * H, explicitUnit: true });
 eq('4d parseTaskDurationInput "80h"', parseTaskDurationInput('80h', 'days'), { unit: 'hours', durationMinutes: 80 * H, explicitUnit: true });
-// Tegen een vaste waarde, niet tegen elkaar: tweemaal `null` mag niet slagen (review-VERVOLG b).
 const LAG_2H = { lagDays: 0, lagUnit: undefined, lagPercent: undefined, lagMinutes: 120 };
 eq('4e parseLagInput "+2u" ⇒ 120 minuten', parseLagInput('+2u'), LAG_2H);
 eq('4f parseLagInput "+2h" ⇒ 120 minuten', parseLagInput('+2h'), LAG_2H);
 eq('4g parseLagInput "+3eh" ⇒ 180 elapsed minuten', parseLagInput('+3eh'),
   { lagDays: 0, lagUnit: 'ELAPSEDTIME', lagPercent: undefined, lagMinutes: 180 });
 
-// 5. Andere talen volgen in de vertaalronde: een afkorting die de parser niet kent ("ч") houdt de lag
-//    leesbaar als "+2u", zodat bewerken en plakken blijven werken.
 await setLocale('ru');
 const ruPred = adapter().getCell(rowKeyOf(B), PREDECESSORS)!;
 eq('5 ru: lag blijft parsebaar (+2u)', ruPred.text, `${wbsA} FS+2u`);
 S().updateSequence(seqAB(), { lagDays: 0, lagMinutes: undefined });
 eq('5b ru: terugplakken van "+2u" ⇒ lagMinutes 120', pasteRelation(ruPred.text), { lagDays: 0, lagMinutes: 120 });
 
-// 6. CSV-export (eigenaarsbesluit 2026-10-20, optie 2): het uurteken van de lag volgt de app-taal.
-//    Elk bestand leest in elke app-taal terug als precies 120 minuten.
 const csvByLang: Record<string, string> = {};
 for (const [lang, u] of [['nl', 'u'], ['en', 'h'], ['ru', 'u']] as const) {
   await setLocale(lang);
@@ -176,8 +147,6 @@ for (const [lang, u] of [['nl', 'u'], ['en', 'h'], ['ru', 'u']] as const) {
   eq(`6a ${lang}: CSV-voorganger is ${wbsA}FS+2${u}`, csv.includes(`${delimiter}${wbsA}FS+2${u}${delimiter}`), true);
   eq(`6b ${lang}: geen ander uurteken in de CSV`, csv.includes(`${wbsA}FS+2${u === 'u' ? 'h' : 'u'}`), false);
 }
-// 6d. Dezelfde keuze via de echte route: de store (`exportAs('csv')`, zoals de knop Exporteren), die
-//     het uurteken zelf uit de app-taal haalt. De download wordt opgevangen (web-backend → Blob).
 const g = globalThis as unknown as Record<string, any>;
 const captured: string[] = [];
 const saved = { Blob: g.Blob, URL: g.URL, createElement: g.document.createElement };

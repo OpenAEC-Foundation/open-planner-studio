@@ -1,22 +1,3 @@
-// check-work-rule-library.ts — H6 (R1-rest, eigenaarsbesluit 2026-09-26 "zelfde regel als de dialoog"):
-// een bibliotheekverversing van een kalender volgt de werkregel, net als de kalenderdialoog
-// (`commitCalendarLibrary`, #170). Per route: Vaste inzet 4 d × 8 u = 32 u; de (effectieve) kalender van
-// de taak gaat via de bibliotheek van 8 naar 6 u/d ⇒ 16/3 d, werk blijft 32 u, melding "1 taak".
-// Alleen uren B1a (spec §3.2): vast werk is urenmaat en houdt bij een kalenderwissel zijn minuten, net als
-// de urentaak `h` hieronder; de regel verandert dan geen duur. De taak waarvan de regel de duur in dagen
-// uit het werk haalt, is daarom Vaste inzet (tot F3c was dat Vast werk).
-//
-// Routes (alle via `captureCalendarLibraryChange`/`settleCalendarLibraryChange`, state/calendarTasks.ts):
-//   (a) `refreshAllDocumentsFromPool` — actief document (bibliotheekkalender bewerken ⇒ `updatePoolCalendar`)
-//   (b) idem — SLAPEND document: settle op de payload, melding bij activeren
-//   (c) `updateProjectCalendarFromLibrary` — expliciet gebaar, settle in DEZELFDE undo-stap
-//   (d) `linkRecognizedItems` — expliciet gebaar, settle in dezelfde undo-stap
-//   (e) `resolveDeviation('company')` — afwijkingenscherm "Bibliotheekwaarden gebruiken", niet-undoable
-//   (f) `materializeBehindOnlyRefresh` — openen van een bestand dat 'behind' is, en activeren
-//   (g) idempotentie: heropenen zonder opslaan ⇒ dezelfde verversing + settle ⇒ dezelfde duur
-// Niet-undoable routes: geen undo-stap, geen isDirty, wel scheduleStale — zoals de verversing zelf.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -44,21 +25,14 @@ const LOST_KEY = 'notifications.mppTimephasedSteeringLost';
 interface Fixture {
   store: Store;
   S: () => ReturnType<Store['getState']>;
-  /** Vaste inzet op de gekoppelde projectkalender: de regel haalt de duur in dagen uit het werk. */
   t: string;
   r: string;
-  /** Standaardregel op dezelfde kalender (duur blijft). */
   q: string;
-  /** Urentaak met vast werk op dezelfde kalender (urenmaat, buiten de regel); '' zonder urentaak. */
   h: string;
   cid: string;
   poolId: string;
 }
 
-/** Project met een gekoppelde projectkalender (8 u, gepromoveerd naar de bibliotheek).
- *  `hourTask: false` voor de IFC-scenario's: een urentaak in het bestand laat de lezer de
- *  projectkalender als werktijdbanden teruglezen (uur-modus-post-pass), waarna de kopie 'wijkt af'
- *  in plaats van 'loopt achter' — los van H6, en dan ververst de open-grens terecht niets. */
 function fixture(opts: { link?: boolean; hourTask?: boolean } = {}): Fixture {
   const store = createAppStore();
   const S = () => store.getState();
@@ -67,7 +41,7 @@ function fixture(opts: { link?: boolean; hourTask?: boolean } = {}): Fixture {
   const t = S().addTask({ name: 'Vaste inzet', time: createDefaultTaskTime('2026-06-01', 4) });
   const r = S().addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 });
   S().assignResource(t, r, 1);
-  S().setTaskWorkRule(t, 'FIXED_RATE'); // 4 d × 8 u = 32 u
+  S().setTaskWorkRule(t, 'FIXED_RATE');
   const q = S().addTask({ name: 'Standaard', time: createDefaultTaskTime('2026-06-01', 4) });
   S().assignResource(q, S().addResource({ name: 'Ploeg q', type: 'LABOR', description: '', maxUnits: 1 }), 1);
   let h = '';
@@ -88,7 +62,6 @@ function fixture(opts: { link?: boolean; hourTask?: boolean } = {}): Fixture {
   quiet(store);
   return { store, S, t, r, q, h, cid, poolId };
 }
-/** Schone lei: geen meldingen, niet gewijzigd — zodat de routes zelf zichtbaar worden. */
 function quiet(store: Store): void {
   store.setState((s) => { s.ui.notifications = []; s.isDirty = false; });
 }
@@ -99,7 +72,6 @@ const asgOf = (f: Fixture, id: string): ResourceAssignment => f.S().assignments.
 const dur = (f: Fixture, id: string) => taskOf(f, id).time.scheduleDuration;
 const msgs = (f: Fixture, key: string) => f.S().ui.notifications.filter((n) => n.messageKey === key).map((n) => n.params?.count);
 const appliedEvents = (f: Fixture) => f.S().historyEvents.filter((e) => e.state === 'applied').length;
-/** De afwijkende kopie: pool 6 u, projectkopie lokaal terug naar 8 u (Vaste inzet ⇒ weer 4 d). */
 function deviatedToEight(f: Fixture): void {
   f.S().updatePoolCalendar(f.cid, f.poolId, sixHours(poolCal(f)));
   f.S().updateCalendar(f.S().project.calendarId, { workEndHour: 16, hoursPerDay: 8 });
@@ -107,7 +79,6 @@ function deviatedToEight(f: Fixture): void {
   quiet(f.store);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (a) refreshAllDocumentsFromPool, actief document --');
 {
   const f = fixture();
@@ -118,22 +89,17 @@ console.log('-- (a) refreshAllDocumentsFromPool, actief document --');
   eq('a0 voorwaarde: projectkopie ververst naar 6 u', f.S().calendar.hoursPerDay, 6);
   eq('a1 Vaste inzet 32 u, kalender 8→6 u/d ⇒ 16/3 d, werk blijft 32 u', [dur(f, f.t), asgOf(f, f.t).remainingWorkMinutes], [16 / 3, 32 * 60]);
   eq('a2 standaardregel op dezelfde kalender: duur blijft 4, geen werkveld', [dur(f, f.q), asgOf(f, f.q).remainingWorkMinutes], [4, qWorkBefore]);
-  // De urentaak (vast werk, urenmaat) valt buiten de regel: minuten, datums en toewijzing blijven byte-identiek. Alleen haar
-  // verborgen dagengetal volgt de nieuwe werktijd per dag: 600 min ÷ 6 u (eigenaarsbesluit 2026-10-15,
-  // optie 2 — `hourTaskScheduleDuration`, ook bij een kalenderwissel).
   const hAfter = JSON.parse(hBefore) as { time: Task['time']; asg: ResourceAssignment };
   hAfter.time.scheduleDuration = 600 / (6 * 60);
   eq('a3 urentaak: byte-identiek op het dagengetal na (600 min ÷ 6 u)', JSON.stringify({ time: taskOf(f, f.h).time, asg: asgOf(f, f.h) }), JSON.stringify(hAfter));
   eq('a4 niet-undoable zoals de verversing: geen undo-stap, geen isDirty, wel stale', [appliedEvents(f) - ev0, f.S().isDirty, f.S().scheduleStale], [0, false, true]);
   eq('a5 één melding "1 taak" (dezelfde als de kalenderdialoog)', msgs(f, DUR_KEY), [1]);
-  // Een tweede poolbewerking die de kalender NIET raakt (resource) ⇒ geen settle, geen melding.
   quiet(f.store);
   const pr = f.S().addPoolResource(f.cid, { name: 'Los', type: 'LABOR', description: '', maxUnits: 1 })!;
   f.S().updatePoolResource(f.cid, pr, { maxUnits: 2 });
   eq('a6 poolbewerking zonder kalenderwijziging: duur blijft 16/3 d, geen melding', [dur(f, f.t), msgs(f, DUR_KEY)], [16 / 3, []]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (a-lost) verlies van tijdgefaseerde sturing: dezelfde melding als de dialoog --');
 {
   const f = fixture();
@@ -145,7 +111,6 @@ console.log('-- (a-lost) verlies van tijdgefaseerde sturing: dezelfde melding al
   eq('al2 melding "sturing verloren" voor 1 taak', msgs(f, LOST_KEY), [1]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (b) refreshAllDocumentsFromPool, SLAPEND document --');
 {
   const f = fixture();
@@ -171,7 +136,6 @@ console.log('-- (b) refreshAllDocumentsFromPool, SLAPEND document --');
   eq('b6 opnieuw wisselen: de melding komt niet nog eens', msgs(f, DUR_KEY), []);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (c) updateProjectCalendarFromLibrary: settle in dezelfde undo-stap --');
 {
   const f = fixture();
@@ -187,7 +151,6 @@ console.log('-- (c) updateProjectCalendarFromLibrary: settle in dezelfde undo-st
   eq('c4 redo: weer 6 u en 16/3 d', [f.S().calendar.hoursPerDay, dur(f, f.t)], [6, 16 / 3]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (d) linkRecognizedItems: settle in dezelfde undo-stap --');
 {
   const f = fixture({ link: false });
@@ -201,14 +164,12 @@ console.log('-- (d) linkRecognizedItems: settle in dezelfde undo-stap --');
   eq('d2 één undo-stap, melding "1 taak"', [appliedEvents(f) - ev0, msgs(f, DUR_KEY)], [1, [1]]);
   f.S().undo();
   eq('d3 undo zet kalender, koppeling én duur in één stap terug', [f.S().calendar.hoursPerDay, f.S().calendar.libraryOrigin, dur(f, f.t)], [8, undefined, 4]);
-  // Alleen resources koppelen: geen kalenderwijziging, dus geen settle en geen melding.
   quiet(f.store);
   const pr = f.S().addPoolResource(cid, { name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 })!;
   f.S().linkRecognizedItems([{ kind: 'resource', projectId: f.r, poolId: pr }]);
   eq('d4 alleen een resource koppelen: duur blijft 4, geen melding', [dur(f, f.t), msgs(f, DUR_KEY)], [4, []]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (e) resolveDeviation(company): "Bibliotheekwaarden gebruiken", niet-undoable --');
 {
   const f = fixture();
@@ -219,12 +180,10 @@ console.log('-- (e) resolveDeviation(company): "Bibliotheekwaarden gebruiken", n
   eq('e2 geen undo-stap, geen isDirty, wel stale; melding "1 taak"', [appliedEvents(f) - ev0, f.S().isDirty, f.S().scheduleStale, msgs(f, DUR_KEY)], [0, false, true, [1]]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (f) activatiegrens: openen van een bestand dat achterloopt, en wisselen naar een achterlopend document --');
 {
   const f = fixture({ hourTask: false });
   const ifc = writeIFC(buildWriteIFCInput(f.S(), 'planOnly'));
-  // Bibliotheek intussen naar 6 u terwijl het document niet gekoppeld open is: los maken, pool wijzigen.
   f.S().newProject();
   f.S().updatePoolCalendar(f.cid, f.poolId, sixHours(poolCal(f)));
   quiet(f.store);
@@ -233,8 +192,6 @@ console.log('-- (f) activatiegrens: openen van een bestand dat achterloopt, en w
   eq('f2 …standaardregel blijft 4 d; melding "1 taak"; niet gewijzigd', [dur(f, f.q), msgs(f, DUR_KEY), f.S().isDirty], [4, [1], false]);
 }
 {
-  // Wisselen: `replacePool` ververst alleen het ACTIEVE document; het slapende gekoppelde document
-  // loopt achter en settelt bij zijn activering (materializeBehindOnlyRefresh).
   const f = fixture();
   const docA = f.S().activeDocumentId;
   const pool6 = structuredClone(f.S().pools[f.cid]);
@@ -251,11 +208,10 @@ console.log('-- (f) activatiegrens: openen van een bestand dat achterloopt, en w
   eq('f5 …activeren is geen bewerking: niet gewijzigd', f.S().isDirty, false);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (g) idempotentie: heropenen zonder opslaan geeft hetzelfde resultaat --');
 {
   const f = fixture({ hourTask: false });
-  const ifc = writeIFC(buildWriteIFCInput(f.S(), 'planOnly')); // opgeslagen met 8 u, synchroon met de bibliotheek
+  const ifc = writeIFC(buildWriteIFCInput(f.S(), 'planOnly'));
   f.S().updatePoolCalendar(f.cid, f.poolId, sixHours(poolCal(f)));
   const snap = () => ({
     hpd: f.S().calendar.hoursPerDay,
@@ -264,19 +220,14 @@ console.log('-- (g) idempotentie: heropenen zonder opslaan geeft hetzelfde resul
   });
   const afterRefresh = snap();
   eq('g1 voorwaarde: verversing gaf 16/3 d en liet het document ongewijzigd', [afterRefresh.t[0], f.S().isDirty], [16 / 3, false]);
-  // Nog een keer dezelfde grens over het al-ververste document: niets meer te doen.
   const again = materializeBehindOnlyRefresh({ payload: capturePayload(f.S()), companies: f.S().companies, pools: f.S().pools });
   eq('g2 dezelfde grens nogmaals: 0 kalenders ververst, taken ongemoeid', [again.calendarsChanged, again.payload.tasks === f.S().tasks], [0, true]);
-  // Heropenen van het niet-opgeslagen bestand (8 u, oude duur): de open-grens ververst en settelt opnieuw.
   f.S().applyLoadedProject(readIFC(ifc), { linkedOpen: true, recompute: true, filePath: null });
   eq('g3 heropend zonder opslaan ⇒ hetzelfde resultaat als na de verversing', snap(), afterRefresh);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (g2) idempotentie over alle vier de regels, een gestarte taak en twee verversingen in de sessie --');
 {
-  // In de sessie ververst de bibliotheek in TWEE stappen (8 → 7 → 6 u/d); het niet-opgeslagen bestand
-  // heropenen ververst in ÉÉN stap (8 → 6). De settle mag daar niet van afhangen.
   const f = fixture({ hourTask: false });
   const S = f.S;
   const mk = (name: string, rule: 'FIXED_WORK' | 'FIXED_RATE' | 'FIXED_DURATION_WORK' | 'FIXED_DURATION_RATE', days: number): string => {
@@ -291,7 +242,6 @@ console.log('-- (g2) idempotentie over alle vier de regels, een gestarte taak en
     mk('vaste-duur-werk', 'FIXED_DURATION_WORK', 5),
     mk('standaard', 'FIXED_DURATION_RATE', 5),
   ];
-  // Gestarte taak onder Vast werk: 10 d, 40 % gereed op de statusdatum.
   const started = mk('gestart', 'FIXED_WORK', 10);
   S().setStatusDate('2026-06-05');
   S().setActualStart(started, '2026-06-01');
@@ -312,7 +262,6 @@ console.log('-- (g2) idempotentie over alle vier de regels, een gestarte taak en
   eq('g4 twee verversingen in de sessie ⇔ één verversing bij heropenen: zelfde duur, rest, %, inzet en werk', snap(), stepwise);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log(`\n${checks} checks, ${diffs.length} afwijkingen`);
 for (const d of diffs) console.log(`XX ${d}`);
 if (diffs.length > 0) process.exit(1);

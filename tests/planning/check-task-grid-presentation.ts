@@ -1,7 +1,3 @@
-// Issue #89 — presentatie van de taakgrid: hiërarchie-inspringing van de naamcel, één tooltip
-// per cel (volledige waarde alleen bij afknippen, kolomuitleg altijd, taakkaart alleen op een
-// relatielink), de vrijstaande plusknop van de kolomkiezer en de naameditor over de volle
-// kolombreedte. Pure functies worden direct getoetst; de DOM-/CSS-afspraken via de bron.
 import fs from 'node:fs';
 import path from 'node:path';
 import { GROUPED_NAME_INDENT_UNIT, SUMMARY_ADD_SLOT_WIDTH, TASK_NAME_INDENT_UNIT, taskNameFixedWidth, taskNameIndent } from '@/engine/taskGrid/nameIndent';
@@ -21,9 +17,6 @@ function ok(label: string, value: boolean): void {
 }
 const read = (relative: string) => fs.readFileSync(path.join(process.cwd(), relative), 'utf8');
 
-// ── Inspringing ──────────────────────────────────────────────────────────────────────────────
-// Het triehoekje van een subtaak staat waar de naam van zijn ouder begint; een blad zonder
-// triehoekje begint zijn naam op dezelfde kolom als een samenvatting op hetzelfde niveau.
 const unit = TASK_NAME_INDENT_UNIT;
 eq('Samenvatting op niveau 0 begint bij 0 (triehoekje), een blad laat het slot leeg',
   [taskNameIndent(0, true), taskNameIndent(0, false)], [0, unit]);
@@ -34,7 +27,6 @@ eq('Tekst van niveau 1 staat één eenheid voorbij zijn triehoekje, voor blad en
 eq('Het patroon loopt door op diepere niveaus',
   [taskNameIndent(3, true), taskNameIndent(3, false)], [3 * unit, 4 * unit]);
 eq('Negatieve of gebroken diepte klemt op niveau 0', [taskNameIndent(-2, false), taskNameIndent(1.7, true)], [unit, unit]);
-// Gegroepeerd: geen boom, dus geen triehoekje-slot; de naam volgt de stap van de groepskop.
 eq('Gegroepeerde rijen reserveren geen triehoekje-slot en volgen de groepskopstap',
   [taskNameIndent(0, false, 'grouped'), taskNameIndent(1, false, 'grouped'), taskNameIndent(2, false, 'grouped')],
   [0, GROUPED_NAME_INDENT_UNIT, 2 * GROUPED_NAME_INDENT_UNIT]);
@@ -61,8 +53,6 @@ eq('De plek van de subtaak-plus in de auto-fit is exact gap + knop + marge uit g
   nameGap + Number(/(?:^|[^-])width:\s*(\d+)px/.exec(addChildRule)?.[1] ?? NaN)
     + Number(/margin-inline-end:\s*(\d+)px/.exec(addChildRule)?.[1] ?? NaN),
   SUMMARY_ADD_SLOT_WIDTH);
-// Issue #901: automatisch passen reserveert de hele naamrij naast de tekst. In de boom begint de tekst
-// van blad en samenvatting op dezelfde kolom; de samenvatting heeft daarachter nog het plusje.
 for (const depth of [0, 1, 3]) {
   eq(`Vaste naamruimte op niveau ${depth}: blad = tekstbegin, samenvatting = tekstbegin + plusje`,
     [taskNameFixedWidth(depth, false), taskNameFixedWidth(depth, true)],
@@ -82,7 +72,6 @@ ok('Editorinhoud vult de resterende kolombreedte, ook genest in de naamrij',
   /\.task-grid-cell-content:has\(\.task-grid-editor-host\)\s*\{[^}]*flex:\s*1 1 auto/.test(styles)
     && /\.full-task-grid-name\s*>\s*\.task-grid-editor-host\s*\{[^}]*flex:\s*1 1 auto/.test(styles));
 
-// ── Tooltips ────────────────────────────────────────────────────────────────────────────────
 eq('Kolomuitleg wint altijd, ook zonder afknippen',
   resolveGridCellTitle({ tooltip: 'Geen baseline', title: '—', text: '—', truncated: false }), 'Geen baseline');
 eq('Een waarde die de zichtbare tekst herhaalt is alleen een tooltip wanneer de cel afknipt',
@@ -138,7 +127,6 @@ ok('Sturend is een sterkere tint van dezelfde rolkleur (eigen driving-variabelen
     && /\.task-grid-relation-chip--driving\[data-relation-direction="successor"\][\s\S]*?color:\s*var\(--relation-successor-driving\);/.test(relationStyles));
 ok('Het warning-icoon houdt zijn eigen --warning-kleur, los van de rolkleur',
   /\.task-grid-relation-chip--warning \.task-grid-relation-icon--warning > svg\s*\{\s*color:\s*var\(--warning,/.test(relationStyles));
-// Licht en donker zijn brugblokken op `data-oa-theme`; hoog contrast heeft nog zijn eigen blok.
 for (const theme of ['oa-theme="dark"', 'oa-theme="light"', 'theme="high-contrast"']) {
   const block = new RegExp(`\\[data-${theme}\\]\\s*\\{([^}]*)\\}`).exec(relationStyles)?.[1] ?? '';
   ok(`Thema "${theme}" definieert alle vier de relatie-rolkleurvariabelen als hex-kleur`,
@@ -151,7 +139,6 @@ ok('De relatielink onderdrukt de celtooltip erboven met een lege title',
 ok('De relatiecel meet afknippen op zijn eigen clipbox',
   /className="task-grid-relation-cell"\s+data-grid-clip="true"/.test(relationCell));
 
-// ── Validatiemeldingen ──────────────────────────────────────────────────────────────────────
 ok('Wissen, plakken en de celeditor vallen terug op vertaalde algemene meldingen, niet op Nederlands',
   !/defaultValue:\s*'Wissen/.test(fullGrid)
     && !/defaultValue:\s*'Plakken/.test(fullGrid)

@@ -1,5 +1,3 @@
-// F2: D7 mag de projectvloer niet verzetten; T8 bindt SF aan het echte startmoment.
-// Een expliciete urenkalender houdt haar bestaande late mijlpaalmoment (§6.1).
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -57,9 +55,6 @@ function eq(label: string, got: unknown, want: unknown) {
   const a = task('A', 1), z = task('Z', 1, '2026-06-05T08:00');
   z.time.durationUnit = 'hours'; z.time.durationMinutes = 240;
   const float = new CPMSolver([a, z], [], calendar, [], options).solve();
-  // F3 (§3.4, B1): de speling van een dagenmaat-taak is de afstand in werkdagen mét het deel van een
-  // dag. A eindigt ma 16:00, het project vr 12:00: di, wo, do en 5 van de 8 uur op vrijdag = 3,625 d.
-  // F2 telde nog kalenderdagen (4).
   eq('dagspeling telt het deel van de laatste dag', float.tasks.get('A')?.totalFloat, 3.625);
   const end = task('Eind', 0);
   const term = new CPMSolver([a, end, task('Lang', 5)],
@@ -67,7 +62,6 @@ function eq(label: string, got: unknown, want: unknown) {
   eq('mijlpaal zonder soort na FS gebruikt de startkant voor late daggrens', term.tasks.get('Eind')?.lateFinish, '2026-06-05T07:00');
 }
 {
-  // Twee actuele takken blijven twee kritieke paden, ook met een gedeelde voltooide voorganger.
   const completed = task('C', 1);
   completed.time = { ...completed.time, completion: 1, actualStart: '2026-06-01T07:00', actualFinish: '2026-06-01T16:00' };
   const result = new CPMSolver([completed, task('A', 2), task('B', 2)], ['A', 'B'].map(id => ({
@@ -80,9 +74,6 @@ function eq(label: string, got: unknown, want: unknown) {
     result.criticalPaths.slice(1).every(path => path.every(id => result.tasks.get(id)?.isCritical)), true);
 }
 {
-  // De terugrekening mag geen onmogelijke late kant maken. F3 (§3.14, B1): de dagenmaat telt het deel
-  // van een dag, dus D (kalender 07:00–16:00) mag tot wo 08:00 lopen: één uur speling (0,125 d). F2 dwong
-  // hier nog een hele dag af (late finish di 16:00).
   const band = [{ start: 480, end: 960 }];
   const hours: WorkCalendar = { ...calendar, id: 'h', workTime: {
     byWeekday: { 1: band, 2: band, 3: band, 4: band, 5: band, 6: [], 7: [] },
@@ -98,8 +89,6 @@ function eq(label: string, got: unknown, want: unknown) {
     ['2026-07-06T08:00', '2026-07-08T08:00', 0.125]);
   d.time.scheduleDuration = 1;
   const reverse = new CPMSolver([h, d], [{ ...link, predecessorId: 'H', successorId: 'D' }], calendar, [hours], opts).solve();
-  // F3 (§3.14, B1): één werkdag vanaf ma 13:00 telt het resterende deel van maandag mee en eindigt
-  // di 12:00, gelijk aan de urenreferentie hieronder. F2 hield nog de hele maandag (tot 16:00).
   eq('uur → dag: één werkdag vanaf maandag 13:00 eindigt dinsdag 12:00',
     [reverse.tasks.get('D')?.earlyStart, reverse.tasks.get('D')?.earlyFinish],
     ['2026-07-06T13:00', '2026-07-07T12:00']);
@@ -109,7 +98,6 @@ function eq(label: string, got: unknown, want: unknown) {
   eq('uur → dag: voorganger zonder harde grens heeft geen negatieve speling',
     [reverse.tasks.get('H')?.lateStart, reverse.tasks.get('H')?.lateFinish, reverse.tasks.get('H')?.totalFloat],
     ['2026-07-06T09:00', '2026-07-06T13:00', 0.125]);
-  // Gelijke werkdagen: de bestaande urenloper toont welk einde de F3-loper moet bereiken.
   const exactDay = { ...d, time: { ...d.time, durationUnit: 'hours' as const, durationMinutes: 480 } };
   const exact = new CPMSolver([h, exactDay], [{ ...link, predecessorId: 'H', successorId: 'D' }], calendar, [hours], opts).solve();
   eq('uur → dag: referentie voor F3 telt ook het resterende deel van de eerste dag',
@@ -117,8 +105,6 @@ function eq(label: string, got: unknown, want: unknown) {
     ['2026-07-06T13:00', '2026-07-07T12:00']);
 }
 {
-  // §3.3/I11: de minutenlag wint van zijn afgeronde dagen-equivalent.
-  // De urentaak E toetst het einde met de urenloper (do 11:00).
   const d = task('D', 2, '2026-07-06T07:00');
   const e = task('E', 1, '2026-07-06T07:00');
   e.time.durationUnit = 'hours'; e.time.durationMinutes = 480;
