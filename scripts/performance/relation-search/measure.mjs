@@ -1,4 +1,3 @@
-// Alleen opt-in CI. Geen productinstrumentatie: de bestaande brug zet fixtures en leest state.
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
@@ -74,7 +73,6 @@ async function seed(side, tasks) {
   assert.deepEqual((await domain(page)).tasks, tasks);
 }
 
-// Alleen passief observeren: input/keydown en de echte DOM. Geen React- of helperwrapper.
 async function timedAction(page, expectedLabels, highlight, action) {
   await page.evaluate(({ labels, highlight }) => {
     window.__relationTiming = { start: null, end: null, longTasks: [] };
@@ -130,8 +128,6 @@ async function memoProof(side, tasks) {
     writeFileSync(join(out, `coverage-${side.name}-${tasks.length}-${steps.length}.json`), JSON.stringify(result));
     if (!helper) {
       const candidates = [];
-      // CDP kan een lege of herschreven functienaam leveren. Zoek de echte declaratie in de
-      // geleverde JavaScript en koppel uitsluitend het omsloten functiebereik, nooit de module.
       for (const script of result) {
         if (!script.url.startsWith(side.url + '/assets/')) continue;
         const { scriptSource } = await cdp.send('Debugger.getScriptSource', { scriptId: script.scriptId });
@@ -173,14 +169,10 @@ async function memoProof(side, tasks) {
     assert.equal(executed, expected, `${side.name}: ${name}`);
   }
   try {
-    // Deze echte zoekactie kalibreert de profiler vóór de geteste nul-/positiefroute.
-    // De volgende zoekactie moet de helper opnieuw waarnemen na het uitlezen van deze delta.
     await probe('kalibratie zoektekst', () => search(page).fill('kalibratie-zonder-treffers'), true);
     await probe('zoektekst', () => search(page).fill('Werk'), true);
     await probe('pijl', () => search(page).press('ArrowDown'), side.name === 'voor');
     await expect(options(page).nth(1)).toHaveAttribute('data-ops-dependency-highlighted', 'true');
-    // Eerst een taak kiezen, zoals in de bestaande browserroute. De trefferlijst ligt boven
-    // het typeveld; pas na de keuze zijn de overige conceptvelden met de muis bereikbaar.
     const chosenLabel = await options(page).nth(1).textContent();
     await probe('taak kiezen', () => search(page).press('Enter'), true);
     await expect(options(page)).toHaveCount(0);
@@ -327,7 +319,6 @@ try {
     }
     const beforeProof = await memoProof(sides[0], tasks);
     const afterProof = await memoProof(sides[1], tasks);
-    // Alleen het willekeurige relatie-id is genormaliseerd; alle taakvelden blijven aanwezig.
     assert.deepEqual(afterProof.committed, beforeProof.committed);
     assert.deepEqual(afterProof.undone, beforeProof.undone);
     writeFileSync(join(out, `domein-${size}.json`), JSON.stringify({ beforeProof, afterProof }, null, 2));

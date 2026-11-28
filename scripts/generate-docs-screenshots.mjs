@@ -1,19 +1,4 @@
 #!/usr/bin/env node
-// Screenshots voor de tutorials-extensie (ontwerp gebruikersdocumentatie §7 en §11), build-time uit de
-// echte app:
-//
-//   npm run gen:docs-screenshots -- --out <map>                 # alle tutorials, nl en en
-//   npm run gen:docs-screenshots -- --out <map> --only tut-3-kalender,tut-4-uren
-//
-// Draait `tests/browser/tutorial-steps.spec.ts` via de bestaande browsertest-infrastructuur
-// (`run-browser-tests.mjs`: eigen poort, bewaakte Vite-server, Playwright Chromium) met vastleggen aan.
-// Die spec volgt per tutorial het stapscript in `tests/browser/tutorials/` met echte UI-events vanaf de
-// standen van `gen:tutorial-project`, controleert na elke stap de toestand en schrijft de uitsneden als
-// WebP (alleen licht thema). Pas als ALLES groen is, vervangt dit script `<map>/img/<taal>/tut-*.webp`
-// (bij `--only` alleen de beelden van die tutorials); een rode stap laat de map ongemoeid.
-//
-// `<map>` is de map van de extensie (`extensions/tutorials` in open-planner-studio-extensions); de
-// tutorialtekst verwijst naar `img/{lang}/<naam>.webp`.
 import { spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -57,7 +42,6 @@ if (run.status !== 0) {
   process.exit(run.status || 1);
 }
 
-// Een beeld heet `tut-<n>-…`; het tutorial-id begint met `tut-<n>-`. Bij --only alleen die vervangen.
 const prefixes = ids?.map(id => id.match(/^tut-\d+-/)?.[0]).filter(Boolean) ?? null;
 const ours = name => /^tut-\d+-.*\.webp$/.test(name) && (!prefixes || prefixes.some(p => name.startsWith(p)));
 

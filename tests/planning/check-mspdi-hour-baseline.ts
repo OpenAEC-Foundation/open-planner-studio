@@ -1,14 +1,3 @@
-// Baseline van een urentaak uit MS Project XML (PR #392, fixronde 5). `readMSPDI` leest Baseline 0 van een
-// urentaak met tijd in (`importDateTime(raw, isHour)`), net als de taakdatums. Deze check bewijst dat de
-// rest van de app die vorm al aankan, omdat een in de app vastgelegde baseline van een urentaak dezelfde
-// vorm heeft (`saveBaseline` bewaart `shownStart`/`shownFinish` = `YYYY-MM-DDTHH:mm`):
-// - IFC-rondgang (`OPS_Baselines`): de baseline komt met tijd terug;
-// - Gantt-overlay (`buildBaselineOverlay`) en variance (`computeVariance`) geven voor de ingelezen
-//   baseline dezelfde uitkomst als voor een baseline die de app zelf vastlegt;
-// - een dagtaak houdt een baseline met alleen een datum;
-// - een onleesbare (`NA`) of ontbrekende baselinedatum breekt de import niet af en geeft geen
-//   verzonnen datum: die baseline-entry valt weg, de rest blijft gelijk (VERVOLG 13 van #392).
-// Corpusloos (CI).
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -33,9 +22,6 @@ function eq(label: string, got: unknown, want: unknown): void {
   }
 }
 
-// Taak 1: urentaak, nu 09:00–12:00, baseline 08:00–17:00 (het scenario van review ronde 5).
-// Taak 2: urentaak, nu 08:00–17:00, zonder baseline: de app legt die zelf vast, ter vergelijking.
-// Taak 3: urentaak 13:00–15:00 met baseline 13:00–15:00 (de volgende dag).
 const XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Project xmlns="http://schemas.microsoft.com/project">
   <Name>Uren</Name><StartDate>2026-03-02T08:00:00</StartDate><MinutesPerDay>480</MinutesPerDay>
@@ -57,26 +43,20 @@ const imported = r.baselines?.find(b => b.id === r.activeBaselineId);
 eq('1a urentaken', r.tasks.map(t => t.time.durationUnit), ['hours', 'hours', 'hours']);
 eq('1b ingelezen baseline met tijd', imported?.tasks.map(t => [t.start, t.finish]),
   [['2026-03-02T08:00', '2026-03-02T17:00'], ['2026-03-03T13:00', '2026-03-03T15:00']]);
-// De baselineduur volgt dezelfde regel als de taakduur (`mspdiBaselineDays`): 8 u zoals taak 2, 2 u zoals taak 3.
 eq('1c baselineduur zoals de taakduur', imported?.tasks.map(t => t.duration), [t2?.time.scheduleDuration, t3?.time.scheduleDuration]);
 
-// (2) Zelfde vorm als een in de app vastgelegde baseline (`saveBaseline`: shownStart/shownFinish).
 eq('2a in-app vastgelegde baseline van taak 2 heeft dezelfde vorm', [shownStart(t2!), shownFinish(t2!)],
   imported?.tasks[0] ? [imported.tasks[0].start, imported.tasks[0].finish] : undefined);
 
-// (3) IFC-rondgang: de baseline komt met tijd terug.
 const rt = readIFC(writeIFC(r));
 const rtBaseline = rt.baselines?.find(b => b.id === rt.activeBaselineId);
 eq('3a IFC: baselinedatums met tijd terug', rtBaseline?.tasks.map(t => [t.start, t.finish, t.duration]),
   imported?.tasks.map(t => [t.start, t.finish, t.duration]));
 eq('3c IFC: projecteinde van de baseline met tijd terug', [imported?.projectEnd, rtBaseline?.projectEnd], ['2026-03-03T15:00', '2026-03-03T15:00']);
-// Bij een in-app baseline komt het projecteinde uit `cpmResult.projectEnd`: bij een urenproject dezelfde vorm.
 const solved = solveProject(solveInputFor(r.project, r.tasks.map(t => structuredClone(t)), r.sequences, r.calendar, r.resourceCalendars ?? []));
 eq('3d in-app projecteinde (CPM) heeft dezelfde vorm', /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}$/.test(String(solved.projectEnd)), true);
 eq('3b IFC: koppeling naar dezelfde taken', rtBaseline?.tasks.map(t => rt.tasks.find(x => x.id === t.taskId)?.name), ['Kraan', 'Stort']);
 
-// (4) Overlay en variance: de ingelezen baseline geeft dezelfde uitkomst als een in-app vastgelegde baseline
-//     met dezelfde getoonde datums (taak 2 als "toen", gekoppeld aan taak 1).
 const inApp: Baseline = {
   id: 'in-app', name: 'In de app', createdAt: '2026-03-01T00:00:00Z', projectEnd: '', projectDuration: 0,
   tasks: [
@@ -92,14 +72,7 @@ const variance = (b: Baseline) => computeVariance([t1!, t3!], b, cal).rows
 eq('4b variance gelijk', variance(imported!), variance(inApp));
 eq('4c variance: op schema', variance(imported!).map(row => row[4]), ['onSchedule', 'onSchedule']);
 
-// (5) Onleesbare of ontbrekende baselinedatum (VERVOLG 13 van #392). Vóór de fix gaf `<Start>NA</Start>`
-//     bij een urentaak `RangeError: Invalid time value` en brak de hele import af; een dagtaak kreeg `NA`
-//     als baselinedatum en een `<Baseline>` zonder Start/Finish de datum van vandaag.
-//     Regel: onleesbaar = ontbrekend ⇒ de taak krijgt geen baseline-entry. Vergelijk met hetzelfde
-//     bestand zonder die kapotte baselines: taken en de overige baselines moeten gelijk zijn.
 function project(dayMode: boolean, broken: boolean): string {
-  // 08:00 geeft geen uursignaal: de kalender blijft scalair. Sinds F5b (I8) is het in een bestand zonder
-  // OPS-markering wel een echte tijd, die de datum houdt.
   const at = (d: string, h: string) => `${d}T${dayMode ? '08:00' : (h === 'S' ? '09:00' : '12:00')}:00`;
   const dur = dayMode ? 'PT8H0M0S' : 'PT3H0M0S';
   const bl = (start: string, finish: string) =>

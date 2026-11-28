@@ -1,5 +1,3 @@
-// Corpusvrije dekking van het testcontract voor knownbugs 175 (MPP-corpus) en 181.
-// Geen omgevingscorpus of schijf-fixtures: scopekeuze is puur, MPP-bytes zijn synthetisch.
 import assert from 'node:assert/strict';
 import { join } from 'node:path';
 import { MppUnsupportedError } from '@/services/mpp/errors';

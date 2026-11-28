@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-// Controleert dat de app-iconen horen bij het goedgekeurde logo (issue #820), zonder Python.
-// - de bron-PNG heeft de vastgelegde SHA-256 en is vierkant;
-// - elk bestand uit docs/branding/icons.json bestaat, heeft het juiste formaat en is niet leeg;
-// - de web-iconen die index.html en het manifest noemen, staan in die lijst.
-// Opnieuw maken: `python3 scripts/generate-approved-icons.py` (Pillow).
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';

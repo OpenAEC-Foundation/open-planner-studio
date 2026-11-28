@@ -1,49 +1,10 @@
-// Resourcesets voor een SELECTIE van de 20 basisvoorbeelden (`example-topologies.json`).
-//
-// Waarom hier en niet in de topologie-JSON: `example-topologies.json` is pure taak-/fase-topologie
-// (namen, duren, types) en kan geen commentaar dragen — terwijl een resourceset juist verantwoording
-// nodig heeft (waarom die pool, dat tarief, die ploeggrootte). Deze module staat daarom naast
-// `showcases.ts`/`showcase-groot.ts`, in dezelfde vorm en toon, en `gen-core.ts:topologyToSpec()`
-// haalt hem op via de slug. De JSON blijft ongemoeid, de generator-logica krijgt er één opzoeking
-// bij, en een voorbeeld zonder entry hieronder gedraagt zich exact als voorheen.
-//
-// Toewijzingen worden op TAAKNAAM gekoppeld (de Engelse namen uit de topologie, zie issue #39);
-// `topologyToSpec` faalt hard als een naam nul of meer dan één taak raakt, zodat een hernoemde taak
-// niet stilzwijgend zijn ploeg verliest.
-//
-// KEUZE VAN DE ACHT — verscheidenheid in soort werk, niet alle twintig (dan worden ze onderling
-// inwisselbaar): binnenstedelijke restauratie (01), grootstedelijke hoogbouw (03), infra met zwaar
-// materieel (05), zorgvastgoed met veel afbouw en installaties (08), particuliere nieuwbouw met
-// kleine ploegen (10), materieel-gedreven offshore (12), MEP-zware utiliteit (15) en repetitieve
-// woningbouw (20). Samen dekken ze alle vijf de resourcetypes (LABOR, CREW, EQUIPMENT,
-// SUBCONTRACTOR, MATERIAL) en tonen 01 + 20 een ploeg-hiërarchie (`parent`).
-//
-// 03 en 08 zijn er later bij gekomen om een gat te dichten dat alleen in de APP zichtbaar was: de
-// publieke selectie in `generate-examples.ts` toont vijf basisvoorbeelden (03, 05, 08, 10, 15), dus
-// wie 03 of 08 opende zag een lege Resources-tab en een leeg histogram.
-//
-// GEEN OVERALLOCATIE — harde eis. Dit zijn referentievoorbeelden: wie er één opent hoort geen rode
-// balken te zien die niemand bedoeld heeft (de bedoelde, met nivellering oplosbare overallocatie is
-// showcase-materiaal, zie `showcases.ts`). Elke pool hieronder is daarom gedimensioneerd op de
-// piekvraag die de fase-overlap uit `topologyToSpec` daadwerkelijk oplevert; per resource staat de
-// gemeten piek erbij waar die niet triviaal uit één taak volgt. Binnen een fase is de keten strikt
-// FS (dus nooit twee taken van dezelfde fase tegelijk); de overlap ontstaat uitsluitend op de
-// fasegrenzen (SS+halve fase, SS met %-lag, FS met lead).
-//
-// Curves blijven bewust rustig: UNIFORM, op één na — de betonstorten krijgen FRONT_LOADED (het gros
-// van de kuub gaat er aan het begin van de stort in), net als in `showcases.ts`. Curve-variatie op
-// mankracht-pools concentreert de piekvraag en is in de showcases al gedekt.
 import type { ResourceSpec, AssignSpec } from './spec';
 
 export interface ExampleResourceSet {
   resources: ResourceSpec[];
-  /** Taaknaam (exact zoals in `example-topologies.json`) → toewijzingen. */
   assignments: Record<string, AssignSpec[]>;
 }
 
-// ── 01 Grachtenpand Amsterdam — binnenstedelijke restauratie ────────────────────────────────
-// Kleine ploegen, beperkte aanvoer: één kraanopstelplaats aan de kade, heiwerk en damwand
-// uitbesteed (binnenstedelijk trillingsarm werk), metselwerk in restauratie-tarief.
 const GRACHTENPAND: ExampleResourceSet = {
   resources: [
     { name: 'Restoration crew', type: 'CREW', maxUnits: 1,
@@ -79,16 +40,6 @@ const GRACHTENPAND: ExampleResourceSet = {
   },
 };
 
-// ── 03 Kantoorgebouw Zuidas — grootstedelijke utiliteitsbouw op een krappe kavel ─────────────
-// Hoogbouw in de binnenstad: één torenkraan (er is domweg geen tweede opstelplaats), de gevel als
-// apart onderaannemerspakket, en een forse installatiecomponent die de tweede helft van de
-// planning domineert. Bewust géén materieel-inflatie: het verhaal is dat álles langs één kraan en
-// één krappe kavel moet.
-//
-// PIEKEN — de fasegrenzen van `topologyToSpec` zetten fase 2 (ruwbouw) met een %-lag van 40 % op
-// fase 1 (grondwerk/fundering), dus kelder en bovenbouw lopen hier vrijwel volledig PARALLEL. De
-// betonploeg en de vlechters zijn daarom op de opgetelde piek van die twee ketens gedimensioneerd
-// (twee ploegen, één in de kelder en één op de verdiepingen) — niet op één taak.
 const ZUIDAS: ExampleResourceSet = {
   resources: [
     { name: 'Tower crane', type: 'EQUIPMENT', maxUnits: 1, costPerHour: 110,
@@ -103,20 +54,10 @@ const ZUIDAS: ExampleResourceSet = {
       description: 'Sheet piling and bored foundation piles' },
     { name: 'Earthworks contractor', type: 'SUBCONTRACTOR', maxUnits: 6, costPerHour: 62,
       description: 'Dewatering and the excavation down to level -2' },
-    // 14 = twee ploegen van zeven: de kelder (fase 1) en de bovenbouw (fase 2) lopen door de
-    // 40 %-lag op de fasegrens vrijwel volledig naast elkaar, dus de gemeten piek is de som van
-    // één kelder- én één verdiepingstaak (6 + 8) — niet de 8 van de zwaarste losse taak.
     { name: 'Structural works crew', type: 'LABOR', maxUnits: 14, costPerHour: 46,
       description: 'Two concrete gangs of seven: one finishing the basement while the other climbs the tower' },
-    // Eigen ploeg voor de kern, en niet uit de betonploeg geleend: de kern start SS + 5 dagen op
-    // verdieping 8 (uit de topologie) terwijl de kelder óók nog loopt — drie betonfronten tegelijk.
-    // Dat is ook precies hoe zo'n kern gebouwd wordt: een vast klimbekistingsploegje dat naast de
-    // verdiepingscyclus doorloopt (gemeten: zónder deze ploeg piekte de betonploeg op 20).
     { name: 'Core formwork gang', type: 'LABOR', maxUnits: 6, costPerHour: 48,
       description: 'Dedicated gang on the self-climbing formwork of the stair and lift core, running alongside the floor cycle' },
-    // 8 = twee vlechtploegen van vier, om dezelfde reden. De vlechters zitten bewust alleen op het
-    // zware werk (funderingsbalken, kelderwanden, de transfervloer op de begane grond en de kern);
-    // de wapening van de standaardverdiepingen komt prefab op de bouw.
     { name: 'Steel fixers', type: 'LABOR', maxUnits: 8, costPerHour: 44,
       description: 'Two rebar gangs of four, on the heavy elements; the typical floors get prefabricated reinforcement' },
     { name: 'Concrete C30/37', type: 'MATERIAL', maxUnits: 999, unitOfMeasure: 'm³' },
@@ -168,9 +109,6 @@ const ZUIDAS: ExampleResourceSet = {
       { res: 'Concrete C30/37', units: 45 }],
     'Floor 8 structural works': [{ res: 'Structural works crew', units: 8 }, { res: 'Tower crane', units: 1 },
       { res: 'Concrete C30/37', units: 45 }],
-    // Geen kraan op de kern: die start (SS + 5 dagen, uit de topologie) al terwijl verdieping 8 nog
-    // loopt, en er is er maar één. Klimbekisting met een eigen hijsinstallatie is hier het gangbare
-    // — en precies daarom hoeft de kern niet in de kraanrij te staan.
     'Concrete stair and lift core': [{ res: 'Core formwork gang', units: 6 }, { res: 'Steel fixers', units: 4 },
       { res: 'Concrete C30/37', units: 35 }],
     'Steel roof structure': [{ res: 'Structural steel contractor', units: 4 }, { res: 'Tower crane', units: 1 }],
@@ -180,8 +118,6 @@ const ZUIDAS: ExampleResourceSet = {
     'Roof finishes and services': [{ res: 'Roofing contractor', units: 4 }],
     'Main electrical switchroom': [{ res: 'Electricians', units: 4 }],
     'Risers, electrical': [{ res: 'Electricians', units: 6 }],
-    // De mechanische stijgleidingen starten SS + 3 dagen op de elektrische (uit de topologie):
-    // twee disciplines in hetzelfde schachtenblok, dus bewust twee gescheiden pools.
     'Risers, mechanical services': [{ res: 'Mechanical fitters', units: 6 }],
     'Air handling units': [{ res: 'Mechanical fitters', units: 6 }],
     'Ventilation ductwork': [{ res: 'Mechanical fitters', units: 8 }],
@@ -201,10 +137,6 @@ const ZUIDAS: ExampleResourceSet = {
   },
 };
 
-// ── 05 Brugvervanging N279 — infra, zwaar materieel, korte stremmingsvensters ────────────────
-// Zes-daagse werkweek (zie `SIX_DAY` in gen-core). Eén rupskraan op het werk (sloop én liggers),
-// de asfaltploeg werkt binnen het afgesproken stremmingsvenster, verkeersmaatregelen en sloop
-// zijn onderaannemers.
 const BRUG_N279: ExampleResourceSet = {
   resources: [
     { name: 'Crawler crane 250 t', type: 'EQUIPMENT', maxUnits: 1, costPerHour: 185,
@@ -214,8 +146,6 @@ const BRUG_N279: ExampleResourceSet = {
     { name: 'Demolition contractor', type: 'SUBCONTRACTOR', maxUnits: 4, costPerHour: 62 },
     { name: 'Asphalt contractor', type: 'SUBCONTRACTOR', maxUnits: 6, costPerHour: 70,
       description: 'Paving gang working inside the agreed road-closure window' },
-    // Twee ploegen van 4: de oostelijke landhoofd-taak start (SS + 5 dagen, uit de topologie) al
-    // terwijl de westelijke nog loopt, dus de piek is gemeten 8 — niet 4.
     { name: 'Concrete crew', type: 'LABOR', maxUnits: 8, costPerHour: 47,
       description: 'Two gangs of four; both abutments run in parallel with a five-day stagger' },
     { name: 'Steel fixers', type: 'LABOR', maxUnits: 8, costPerHour: 44,
@@ -247,27 +177,11 @@ const BRUG_N279: ExampleResourceSet = {
   },
 };
 
-// ── 08 Zorgcentrum De Linde — zorgvastgoed: bouwkundig plus veel afbouw en installaties ──────
-// Een gebouw dat straks bewoond wordt door mensen die zorg nodig hebben: dat zie je terug in de
-// installatielijst (medische gassen, zusteroproep, HEPA-ventilatie, noodstroom) en in de staart
-// van de planning — de zorgaanbieder wil de installaties ingeregeld en beproefd zien vóór hij de
-// sleutel aanneemt, vandaar de aparte inbedrijfstellingsrol op 'Test building services'.
-//
-// PIEKEN — net als bij 03 legt de generator fase 3 (ruwbouw) met een 40 %-lag op fase 2
-// (fundering), dus funderingsbalken/begane-grondvloer lopen naast de draagconstructie. De
-// betonploeg is op die opgetelde piek gedimensioneerd (5 + 7), de overige pools zitten allemaal in
-// een strikte FS-keten binnen hun eigen fase en dragen dus de piek van hun zwaarste losse taak.
-//
-// 'Additional soil investigation' blijft bewust ONBEZET: aanvullend sondeeronderzoek is werk van
-// een geotechnisch bureau en niet van een bouwploeg — een resource met precies één toewijzing die
-// nergens anders opduikt zou de bezetting alleen maar vertroebelen.
 const ZORGCENTRUM: ExampleResourceSet = {
   resources: [
     { name: 'Civils and landscaping contractor', type: 'SUBCONTRACTOR', maxUnits: 5, costPerHour: 56,
       description: 'Site set-up, tree work, the underground pipework and the external areas at handover' },
     { name: 'Piling contractor', type: 'SUBCONTRACTOR', maxUnits: 4, costPerHour: 78 },
-    // 12 = twee ploegen: één rondt de fundering af terwijl de andere aan de draagconstructie
-    // begint (fase 2 en 3 overlappen door de 40 %-lag op de fasegrens). Gemeten piek 5 + 7.
     { name: 'Structural works crew', type: 'LABOR', maxUnits: 12, costPerHour: 46,
       description: 'Concrete gangs for foundations and superstructure; the two phases overlap' },
     { name: 'Bricklayers', type: 'LABOR', maxUnits: 6, costPerHour: 46,
@@ -315,8 +229,6 @@ const ZORGCENTRUM: ExampleResourceSet = {
     'Main electrical distribution': [{ res: 'Electricians', units: 4 }],
     'Emergency power supply': [{ res: 'Electricians', units: 3 }],
     'Oxygen and medical gases': [{ res: 'Medical gas contractor', units: 3 }],
-    // Verwarming/koeling start SS + 3 dagen op de medische gassen (uit de topologie) — twee
-    // gescheiden pools, dus die overlap is bedoeld en niet belastend.
     'Heating and cooling': [{ res: 'Mechanical fitters', units: 6 }],
     'Ventilation with HEPA filters': [{ res: 'Mechanical fitters', units: 6 }],
     'Sprinkler and fire alarm': [{ res: 'Mechanical fitters', units: 4 }],
@@ -337,17 +249,11 @@ const ZORGCENTRUM: ExampleResourceSet = {
   },
 };
 
-// ── 10 Villa Wassenaar — particuliere nieuwbouw, kleine herkenbare ploegen ───────────────────
-// Bewust het meest instap-achtige van de zes: uitsluitend LABOR, ploegnamen die iedereen herkent
-// (en die één-op-één overeenkomen met de demo-resourcebibliotheek), geen materieel of
-// onderaannemers die de aandacht wegtrekken.
 const VILLA: ExampleResourceSet = {
   resources: [
     { name: 'Bricklayers', type: 'LABOR', maxUnits: 3, costPerHour: 46 },
     { name: 'Carpenters', type: 'LABOR', maxUnits: 5, costPerHour: 45,
       description: 'Roof structure, frames and joinery; the roof works and the window frames overlap briefly' },
-    // 4, niet 2: de loodgieters starten (SS + 2 dagen, uit de topologie) al terwijl de elektriciens
-    // nog bezig zijn — twee koppels van twee die zes dagen naast elkaar werken.
     { name: 'MEP fitters', type: 'LABOR', maxUnits: 4, costPerHour: 48,
       description: 'Electrical and plumbing; two pairs, briefly working alongside each other' },
     { name: 'Plasterers', type: 'LABOR', maxUnits: 3, costPerHour: 42 },
@@ -378,11 +284,6 @@ const VILLA: ExampleResourceSet = {
   },
 };
 
-// ── 12 Windturbine offshore — uitgesproken materieel-gedreven ────────────────────────────────
-// Weinig mankracht, dure eenheden: de schepen bepalen de planning én de kosten. De uurtarieven
-// zijn dagtarieven gedeeld door de 8-urige werkdag van de kalender (installatieschip ≈ EUR 120.000
-// per dag, kabellegger ≈ EUR 80.000, valpijpschip ≈ EUR 60.000, transportponton ≈ EUR 24.000) —
-// zo klopt de kostenberekening van de app met wat er in de omschrijving staat.
 const OFFSHORE: ExampleResourceSet = {
   resources: [
     { name: 'Jack-up installation vessel', type: 'EQUIPMENT', maxUnits: 1, costPerHour: 15000,
@@ -393,8 +294,6 @@ const OFFSHORE: ExampleResourceSet = {
       description: 'Fall-pipe vessel for seabed levelling and scour protection (order of EUR 60,000/day)' },
     { name: 'Transport barge', type: 'EQUIPMENT', maxUnits: 1, costPerHour: 3000,
       description: 'Feeder barge with tugs, bringing the monopile out from the fabrication yard' },
-    // 12 is de hele offshore-bezetting: de installatieploeg van 8 op het schip plus de
-    // mobilisatieploeg van 4 in de haven, die door de fase-overlap enkele dagen samenvallen.
     { name: 'Offshore installation crew', type: 'LABOR', maxUnits: 12, costPerHour: 95,
       description: 'Offshore crew including offshore allowance; certified for work at sea' },
     { name: 'Survey contractor', type: 'SUBCONTRACTOR', maxUnits: 2, costPerHour: 130,
@@ -426,9 +325,6 @@ const OFFSHORE: ExampleResourceSet = {
   },
 };
 
-// ── 15 Datacentrum Agriport — utiliteit, MEP-zwaar ───────────────────────────────────────────
-// Installateurs en elektromonteurs domineren; het bouwkundige deel is bijzaak en draagt bewust een
-// kleine ploeg. Leveranciers van UPS/noodstroom, koeling en blusinstallatie zijn onderaannemers.
 const DATACENTRUM: ExampleResourceSet = {
   resources: [
     { name: 'Electricians', type: 'LABOR', maxUnits: 12, costPerHour: 49,
@@ -437,8 +333,6 @@ const DATACENTRUM: ExampleResourceSet = {
     { name: 'ICT cabling technicians', type: 'LABOR', maxUnits: 6, costPerHour: 47 },
     { name: 'Commissioning engineer', type: 'LABOR', maxUnits: 2, costPerHour: 85,
       description: 'Integral testing of the failover scenario and the Tier III certification' },
-    // Pool 8: de fase-overlap laat de fundering (4) en de prefab-wanden (4) enkele dagen
-    // samenlopen. Bewust klein gehouden — bouwkundig is op dit project bijzaak.
     { name: 'Structural crew', type: 'LABOR', maxUnits: 8, costPerHour: 45,
       description: 'Shell and core; secondary on this project' },
     { name: 'Mobile crane', type: 'EQUIPMENT', maxUnits: 1, costPerHour: 95 },
@@ -474,11 +368,6 @@ const DATACENTRUM: ExampleResourceSet = {
   },
 };
 
-// ── 20 Woonwijk Almere — repetitieve woningbouw ──────────────────────────────────────────────
-// Ploegen die van blok naar blok schuiven: ruwbouw fase 1 (blok 1-3) staat strak vóór fase 2
-// (blok 4-5), dus dezelfde metselploeg draait gewoon door — dat geeft het gelijkmatige histogram
-// waar dit voorbeeld om draait. Ploeg-hiërarchie: metselaars en timmerlieden hangen onder één
-// ruwbouwploeg.
 const WOONWIJK: ExampleResourceSet = {
   resources: [
     { name: 'Structural works crew', type: 'CREW', maxUnits: 1,
@@ -487,7 +376,6 @@ const WOONWIJK: ExampleResourceSet = {
     { name: 'Carpenters', type: 'LABOR', maxUnits: 8, costPerHour: 45,
       description: 'Roof structures plus window frames; the two overlap across the phase boundary',
       parent: 'Structural works crew' },
-    // 10: elektra blok 4-5 start (SS + 5 dagen, uit de topologie) al terwijl blok 1-3 nog loopt.
     { name: 'MEP fitters', type: 'LABOR', maxUnits: 10, costPerHour: 48,
       description: 'Electrical and plumbing gangs moving from block to block, with a staggered start' },
     { name: 'Plasterers', type: 'LABOR', maxUnits: 6, costPerHour: 42 },
@@ -537,8 +425,6 @@ const WOONWIJK: ExampleResourceSet = {
   },
 };
 
-/** Slug (bestandsnaam zonder .ifc) → resourceset. Voorbeelden die hier niet in staan blijven
- *  resourceloos, precies zoals voorheen. */
 export const EXAMPLE_RESOURCES: Record<string, ExampleResourceSet> = {
   '01-grachtenpand-amsterdam': GRACHTENPAND,
   '03-kantoorgebouw-zuidas': ZUIDAS,

@@ -5,7 +5,7 @@ import { join } from 'node:path';
 export function generatedModel(root: string, base: string, mb: number): Uint8Array {
   const generator = readFileSync(join(root, 'scripts/proef/meet-scanner.mjs'), 'utf8');
   const start = generator.indexOf('const GUID_CHARS =');
-  const end = generator.indexOf('// ── Het voorbeeld zoals', start);
+  const end = generator.indexOf('const exampleText = readFileSync(EXAMPLE', start);
   if (start < 0 || end < 0) throw new Error('modelgenerator niet gevonden');
   const makeFile = new Function('openSync', 'writeSync', 'closeSync', generator.slice(start, end) + '\nreturn makeFile;')(
     openSync, writeSync, closeSync) as (mb: number, path: string, variant: string, base: string) => number;

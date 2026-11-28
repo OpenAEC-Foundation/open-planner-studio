@@ -1,44 +1,9 @@
-/**
- * STEP-scanner op bytes (#804, ontwerp "Gebouwmodel behouden" §4.1 en §4.2).
- *
- * Fase 0 bouwde en meette haar (poort `tests/planning/check-ifc-foreign-classify.ts`, meting
- * `scripts/proef/meet-scanner.mjs`). Sinds fase 1a gebruikt de app haar in de bytes-route achter de flag
- * `ifcForeignContent` (`foreignScan.ts`, in een Worker); zonder die flag roept de app haar niet aan.
- *
- * De scanner knipt een STEP-bestand in **stukken**. Een stuk is een entiteit-instantie van `#` tot en met
- * de `;` die haar afsluit, plus alle tekst ervóór sinds het vorige stuk (witruimte, regeleinden, ook
- * CRLF, en commentaar). De kop (alles vóór het eerste `DATA;`), elk `DATA;`-statement (met de tekst ervóór, bij
- * een tweede DATA-sectie dus ook de `ENDSEC;` van de vorige) en de staart (alles na de laatste entiteit, met
- * `ENDSEC;` en `END-ISO-10303-21;`) zijn aparte stukken. Elk byte van de bron
- * valt in precies één stuk, en de stukken staan in bronvolgorde.
- *
- * De scanner leest bytes (`Uint8Array`): alle STEP-syntaxis is ASCII. Hij decodeert geen tekst die de
- * indeling niet nodig heeft. De index levert per stuk het `#id`, het type (of `(COMPLEX)` voor een
- * complexe instantie `#n=(A(..)B(..));`), de byte-grenzen, de uitgaande `#`-verwijzingen met hun
- * argumentpositie en de inkomende verwijzingen. Daarnaast een klein aantal gedecodeerde velden
- * (zie `StepIndex`), lui en alleen op aanvraag.
- *
- * Ongeschikte invoer weigert de scanner met een `StepScanError`, met dezelfde regels als de voorproef
- * `scripts/proef/classify-v9.py` (ontwerp v18): geen `ISO-10303-21;` vooraan of `END-ISO-10303-21;` achteraan,
- * tekst of commentaar zonder einde, een laatste statement zonder `;`, secties in een andere volgorde (HEADER met
- * ENDSEC, dan een of meer DATA-secties met ENDSEC), een onbekend statement, een `#id` dat twee keer voorkomt, of geen
- * entiteiten. Ook een `#id` boven `MAX_STEP_ID` (2147483647) weigert hij, met een eigen reden (`id-te-groot`): de index
- * rekent in int32. Sleutelwoorden en typenamen staan in hoofdletters (ISO 10303-21). Daarmee is de scanner strenger dan
- * `parseSTEP` in `ifcReader.ts`: die zoekt `DATA;` hoofdletterongevoelig, valt bij een ongebalanceerde apostrof terug
- * op een regel-verankerde zoektocht, en laat bij een dubbel `#id` de laatste winnen. Quotes (`''`) en commentaar
- * volgen wel dezelfde regels, zodat scanner en lezer op geldige invoer dezelfde entiteiten zien. Bekend verschil: de
- * lezer slaat een complexe instantie over (`readEntity` geeft -1), de scanner maakt er een stuk van.
- */
 import { decodeStepText } from '../stepText';
 
-/** Het grootste `#id` dat de scanner aanneemt (2^31 − 1): de index rekent in int32. Een id erboven weigert hij
- *  (`id-te-groot`); de merge geeft er geen uit (`mergeWriter.ts`). */
 export const MAX_STEP_ID = 0x7fffffff;
 
-/** Het type van een complexe instantie `#n=(A(..)B(..));`. */
 export const COMPLEX_TYPE = '(COMPLEX)';
 
-/** Soort stuk. */
 export type ChunkKind = 'kop' | 'data' | 'entiteit' | 'staart';
 const KIND_KOP = 0;
 const KIND_DATA = 1;
@@ -66,15 +31,12 @@ function isWord(c: number): boolean {
 function isSpace(c: number): boolean {
   return c === CH_SPACE || (c >= CH_TAB && c <= CH_CR);
 }
-/** Teken van een typenaam: `[A-Z0-9_]` (ISO 10303-21 schrijft hoofdletters voor). */
 function isUpperWord(c: number): boolean {
   return (c >= 48 && c <= 57) || (c >= 65 && c <= 90) || c === 95;
 }
 function isDigit(c: number): boolean {
   return c >= 48 && c <= 57;
 }
-/** Witruimte en commentaar overslaan: de lezer strippt commentaar vóór hij entiteiten leest, dus
- *  `#1= IFCTASK /* x *\/ (…);` is daar een gewone entiteit. */
 export function skipBlank(b: Uint8Array, i: number): number {
   const n = b.length;
   for (;;) {
@@ -84,11 +46,6 @@ export function skipBlank(b: Uint8Array, i: number): number {
   }
 }
 
-/**
- * Staat `i` op het begin van een string (`'…'`, `''` = ontsnapte apostrof) of commentaar (`/* … *\/`),
- * dan de index direct erna; anders -1. Niet afgesloten: tot het einde. Spiegel van
- * `skipQuotedOrComment` in `ifcReader.ts`, op bytes.
- */
 export function skipQuotedOrComment(b: Uint8Array, i: number): number {
   const n = b.length;
   const c = b[i];
@@ -109,7 +66,6 @@ export function skipQuotedOrComment(b: Uint8Array, i: number): number {
   return -1;
 }
 
-/** Groeiende Int32-buffer: geen JS-array per entiteit, ook niet bij miljoenen stukken. */
 class IntBuf {
   data: Int32Array;
   length = 0;
@@ -125,26 +81,17 @@ class IntBuf {
   done(): Int32Array { return this.data.subarray(0, this.length); }
 }
 
-/** Velden van een `IfcWorkSchedule`/`IfcWorkPlan` die de indeling leest (§4.2). */
 export interface WorkControlFields {
-  /** De ruwe tokens van alle argumenten; alleen voor `workControlSlots` (lay-outherkenning). */
   readonly slotTokens: readonly string[];
   readonly name: string;
-  /** Ruw token van CreationDate, zonder quotes (`2026-01-01T07:00:00`), of '' bij `$`. */
   readonly creationDate: string;
 }
 
-/** `ApplicationIdentifier` en `Version` van een `IfcApplication`. */
 export interface ApplicationFields {
   readonly identifier: string;
   readonly version: string;
 }
 
-/**
- * De index van een STEP-bestand. Alleen de velden en methoden hieronder zijn er; de indeling
- * (`classify.ts`) is een pure functie van deze index en leest geen ander veld (de poort controleert
- * dat met een `Proxy`, zie `STEP_INDEX_FIELDS`).
- */
 export class StepIndex {
   readonly #bytes: Uint8Array;
   readonly #kind: Uint8Array;
@@ -165,16 +112,12 @@ export class StepIndex {
   #literalCache: Int8Array | undefined;
   #fileCoding: { hasApplication: boolean; legacyLiteral: boolean } | undefined;
 
-  /** Aantal stukken, inclusief kop, `DATA;` en staart. */
   readonly count: number;
-  /** Aantal entiteiten (stukken van soort `entiteit`). */
   readonly entityCount: number;
-  /** Regeleinde van de bron: CRLF als het eerste regeleinde een CRLF is. */
   readonly lineEnding: '\r\n' | '\n';
-  /** Aantal verwijzingen naar een `#id` dat niet bestaat. */
   readonly danglingRefCount: number;
 
-  /** @internal Alleen `scanStep` maakt een index. */
+  /** @internal */
   constructor(parts: {
     bytes: Uint8Array; kind: Uint8Array; start: Int32Array; end: Int32Array; entStart: Int32Array;
     typeCode: Int32Array; typeNames: string[]; idNum: Int32Array; byNum: Int32Array | Map<number, number>;
@@ -205,19 +148,12 @@ export class StepIndex {
     this.danglingRefCount = parts.danglingRefCount;
   }
 
-  // ── Structuur ────────────────────────────────────────────────────────────────────────────
-
   kind(i: number): ChunkKind { return KIND_NAMES[this.#kind[i]]; }
   isEntity(i: number): boolean { return this.#kind[i] === KIND_ENTITEIT; }
-  /** Eerste byte van het stuk (inclusief de tekst ervóór). */
   start(i: number): number { return this.#start[i]; }
-  /** Eerste byte ná het stuk. */
   end(i: number): number { return this.#end[i]; }
-  /** Positie van de `#` van de entiteit; -1 voor kop, `DATA;` en staart. */
   entityStart(i: number): number { return this.#entStart[i]; }
-  /** Type in hoofdletters (`IFCTASK`), `(COMPLEX)`, of '' voor kop, `DATA;` en staart. */
   type(i: number): string { return this.#typeNames[this.#typeCode[i]]; }
-  /** Het `#id` zonder `#` (`'12'`), of '' voor kop, `DATA;` en staart. */
   id(i: number): string {
     const n = this.#idNum[i];
     return n >= 0 ? String(n) : '';
@@ -229,7 +165,6 @@ export class StepIndex {
     while (to < this.#end[i] && isWord(this.#bytes[to])) to++;
     return String.fromCharCode(...this.#bytes.subarray(from, to));
   }
-  /** Het stuk met dit `#id` (zonder `#`), of -1. */
   chunkOf(id: string): number {
     if (!/^\d{1,10}$/.test(id)) return -1;
     const n = Number(id);
@@ -241,10 +176,6 @@ export class StepIndex {
     return t.get(n) ?? -1;
   }
 
-  // ── Verwijzingen ────────────────────────────────────────────────────────────────────────
-  // Uitgaand: index k loopt van outStart(i) tot outEnd(i); outTarget(k) is het doelstuk (-1 = bestaat
-  // niet), outArg(k) de argumentpositie op het hoogste niveau. Inkomend: idem met inSource/inArg.
-
   outStart(i: number): number { return this.#outOff[i]; }
   outEnd(i: number): number { return this.#outOff[i + 1]; }
   outTarget(k: number): number { return this.#outTarget[k]; }
@@ -254,7 +185,6 @@ export class StepIndex {
   inSource(k: number): number { return this.#inSource[k]; }
   inArg(k: number): number { return this.#inArg[k]; }
 
-  /** De doelstukken op argumentpositie `arg` (in volgorde; ook de leden van een lijst). */
   refsAt(i: number, arg: number): number[] {
     const out: number[] = [];
     for (let k = this.#outOff[i]; k < this.#outOff[i + 1]; k++) {
@@ -262,7 +192,6 @@ export class StepIndex {
     }
     return out;
   }
-  /** Het eerste doelstuk op argumentpositie `arg`, of -1. */
   refAt(i: number, arg: number): number {
     for (let k = this.#outOff[i]; k < this.#outOff[i + 1]; k++) {
       if (this.#outArg[k] === arg) return this.#outTarget[k];
@@ -270,19 +199,12 @@ export class StepIndex {
     return -1;
   }
 
-  // ── Ruwe en gedecodeerde velden (§4.2) ──────────────────────────────────────────────────
-
-  /** Aantal argumenten op het hoogste niveau (lay-outherkenning, zoals de lezer). */
   argCount(i: number): number { return this.#rawArgs(i)?.length ?? 0; }
 
-  /** De argumenten op het hoogste niveau als ruwe tokens, zonder commentaar en getrimd; `undefined` voor kop, `DATA;`,
-   *  staart en een complexe instantie. Voor de writer met een vreemd deel (#804 fase 1b, `mergeWriter.ts`). */
   argTokens(i: number): string[] | undefined { return this.#rawArgs(i); }
 
-  /** Een stringtoken (`'…'`) van dit stuk als tekst, met de codering van het stuk (§4.9 punt 5). '' bij `$` of geen string. */
   tokenText(i: number, token: string | undefined): string { return this.#text(i, token); }
 
-  /** Argument 0 als ruwe ASCII-tekst zonder quotes: de GlobalId van een `IfcRoot`. '' als het geen string is. */
   globalId(i: number): string {
     const a0 = this.#rawArg0(i);
     return a0.length >= 2 && a0.charCodeAt(0) === CH_QUOTE && a0.charCodeAt(a0.length - 1) === CH_QUOTE
@@ -290,10 +212,6 @@ export class StepIndex {
       : '';
   }
 
-  /**
-   * De gedecodeerde `Name` van een pset of template (arg 2), een property (arg 0), een
-   * property-template (arg 2) of een werkschema/werkplan (arg 2). '' bij `$`; `undefined` bij een ander type.
-   */
   name(i: number): string | undefined {
     const pos = NAME_POSITION[this.type(i)];
     if (pos === undefined) return undefined;
@@ -301,13 +219,11 @@ export class StepIndex {
     return args ? this.#text(i, args[pos]) : undefined;
   }
 
-  /** `TemplateType` van een `IfcSimplePropertyTemplate` zonder punten (`P_SINGLEVALUE`), of ''. */
   templateType(i: number): string {
     if (this.type(i) !== 'IFCSIMPLEPROPERTYTEMPLATE') return '';
     return (this.#rawArgs(i)?.[4] ?? '').replace(/\./g, '').trim();
   }
 
-  /** `PredefinedType`-slot, `Name` en `CreationDate` van een werkschema of werkplan. */
   workControl(i: number): WorkControlFields | undefined {
     const t = this.type(i);
     if (t !== 'IFCWORKSCHEDULE' && t !== 'IFCWORKPLAN') return undefined;
@@ -321,11 +237,6 @@ export class StepIndex {
     };
   }
 
-  /**
-   * De tekst in de `NominalValue` van een `IfcPropertySingleValue` (`IFCTEXT('…')`/`IFCLABEL('…')`),
-   * gedecodeerd; `undefined` bij een andere waarde. De indeling gebruikt dit alleen voor de property
-   * `Baselines` in `OPS_Baselines` en de JSON in `OPS_StructureMeta` (§4.2).
-   */
   propertyText(i: number): string | undefined {
     if (this.type(i) !== 'IFCPROPERTYSINGLEVALUE') return undefined;
     const v = this.#rawArgs(i)?.[2] ?? '';
@@ -333,10 +244,6 @@ export class StepIndex {
     return m ? this.#text(i, m[1]) : undefined;
   }
 
-  /**
-   * De gedecodeerde tekstwaarden van een `IfcPropertyEnumeratedValue` (arg 2) of een
-   * `IfcPropertyEnumeration` (arg 1), in volgorde. Andere waarden (getallen) vallen weg, zoals in de lezer.
-   */
   enumValues(i: number): string[] | undefined {
     const t = this.type(i);
     const pos = t === 'IFCPROPERTYENUMERATEDVALUE' ? 2 : t === 'IFCPROPERTYENUMERATION' ? 1 : -1;
@@ -351,7 +258,6 @@ export class StepIndex {
     return out;
   }
 
-  /** `ApplicationIdentifier` (arg 3) en `Version` (arg 1) van een `IfcApplication`. */
   application(i: number): ApplicationFields | undefined {
     if (this.type(i) !== 'IFCAPPLICATION') return undefined;
     const args = this.#rawArgs(i);
@@ -359,22 +265,13 @@ export class StepIndex {
     return { identifier: this.#text(i, args[3]), version: this.#text(i, args[1]) };
   }
 
-  /**
-   * Codering van de tekst in dit stuk (§4.9 punt 5): `true` = letterlijk (een eigen bestand met versie `'0.1'`),
-   * `false` = de norm (ISO 10303-21). De lezer van fase 1a decodeert hiermee per stuk; de indeling gebruikt het niet.
-   */
   literalText(i: number): boolean { return this.#literal(i); }
 
-  // ── Intern ──────────────────────────────────────────────────────────────────────────────
-
-  /** De argumenten op het hoogste niveau als ruwe tekst (UTF-8 gedecodeerd, commentaar weg). */
   #rawArgs(i: number): string[] | undefined {
     if (this.#kind[i] !== KIND_ENTITEIT || this.type(i) === COMPLEX_TYPE) return undefined;
     const b = this.#bytes;
     const p = openParenOf(b, this.#entStart[i]);
     const argsStart = p + 1;
-    // De sluithaak van de entiteit: het stuk eindigt op `;`, met daarvoor `)` en eventueel witruimte
-    // of commentaar. Zoek terug naar de laatste `)` buiten commentaar door vooruit te tellen.
     let depth = 0;
     let argsEnd = -1;
     for (let k = p; k < this.#end[i];) {
@@ -402,7 +299,6 @@ export class StepIndex {
     return s;
   }
 
-  /** Een stringtoken (`'…'`) naar tekst, met de codering van dit stuk (§4.9 punt 5). `$` en geen string ⇒ ''. */
   #text(i: number, token: string | undefined): string {
     const t = (token ?? '').trim();
     if (!t.startsWith("'") || !t.endsWith("'") || t.length < 2) return '';
@@ -410,12 +306,6 @@ export class StepIndex {
     return this.#literal(i) ? body : decodeStepText(body);
   }
 
-  /**
-   * Codering per stuk (§4.9 punt 5): een stuk met een `OwnerHistory`-slot volgt de applicatie achter
-   * dat slot (OPS met versie `'0.1'` = letterlijk, al het andere = de norm). Een stuk zonder dat slot
-   * volgt het eerste stuk dat ernaar verwijst; een stuk waar niemand naar verwijst, volgt de norm.
-   * Zonder `IfcApplication` in het hele bestand blijft de huidige terugval: met `OPS_`-psets letterlijk.
-   */
   #literal(i: number): boolean {
     const file = this.#fileCodingInfo();
     if (!file.hasApplication) return file.legacyLiteral;
@@ -436,9 +326,6 @@ export class StepIndex {
     return value;
   }
 
-  /** Het owner-history-stuk van een stuk met een `OwnerHistory`-slot (-1 bij `$`), of `undefined` als
-   *  het stuk dat slot niet heeft. Fase 0 kent het slot via de verwijzing op argument 1 naar een
-   *  `IfcOwnerHistory`, of via een bekend `IfcRoot`-type met `$` op argument 1. */
   #ownerHistoryOf(i: number): number | undefined {
     if (this.#kind[i] !== KIND_ENTITEIT) return undefined;
     const target = this.refAt(i, 1);
@@ -452,7 +339,6 @@ export class StepIndex {
     if (app < 0 || this.type(app) !== 'IFCAPPLICATION') return false;
     const args = this.#rawArgs(app);
     if (!args) return false;
-    // Identifier en versie zijn vaste ASCII: zonder decodering vergelijken (anders een kringloop).
     const id = (args[3] ?? '').trim();
     const version = (args[1] ?? '').trim();
     return id === "'OPS'" && version === "'0.1'";
@@ -462,7 +348,6 @@ export class StepIndex {
     if (this.#fileCoding) return this.#fileCoding;
     let hasApplication = false;
     for (let i = 0; i < this.count && !hasApplication; i++) hasApplication = this.type(i) === 'IFCAPPLICATION';
-    // Alleen zonder IfcApplication telt de oude terugval (`isOpsAuthoredIfc` in de lezer): een `OPS_`-pset.
     let opsPset = false;
     for (let i = 0; i < this.count && !hasApplication && !opsPset; i++) {
       if (this.type(i) === 'IFCPROPERTYSET') opsPset = (this.#rawArgs(i)?.[2] ?? '').trim().startsWith("'OPS_");
@@ -472,19 +357,15 @@ export class StepIndex {
   }
 }
 
-/** De publieke velden en methoden van `StepIndex`: wat de indeling mag lezen (§4.2). */
 export const STEP_INDEX_FIELDS: ReadonlySet<string> = new Set([
   'count', 'entityCount', 'lineEnding', 'danglingRefCount',
   'kind', 'isEntity', 'start', 'end', 'entityStart', 'type', 'id', 'idLabel', 'chunkOf',
   'outStart', 'outEnd', 'outTarget', 'outArg', 'inStart', 'inEnd', 'inSource', 'inArg', 'refsAt', 'refAt',
   'argCount', 'globalId', 'name', 'templateType', 'workControl', 'propertyText', 'enumValues', 'application',
   'literalText',
-  // Fase 1b (`mergeWriter.ts`): de ruwe argumenten en hun tekst, voor de vergelijking van psets en het overnemen van
-  // GlobalIds. Ook dit is alleen index: geen bytes buiten het stuk.
   'argTokens', 'tokenText',
 ]);
 
-/** Positie van `Name` per type (§4.2: psets, templates, properties, property-templates, werkschema's). */
 const NAME_POSITION: Readonly<Record<string, number>> = {
   IFCPROPERTYSET: 2,
   IFCPROPERTYSETTEMPLATE: 2,
@@ -500,8 +381,6 @@ const NAME_POSITION: Readonly<Record<string, number>> = {
   IFCWORKPLAN: 2,
 };
 
-/** `IfcRoot`-typen met een `OwnerHistory`-slot op argument 1 die de writer schrijft (voor de codering
- *  bij `$`). Fase 2 vervangt dit door de descriptortabellen. */
 const ROOT_TYPES_FOR_CODING: ReadonlySet<string> = new Set([
   'IFCPROJECT', 'IFCWORKPLAN', 'IFCWORKSCHEDULE', 'IFCWORKCALENDAR', 'IFCTASK',
   'IFCPROPERTYSET', 'IFCPROPERTYSETTEMPLATE', 'IFCSIMPLEPROPERTYTEMPLATE',
@@ -511,19 +390,15 @@ const ROOT_TYPES_FOR_CODING: ReadonlySet<string> = new Set([
   'IFCCONSTRUCTIONPRODUCTRESOURCE', 'IFCSUBCONTRACTRESOURCE', 'IFCCREWRESOURCE',
 ]);
 
-/** De `(` van de argumenten van een entiteit vanaf haar `#`: `#id`, `=`, type, met witruimte en commentaar ertussen. */
 function openParenOf(b: Uint8Array, at: number): number {
   let i = at + 1;
   while (isWord(b[i])) i++;
   i = skipBlank(b, i);
-  i = skipBlank(b, i + 1); // na '='
+  i = skipBlank(b, i + 1);
   while (isWord(b[i])) i++;
   return skipBlank(b, i);
 }
 
-/** Argumenten op het hoogste niveau splitsen, quote-bewust (spiegel van `splitArgs` in de lezer). */
-/** Argumenten op het hoogste niveau splitsen (quotes en haakjes tellen mee), getrimd. Ook voor de eigen regels van de
- *  writer met een vreemd deel (`mergeWriter.ts`). */
 export function splitStepArgs(argsStr: string): string[] {
   return splitArgs(argsStr);
 }
@@ -540,7 +415,6 @@ function splitArgs(argsStr: string): string[] {
       if (i + 1 < argsStr.length && argsStr[i + 1] === "'") i++;
       else inString = false;
     } else if (inString) {
-      // teken binnen een string
     } else if (ch === '(') depth++;
     else if (ch === ')') depth--;
     else if (ch === ',' && depth === 0) {
@@ -553,7 +427,6 @@ function splitArgs(argsStr: string): string[] {
   return args;
 }
 
-/** Commentaar buiten strings weghalen (zelden: alleen als er `/*` in de argumenten staat). */
 function stripComments(text: string): string {
   if (text.indexOf('/*') < 0) return text;
   let out = '';
@@ -582,27 +455,18 @@ function stripComments(text: string): string {
   return out + text.slice(from);
 }
 
-/** Waarom de scanner invoer weigert. Dezelfde regels als `scripts/proef/classify-v9.py` (ontwerp v18). */
 export type StepScanReason =
-  /** Geen `ISO-10303-21;` als eerste statement, of geen `HEADER;` direct erna. */
   | 'geen-kop'
-  /** Het laatste statement is niet `END-ISO-10303-21;`. */
   | 'geen-einde'
   | 'tekst-zonder-einde'
   | 'commentaar-zonder-einde'
-  /** Tekst na de laatste `;` die geen witruimte of commentaar is. */
   | 'statement-zonder-puntkomma'
-  /** HEADER of DATA zonder ENDSEC, of een statement buiten een sectie. */
   | 'sectievolgorde'
-  /** Een statement dat in deze sectie niet past (geen entiteit in DATA, geen kopentiteit in HEADER). */
   | 'onbekend-statement'
   | 'dubbel-id'
-  /** Een `#id` boven `MAX_STEP_ID` (2^31 − 1): de index rekent in int32. De verwijzing naar zo'n id telt als verwijzing
-   *  naar een stuk dat niet bestaat. */
   | 'id-te-groot'
   | 'geen-entiteiten';
 
-/** Ongeschikte of onvolledige STEP-invoer. `at` is de byte-positie van het statement, of -1. */
 export class StepScanError extends Error {
   readonly reason: StepScanReason;
   readonly at: number;
@@ -615,8 +479,6 @@ export class StepScanError extends Error {
   }
 }
 
-/** Einde van tekst of commentaar vanaf `i` (zoals `skipQuotedOrComment`), maar gooit als het niet afgesloten is.
- *  -1 als `i` niet op tekst of commentaar staat. */
 function skipQuotedOrCommentStrict(b: Uint8Array, i: number): number {
   const n = b.length;
   const c = b[i];
@@ -640,7 +502,6 @@ export function utf8BomLength(b: Uint8Array): number {
   return b[0] === 0xef && b[1] === 0xbb && b[2] === 0xbf ? 3 : 0;
 }
 
-/** Witruimte en commentaar overslaan; gooit bij commentaar zonder einde. */
 function skipBlankStrict(b: Uint8Array, i: number): number {
   const n = b.length;
   for (;;) {
@@ -650,19 +511,13 @@ function skipBlankStrict(b: Uint8Array, i: number): number {
   }
 }
 
-const S_BEGIN = 0;   // verwacht ISO-10303-21
-const S_HEADER = 1;  // verwacht HEADER
-const S_KOP = 2;     // in de HEADER-sectie
-const S_TUSSEN = 3;  // tussen secties
-const S_DATA = 4;    // in een DATA-sectie
-const S_EINDE = 5;   // na END-ISO-10303-21
+const S_BEGIN = 0;
+const S_HEADER = 1;
+const S_KOP = 2;
+const S_TUSSEN = 3;
+const S_DATA = 4;
+const S_EINDE = 5;
 
-/**
- * Scan een STEP-bestand. Gooit `StepScanError` bij ongeschikte invoer (zie de kop van dit bestand). De volgorde van
- * de controles is die van `classify-v9.py`, zodat beide dezelfde reden geven: eerst tekst, commentaar en de laatste
- * `;` (over het hele bestand), dan het eerste statement, het laatste, `HEADER`, en de secties in bronvolgorde
- * (met dubbele `#id`'s op hun plek), en tot slot een open sectie en nul entiteiten.
- */
 export function scanStep(bytes: Uint8Array): StepIndex {
   const b = bytes;
   const n = b.length;
@@ -674,7 +529,7 @@ export function scanStep(bytes: Uint8Array): StepIndex {
   const typeCode = new IntBuf(estimate);
   const idNum = new IntBuf(estimate);
   const outOff = new IntBuf(estimate + 1);
-  const refRaw = new IntBuf(estimate * 3); // doel-`#id`, of -1 als het niet in een Int32 past
+  const refRaw = new IntBuf(estimate * 3);
   const outArg = new IntBuf(estimate * 3);
   const typeNames: string[] = [''];
   const typeIndex = new Map<string, number>([['', 0]]);
@@ -702,15 +557,10 @@ export function scanStep(bytes: Uint8Array): StepIndex {
     return code;
   })();
 
-  /** Lees een entiteit `#n=TYPE(…);` of `#n=(A(…)B(…));` vanaf de `#` op `at`. Geeft de index na de `;` terug,
-   *  of -1 als het statement die vorm niet heeft (dan bepaalt `statementEnd` het einde en de reden). Schrijft
-   *  verwijzingen pas weg als de entiteit compleet is. */
   const pendingRefs: number[] = [];
   const pendingArgs: number[] = [];
   let lastId = -1;
   let lastType = 0;
-  /** Het laatst gelezen `#id` was groter dan 2^31 − 1. De entiteit wordt verder gewoon gelezen, zodat een
-   *  misvormd statement met zo'n id dezelfde reden krijgt als in `classify-v9.py` (eerst de vorm, dan het id). */
   let lastIdTooLarge = false;
   const readEntity = (at: number): number => {
     pendingRefs.length = 0; pendingArgs.length = 0;
@@ -739,8 +589,6 @@ export function scanStep(bytes: Uint8Array): StepIndex {
       i = skipBlank(b, i);
       if (b[i] !== CH_LPAREN) return -1;
     }
-    // Argumenten op haakdiepte; tekst en commentaar overslaan. Bij een complexe instantie tellen de
-    // argumenten van de componenten door (component 1: 0..k, component 2: k+1..).
     let depth = 0;
     let arg = 0;
     const argDepth = complex ? 2 : 1;
@@ -757,9 +605,8 @@ export function scanStep(bytes: Uint8Array): StepIndex {
         if (complex && depth === 1) arg++;
         if (depth === 0) { i++; closed = true; break; }
       } else if (c === CH_COMMA && depth === argDepth) arg++;
-      else if (c === CH_SEMI) return -1; // `;` buiten tekst sluit het statement: haakjes niet in balans
+      else if (c === CH_SEMI) return -1;
       else if (c === CH_HASH) {
-        // Een verwijzing is `#` met cijfers (zoals `#(\d+)` in de voorproef).
         let j = i + 1;
         let refValue = 0;
         while (j < n && isDigit(b[j])) {
@@ -781,8 +628,6 @@ export function scanStep(bytes: Uint8Array): StepIndex {
     return i + 1;
   };
 
-  /** Positie van de `;` die het statement vanaf `from` sluit (buiten tekst en commentaar), of -1 als die er niet
-   *  is. Zet `lastSig` op het laatste byte ervóór dat geen witruimte of commentaar is. */
   let lastSig = -1;
   const statementEnd = (from: number): number => {
     lastSig = -1;
@@ -809,9 +654,6 @@ export function scanStep(bytes: Uint8Array): StepIndex {
     return true;
   };
 
-  // Uitgestelde fouten, in de rangorde van de voorproef: [0] het eerste statement, [1] HEADER, [2] de eerste fout
-  // in de secties. Na de eerste fout zoekt de scanner alleen nog statementgrenzen (tekst, commentaar, laatste `;`,
-  // en of het laatste statement END-ISO-10303-21 is).
   let headIssue: StepScanError | undefined;
   let headerIssue: StepScanError | undefined;
   let sectionIssue: StepScanError | undefined;
@@ -831,7 +673,6 @@ export function scanStep(bytes: Uint8Array): StepIndex {
     if (!skimming && state === S_DATA && b[i] === CH_HASH) {
       const next = readEntity(i);
       if (next > 0 && lastIdTooLarge) {
-        // Een eigen reden in plaats van `onbekend-statement`: het statement is verder goed gevormd.
         sectionIssue = new StepScanError('id-te-groot', 'Een #id is groter dan 2147483647.', st);
         i = next;
         lastIsEnd = false;
@@ -876,7 +717,6 @@ export function scanStep(bytes: Uint8Array): StepIndex {
           sectionIssue = new StepScanError('sectievolgorde', 'HEADER zonder ENDSEC.', st);
           break;
         }
-        // Kopentiteit: `[A-Z][A-Z0-9_]*\s*\(.*\)`.
         let ok = withParams && b[st] >= 65 && b[st] <= 90;
         for (let k = st; ok && k < kwEnd; k++) if (b[k] === 0x2d) ok = false;
         if (!ok) sectionIssue = new StepScanError('onbekend-statement', 'Onbekend statement in HEADER.', st);
@@ -901,8 +741,6 @@ export function scanStep(bytes: Uint8Array): StepIndex {
         else sectionIssue = new StepScanError('onbekend-statement', 'Onbekend statement in DATA.', st);
         break;
       case S_EINDE:
-        // END-ISO-10303-21 was niet het laatste statement: de voorproef behandelt het dan als gewoon statement in
-        // de sectie waar het stond.
         sectionIssue = stateAtEnd === S_KOP
           ? new StepScanError('sectievolgorde', 'HEADER zonder ENDSEC.', st)
           : stateAtEnd === S_DATA
@@ -920,8 +758,6 @@ export function scanStep(bytes: Uint8Array): StepIndex {
 
   const total = kind.length;
   const idNumArr = idNum.done();
-  // `#id` → stuk. Dicht als de ids compact genoeg zijn, anders een Map. Na een sectiefout leest de scanner geen
-  // entiteiten meer, dus een gevonden dubbel `#id` staat altijd vóór die fout (de voorproef meldt de eerste).
   let maxId = 0;
   for (let k = 0; k < total; k++) if (idNumArr[k] > maxId) maxId = idNumArr[k];
   let firstDuplicate = -1;
@@ -969,7 +805,6 @@ export function scanStep(bytes: Uint8Array): StepIndex {
   const outOffArr = outOff.done();
   const outArgArr = outArg.done();
 
-  // Inkomend: tellen, prefixsom, vullen (CSR).
   const inOff = new Int32Array(total + 1);
   for (let k = 0; k < outTarget.length; k++) if (outTarget[k] >= 0) inOff[outTarget[k] + 1]++;
   for (let k = 0; k < total; k++) inOff[k + 1] += inOff[k];

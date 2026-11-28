@@ -1,9 +1,7 @@
-// Linkcontrole voor de gegenereerde wiki, niet voor codevoorbeelden in auteurshandleidingen.
 import { stripCode } from './docs-structure';
 
 export interface DeadWikiLink { page: string; target: string }
 
-/** `pages` bevat wikislugs zonder .md en hun Markdown. Behoud het bestaande linkbeleid. */
 export function deadWikiLinks(pages: ReadonlyMap<string, string>): DeadWikiLink[] {
   const dead: DeadWikiLink[] = [];
   for (const [page, source] of pages) {

@@ -1,16 +1,4 @@
 #!/usr/bin/env node
-// Poort: geen cast op een vertaalsleutel. De typecheck controleert elke sleutel die aan t(...)
-// wordt gegeven tegen de nl-bronbestanden (src/i18n/types.d.ts) — ook een samengestelde sleutel,
-// zolang het variabele deel een vaste set waarden heeft. Een `as 'x.y'` zet die controle stil uit:
-// een ontbrekende vertaling valt dan pas op als de gebruiker Engels of de kale sleutel ziet.
-//
-// Geweigerd: t / tMenu / tCommon / tTask / … / i18n.t met een eerste argument `… as <type>` of
-// `<type>…`. Toegestaan: `as const` (die maakt de sleutel juist preciezer en controleerbaar).
-// Oplossing: geef de bron het sleuteltype — `ParseKeys<'common'>` uit i18next, of
-// `{ … } as const satisfies Record<K, ParseKeys<'common'>>` — zie docs/recepten/i18n-sleutel.md.
-//
-// De TypeScript-AST voorkomt dat woorden in commentaar of strings meetellen. `--root` laat de
-// planningstest tijdelijke bronfixtures controleren zonder productiecode te wijzigen.
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -24,7 +12,6 @@ if (rootFlag >= 0 && !process.argv[rootFlag + 1]) {
 }
 const root = resolve(rootFlag >= 0 ? process.argv[rootFlag + 1] : resolve(here, '..'));
 
-/** t, tMenu, tCommon, tTask, tReport, … — en `.t(` op een object (i18n.t, i18next.t). */
 const TRANSLATE = /^t(?:[A-Z][A-Za-z]*)?$/;
 
 function sourceFiles(directory) {

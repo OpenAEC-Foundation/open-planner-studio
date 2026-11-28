@@ -77,3 +77,8 @@ Besluiten van `readCalendars`: `docs/adr/1020-mpp-lezen-kalenders-zijn-letterlij
 Besluiten van de gedeelde kern voor uitzonderingen van de `.mpp`- en de MSPDI-lezer:
 `docs/adr/0290-kalenderherhaling-gedeelde-kern-zonder-mpp-import.md`, `0291-kalenderherhaling-voorrang-per-datum.md`,
 `0292-kalenderherhaling-patronen-codes-en-eenheden.md` en `0293-kalenderherhaling-grenzen-en-budget.md`.
+
+### De MPP-tests (`tests/planning/check-mpp-*`, `mppGroundTruth.ts`, `mppFixtures.ts`)
+
+Waarom de meetlat en de fixtures de lezer niet hergebruiken en waarom het bedrijfscorpus alleen als hash verschijnt:
+`docs/adr/1230-mpp-tests-eigen-meetlat-en-corpus-als-hash.md`.

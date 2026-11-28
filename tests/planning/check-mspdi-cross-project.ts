@@ -1,14 +1,3 @@
-// Een MSPDI-relatie naar een taak in een ander project (`<CrossProject>1</CrossProject>`) mag nooit
-// een interne relatie naar een gewone eigen taak worden.
-//
-// MS Project schrijft de externe taak zelf niet als `<Task>`; alleen de link staat er, met
-// `CrossProjectName` = pad + "\" + taaknummer in het andere project (MPXJ `MSPDIWriter.java`,
-// `writePredecessor`: "We'll just replicate what MS Project writes"; `MSPDIReader.java`,
-// `createExternalTaskPlaceholder`). `PredecessorUID` is dan het nummer van de spooktaak, niet van een
-// taak in dit bestand. Viel dat nummer toevallig samen met een eigen taak, dan maakte de lezer een
-// relatie naar die (verkeerde) taak. Staat de spooktaak wél als `<Task>` met `<ExternalTask>1` in
-// het bestand (andere schrijvers), dan blijft het gedrag van vóór deze check: de spooktaak wordt een
-// gewone taak met die relatie, en de openingsmelding telt haar (`msProjectLostExternalTasks`).
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { installDOMParser } from './xmldom-shim';
 

@@ -1,43 +1,3 @@
-// MSPDI-feestdagen (2026-10-13): een MS Project XML-kalender krijgt alleen de NL-standaardfeestdagen
-// van `createDefaultCalendar()` als hij kaal is (geen werkweek, geen uitzonderingen, geen basis).
-//
-// Vroeger gold: 0 `<Exception>`-elementen ⇒ NL-feestdagen. Een Amerikaans MS Project-bestand uit 2026
-// rekende daardoor met Koningsdag als vrije dag. Nu dezelfde regel als de P6 XML-lezer (#330):
-//  1. eigen werkweek zonder uitzonderingen ⇒ géén feestdagen;
-//  2. kale kalender (of geen `<Calendars>`) ⇒ NL-standaard blijft;
-//  3. eigen uitzonderingen ⇒ precies die;
-//  4. rekentest: een taak over Koningsdag 2026 eindigt zonder vrije dag;
-//  5. afgeleide kalender (`<BaseCalendarUID>`) erft de uitzonderingen van zijn basis, eigen wint;
-//  6. oude vorm (Project 2003): `<WeekDay>` met `DayType` 0 is een uitzondering;
-//  7. basis UID 1 die niet de projectkalender is en niet als eerste staat, wordt gevonden;
-//  8. round-trip: een OPS-kalender zonder feestdagen komt na MSPDI-export zonder feestdagen terug.
-//
-// Fixronde #335 — twee aanpalende kalenderfouten:
-//  9. projectkalender = `<Project><CalendarUID>` (terugval: eerste element); de rest, ook UID 1, wordt
-//     bibliotheekkalender; taak- en resourceverwijzingen volgen die indeling;
-// 10. afgeleide kalender zonder eigen werkweek erft de werkweek (dagen en blokken) van zijn basis; een
-//     eigen `<WeekDay>` wint per weekdag; begin, einde en netto-uren kloppen (`workDayFromBlocks`);
-// 11. rekentest: een taak op een afgeleide kalender rekent met de geërfde zaterdag.
-//
-// Fixronde 2 #335 (review):
-// 12. budget: overerving telt mee in MAX_TOTAL_HOLIDAY_SLOTS (MSPDI-versie van T6-C1), ook bij een
-//     basis met ~100.000 vrije dagen en 1023 afgeleide kalenders (vroeger: heap out of memory);
-// 13. `<Exceptions>` gaat vóór de oude `DayType 0`-vorm; `DayType 0` in `<WorkWeeks>` telt niet;
-// 14. terugval van de projectkalender als alleen taken en resources een `<CalendarUID>` hebben;
-// 15. basis bestaat niet, cyclus, zelfverwijzing ⇒ geen overerving en géén NL-terugval (zoals .mpp);
-// 16. keten van 40: de uitkomst hangt niet af van de documentvolgorde;
-// 17. eigen export schrijft `<CalendarUID>` in de projectkop; round-trip met een bibliotheekkalender
-//     op de eerste taak.
-//
-// Fixronde 3 #335 (review): een basis-UID die niet bestaat (`0` in Project 2013+, `-65533`, onbekend)
-// maakt een kalender een wortel; alleen een cyclus of een te lange keten blokkeert de overerving.
-// 18. Project 2013-vorm: Standard met `<BaseCalendarUID>0`, afgeleide kalender, taak — week en datum;
-//     dezelfde vorm met `-1` (Project 2007/2010);
-// 19. keten van drie: A → B, B met `0` ⇒ A krijgt week en feestdagen van B.
-// Test 15 (cyclus, zelfverwijzing) draait in een kindproces met een tijdgrens: een lezer die blijft
-// hangen, faalt binnen 20 s met naam in plaats van pas bij de CI-timeout.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
@@ -54,8 +14,6 @@ installDOMParser();
 
 let checks = 0;
 const fails: string[] = [];
-// Faalregels meteen printen: de zware budgettest (12, achteraan) kan bij een regressie het proces
-// laten crashen (heap out of memory); de eerdere faalregels staan dan al in de uitvoer.
 const fail = (msg: string) => {
   fails.push(msg);
   console.log(`XX  ${msg}`);
@@ -69,10 +27,8 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) fail(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-// ── Bouwstenen ─────────────────────────────────────────────────────────────────────────────────
 const WT = '<WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>12:00:00</ToTime></WorkingTime>'
   + '<WorkingTime><FromTime>13:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes>';
-/** Standaardwerkweek ma–vr 08–17 zoals MS Project hem schrijft (DayType 1 = zondag … 7 = zaterdag). */
 const WEEK = '<WeekDays>'
   + '<WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>'
   + [2, 3, 4, 5, 6].map((d) => `<WeekDay><DayType>${d}</DayType><DayWorking>1</DayWorking>${WT}</WeekDay>`).join('')
@@ -91,7 +47,6 @@ const doc = (calendars: string | null, tasks = '', projectCalUid = '1', resource
   + '<MinutesPerDay>480</MinutesPerDay>'
   + (calendars === null ? '' : `<Calendars>${calendars}</Calendars>`)
   + `<Tasks>${tasks}</Tasks>${resources ? `<Resources>${resources}</Resources>` : ''}</Project>`;
-/** Werkweek met werkende dagen `working` (MSP-DayType), elk 08–12 + 13–17. */
 const weekOf = (working: number[]) => '<WeekDays>'
   + [1, 2, 3, 4, 5, 6, 7].map((d) => working.includes(d)
     ? `<WeekDay><DayType>${d}</DayType><DayWorking>1</DayWorking>${WT}</WeekDay>`
@@ -105,7 +60,6 @@ const taskOn = (uid: number, name: string, calUid: number, start: string, hours:
 const lib = (r: ReturnType<typeof readMSPDI>, name: string): WorkCalendar | undefined =>
   (r.resourceCalendars ?? []).find((c) => c.name === name);
 
-// ── Kindproces voor test 15: cyclusgevallen (een hangende lezer mag de check niet laten hangen) ──
 const CYCLE_DOC = doc(cal(1, 'Proj', MA_ZA + `<Exceptions>${exc('2026-07-01', '2026-07-01', 'X')}</Exceptions>`)
   + cal(3, 'A', '', 4) + cal(4, 'B', '', 3) + cal(5, 'Zelf', '', 5) + cal(7, 'Op cyclus', '', 3));
 if (process.argv.includes('--cyclus-probe')) {
@@ -118,7 +72,6 @@ const NL = createDefaultCalendar().holidays;
 ok('voorwaarde: de NL-standaard heeft feestdagen in deze omgeving (bouwmodus aan)', NL.length > 0);
 ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startDate <= '2026-04-27' && h.endDate >= '2026-04-27'));
 
-// ── 1. Eigen werkweek, geen uitzonderingen ⇒ geen feestdagen ────────────────────────────────────
 {
   const r = readMSPDI(doc(cal(1, 'Standard', WEEK) + cal(2, 'Ploeg', WEEK)));
   eq('1 projectkalender met werkweek, zonder uitzonderingen: 0 feestdagen', r.calendar.holidays.length, 0);
@@ -126,7 +79,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('1 werkweek zelf gelezen (ma–vr)', r.calendar.workDays, [1, 2, 3, 4, 5]);
 }
 
-// ── 2. Kale kalender / geen <Calendars> ⇒ NL-standaard ─────────────────────────────────────────
 {
   const kaal = readMSPDI(doc(cal(1, 'Kaal', '')));
   eq('2 kale projectkalender (geen werkweek, geen uitzonderingen): NL-standaard', kaal.calendar.holidays, NL);
@@ -136,7 +88,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('2 kale bibliotheekkalender zonder basis: NL-standaard', lib(kaalLib, 'Kaal')?.holidays, NL);
 }
 
-// ── 3. Eigen uitzonderingen ⇒ precies die ───────────────────────────────────────────────────────
 {
   const body = WEEK + `<Exceptions>${exc('2026-07-03', '2026-07-03', 'Independence Day')}${exc('2026-12-24', '2026-12-25', 'Christmas')}</Exceptions>`;
   const r = readMSPDI(doc(cal(1, 'US', body)));
@@ -146,9 +97,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   ]);
 }
 
-// ── 4. Rekentest: taak over Koningsdag 2026 (maandag 27 april) ──────────────────────────────────
-// Vrijdag 24 april + 2 werkdagen: zonder vrije dag klaar op maandag 27 april, mét Koningsdag op
-// dinsdag 28 april.
 {
   const task = '<Task><UID>1</UID><ID>1</ID><Name>Over Koningsdag</Name><OutlineLevel>1</OutlineLevel>'
     + '<Duration>PT16H0M0S</Duration><Start>2026-04-24T08:00:00</Start><Finish>2026-04-27T17:00:00</Finish>'
@@ -160,11 +108,9 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
     return (t?.time.earlyFinish ?? '').slice(0, 10);
   };
   eq('4 MS Project-kalender met werkweek: taak eindigt op Koningsdag zelf (geen vrije dag)', finishOf(readMSPDI(doc(cal(1, 'Standard', WEEK), task))), '2026-04-27');
-  // Contrast: een kale kalender houdt de NL-standaard en slaat Koningsdag over.
   eq('4 kale kalender (contrast): Koningsdag is vrij, einde dinsdag', finishOf(readMSPDI(doc(cal(1, 'Kaal', ''), task))), '2026-04-28');
 }
 
-// ── 5. Afgeleide kalender erft de uitzonderingen van zijn basis ─────────────────────────────────
 {
   const base = cal(1, 'Standard', WEEK + `<Exceptions>${exc('2026-07-03', '2026-07-03', 'Independence Day')}</Exceptions>`);
   const r = readMSPDI(doc(base
@@ -177,12 +123,10 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
     { name: 'Independence Day', startDate: '2026-07-03', endDate: '2026-07-03' },
     { name: 'Verlof', startDate: '2026-08-10', endDate: '2026-08-10' },
   ]);
-  // Basis zonder uitzonderingen (volledige MS Project-kalender) ⇒ de afgeleide kalender ook zonder.
   const leeg = readMSPDI(doc(cal(1, 'Standard', WEEK) + cal(2, 'Resource', '', 1)));
   eq('5 afgeleide kalender op een basis zonder feestdagen: 0 feestdagen', lib(leeg, 'Resource')?.holidays.length, 0);
 }
 
-// ── 6. Oude vorm: DayType 0 met TimePeriod ──────────────────────────────────────────────────────
 {
   const legacy = '<WeekDay><DayType>0</DayType><DayWorking>0</DayWorking><TimePeriod>'
     + '<FromDate>2026-05-25T00:00:00</FromDate><ToDate>2026-05-25T23:59:00</ToDate></TimePeriod></WeekDay>'
@@ -194,9 +138,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('6 DayType 0 telt niet als weekdag', r.calendar.workDays, [1, 2, 3, 4, 5]);
 }
 
-// ── 7. Basis UID 1 die niet de projectkalender is en niet als eerste staat ─────────────────────
-// Projectkalender = UID 3; een afgeleide kalender met `<BaseCalendarUID>1</BaseCalendarUID>` vindt
-// zijn basis in de bibliotheek.
 {
   const r = readMSPDI(doc(
     cal(3, 'Eerste', WEEK)
@@ -207,7 +148,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   ]);
 }
 
-// ── 8. Round-trip: OPS-kalender zonder feestdagen ───────────────────────────────────────────────
 {
   const opsCal: WorkCalendar = {
     id: 'cal-x', name: 'Zonder feestdagen', description: '', workDays: [1, 2, 3, 4, 5],
@@ -230,7 +170,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('8 OPS-kalender zonder feestdagen: na MSPDI-export en heropenen nog steeds 0', back.calendar.holidays.length, 0);
 }
 
-// ── 9. Projectkalender via <CalendarUID> ──────────────────────────────────────────────────────
 {
   const cals = cal(3, 'Eerste', WEEK) + cal(1, 'Standard', MA_ZA) + cal(4, 'Ploeg', WEEK);
   const tasks = taskOn(1, 'Op Eerste', 3, '2026-06-01', 8) + taskOn(2, 'Op project', 1, '2026-06-01', 8) + taskOn(3, 'Zonder', -1, '2026-06-01', 8);
@@ -245,18 +184,15 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('9 taak met CalendarUID -1: geen eigen kalender', byName.get('Zonder')?.calendarId, undefined);
   eq('9 resource met CalendarUID 4 wijst naar "Ploeg"', r.resources[0]?.calendarId, lib(r, 'Ploeg')?.id);
 
-  // Projectkalender = UID 3: dan is UID 1 een gewone bibliotheekkalender en raakt hij niet kwijt.
   const r3 = readMSPDI(doc(cals, tasks, '3'));
   eq('9 <CalendarUID>3: projectkalender "Eerste"', r3.calendar.name, 'Eerste');
   eq('9 <CalendarUID>3: UID 1 staat in de bibliotheek', (r3.resourceCalendars ?? []).map((c) => c.name), ['Standard', 'Ploeg']);
   eq('9 <CalendarUID>3: taak met CalendarUID 1 wijst naar "Standard"', r3.tasks.find((t) => t.name === 'Op project')?.calendarId, lib(r3, 'Standard')?.id);
 
-  // Terugval: <CalendarUID> wijst naar niets, of ontbreekt ⇒ het eerste element (oud gedrag).
   eq('9 <CalendarUID>99 (bestaat niet): terugval op het eerste element', readMSPDI(doc(cals, '', '99')).calendar.name, 'Eerste');
   eq('9 geen <CalendarUID>: terugval op het eerste element', readMSPDI(doc(cals, '', '')).calendar.name, 'Eerste');
 }
 
-// ── 10. Afgeleide kalender erft de werkweek van zijn basis ─────────────────────────────────────
 {
   const own = '<WeekDays><WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>'
     + '<WeekDay><DayType>2</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime><FromTime>07:00:00</FromTime>'
@@ -270,14 +206,10 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   const eigen = lib(r, 'Eigen dagen');
   eq('10 eigen <WeekDay> wint per dag: zaterdag vrij, rest van de basis', eigen?.workDays, [1, 2, 3, 4, 5]);
   eq('10 eigen maandag 07–15 (één blok) bepaalt begin en einde', [eigen?.workStartHour, eigen?.workEndHour, eigen?.hoursPerDay], [7, 15, 8]);
-  // Basis zonder werkweek (kaal): de afgeleide kalender houdt de app-standaard, zoals vroeger.
   const kaal = readMSPDI(doc(cal(1, 'Kaal', '') + cal(2, 'Op kaal', '', 1)));
   eq('10 afgeleide kalender op een kale basis: app-standaard ma–vr', lib(kaal, 'Op kaal')?.workDays, createDefaultCalendar().workDays);
 }
 
-// ── 11. Rekentest: geërfde zaterdag ─────────────────────────────────────────────────────────────
-// Vrijdag 5 juni 2026 + 2 werkdagen op een afgeleide kalender van een ma–za-basis: klaar zaterdag 6
-// juni. Met de app-standaard (ma–vr) zou het maandag 8 juni worden.
 {
   const r = readMSPDI(doc(cal(1, 'Standard', MA_ZA) + cal(2, 'Ploeg', '', 1), taskOn(1, 'Op ploeg', 2, '2026-06-05', 16)));
   const res = solveProject(opsSolveInput({ tasks: r.tasks, sequences: r.sequences, calendar: r.calendar, calendars: r.resourceCalendars ?? [] }));
@@ -285,9 +217,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('11 taak op afgeleide kalender eindigt op de geërfde zaterdag', (r.tasks[0]?.time.earlyFinish ?? '').slice(0, 10), '2026-06-06');
 }
 
-// ── 12. Budget: overerving telt mee in MAX_TOTAL_HOLIDAY_SLOTS ─────────────────────────────────
-// MSPDI-versie van T6-C1 (check-mpp-calendars.ts): één basis met 400 losse vrije dagen + 300
-// afgeleide kalenders zonder eigen data. Ongeklemd 301 × 400 = 120.400 > 100.000.
 {
   const d0 = Date.UTC(2026, 0, 1);
   let excs = '';
@@ -306,7 +235,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('12 T6-C1: alle 301 kalenders gematerialiseerd', all.length, 301);
   ok(`12 T6-C1: binnen 2000 ms (${ms} ms)`, ms < 2000);
 }
-// ── 13. Voorrang <Exceptions> boven DayType 0; DayType 0 in <WorkWeeks> telt niet ──────────────
 {
   const day0 = (d: string) => `<WeekDay><DayType>0</DayType><DayWorking>0</DayWorking><TimePeriod><FromDate>${d}T00:00:00</FromDate><ToDate>${d}T23:59:00</ToDate></TimePeriod></WeekDay>`;
   const week = WEEK.replace('</WeekDays>', `${day0('2026-07-01')}${day0('2026-08-03')}</WeekDays>`);
@@ -318,7 +246,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('13 DayType 0 binnen <WorkWeeks>: geen uitzondering', readMSPDI(doc(cal(1, 'Tijdelijk', WEEK + ww))).calendar.holidays.length, 0);
 }
 
-// ── 14. Terugval: alleen taken en resources hebben een <CalendarUID> ───────────────────────────
 {
   const cals = cal(1, 'Standard', WEEK) + cal(3, 'Ander', MA_ZA);
   const res = '<Resource><UID>1</UID><Name>Piet</Name><Type>1</Type><CalendarUID>3</CalendarUID></Resource>';
@@ -327,11 +254,7 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('14 taak met CalendarUID 3 wijst naar "Ander"', r.tasks[0]?.calendarId, lib(r, 'Ander')?.id);
 }
 
-// ── 15. Basis bestaat niet ⇒ wortel; cyclus/zelfverwijzing ⇒ geen overerving; nooit NL ─────────
 {
-  // (a) Onbestaande basis-UID (99, -65533, 0): de kalender is een wortel met zijn EIGEN week en
-  //     uitzonderingen. Zonder eigen data dus de app-week en 0 feestdagen — geen NL-terugval, want het
-  //     bestand noemt een basis (besluit orkestrator 2026-10-13).
   const base = cal(1, 'Proj', MA_ZA + `<Exceptions>${exc('2026-07-01', '2026-07-01', 'X')}</Exceptions>`);
   const r = readMSPDI(doc(base + cal(2, 'Wees', '', 99) + cal(6, 'Rare', '', -65533) + cal(8, 'Nul', '', 0)));
   for (const n of ['Wees', 'Rare', 'Nul']) {
@@ -342,8 +265,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('15a onbestaande basis, eigen uitzondering: precies die', lib(eigen, 'Wees eigen')?.holidays, [{ name: 'Eigen', startDate: '2026-09-01', endDate: '2026-09-01' }]);
   eq('15a onbestaande basis, eigen week: die week (ma–za)', lib(eigen, 'Wees eigen')?.workDays, [1, 2, 3, 4, 5, 6]);
 
-  // (b) Cyclus, zelfverwijzing, verwijzing naar een cyclus: geen overerving, geen NL — in een
-  //     kindproces met tijdgrens, zodat een lezer zonder cyclusbewaking snel en met naam faalt.
   const t0 = Date.now();
   const child = spawnSync(process.execPath, [process.argv[1] ?? '', '--cyclus-probe'], { encoding: 'utf8', timeout: 20_000 });
   const ms = Date.now() - t0;
@@ -358,9 +279,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   }
 }
 
-// ── 16. Keten van 40: uitkomst onafhankelijk van de documentvolgorde ───────────────────────────
-// K2 → Proj, K3 → K2, …, K41 → K40. K(n) ligt n-1 schakels van de basis: tot en met MAX_BASE_CHAIN_DEPTH
-// schakels erft hij, daarboven niet — in beide documentvolgordes hetzelfde.
 {
   const proj = cal(1, 'Proj', MA_ZA);
   const links = Array.from({ length: 40 }, (_, i) => i + 2).map((k) => cal(k, `K${k}`, '', k === 2 ? 1 : k - 1));
@@ -373,7 +291,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   ok(`16 K${MAX_BASE_CHAIN_DEPTH + 2} (te diep) erft niet`, !inherits(MAX_BASE_CHAIN_DEPTH + 2));
 }
 
-// ── 17. Eigen export: <CalendarUID> in de projectkop; eerste taak op een bibliotheekkalender ─────
 {
   const projCal: WorkCalendar = { ...createDefaultCalendar(), id: 'cal-proj', name: 'NL project' };
   const ploeg: WorkCalendar = { ...createDefaultCalendar(), id: 'cal-ploeg', name: 'Ploeg za', holidays: [], workDays: [1, 2, 3, 4, 5, 6] };
@@ -401,9 +318,6 @@ ok('voorwaarde: Koningsdag 2026 zit in de NL-standaard', NL.some((h) => h.startD
   eq('17 heropend: taak B op de projectkalender', r.tasks.find((t) => t.name === 'B')?.calendarId, undefined);
 }
 
-// ── 18. Project 2013-vorm: basiskalender met <BaseCalendarUID>0 (en de 2007/2010-vorm met -1) ───
-// Standard: ma–vr 08–12 + 13–17, kerstavond en Kerst vrij. "Jan" (UID 3) is afgeleid van Standard.
-// Een taak van 3 dagen op Jan vanaf woensdag 23-12-2026: wo 23, (24 en 25 vrij, weekend), ma 28, di 29.
 for (const rootBase of [0, -1]) {
   const std = `<Calendar><UID>1</UID><Name>Standard</Name><IsBaseCalendar>1</IsBaseCalendar><BaseCalendarUID>${rootBase}</BaseCalendarUID>`
     + `${WEEK}<Exceptions>${exc('2026-12-24', '2026-12-24', 'Kerstavond')}${exc('2026-12-25', '2026-12-25', 'Kerst')}</Exceptions></Calendar>`;
@@ -419,7 +333,6 @@ for (const rootBase of [0, -1]) {
   eq(`18 [basis ${rootBase}] taak op Jan eindigt di 29-12 (opgeslagen datum)`, (r.tasks[0]?.time.earlyFinish ?? '').slice(0, 10), '2026-12-29');
 }
 
-// ── 19. Keten van drie: A → B, B heeft <BaseCalendarUID>0 ──────────────────────────────────────
 {
   const b = `<Calendar><UID>4</UID><Name>B</Name><IsBaseCalendar>1</IsBaseCalendar><BaseCalendarUID>0</BaseCalendarUID>`
     + `${MA_ZA}<Exceptions>${exc('2026-08-14', '2026-08-14', 'B-vrij')}</Exceptions></Calendar>`;
@@ -429,11 +342,7 @@ for (const rootBase of [0, -1]) {
   eq('19 B (basis 0) houdt zijn eigen week en feestdag', [lib(r, 'B')?.workDays, lib(r, 'B')?.holidays.length], [[1, 2, 3, 4, 5, 6], 1]);
 }
 
-// ── 12b. Budget, zwaar (achteraan: een regressie kan hier crashen) ─────────────────────────────
 {
-  // Zwaar: 28 wekelijkse records ma/wo/vr van elk 24 jaar ⇒ ~100.000 vrije dagen in de basis, plus
-  // 1023 lege afgeleide kalenders (129 KB XML). Zonder rem in `mergeInherited` pakt dat 1023 × 100.000
-  // datums uit.
   let excs = '';
   for (let i = 0; i < 28; i++) {
     const y = 2000 + i * 24;

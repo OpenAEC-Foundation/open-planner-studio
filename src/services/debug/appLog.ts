@@ -2,9 +2,9 @@ export type LogLevel = 'log' | 'info' | 'warn' | 'error' | 'event';
 
 export interface LogEntry {
   id: number;
-  ts: number;            // Date.now()
+  ts: number;
   level: LogLevel;
-  channel?: string;      // for level='event' or arbitrary tagging
+  channel?: string;
   text: string;
 }
 
@@ -16,13 +16,10 @@ const listeners = new Set<(entries: LogEntry[]) => void>();
 let initialized = false;
 
 function notify(): void {
-  // Use slice() so subscribers get a stable reference snapshot.
   const snapshot = buffer.slice();
   for (const fn of listeners) {
     try { fn(snapshot); }
     catch (err) {
-      // Swallow listener errors so one broken consumer can't kill the feed.
-      // Use original console (post-init we'd recurse if patched).
       originalConsole.error?.('[appLog] listener threw:', err);
     }
   }
@@ -44,7 +41,6 @@ function formatArgs(args: unknown[]): string {
   return args.map(stringifyArg).join(' ');
 }
 
-// Hold references before patching, so internal logging never recurses.
 const originalConsole = {
   log: console.log.bind(console),
   info: console.info.bind(console),

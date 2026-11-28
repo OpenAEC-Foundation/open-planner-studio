@@ -1,24 +1,6 @@
-// De kern achter `npm run i18n:fmt`, `i18n:add` en `i18n:resolve` — pure functies, zonder bestands-I/O,
-// zodat tests/planning/check-i18n-tools.ts ze rechtstreeks kan toetsen.
-//
-// Waarom dit bestaat: elke zichtbare tekst moest in dezelfde wijziging in alle locales (besluit
-// werkwijze 2026-09; sinds B5, 2026-10-10, alleen nl + en, de rest via de vertaalstraat). Met de hand betekende dat 14 bestanden openen, in 25 van de 56 met een andere
-// sleutelvolgorde dan het Nederlands, en in zes talen 70 kolomnamen op één regel van ~2.600 tekens
-// — waar twee gelijktijdige wijzigingen altijd een conflict over de hele regel gaven.
-//
-// Twee afspraken, allebei afgeleid van `nl` (de bron):
-//  1. OPMAAK — één sleutel per regel (JSON met twee spaties inspringing), in precies de volgorde van
-//     `nl`; een meervoudsfamilie staat op de plek van haar `nl`-familie, met de categorieën van de
-//     eigen taal in CLDR-volgorde (zero, one, two, few, many, other). Sleutels die `nl` niet kent,
-//     blijven achteraan in hun object staan (verify:i18n meldt ontbrekende, dit script gooit niets weg).
-//  2. TOEVOEGEN — een tekst gaat in één handeling in nl + en (verplicht) en in elke andere locale die
-//     is opgegeven, met per taal de CLDR-categorieën en dezelfde {{invulplekken}} als `nl`; anders
-//     weigert het script. De rest vult de vertaalstraat (besluit B5, 2026-10-10).
-
 export const NAMESPACES = ['common', 'task', 'report', 'menu'] as const;
 export type Namespace = typeof NAMESPACES[number];
 
-// De talenlijst komt uit één bron (contract C4); relatief geïmporteerd, want scripts lopen ook buiten de `@/`-alias.
 export { LOCALES, type Locale } from '../src/i18n/locales';
 import { LOCALES } from '../src/i18n/locales';
 
@@ -32,7 +14,6 @@ const isObject = (v: Json | undefined): v is JsonObject =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 const has = (o: object, k: string) => Object.prototype.hasOwnProperty.call(o, k);
 
-/** De CLDR-meervoudscategorieën van een taal, in vaste volgorde. */
 export function pluralCategories(locale: string): string[] {
   const cats = new Set<string>(new Intl.PluralRules(locale).resolvedOptions().pluralCategories);
   return CATEGORY_ORDER.filter(c => cats.has(c));
@@ -43,10 +24,6 @@ const stemOf = (key: string): string | null => {
   return m ? key.slice(0, -m[0].length) : null;
 };
 
-/**
- * Orden `target` naar de sleutelvolgorde van `order` (de nl-bron), recursief. Meervoudsfamilies
- * worden per stam gegroepeerd; wat `order` niet kent, komt achteraan in de volgorde van `target`.
- */
 export function orderLike(target: JsonObject, order: JsonObject): JsonObject {
   const out: JsonObject = {};
   const emittedStems = new Set<string>();
@@ -77,12 +54,10 @@ export function orderLike(target: JsonObject, order: JsonObject): JsonObject {
   return out;
 }
 
-/** De canonieke bestandstekst: één sleutel per regel, twee spaties, afsluitende regeleinde. */
 export function serialize(obj: JsonObject): string {
   return `${JSON.stringify(obj, null, 2)}\n`;
 }
 
-/** Canonieke tekst van één locale-bestand, geordend naar de nl-versie van dezelfde namespace. */
 export function formatLocale(source: string, nlSource: string): string {
   return serialize(orderLike(JSON.parse(source) as JsonObject, JSON.parse(nlSource) as JsonObject));
 }
@@ -90,21 +65,10 @@ export function formatLocale(source: string, nlSource: string): string {
 const placeholders = (text: string): string[] =>
   [...new Set([...text.matchAll(/\{\{\s*([\w.-]+)\s*\}\}/g)].map(m => m[1]))].sort();
 
-/** Eén vertaling: gewone tekst, of een meervoudsfamilie { categorie: tekst }. */
 export type Translation = string | Record<string, string>;
 
-/** De locales die `i18n:add` altijd eist (besluit B5, 2026-10-10); de rest vult de vertaalstraat. */
 export const REQUIRED_LOCALES = ['nl', 'en'] as const;
 
-/**
- * Controleer een set vertalingen vóór het schrijven. Levert een lijst fouten (leeg = goed).
- * `nl` en `en` zijn verplicht (`REQUIRED_LOCALES`); de andere locales zijn optioneel (besluit B5:
- * de app valt terug op en, de vertaalstraat vult ze aan). Wat er wél staat moet kloppen: een bekende
- * locale, overal hetzelfde soort (tekst óf familie), bij een familie per taal exact de CLDR-categorieën,
- * en dezelfde {{invulplekken}} als nl. Een meervoudsvorm vergelijkt met de nl-vorm voor dezelfde
- * getallen (`one` met nl `one`, de rest met nl `other`; zelfde regel als `scripts/translate/gates.ts`),
- * en mag `{{count}}` in woorden uitschrijven (Arabisch "مهمة واحدة").
- */
 export function validateTranslations(input: Record<string, Translation>): string[] {
   const errors: string[] = [];
   for (const loc of REQUIRED_LOCALES) if (!has(input, loc)) errors.push(`${loc}: ontbreekt (nl en en zijn verplicht)`);
@@ -114,7 +78,6 @@ export function validateTranslations(input: Record<string, Translation>): string
   const nl = input.nl;
   if (nl === undefined) return errors;
   const plural = typeof nl !== 'string';
-  /** De nl-invulplekken voor categorie `cat` (zonder `count`): `one` ↔ nl `one`, de rest ↔ nl `other`. */
   const nlVarsFor = (cat: string): string[] => {
     if (typeof nl === 'string') return placeholders(nl);
     const src = cat === 'one' && nl.one !== undefined ? nl.one : nl.other ?? Object.values(nl).join(' ');
@@ -154,10 +117,6 @@ export function validateTranslations(input: Record<string, Translation>): string
   return errors;
 }
 
-/**
- * Haal de tekst of familie op `path` weg (muteert `root`); lege tussenobjecten blijven staan.
- * Geeft terug of er iets weg was.
- */
 export function removeTranslation(root: JsonObject, path: string): boolean {
   const parts = path.split('.');
   const leaf = parts.pop()!;
@@ -172,7 +131,6 @@ export function removeTranslation(root: JsonObject, path: string): boolean {
   return doomed.length > 0;
 }
 
-/** Is de waarde op `path` een meervoudsfamilie (true), een tekst (false) of afwezig (undefined)? */
 export function translationKind(root: JsonObject, path: string): boolean | undefined {
   const parts = path.split('.');
   const leaf = parts.pop()!;
@@ -186,7 +144,6 @@ export function translationKind(root: JsonObject, path: string): boolean | undef
   return has(node, leaf) && typeof node[leaf] === 'string' ? false : undefined;
 }
 
-/** Bestaat `path` (zonder of met meervoudsfamilie) in dit object? */
 export function keyExists(root: JsonObject, path: string): boolean {
   const parts = path.split('.');
   const leaf = parts.pop()!;
@@ -198,13 +155,6 @@ export function keyExists(root: JsonObject, path: string): boolean {
   return isObject(node) && Object.keys(node).some(k => k === leaf || stemOf(k) === leaf);
 }
 
-/**
- * Zet één vertaling op `path` in een locale-object (muteert `root`). Tussenliggende objecten worden
- * aangemaakt; een bestaande tekst of familie op die sleutel wordt vervangen (ook van soort, dus een
- * kale tekst die een familie wordt verliest zijn kale sleutel). `after` plaatst een NIEUWE sleutel
- * direct na een broer in hetzelfde object (anders achteraan) — alleen relevant voor nl, want de
- * andere locales volgen daarna via `orderLike` de nl-volgorde.
- */
 export function setTranslation(root: JsonObject, path: string, value: Translation, after?: string): void {
   const parts = path.split('.');
   const leaf = parts.pop()!;
@@ -239,7 +189,6 @@ export function setTranslation(root: JsonObject, path: string, value: Translatio
   Object.assign(node, rebuilt);
 }
 
-/** Inhoud zonder volgorde: sleutels recursief gesorteerd, zodat een herschikking geen wijziging is. */
 function canonical(v: Json | undefined): string | undefined {
   const sort = (x: Json): Json => {
     if (!isObject(x)) return Array.isArray(x) ? x.map(sort) : x;
@@ -251,7 +200,6 @@ function canonical(v: Json | undefined): string | undefined {
 }
 const same = (a: Json | undefined, b: Json | undefined) => canonical(a) === canonical(b);
 
-/** Een echte botsing: dezelfde sleutel is aan beide kanten verschillend gewijzigd (undefined = weg). */
 export interface MergeConflict {
   path: string;
   base: Json | undefined;
@@ -259,18 +207,6 @@ export interface MergeConflict {
   theirs: Json | undefined;
 }
 
-/**
- * Drieweg-samenvoeging van één locale-object PER SLEUTEL (de kern van `npm run i18n:resolve`).
- * Wat maar één kant wijzigde, toevoegde of verwijderde, gaat mee; wat beide kanten gelijk deden ook.
- * Alleen een sleutel die aan beide kanten anders is gewijzigd, is een botsing: die krijgt voorlopig
- * de waarde van `ours` en staat in `conflicts`. Volgorde en witruimte tellen niet als wijziging —
- * daarom werkt dit wél over de eenmalige herschikking heen, waar git per regel tekst vergelijkt en
- * dan stil fout kan gaan (een sleutel die de ene kant verwijdert en de andere alleen verplaatst,
- * komt bij git ongemerkt terug). Sleutelvolgorde: die van `ours`, met nieuwe sleutels van `theirs`
- * direct na hun voorganger daar (zonder voorganger: vooraan); `formatLocale` zet het resultaat
- * daarna in de nl-volgorde. `chosen` is een eerder gemaakte keuze (de merge-commit zelf): bij een
- * botsing wint dan die waarde in plaats van `ours` — de botsing wordt wel gemeld.
- */
 export function mergeLocale(base: JsonObject, ours: JsonObject, theirs: JsonObject, chosen?: JsonObject): {
   merged: JsonObject;
   conflicts: MergeConflict[];

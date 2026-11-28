@@ -1,34 +1,3 @@
-// Meet per corpus-entry of het orakel aantoonbaar door P6 zelf is doorgerekend — UITSLUITEND
-// rapportage. Bron van `tests/planning/xer-corpus-p6computed.json`; het veld stuurt nooit de
-// populatie (dat doen alleen role/included in xer-corpus-manifest.json, een eigenaarsbesluit).
-//
-//   node scripts/run-ts.mjs scripts/xer-p6-computed.ts           # meet en schrijft het bestand
-//   node scripts/run-ts.mjs scripts/xer-p6-computed.ts --check   # faalt (exit 1) bij afwijking
-//
-// Vereist OPS_XER_CORPUS. De drie kenmerken (plan 2026-09-23-x12-c1-c4-toets-buiten-rehab2.md §3,
-// B01-onderzoek §3), per project gemeten op de ruwe tabellen:
-//   S  er is een SCHEDOPTIONS-rij voor het project;
-//   R  `rem_late_start_date` is gevuld op ALLE open taken (status_code ≠ TK_Complete), met ≥1 open taak;
-//   D  `driving_path_flag` = Y op minstens één taak.
-// Een project is P6-doorgerekend (`projects[proj_id].p6Computed`) als S, R en D gelden; "unknown"
-// als het project geen open taken heeft; anders false. Dit per-projectoordeel is de eenheid van de
-// X12-splitsing (check-xer-product-fidelity-x12.ts telt per (bestand, project)). Het bestandsveld
-// `p6Computed` is alleen een samenvatting: de gemeenschappelijke waarde als alle projecten dezelfde
-// hebben, "mixed" als ze verschillen, "unknown" zonder projecten of als het bestand niet als XER te
-// lezen is. De bestands-evidence is over het hele bestand opgeteld.
-//
-// LET OP — bak 2: `rem_late_start_date` en `driving_path_flag` staan in XER_TASK_FORBIDDEN
-// (plan-xer-p6-lezer §4.1, tests/planning/check-xer-field-whitelist.ts). Dit script leest ze
-// alleen voor deze meting, buiten `src/`. Zet zo'n lezing NOOIT in `src/`: de lezer mag deze
-// P6-rekenuitvoer nooit lezen, en de whitelist-grep over `src/` bewaakt dat.
-//
-// `generatorEvidence` (alleen aanwezig als niet leeg) is eveneens informatief: de `.py`-bestanden
-// in de map van dit bestand of van een byte-identieke kopie ervan (zelfde sha256) die zelf een
-// XER schrijven (tekst bevat `ERMHDR` én `SCHEDOPTIONS`). Zo'n script kan de drie kenmerken zelf
-// produceren. Dit is een heuristiek (alleen .py in dezelfde map), geen dekking; andere generators in
-// het corpus: cpp-cpm-engine/generate-corpus.js, p6flow/make_synthetic_fixture.py, MPXJ-writer — geen
-// van de huidige orakels. Geen staande uitsluitingsregel (manifest-policy, DCP-03, 2026-09-23).
-// Het veld stuurt de populatie net zo min; de uitsluiting staat als rolwissel in het manifest.
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync, existsSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';

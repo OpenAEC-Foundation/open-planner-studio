@@ -1,8 +1,4 @@
 // @ts-check
-// Versie-sync: JJJJ.W.N = ISO-weekjaar, ISO-week en volgnummer vanaf 0.
-// npm run bump kiest de eerstvolgende versie uit vandaag, actuele origin-tags en de huidige versie.
-// npm run bump 2026.43.1 zet een expliciete versie; --check controleert zonder schrijven.
-// OPS_BUMP_DATE=2027-01-01 maakt de datum reproduceerbaar; tests injecteren ook de tags.
 
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -12,19 +8,17 @@ import { fileURLToPath } from 'node:url';
 const repoRoot = fileURLToPath(new URL('..', import.meta.url));
 const VERSION_RE = /^([1-9]\d{3})\.([1-9]\d?)\.(0|[1-9]\d*)$/;
 
-/** Vandaag volgens de lokale kalender, zonder tijdzoneverschuiving door toISOString(). */
 function today() {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 }
 
-/** @param {string} date Datum als JJJJ-MM-DD. */
+/** @param {string} date */
 export function isoWeek(date) {
   const thursday = new Date(`${date}T00:00:00Z`);
   if (!/^[1-9]\d{3}-\d{2}-\d{2}$/.test(date) || !Number.isFinite(thursday.getTime()) || thursday.toISOString().slice(0, 10) !== date) {
     throw new Error(`Ongeldige datum: ${date}; verwacht JJJJ-MM-DD.`);
   }
-  // De donderdag bepaalt zowel de ISO-week als het ISO-weekjaar (ook rond nieuwjaar).
   thursday.setUTCDate(thursday.getUTCDate() + 4 - (thursday.getUTCDay() || 7));
   const year = thursday.getUTCFullYear();
   const week = Math.ceil(((thursday.getTime() - Date.UTC(year, 0, 1)) / 86_400_000 + 1) / 7);
@@ -58,9 +52,7 @@ export function nextVersion(date, tags) {
   return version;
 }
 
-/** Actuele tags ophalen zonder lokale refs te wijzigen; een onbereikbare origin blokkeert de bump.
- * @param {string} root
- */
+/** @param {string} root */
 function readOriginTags(root) {
   let output;
   try {
@@ -76,13 +68,10 @@ function readOriginTags(root) {
   }
   return output.split(/\r?\n/).flatMap(line => {
     const ref = line.split('\t')[1];
-    // Een annotated tag heeft ook een peeled ref met ^{}; beide wijzen naar dezelfde versie.
     return ref?.startsWith('refs/tags/') ? [ref.slice('refs/tags/'.length).replace(/\^\{\}$/, '')] : [];
   });
 }
 
-// Alleen eigen pakketvelden; dependency-, extensie-, API-contract- en bestandsformaatversies
-// hebben hun eigen levenscyclus. De OpenAPI-info is de documentversie van deze appbouw.
 const VERSION_FIELDS = [
   { path: 'package.json', matcher: /("version"\s*:\s*")([^"]*)(")/g, expected: 1 },
   { path: 'package-lock.json', matcher: /("name"\s*:\s*"open-planner-studio",\s*\n\s*"version"\s*:\s*")([^"]*)(")/g, expected: 2 },
@@ -113,9 +102,7 @@ function prepareVersionFiles(root, version) {
   });
 }
 
-/** Hetzelfde register controleert bij een release alle versievelden tegen de tag.
- * @param {string} version @param {string} [root]
- */
+/** @param {string} version @param {string} [root] */
 export function checkVersionFiles(version, root = repoRoot) {
   parseVersion(version);
   const mismatches = prepareVersionFiles(root, version).filter(file => file.values.some(value => value !== version));
@@ -124,17 +111,13 @@ export function checkVersionFiles(version, root = repoRoot) {
   }
 }
 
-/**
- * Bereidt alle vervangingen voor vóór er wordt geschreven. Maakt geen commit of tag.
- * @param {{ root?: string, version?: string, date?: string, tags?: string[] }} [options]
- */
+/** @param {{ root?: string, version?: string, date?: string, tags?: string[] }} [options] */
 export function bumpVersion({ root = repoRoot, version, date = process.env.OPS_BUMP_DATE ?? today(), tags } = {}) {
   const currentVersion = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8')).version;
   const current = parseVersion(currentVersion);
   if (version === undefined) {
     isoWeek(date);
     const originTags = tags ?? readOriginTags(root);
-    // Ook een nog niet getagde bump binnen deze week moet een hoger volgnummer krijgen.
     version = nextVersion(date, [...originTags, `v${currentVersion}`]);
   }
   const requested = parseVersion(version);

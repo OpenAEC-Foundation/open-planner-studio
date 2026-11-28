@@ -1,13 +1,3 @@
-// Genereert `public/release-highlights.json` uit de getypeerde catalogus in
-// `src/services/updater/releaseHighlights.ts`.
-//
-// Waarom: de releasetijdlijn op open-aec.com haalt de hoogtepunten op bij de
-// gedeployde webbuild (`https://open-planner-studio.open-aec.com/release-highlights.json`).
-// De catalogus blijft de ENIGE bron — dit script is een afgeleide, en
-// `npm run verify:release-highlights-json` bewaakt dat het bestand nooit achterloopt.
-//
-//   node scripts/run-ts.mjs scripts/build-release-highlights-json.ts            # schrijven
-//   node scripts/run-ts.mjs scripts/build-release-highlights-json.ts --check    # poort (exit 1)
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import {
@@ -16,10 +6,8 @@ import {
   type ReleaseHighlightLocale,
 } from '@/services/updater/releaseHighlights';
 
-// `run-ts.mjs` bundelt naar /tmp maar draait met de repo-root als cwd (net als verify-docs.ts).
 const OUTPUT = join(process.cwd(), 'public', 'release-highlights.json');
 
-/** `JJJJ.W.N` en historische maandversies: numeriek segment-voor-segment, nieuwste eerst. */
 function compareVersionsDescending(a: string, b: string): number {
   const pa = a.split('.').map(Number);
   const pb = b.split('.').map(Number);
@@ -46,7 +34,7 @@ function buildDocument(generated: string): unknown {
       const highlights: Record<string, { primary: JsonHighlight; secondary: JsonHighlight[] }> = {};
       for (const locale of RELEASE_HIGHLIGHT_LOCALES as readonly ReleaseHighlightLocale[]) {
         const copy = block.copy[locale];
-        if (!copy) continue; // oudere versieblokken kennen alleen de veertien oorspronkelijke talen
+        if (!copy) continue;
         const [primaryCopy, ...secondaryCopy] = copy;
         const primary: JsonHighlight = {
           category: primaryCopy.category,
@@ -54,7 +42,6 @@ function buildDocument(generated: string): unknown {
           description: primaryCopy.description,
           icon: block.primary.icon,
         };
-        // Alleen de prominente kaart kent een gidslink; laat de sleutel anders weg.
         if (block.primary.docsId !== undefined) primary.docsId = block.primary.docsId;
         highlights[locale] = {
           primary,
@@ -101,7 +88,6 @@ if (check) {
     console.error('XX public/release-highlights.json is geen geldige JSON');
     process.exit(1);
   }
-  // `generated` is het enige veld dat per run mag wisselen; neem het over en vergelijk de rest byte-voor-byte.
   const expected = serialize(generated);
   if (expected !== actual) {
     console.error('XX public/release-highlights.json loopt achter op de catalogus — draai `npm run gen:release-highlights-json` en commit het resultaat');

@@ -1,4 +1,3 @@
-// scripts/dev-port.mjs
 import { readFileSync, realpathSync, writeFileSync, renameSync, mkdirSync } from 'node:fs';
 import { basename, join, dirname } from 'node:path';
 import { execFileSync } from 'node:child_process';
@@ -21,10 +20,6 @@ function portLane(lane) {
   return config;
 }
 
-/**
- * Laagste poort in [MIN_PORT, MAX_PORT] die noch geclaimd noch gebonden is.
- * Puur: `claimed` is een Set<number>, `isBound` een predicaat (port) => boolean.
- */
 export function chooseFreePortFor(lane, claimed, isBound) {
   const { min, max } = portLane(lane);
   for (let port = min; port <= max; port++) {
@@ -37,7 +32,6 @@ export function chooseFreePort(claimed, isBound) {
   return chooseFreePortFor('dev', claimed, isBound);
 }
 
-/** De opsDevPort-markering uit <root>/.claude/launch.json, of null. Gooit nooit. */
 export function readRecordedPort(root, lane = 'dev', readFile = readFileSync) {
   if (!root) return null;
   const { min, max, marker } = portLane(lane);
@@ -50,7 +44,6 @@ export function readRecordedPort(root, lane = 'dev', readFile = readFileSync) {
   }
 }
 
-/** Absolute, symlink-resolved worktree-root, of null buiten een git-worktree. */
 export function worktreeRoot(cwd = process.cwd()) {
   try {
     const top = execFileSync('git', ['rev-parse', '--show-toplevel'], {
@@ -66,7 +59,6 @@ export function worktreeSlug(root) {
   return root ? basename(root) : 'unknown';
 }
 
-/** Resolvet true als `port` op 127.0.0.1 gebonden kan worden. */
 export function isPortFree(port) {
   return new Promise((resolve) => {
     const srv = createServer();
@@ -86,7 +78,6 @@ function defaultLaunchJson() {
   };
 }
 
-/** Schrijf de marker van één lane atomair; alleen dev stuurt configurations[dev].port. */
 export function stampRecordedPort(root, lane, port) {
   const { min, max, marker } = portLane(lane);
   if (!Number.isInteger(port) || port < min || port > max) {
@@ -114,12 +105,10 @@ export function stampLaunchJson(root, port) {
   return stampRecordedPort(root, 'dev', port);
 }
 
-/** Pad naar zijn symlink-vrije vorm, of ongewijzigd als dat niet kan (weg/geen rechten). */
 function resolvedPath(p) {
   try { return realpathSync(p); } catch { return p; }
 }
 
-/** Wijzen twee worktree-paden naar dezelfde map? `git worktree list` is niet realpath-genormaliseerd. */
 function isSameRoot(a, b) {
   return a === b || resolvedPath(a) === resolvedPath(b);
 }
@@ -133,26 +122,6 @@ function listWorktreePaths(root) {
     .map((l) => l.slice('worktree '.length).trim());
 }
 
-/**
- * Wijst dit worktree één keer een unieke poort toe en legt 'm vast. Idempotent.
- *
- * Een reeds gestempelde poort wordt **gevalideerd**, niet blind vertrouwd: staat
- * exact dezelfde poort óók in de `launch.json` van een ánder worktree, dan geeft
- * de aanroeper toe — hij zoekt een verse vrije poort en stempelt die; de ander
- * behoudt zijn stempel. Zo lost een dubbele stempel zichzelf in één start op
- * (en niet in een ping-pong: de toegevende partij ziet binnen dezelfde flock de
- * al-bijgewerkte stempels van de anderen).
- *
- * Het herstelsignaal is bewust **configuratie**-niveau (twee worktrees met
- * dezelfde stempel) en NIET runtime-niveau (de poort is op dit moment gebonden).
- * Onze eigen draaiende dev-server bindt namelijk juist onze eigen poort — en
- * `allocatePort` draait in `tauri-dev.mjs` vóór `acquireGuardLock` — dus
- * herstellen op "bezet" zou de poort van een volstrekt normaal draaiend worktree
- * laten verspringen. Bezetting mag alleen meewegen bij het kiezen van een
- * nieuwe poort, nooit bij het afkeuren van de eigen bestaande stempel.
- *
- * deps injecteerbaar voor tests: { recorded, listPaths, portFree, stamp, lock }.
- */
 export async function allocateNamedPort(root, lane, deps = {}) {
   const { min, max } = portLane(lane);
   const {
@@ -163,15 +132,9 @@ export async function allocateNamedPort(root, lane, deps = {}) {
     lock = withAllocLock,
   } = deps;
 
-  // Álles binnen de flock, inclusief de validatie van de bestaande stempel: zou
-  // de controle erbuiten vallen, dan kunnen twee worktrees elkaars botsing
-  // tegelijk "oplossen" en opnieuw op dezelfde poort landen — precies de race
-  // die dit repareert.
   return lock(root, async () => {
     const mine = recorded(root);
 
-    // Poorten die door de ÁNDERE worktrees zijn vastgelegd (onszelf overslaan,
-    // anders zou onze eigen stempel als botsing tellen).
     const claimed = new Set();
     for (const p of listPaths(root)) {
       if (isSameRoot(p, root)) continue;
@@ -179,7 +142,6 @@ export async function allocateNamedPort(root, lane, deps = {}) {
       if (port != null) claimed.add(port);
     }
 
-    // Onze stempel is uniek → ongemoeid laten: zelfde poort terug, geen nieuwe stempel.
     if (mine != null && !claimed.has(mine)) return mine;
 
     const bound = new Set();

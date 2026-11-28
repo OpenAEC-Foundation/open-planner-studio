@@ -1,10 +1,3 @@
-// Voorbeeld-generator (schrijfkant). De opbouw-logica staat in gen-core.ts; hier regenereren we
-// examples/, kopiëren we een publieke selectie naar public/examples/ en schrijven we het manifest.
-//
-//   npm run gen:examples
-//
-// Drift met de app is structureel onmogelijk: gen-core bouwt via de ECHTE store en serialiseert
-// met de ECHTE writeIFC. Zie ook verify-examples.ts (npm run verify:examples).
 import { writeFileSync, mkdirSync, existsSync, copyFileSync, statSync, readdirSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { allBuilds } from './gen-core';
@@ -13,42 +6,21 @@ const ROOT = process.cwd();
 const EX_DIR = join(ROOT, 'examples');
 const PUB_DIR = join(ROOT, 'public', 'examples');
 
-/** Download-budget voor de publieke voorbeeldselectie (deze bestanden gaan mee in de webdeploy).
- *  Was 600 kB; opgehoogd naar 700 kB toen drie van de publieke basisvoorbeelden (05/10/15) een
- *  resourceset kregen. Gemeten op dat moment: 585 kB zónder die resourcesets, 615 kB mét — de
- *  oude grens zat er dus al bijna tegenaan. Opgehoogd naar 850 kB op 2026-09-03: de writer schrijft
- *  sinds eind augustus per taak `OPS_TaskIdentity` (padstabiele externe relatietokens) en per
- *  kalender/resource `HoursPerDay`/`Color`, waardoor de selectie van 673 naar 807 KiB groeide en
- *  een regeneratie op de 700-grens stukliep. Opgehoogd naar 1050 kB op 2026-10-26: de voorbeelden
- *  zijn opnieuw gegenereerd in het minutenmodel (spec alleen uren), en de writer schrijft per taak de
- *  exacte speling (`OPS_Analysis.ExactFloat`, T5) plus `OPS_Project.TimeModel` en `LiteralTimes`. Gemeten:
- *  816 KiB vóór, 975 KiB erna (+19 %, het grootste deel `ExactFloat`). Dit blijft een bloat-vangnet,
- *  geen streefwaarde. */
 const PUBLIC_BUDGET_KB = 1050;
 
 function main() {
   if (!existsSync(EX_DIR)) mkdirSync(EX_DIR, { recursive: true });
   if (!existsSync(PUB_DIR)) mkdirSync(PUB_DIR, { recursive: true });
 
-  // Eén bouw per spec; het externe-koppeling-bronbestand komt uit de bouw waaruit GROOT zijn
-  // koppeling las (`allBuilds`, knownbug 509).
   const built = allBuilds();
   const specs = built.map(({ spec }) => spec);
 
-  // Publieke selectie: alle showcases (afgeleid uit `category`, dus GROOT komt automatisch mee
-  // zodra het `category:'showcase'` heeft — fase 2.10, golf 2) + representatieve basis-selectie,
-  // samen onder `PUBLIC_BUDGET_KB`. Het externe-koppeling-bronbestand (`category:'external-source'`) hoort hier
-  // NOOIT bij (§4.2) — het staat wél in `examples/` (hierboven al weggeschreven), niet hier.
   const PUBLIC = new Set<string>([
     ...specs.filter(s => s.category === 'showcase').map(s => s.slug),
     '03-kantoorgebouw-zuidas', '05-brugvervanging-n279', '08-zorgcentrum-de-linde',
     '10-villa-wassenaar', '15-datacentrum-agriport',
   ]);
 
-  // Verouderde bronbestanden opruimen (fase 2.10, onderdeel 4: verving 3 showcases door 2 —
-  // zonder deze stap bleven de oude showcase-.ifc's als wees achter in examples/, want deze loop
-  // hieronder schrijft alleen bij, hij verwijdert nooit). Alleen top-level .ifc's; `extensions/`
-  // (bv. het .tasklist-referentiebestand) blijft ongemoeid.
   const currentSlugs = new Set(specs.map(s => s.slug));
   for (const f of readdirSync(EX_DIR)) {
     if (f.endsWith('.ifc') && !currentSlugs.has(f.replace(/\.ifc$/, ''))) rmSync(join(EX_DIR, f));
@@ -64,12 +36,10 @@ function main() {
     );
   }
 
-  // Verouderde publieke bestanden opruimen (alleen de huidige selectie mag blijven staan).
   for (const f of readdirSync(PUB_DIR)) {
     if (f.endsWith('.ifc') && !PUBLIC.has(f.replace(/\.ifc$/, ''))) rmSync(join(PUB_DIR, f));
   }
 
-  // Publieke bestanden kopiëren.
   let pubBytes = 0;
   for (const { spec } of built) {
     if (!PUBLIC.has(spec.slug)) continue;
@@ -78,7 +48,6 @@ function main() {
     pubBytes += statSync(dst).size;
   }
 
-  // Manifest: showcases eerst (category 'showcase'), daarna de basis-selectie ('basic').
   const manifest = {
     version: 2,
     examples: built

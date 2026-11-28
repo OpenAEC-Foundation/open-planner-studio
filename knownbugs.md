@@ -2058,6 +2058,10 @@ en noem het in je rapport of PR-tekst.
       weggehaalde commentaar van die functie, dat het geval met fixtures 22f en 22g van `check-xer-calendar-data.ts`
       vergeleek; niet nagespeeld. Het commentaar noemde nul treffers in het corpus buiten `rehab-2.xer` (ADR 0590). — S
 
+2801. **In de gegenereerde voorbeelden kan een constraint-, deadline-, status- of actuele datum op een feestdag vallen.**
+      `offset` in `scripts/gen-core.ts` telt werkdag-offsets met `addBusinessDays` (`src/utils/dateUtils.ts`), dat alleen
+      weekenden overslaat en de feestdagen van de voorbeeldkalender niet kent. Gezien in de code. — B
+
 ## Bibliotheek, bezetting, extensies, AI
 
 28. **Bezettingsoverzicht na een edit in het reeds geopende actieve project** mengt oude startdatums met
@@ -6591,6 +6595,11 @@ en noem het in je rapport of PR-tekst.
       nul meldingen. De workflow biedt elke controle de kapotte bestanden uit `scripts/ifcx/kapot.mjs` aan die ze moet
       afkeuren. Controle 1 en 2 gedraaid op aia09-mp50; controle 3 alleen in de code gelezen en nagespeeld, nog niet
       gebouwd. — S
+
+2802. **De releaseverificatie volgt het contract van een oudere updater dan de app gebruikt.** `docs/release-verificatie.md`
+      en de bronregel van `scripts/verify-release.mjs` noemen tauri-plugin-updater 2.10.1 en minisign-verify 0.2.5;
+      `src-tauri/Cargo.lock` heeft 2.14.1 en 0.3.0. Gezien in `Cargo.lock`; of de controles nog precies passen bij de
+      nieuwe versies is niet nagegaan. — S
 
 2803. **De herpinroutes van de XER-getrouwheid schrijven commentaarregels die `verify:comments` weigert.**
       `OPS_XER_CELLS_WRITE` herschrijft in `tests/planning/check-fidelity-cells-gate.ts` een gegenereerd blok met
