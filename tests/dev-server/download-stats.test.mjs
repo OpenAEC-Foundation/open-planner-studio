@@ -2,7 +2,6 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { classifyAsset, aggregate, userDownloads, renderMarkdown, renderText } from '../../scripts/download-stats.mjs';
 
-// De echte assetnamen van v2026.9.0 (GitHub Releases-API, 2026-09-05).
 const V2026_9_0 = [
   ['latest.json', 73],
   ['open-planner-studio_2026.9.0_amd64.snap', 0],
@@ -56,10 +55,9 @@ test('aggregate telt v2026.9.0 op zoals de API-cijfers van 2026-09-05', () => {
   assert.equal(stats.totals.windows.update, 6);
   assert.equal(userDownloads(stats.totals.macos), 2);
   assert.equal(stats.totals.macos.update, 1);
-  assert.equal(userDownloads(stats.totals.linux), 19); // 8 deb + 9 AppImage + 2 rpm + 0 snap
+  assert.equal(userDownloads(stats.totals.linux), 19);
   assert.equal(stats.totals.linux.both, 19);
   assert.equal(stats.polls, 73);
-  // Het README-badgecijfer: zonder latest.json, .sig en updater-pakketten.
   assert.equal(stats.downloads, 43 + 2 + 19);
   assert.deepEqual(stats.unknown, []);
   assert.equal(stats.releases.length, 1);
@@ -76,7 +74,6 @@ test('drafts worden overgeslagen, pre-releases gemarkeerd en niet in de totalen,
   assert.equal(stats.releases.length, 2);
   assert.equal(stats.releases[0].tag, 'v3', 'nieuwste eerst');
   assert.equal(stats.releases[1].prerelease, true);
-  // De pre-release heeft zijn eigen rij, maar telt niet mee in de totalen of de updater-checks.
   assert.equal(userDownloads(stats.releases[1].os.windows), 7);
   assert.equal(stats.releases[1].polls, 4);
   assert.equal(userDownloads(stats.totals.windows), 1);
@@ -135,7 +132,6 @@ test('fetchAllReleases faalt hard op een niet-2xx-antwoord', async () => {
   await assert.rejects(fetchAllReleases('o/r', { token: undefined, fetchImpl }), /GitHub API 403/);
 });
 
-// Assetherkenning mag geen maandbereik of klein patchnummer veronderstellen.
 test('weekversies tellen dezelfde assets en sorteren op publicatiedatum', () => {
   const versions = ['2026.43.0', '2026.53.100', '2027.1.0'];
   const stats = aggregate(versions.map((version, i) => release(`v${version}`, V2026_9_0.map(([name, count]) => [name.replaceAll('2026.9.0', version), count]), { published_at: `2027-01-0${i + 1}T00:00:00Z` })));

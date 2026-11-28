@@ -26,7 +26,6 @@ test('decide: buiten een PR draait alles; een fout bij het vergelijken laat ook 
   assert.match(failed.reason, /geen ouder/);
 });
 
-// Echte Git-repo's: de CLI zoals de CI hem draait, tegen een commit met één ouder (zoals de merge-commit van een PR).
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, unlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -38,8 +37,6 @@ test('een leeg label-event kan de laatste echte test-check niet overschrijven (5
   const yaml = readFileSync(new URL('../../.github/workflows/ci.yml', import.meta.url), 'utf8');
   const job = yaml.match(/^  test:\n((?:[ \t]+[^\n]*\n|\n)*)/m)?.[1];
   assert.ok(job, 'de afsluitende test-job bestaat');
-  // Deze naam gebruikt alleen veldlezingen, strings, ==/!= en &&/||: dezelfde betekenis
-  // in GitHub-expressies en JavaScript. Zonder eigen naam heet de job naar zijn id: test.
   const expression = job.match(/^    name: \$\{\{ (.+) \}\}\s*$/m)?.[1] ?? "'test'";
   const name = (eventName, event) => runInNewContext(expression, { github: { event_name: eventName, event } });
   for (const action of ['opened', 'synchronize', 'reopened']) {
@@ -55,7 +52,6 @@ test('een leeg label-event kan de laatste echte test-check niet overschrijven (5
 
 const script = join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'scripts', 'ci-changes.mjs');
 
-/** Basis met een paar bestanden, daarna `change(dir)` als tweede commit; geeft de uitkomst van de CLI terug. */
 function cliOn(change) {
   const dir = mkdtempSync(join(tmpdir(), 'ops-ci-changes-'));
   const git = (...args) => execFileSync('git', args, { cwd: dir, encoding: 'utf8' });

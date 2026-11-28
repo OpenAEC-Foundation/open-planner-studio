@@ -8,7 +8,6 @@ import { fileURLToPath } from 'node:url';
 import { bumpVersion, checkVersionFiles, isoWeek, nextVersion, parseVersion } from '../../scripts/bump-version.js';
 
 const root = fileURLToPath(new URL('../..', import.meta.url));
-// Bewust een onafhankelijke lijst: een vergeten pakket mag niet verdwijnen uit de testdekking.
 const paths = ['package.json', 'package-lock.json', 'src-tauri/tauri.conf.json', 'src-tauri/Cargo.toml', 'src-tauri/Cargo.lock', 'headless/server/package.json', 'headless/consumer-example/package.json', 'headless/server/openapi.yaml', 'snap/snapcraft.yaml', 'integrations/claude-desktop/manifest.json'];
 
 function fixture(t) {
@@ -30,7 +29,6 @@ const snapshot = dir => paths.map(path => read(dir, path));
 function gitEnvironment(dir, tags, error = '') {
   const bin = join(dir, 'bin');
   mkdirSync(bin);
-  // Lokale tags zijn bewust leeg. Alleen de remote heeft de opgegeven refs, inclusief annotated tags.
   const refs = tags.flatMap(tag => ['0'.repeat(40) + `\trefs/tags/${tag}`, '1'.repeat(40) + `\trefs/tags/${tag}^{}`]).join('\n');
   writeFileSync(join(bin, 'git'), `#!${process.execPath}
 import assert from 'node:assert/strict';
@@ -92,7 +90,6 @@ test('bump houdt alle app-, Cargo- en headless-velden gelijk en bewaart dependen
   const afterDependencies = json(dir, 'package-lock.json').packages;
   delete afterDependencies[''];
   assert.deepEqual(afterDependencies, dependencies);
-  // Uitsluitend de eigen versievelden mogen wijzigen, ook in Cargo.lock.
   for (const [index, path] of paths.entries()) {
     assert.equal(read(dir, path).replaceAll('2026.43.1', '2026.10.0'), before[index], path);
   }
@@ -156,8 +153,6 @@ test('CLI: ontbrekende lokale releasetag wordt uit actuele origin-tags meegenome
   assertVersions(dir, '2026.43.2');
 });
 
-// De herkenning van een afgeschreven tag en de versiepoort vóór de tag zitten in het releasescript
-// (tests/dev-server/release-run.test.mjs). Hier alleen de bump: de origin-tag blijft meetellen.
 test('na een afgeschreven tag kiest de bump een opvolger boven die tag', t => {
   const dir = fixture(t);
   const tag = 'v2026.43.0';

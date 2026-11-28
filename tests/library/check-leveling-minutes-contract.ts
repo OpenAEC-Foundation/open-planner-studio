@@ -1,5 +1,3 @@
-// Knownbug 257: een aanroeper kan een voorstel met minuten via beide publieke schrijfgrenzen geven.
-// De objectliteralen bewaken het TypeScript-contract; de solve en historie bewaken het gedrag.
 import assert from 'node:assert/strict';
 import { createAppStoreContext } from '@/state/appStoreFactory';
 import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
