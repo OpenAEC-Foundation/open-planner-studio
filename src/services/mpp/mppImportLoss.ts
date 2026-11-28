@@ -1,3 +1,4 @@
+// Bron: MPXJ, © Jon Iles e.a., structuurkennis en veldconstanten geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
 import type { CfbFile } from './cfb';
 import { FixedData, FixedMeta, getDouble, getShort, getUnicodeString, Var2Data, VarMeta12 } from './mppPrimitives';
 import { AssignmentFieldId, fixedOffsetOf, ResourceFieldId, TaskFieldId, type FieldMapTable } from './fieldMap14';

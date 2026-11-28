@@ -1,3 +1,4 @@
+// Bron: MPXJ als referentie voor de cumulatieve `elapsedWorkMinutes`-as van splitsingen (LGPL-2.1, github.com/joniles/mpxj).
 import type { Task, TaskSplitGap, TaskTime } from '@/types/task';
 import type { CalendarEngine } from './CalendarEngine';
 

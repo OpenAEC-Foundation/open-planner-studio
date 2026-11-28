@@ -1,3 +1,4 @@
+// Bron: MPXJ `XmlProjectReader`, `XmlProjectWriter` en `DurationTypeHelper` als referentie voor percentages en labels (LGPL-2.1, github.com/joniles/mpxj).
 import { nameWithProjectCode } from '@/utils/projectCodeName';
 import { P6XmlImportError } from './p6xmlErrors';
 import { p6ConstraintFromCodeOrLabel } from './p6ConstraintTypes';

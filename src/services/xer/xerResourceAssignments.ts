@@ -1,3 +1,4 @@
+// Bron: MPXJ, © Jon Iles e.a., afrondingsprecisie van werkhoeveelheden overgenomen uit `XerUnitsHelper` (LGPL-2.1, github.com/joniles/mpxj).
 import type { Resource, ResourceAssignment, ResourceCurve } from '@/types/resource';
 import type {
   XerAssignmentCostsSource, XerAssignmentQuantitiesSource, XerAssignmentUnitScale,
