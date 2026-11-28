@@ -1,28 +1,21 @@
 import { expect, seedProject, test } from './fixtures/ops';
 import type { Page } from '@playwright/test';
 
-// Tekstrollen: elke zichtbare interfacetekst staat op één van de zes rolmaten, en die schalen mee met
-// `ui.uiFontScale`. `npm run verify:text-roles` bewaakt de BRONCODE; deze test bewaakt wat de browser
-// er werkelijk van maakt — een multi-line declaratie, een overstemde klasse of een geërfde maat ziet
-// een broncodepoort niet.
-
 const ROLE_PX = [9, 10, 11, 12, 14, 20];
 
 interface Offender { px: number; where: string }
 interface Audit { inspected: number; offenders: Offender[] }
 
-// Nul overtreders is óók wat een leeg (niet-gerenderd) scherm oplevert; eis daarom dat er echt gemeten is.
 const MIN_INSPECTED = 15;
 
-/** Computed font-size van alles wat zelf tekst draagt, teruggerekend naar schaal 1. */
 async function audit(page: Page): Promise<Audit> {
   return page.evaluate((roles) => {
     const scale = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--ui-font-scale')) || 1;
     const out: Offender[] = [];
     let inspected = 0;
     for (const el of Array.from(document.querySelectorAll<HTMLElement>('body *'))) {
-      if (el.closest('svg')) continue; // SVG-tekst rekent in viewBox-eenheden
-      if (el.closest('.help-inline-code')) continue; // bewust relatief (0.85em) t.o.v. de omringende rol
+      if (el.closest('svg')) continue;
+      if (el.closest('.help-inline-code')) continue;
       const ownText = Array.from(el.childNodes).some(n => n.nodeType === Node.TEXT_NODE && (n.textContent ?? '').trim() !== '');
       const isControl = el.tagName === 'INPUT' || el.tagName === 'SELECT' || el.tagName === 'TEXTAREA';
       if (!ownText && !isControl) continue;
@@ -39,7 +32,6 @@ async function fontSizeOf(page: Page, selector: string): Promise<number> {
   return page.locator(selector).first().evaluate(el => parseFloat(getComputedStyle(el).fontSize));
 }
 
-/** Wacht tot het oppervlak gerenderd is (genoeg tekst gemeten) én er geen overtreder meer is. */
 async function expectOnRoles(page: Page, message: string): Promise<void> {
   await expect.poll(async () => {
     const result = await audit(page);

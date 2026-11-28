@@ -1,6 +1,3 @@
-// De dagenmaat (§3.14): einde di 31 aug 12:00, zoals de urenreferentie (minute-model-tutorial-f3.json).
-// Tutorial 6 — Voortgang en afwijking (`tut-6-uitvoering`): baseline, statusdatum, voortgang in de tabel,
-// rekenen en de afwijking lezen.
 import { l, same, type Action, type Check, type L, type Snap, type TutorialScript } from './dsl';
 import { PHASES, T, taskIs } from './project';
 
@@ -14,7 +11,6 @@ const ACTUAL_START = l('Werkelijke start', 'Actual start');
 const ACTUAL_FINISH = l('Werkelijk einde', 'Actual finish');
 const PROGRESS = l('Voortgang', 'Progress');
 
-/** Een kolom toevoegen via Tabel › Kolommen › Kolommen…: categorie openklappen en de kolom kiezen. */
 const addColumn = (category: L, column: L): Action[] => [
   { ribbon: 'table:tableColumns', label: l('Kolommen…', 'Columns…') },
   { waitFor: dialog },
@@ -23,14 +19,12 @@ const addColumn = (category: L, column: L): Action[] => [
   { waitFor: dialog, state: 'hidden' },
 ];
 
-/** Dubbelklik op een cel van de tabel, typ de waarde en Enter. */
 const enter = (task: L, column: L, value: string): Action[] => [
   { click: { cell: { task, column } }, double: true },
   { type: value },
   { press: 'Enter' },
 ];
 
-/** Klaar met deze werkelijke datums (een mijlpaal: alleen het einde). */
 const done = (task: L, start: string | null, finish: string): Action[] => [
   ...(start ? enter(task, ACTUAL_START, start) : []),
   ...enter(task, ACTUAL_FINISH, finish),

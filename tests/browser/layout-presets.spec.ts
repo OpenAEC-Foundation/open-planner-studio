@@ -1,6 +1,3 @@
-// Layoutknoppen (issue #144, gfayat): één klik zet het resourcediagram aan, nogmaals klikken brengt
-// het beeld van vóór de klik terug, zonder dat zoom of filter meeverhuizen. De pure kern en de migratie worden
-// headless bewaakt (tests/planning/check-layout-presets.ts); hier de echte gebruikersflow.
 import { expect, seedProject, test, waitForWelcomeDialog } from './fixtures/ops';
 
 const SHOTS = process.env.OPS_LAYOUT_SHOTS;
@@ -51,15 +48,12 @@ test('layoutknop: één klik zet het resourcediagram aan, nogmaals klikken breng
   const on = await viewState(page);
   expect(on.group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
   expect(on.showRelations).toBe(false);
-  // Zoom en filter zijn geen deel van deze layout en blijven dus staan.
   expect(on.zoom).toBe(before.zoom);
   expect(on.filter).toEqual(before.filter);
-  // Banden per resource: Ploeg A en Kraan (Gevel is weggefilterd, dus geen band "(geen)").
   await expect(page.locator('[data-grid-group-cell]')).toHaveCount(2);
   await expect(button).toHaveClass(/active/);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/02-resourcediagram-aan.png` });
 
-  // Handmatig zoomen tijdens het resourcediagram: geen layoutdeel, dus uitzetten laat het staan.
   await page.evaluate(() => window.__OPS__!.store.getState().setZoom(23));
   await expect(button).toHaveClass(/active/);
 
@@ -72,18 +66,15 @@ test('layoutknop: één klik zet het resourcediagram aan, nogmaals klikken breng
   expect(off.filter).toEqual(before.filter);
   await expect(button).not.toHaveClass(/active/);
 
-  // Elke klik is één undo-stap, en de knop volgt het scherm in plaats van de laatste klik.
   await page.keyboard.press('ControlOrMeta+z');
   expect((await viewState(page)).group).toEqual(on.group);
   await expect(button).toHaveClass(/active/);
 
-  // Een gedragen deel met de hand wijzigen = de layout staat niet meer op het scherm.
   await page.evaluate(() => window.__OPS__!.store.getState().setGroup([]));
   await expect(button).not.toHaveClass(/active/);
 });
 
 test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterknop en raakt alleen het filter', async ({ page, ops: _ops }) => {
-  // De oude sleutel zetten en herladen: de migratie draait bij de eerste `loadLayouts()`.
   await page.evaluate(() => {
     localStorage.setItem('ops-savedFilters', JSON.stringify([{
       id: 'zonder-gevel', name: 'Zonder gevel',
@@ -104,7 +95,6 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
   await seedWithResources(page);
 
   await page.getByRole('button', { name: /^(View|Beeld)$/ }).click();
-  // Het klassieke Weergave-blok (Kolommen/Filter/Groeperen/Sorteren) is een legacy-functie: standaard weg.
   await expect(page.getByRole('button', { name: /^(Sort|Sorteren)/ })).toHaveCount(0);
   const filterButton = page.locator('[data-ops-layout-button="zonder-gevel"] button');
   await expect(filterButton).toHaveText(/Zonder gevel/);
@@ -113,13 +103,11 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
   await filterButton.click();
   let v = await viewState(page);
   expect(v.filter).not.toBeNull();
-  // Verschillende delen: beide knoppen staan samen aan, het resourcediagram blijft staan.
   expect(v.group).toEqual([{ field: { src: 'resource' }, dir: 'asc' }]);
   await expect(page.locator(RESOURCE_DIAGRAM)).toHaveClass(/active/);
   await expect(filterButton).toHaveClass(/active/);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/05-twee-knoppen-aan.png` });
 
-  // De filterknop uit: alleen het filter gaat terug, het resourcediagram blijft aan.
   await filterButton.click();
   v = await viewState(page);
   expect(v.filter).toBeNull();
@@ -127,8 +115,6 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
   await expect(page.locator(RESOURCE_DIAGRAM)).toHaveClass(/active/);
   expect(await page.evaluate(() => localStorage.getItem('ops-savedFilters'))).toContain('zonder-gevel');
 
-  // Een filter opslaan in de filterdialoog en daarna een layout dupliceren op het lint: het nieuwe filter blijft
-  // (knownbug 1362; review Terra #905). Het lint schreef eerder zijn eigen, oudere kopie van de lijst terug.
   const storedNames = () => page.evaluate(() =>
     (JSON.parse(localStorage.getItem('ops-taskGridLayouts') ?? '{"layouts":[]}').layouts as { name: string }[]).map(l => l.name));
   await page.evaluate(() => {
@@ -149,8 +135,6 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
   await expect.poll(async () => (await storedNames()).length).toBe(3);
   expect(await storedNames()).toEqual(expect.arrayContaining(['Zonder gevel', 'Zonder dak']));
 
-  // Opslaan terwijl de opslag even niet te lezen is: niets opgeslagen, een melding, en de naam blijft staan, zodat
-  // opnieuw opslaan na herstel lukt (review Terra #905, ronde 2).
   await page.evaluate(() => {
     window.__OPS__!.store.getState().setUI({ showFilterDialog: true });
     const w = window as unknown as { opsRealGetItem?: Storage['getItem'] };
@@ -173,7 +157,6 @@ test('layoutknop: een opgeslagen filter van vóór #144 staat onder de filterkno
   await filterDialog.getByRole('button', { name: /^(Save|Opslaan)$/ }).click();
   await expect.poll(storedNames).toContain('Na een leesfout');
   await expect(nameField).toHaveValue('');
-  // Ook een schrijffout (opslag vol) telt niet als opgeslagen: een melding en de naam blijft (review Terra #905, ronde 3).
   const notSavedCount = () => page.evaluate(() => window.__OPS__!.store.getState().ui.notifications
     .filter(n => n.messageKey === 'notifications.layoutsNotSaved').length);
   const countBefore = await notSavedCount();
@@ -201,7 +184,6 @@ test('legacy-instelling: de klassieke weergaveknoppen komen terug via Instelling
   await expect(page.getByRole('button', { name: /^(Sort|Sorteren)/ })).toHaveCount(0);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   const legacy = page.locator('[data-ops-legacy-settings]');
-  // De instelling staat in de groep Geavanceerd, gemarkeerd als Legacy.
   await page.locator('[data-ops-settings-group="advanced"]').click();
   await legacy.scrollIntoViewIfNeeded();
   await expect(legacy).toBeVisible();
@@ -223,11 +205,9 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   const dialog = page.locator('[data-ops-layout-dialog]');
   await dialog.locator('[data-ops-layout-name]').fill('Per resource, zonder lijnen');
   await dialog.locator('[data-ops-layout-icon="star"]').click();
-  // Alleen groepering en de overlaygroep (met de relatielijnen) vastleggen; de rest uitvinken.
   for (const part of ['columns', 'filter', 'sort', 'timeScale']) {
     await dialog.locator(`[data-ops-layout-part="${part}"]`).uncheck();
   }
-  // De groepering stel je HIER in — het scherm erachter is nog de WBS-boom.
   const groupRow = dialog.locator('[data-ops-layout-part-row="group"]');
   await groupRow.getByRole('button').click();
   await groupRow.locator('select').first().selectOption(JSON.stringify({ src: 'resource' }));
@@ -239,9 +219,7 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
 
   const stored = await page.evaluate(() => JSON.parse(localStorage.getItem('ops-taskGridLayouts')!).layouts);
   expect(stored).toHaveLength(1);
-  // Issue #173: het vinkje Overlay legt de relatielijnen én de overige overlays vast.
   expect(Object.keys(stored[0]).sort()).toEqual(['group', 'icon', 'id', 'name', 'overlays', 'showRelations']);
-  // Opslaan past NIET toe: het scherm verandert pas bij een klik op de knop.
   expect((await viewState(page)).group).toEqual([]);
 
   const own = page.locator('[data-ops-layout-button]').filter({ hasText: 'Per resource' }).locator('button');
@@ -251,13 +229,11 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   expect(v.showRelations).toBe(false);
   expect(v.zoom).toBe(17);
   await expect(own).toHaveClass(/active/);
-  // Dezelfde delen als het meegeleverde resourcediagram ⇒ die knop staat NIET mee aan (andere sortering).
   await own.click();
   v = await viewState(page);
   expect(v.group).toEqual([]);
   expect(v.showRelations).toBe(true);
 
-  // Toepassen zonder opslaan: het beeld verandert, er komt geen knop bij en er gaat geen knop aan.
   await plus.click();
   for (const part of ['columns', 'filter', 'group', 'sort', 'timeScale']) {
     await dialog.locator(`[data-ops-layout-part="${part}"]`).uncheck();
@@ -269,7 +245,6 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   await expect(page.locator('[data-ops-layout-button]')).toHaveCount(2);
   await expect(page.locator('[data-ops-layout-button] button.active')).toHaveCount(0);
 
-  // Rechtsklik → dupliceren, daarna het origineel verwijderen.
   await own.click({ button: 'right' });
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/04-rechtsklikmenu.png` });
   await page.getByRole('button', { name: /^(Duplicate|Dupliceren)$/ }).click();
@@ -279,8 +254,6 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   await page.getByRole('button', { name: /^(Delete|Verwijderen|OK|Confirm|Bevestigen)$/ }).last().click();
   await expect(page.locator('[data-ops-layout-button]')).toHaveCount(2);
 
-  // Is de opslag even niet te lezen, dan is dat geen lege lijst (knownbug 1362): de dialoog laat Opslaan uit
-  // staan, en de eigen layout blijft in de opslag en op het lint.
   const storedBefore = await page.evaluate(() => localStorage.getItem('ops-taskGridLayouts'));
   await page.evaluate(() => {
     const w = window as unknown as { opsRealGetItem?: Storage['getItem'] };
@@ -305,8 +278,6 @@ test('layoutdialoog: plus maakt een eigen knop; je stelt de delen IN de dialoog 
   await page.keyboard.press('Escape');
 });
 
-// Issue #173 punt 1 (manu varkey): een handmatige wijziging aan een deel van de actieve layout zet de
-// knop uit — en dan gaan ook zijn ANDERE delen terug, in plaats van half te blijven staan.
 test('layoutknop: relatielijnen met de hand omzetten zet het resourcediagram helemaal uit', async ({ page, ops: _ops }) => {
   await seedWithResources(page);
   await page.evaluate(() => window.__OPS__!.store.getState().setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'desc' }]));
@@ -322,13 +293,11 @@ test('layoutknop: relatielijnen met de hand omzetten zet het resourcediagram hel
   await expect(button).not.toHaveClass(/active/);
   const after = await viewState(page);
   expect(after.showRelations).toBe(true);
-  // Groepering en sortering van het resourcediagram zijn terug naar het beeld van vóór de klik.
   expect(after.group).toEqual(before.group);
   expect(after.sort).toEqual(before.sort);
   await expect(page.locator('[data-grid-group-cell]')).toHaveCount(0);
 });
 
-// Issue #173 punt 2 en 3: de overlays als groep in de layoutdialoog, en Resourcetype bij groeperen.
 test('layoutdialoog: overlays als eigen deel, en groeperen op resourcetype', async ({ page, ops: _ops }) => {
   await page.evaluate(() => { localStorage.removeItem('ops-taskGridLayouts'); });
   await seedWithResources(page);
@@ -341,7 +310,6 @@ test('layoutdialoog: overlays als eigen deel, en groeperen op resourcetype', asy
   for (const part of ['columns', 'filter', 'sort', 'timeScale']) {
     await dialog.locator(`[data-ops-layout-part="${part}"]`).uncheck();
   }
-  // Alle overlays staan in één groep, met de relatielijnen erbij.
   const overlayRow = dialog.locator('[data-ops-layout-part-row="overlays"]');
   await expect(overlayRow.locator('[data-ops-layout-relations]')).toBeVisible();
   for (const key of ['baseline', 'progressLine', 'statusDateLine', 'resourceAccent', 'floatBand']) {
@@ -367,15 +335,12 @@ test('layoutdialoog: overlays als eigen deel, en groeperen op resourcetype', asy
   });
   expect(await overlays()).toEqual({ baseline: true, floatBand: false });
   expect((await viewState(page)).group).toEqual([{ field: { src: 'resourceType' }, dir: 'asc' }]);
-  // Twee typebanden (ploeg, materieel) plus "(geen)" voor de taak zonder resource.
   await expect(page.locator('[data-grid-group-cell]')).toHaveCount(3);
 
-  // Undo van de layoutklik zet ook de (app-brede) overlays terug — één klik, één stap.
   await page.keyboard.press('ControlOrMeta+z');
   await expect(own).not.toHaveClass(/active/);
   expect(await overlays()).toEqual({ baseline: false, floatBand: true });
   expect((await viewState(page)).group).toEqual([]);
-  // Aan → uit → Ctrl+Z → uit: het herstelpunt blijft het beeld van vóór de layout.
   await own.click();
   await own.click();
   expect(await overlays()).toEqual({ baseline: false, floatBand: true });
@@ -388,16 +353,12 @@ test('layoutdialoog: overlays als eigen deel, en groeperen op resourcetype', asy
   await own.click();
   await expect(own).toHaveClass(/active/);
 
-  // Een overlay met de hand omzetten zet de knop uit en haalt ook de groepering weg (punt 1). De
-  // overlays zijn samen één deel — het deel dat de gebruiker wijzigde — en blijven dus zoals ze nu staan.
   await page.locator('[data-ops-ribbon-item="toggleFloatBand"]').click();
   await expect(own).not.toHaveClass(/active/);
   expect((await viewState(page)).group).toEqual([]);
   expect(await overlays()).toEqual({ baseline: true, floatBand: true });
 });
 
-// Review op #173: een layout van vóór de overlays (alleen relatielijnen) hernoemen mag er niet stil de
-// overlays van het scherm van nu in vastleggen.
 test('layoutdialoog: een oude layout bewerken voegt geen overlays toe', async ({ page, ops: _ops }) => {
   await page.evaluate(() => {
     localStorage.setItem('ops-taskGridLayouts', JSON.stringify({ version: 1, layouts: [{
@@ -427,9 +388,6 @@ test('layoutdialoog: een oude layout bewerken voegt geen overlays toe', async ({
   expect(stored[0].name).toBe('Oud, hernoemd');
   expect(Object.keys(stored[0]).sort()).toEqual(['group', 'icon', 'id', 'name', 'showRelations']);
 
-  // Bewerken terwijl de opslag even niet te lezen is (knownbug 1362; review Sol #905): Opslaan staat uit. Komt de
-  // lijst later binnen (hier een `StorageEvent`, zoals van de host of een ander venster), dan vult die ook het
-  // formulier, en Opslaan houdt de layout zoals ze was.
   await page.evaluate(() => {
     const w = window as unknown as { opsRealGetItem?: Storage['getItem'] };
     const realGetItem = w.opsRealGetItem = Storage.prototype.getItem;
@@ -441,8 +399,6 @@ test('layoutdialoog: een oude layout bewerken voegt geen overlays toe', async ({
   await page.locator('[data-ops-layout-button="oud"] button').click({ button: 'right' });
   await page.getByRole('button', { name: /^(Edit…|Bewerken…)$/ }).click();
   await expect(page.locator('[data-ops-layout-save]')).toBeDisabled();
-  // Het formulier is vergrendeld tot de layout gelezen is: invoer van vóór die tijd zou anders verloren gaan
-  // (review Terra #905, ronde 3).
   await expect(dialog).toHaveAttribute('inert', '');
   await page.evaluate(() => {
     Storage.prototype.getItem = (window as unknown as { opsRealGetItem: Storage['getItem'] }).opsRealGetItem;

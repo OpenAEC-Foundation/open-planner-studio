@@ -1,7 +1,5 @@
 import { expect, test } from './fixtures/ops';
 
-// Nieuwe route: er bestond geen scenario voor activiteiten lezen/uitklappen/wissen. De
-// verbindingsgegevens-test heeft een ander doel (credentials kopiëren), zonder activiteitenfeed.
 test('MCP-activiteit: vaste markeringen vertalen mee, technische inhoud blijft letterlijk', async ({ page, ops: _ops }) => {
   await page.evaluate(async () => {
     const activityPath = '/src/services/mcp/activityLog.ts';
@@ -31,7 +29,7 @@ test('MCP-activiteit: vaste markeringen vertalen mee, technische inhoud blijft l
     await expect(panel.getByText(nl ? 'Fout' : 'Error', { exact: true })).toBeVisible();
     const fields = await panel.locator('pre').allTextContents();
     expect(fields).toContain('x'.repeat(20 * 1024) + (nl ? '… afgekapt' : '… truncated'));
-    expect(fields).toContain('raw … truncated'); // Geen vervanging binnen technische inhoud.
+    expect(fields).toContain('raw … truncated');
   }
   const panel = page.getByText('MCP activity', { exact: true }).locator('../..');
   await panel.getByRole('button', { name: 'Clear', exact: true }).click();

@@ -4,12 +4,7 @@ test('bedieningssignalen: gewone controls wijzen, uitgeschakelde ribbonbediening
   const startTab = page.locator('.ribbon-tab').first();
   await expect(startTab).toHaveCSS('cursor', 'pointer');
 
-  // De aparte relatietab bestaat niet meer. De vaste relatie-dropdown op Planning toont zonder
-  // selectie dezelfde native uitgeschakelde koppelactie en dus dezelfde niet-klikbare aanwijzing.
   await page.locator('.ribbon-tab').filter({ hasText: /^Planning$/ }).click();
-  // De tabwissel laat alleen kleuren overvloeien: een geanimeerde rand of marge gaf een kort
-  // donker balkje onder de nieuwe tab en een sprong van 3px. En geen tab steekt onder de
-  // titelbalk (z-index 40), ook de actieve en de Bestand-tab niet.
   await expect(page.locator('.ribbon-tab.active').filter({ hasText: /^Planning$/ })).toBeVisible();
   const tabTransitions = await page.evaluate(() => [...new Set([...document.querySelectorAll('.ribbon-tab')]
     .flatMap(t => getComputedStyle(t).transitionProperty.split(',').map(p => p.trim())))]);
@@ -24,8 +19,6 @@ test('bedieningssignalen: gewone controls wijzen, uitgeschakelde ribbonbediening
   await expect(nativeDisabled).toBeVisible();
   await expect(nativeDisabled).toHaveCSS('cursor', 'not-allowed');
 
-  // Zoek via de echte tabs een bestaande custom ribboncontrol die via aria-disabled wordt
-  // geblokkeerd; het is geen native `disabled`, maar mag evenmin een handcursor krijgen.
   for (const tab of await page.locator('.ribbon-tab').all()) {
     await tab.click();
     if (await page.locator('button.ribbon-btn[aria-disabled="true"]').count()) break;
@@ -34,14 +27,11 @@ test('bedieningssignalen: gewone controls wijzen, uitgeschakelde ribbonbediening
   await expect(customDisabled).toBeVisible();
   await expect(customDisabled).toHaveCSS('cursor', 'not-allowed');
 
-  // In de browser is F11 van de browser: de app start er geen presentatie mee (anders verdwijnt
-  // het hele lint zodra iemand volledig scherm kiest). De presentatie start via de lintknop.
   await page.locator('.ribbon-tab').filter({ hasText: /^(Beeld|View)$/ }).click();
   await page.keyboard.press('F11');
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.presentationMode)).toBe(false);
   await expect(startTab).toBeVisible();
 
-  // Een nog niet bevestigde duur moet bewaard blijven wanneer Presentatie het paneel verwijdert.
   const [taskId] = await seedProject(page, [
     { name: 'Presentatietaak', start: '2026-09-07', finish: '2026-09-11', durationDays: 5 },
   ]);
@@ -55,7 +45,6 @@ test('bedieningssignalen: gewone controls wijzen, uitgeschakelde ribbonbediening
   await duration.fill('7');
   expect(await page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, taskId)).toBe(5);
 
-  // De hint is vertaald en Escape verlaat dezelfde modus weer; de brug leest het resultaat.
   await page.getByRole('button', { name: /^(Presentation|Presentatie)$/ }).click();
   await expect(page.locator('text=/Esc.*F11|F11.*Esc/')).toBeVisible();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.presentationMode)).toBe(true);

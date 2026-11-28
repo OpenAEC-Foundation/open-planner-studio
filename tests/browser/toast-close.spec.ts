@@ -1,7 +1,3 @@
-// Meldingen sluiten (eigenaarsbesluit 2026-10-12): een klik op de melding zelf doet niets, alleen het
-// kruisje sluit hem. Een fout blijft staan tot het kruisje; een info verdwijnt ook vanzelf. In RTL
-// (ar/fa) staat het kruisje links. De `__OPS__`-brug zet alleen de melding (fixture); klikken en
-// toetsen zijn echte browser-events.
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
@@ -16,12 +12,10 @@ test('klik op de melding sluit hem niet; het kruisje wel', async ({ page, ops: _
   const toast = page.locator('.ops-toast', { hasText: 'Library could not be saved' });
   await expect(toast).toBeVisible();
 
-  // Klik op de tekst: de melding blijft staan.
   await toast.locator('.ops-toast-message').click();
   await page.waitForTimeout(300);
   await expect(toast).toBeVisible();
 
-  // Het kruisje is een echte knop met een toegankelijke naam, en sluit de melding.
   const close = toast.getByRole('button', { name: 'Close notification' });
   await expect(close).toBeVisible();
   await close.click();

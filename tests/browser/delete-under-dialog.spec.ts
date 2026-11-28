@@ -1,12 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 
-// Delete en Backspace mogen de geselecteerde taak niet verwijderen terwijl een modaal venster
-// openstaat. Gemeten fout (2026-10-19, showcase, 16 taken): met de focus op een knop in het
-// kalendervenster, in *Taak bewerken* of in *Projectinstellingen* gaf Delete/Backspace 15 taken,
-// terwijl het venster openbleef. Fixtures (taken, selectie, venster openen) gaan via de brug; de
-// geteste handeling is steeds een echte toetsaanslag.
-
 const taskCount = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().tasks.length);
 
 async function seedAndSelect(page: Page): Promise<string> {
@@ -39,9 +33,6 @@ test('Delete en Backspace in het kalendervenster verwijderen de taak niet', asyn
 
 test('Delete en Backspace op Cancel in Taak bewerken verwijderen de taak niet', async ({ page, ops: _ops }) => {
   const id = await seedAndSelect(page);
-  // Knownbug 120 / CI #534: de oude naamfocustimer (30 ms) stal een expliciete knopfocus.
-  // Zet de klok vóór openen stil, zoals in toast-open-sticky.spec.ts. Echte handelingen kunnen
-  // zo aantoonbaar vóór die timer vallen, ongeacht de belasting van de CI-runner.
   await page.clock.install();
   const now = await page.evaluate(() => Date.now());
   await page.clock.pauseAt(now + 500);
@@ -54,32 +45,30 @@ test('Delete en Backspace op Cancel in Taak bewerken verwijderen de taak niet', 
   const help = dialog.getByRole('button', { name: 'Help on this topic', exact: true });
   await expect(name).toHaveValue('Set up site');
 
-  // Klokcontrole: precies dezelfde 30ms-timerroute staat stil en moet straks wél verlopen.
   const timer = await page.evaluateHandle(() => {
     const control = { fired: false };
     window.setTimeout(() => { control.fired = true; }, 30);
     return control;
   });
   await name.click();
-  await page.keyboard.press('Shift+Tab'); // sluiten
-  await page.keyboard.press('Shift+Tab'); // Help
+  await page.keyboard.press('Shift+Tab');
+  await page.keyboard.press('Shift+Tab');
   await expect(help).toBeFocused();
-  await page.keyboard.press('Shift+Tab'); // wrap naar Opslaan
+  await page.keyboard.press('Shift+Tab');
   await expect(save).toBeFocused();
-  await page.keyboard.press('Shift+Tab'); // Annuleren, zonder de dialoog te sluiten
+  await page.keyboard.press('Shift+Tab');
   await expect(cancel).toBeFocused();
   expect(await timer.evaluate(control => control.fired)).toBe(false);
   await page.clock.runFor(30);
   expect(await timer.evaluate(control => control.fired)).toBe(true);
   await timer.dispose();
-  await expect(cancel).toBeFocused(); // Oude code faalt hier: de timer heeft de naam gefocust.
+  await expect(cancel).toBeFocused();
 
   await pressDeleteKeys(page, cancel);
   expect(await taskCount(page)).toBe(3);
   await expect(name).toHaveValue('Set up site');
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.editingTaskId)).toBe(id);
 
-  // Ook vooruit blijft Tab binnen het venster; Escape sluit alleen de bewerksessie.
   await page.keyboard.press('Tab');
   await expect(save).toBeFocused();
   await page.keyboard.press('Tab');
@@ -87,7 +76,6 @@ test('Delete en Backspace op Cancel in Taak bewerken verwijderen de taak niet', 
   await page.keyboard.press('Escape');
   await expect(dialog).toHaveCount(0);
 
-  // Beginfocus selecteert de volledige, geïnitialiseerde naam, ook na heropenen en taakwissel.
   const expectSelectedName = async (value: string) => {
     await expect(name).toHaveValue(value);
     await expect(name).toBeFocused();
@@ -149,7 +137,6 @@ test('zonder venster verwijdert Delete de geselecteerde taak wel', async ({ page
 });
 
 test('in de presentatiemodus verwijdert Delete de taak en zet Ctrl+Z hem terug', async ({ page, ops: _ops }) => {
-  // De gids `howto-presentatie` belooft dit; de presentatie is een weergave, geen venster.
   const id = await seedAndSelect(page);
   await page.evaluate(() => window.__OPS__!.store.getState().setPresentationMode(true));
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.presentationMode)).toBe(true);
@@ -178,7 +165,6 @@ test('Delete en Backspace met de sluitvraag open verwijderen de taak niet', asyn
 
 test('in Backstage verwijdert Delete geen taak, maar zet Ctrl+Z wel terug', async ({ page, ops: _ops }) => {
   await seedAndSelect(page);
-  // Eerst een verwijdering in de planning, zodat Ctrl+Z in Backstage iets terug te zetten heeft.
   await page.evaluate(() => (document.activeElement as HTMLElement | null)?.blur());
   await page.keyboard.press('Delete');
   await expect.poll(() => taskCount(page)).toBe(2);
@@ -203,7 +189,6 @@ test('op het tabblad Rapport verwijderen Delete en Backspace geen taak en plakt 
 
   await pressDeleteKeys(page, page.getByRole('button', { name: 'Export PDF' }).first());
   expect(await taskCount(page)).toBe(3);
-  // Apart meten: zou Delete toch werken, dan zet een plakactie het aantal anders weer op 3.
   await page.keyboard.press('Control+v');
   expect(await taskCount(page)).toBe(3);
 });
@@ -233,7 +218,6 @@ test('Ctrl+C in Backstage › Help laat het gewone kopiëren met rust', async ({
   await seedAndSelect(page);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'file', backstageSection: 'help' }));
   await page.getByRole('button', { name: 'Back', exact: true }).first().focus();
-  // Deze luisteraar komt ná die van de app, en ziet dus of de app de toets heeft afgevangen.
   await page.evaluate(() => {
     const w = window as unknown as { __copyPrevented?: boolean };
     window.addEventListener('keydown', (e) => {

@@ -2,11 +2,6 @@ import { expect, seedProject, test } from './fixtures/ops';
 import type { Page } from '@playwright/test';
 import { xlsxFromText } from '../planning/progressSheetFixture';
 
-// ?-knoppen in dialogen en panelen (ontwerp gebruikersdocumentatie §8.1 en §10.2, fase 4). Een
-// dialoog zonder onopgeslagen invoer sluit en opent Help meteen; een dialoog met wijzigingen vraagt
-// eerst Opslaan / Annuleren / Terug. De dev-brug opent alleen de dialoog of het paneel (fixture); de
-// geteste handeling — de ?-knop en de keuze in de vraag — zijn echte klikken.
-
 const current = (page: Page) => page.locator('.help-article-body');
 
 async function expectHelpOn(page: Page, id: string): Promise<void> {
@@ -46,13 +41,11 @@ test('kalendervenster met een wijziging: Terug, Annuleren en Opslaan', async ({ 
     await expect(leave).toBeVisible();
   };
 
-  // Terug: de vraag sluit, de dialoog en de invoer blijven staan.
   await open('Concept A');
   await leave.locator('[data-ops-help-leave-choice="back"]').click();
   await expect(leave).toHaveCount(0);
   await expect(dialog.locator('input').first()).toHaveValue('Concept A');
 
-  // Annuleren: de invoer is weg, Help staat op het artikel.
   await dialog.locator('[data-ops-cal-cancel]').click();
   await expect(dialog).toHaveCount(0);
   await open('Concept B');
@@ -61,7 +54,6 @@ test('kalendervenster met een wijziging: Terug, Annuleren en Opslaan', async ({ 
   await expectHelpOn(page, 'ref-kalenders');
   expect(await calendarName()).toBe(before);
 
-  // Opslaan: de invoer staat in de planning, daarna Help.
   await open('Bouwkalender help');
   await leave.locator('[data-ops-help-leave-choice="save"]').click();
   await expect(dialog).toHaveCount(0);
@@ -101,9 +93,6 @@ test('panelen: Waarschuwingen en Eigenschappen hebben een ?-knop naar hun refere
   await expectHelpOn(page, 'ref-taak-eigenschappen');
 });
 
-// ── Zes vensters erbij (besluit eigenaar): Projectinformatie, Project verplaatsen, Nivelleren,
-// Bibliotheek koppelen/importeren, Voortgang importeren en Herstellen. ─────────────────────────────────
-
 const leaveDialog = (page: Page) => page.locator('[data-ops-help-leave-dialog]');
 const choose = (page: Page, choice: 'back' | 'discard' | 'save') =>
   leaveDialog(page).locator(`[data-ops-help-leave-choice="${choice}"]`).click();
@@ -137,7 +126,6 @@ test('project verplaatsen: Opslaan zonder voorbeeld laat het venster staan, met 
   const help = dialog.locator('[data-ops-help-button="howto-project-verplaatsen"]');
   const open = () => page.evaluate(() => window.__OPS__!.store.getState().setUI({ showMoveProjectDialog: true }));
 
-  // Niets veranderd: Help opent meteen.
   await open();
   await expect(dialog).toBeVisible();
   await help.click();
@@ -145,9 +133,7 @@ test('project verplaatsen: Opslaan zonder voorbeeld laat het venster staan, met 
   await expect(dialog).toHaveCount(0);
   await expectHelpOn(page, 'howto-project-verplaatsen');
 
-  // Nieuwe startdatum zonder voorbeeld: de vraag komt; Opslaan kan nog niets toepassen.
   await open();
-  // Het gedeelde datumveld (dd-mm-jjjj); Tab rondt het af.
   const newStart = dialog.getByRole('group', { name: /^(New project start|Nieuwe projectstart)$/ }).getByRole('textbox');
   await newStart.nth(0).fill('05');
   await newStart.nth(1).fill('10');
@@ -160,7 +146,6 @@ test('project verplaatsen: Opslaan zonder voorbeeld laat het venster staan, met 
   await expect(dialog).toBeVisible();
   expect(await projectStart()).toBe('2026-09-07');
 
-  // Met voorbeeld: Opslaan verplaatst het project en opent Help.
   await dialog.getByRole('button', { name: /^(Calculate preview|Voorbeeld berekenen)$/ }).click();
   await help.click();
   await choose(page, 'save');
@@ -191,7 +176,6 @@ test('nivelleren: de ?-knop vraagt altijd eerst — Terug, Annuleren en Opslaan'
   const help = dialog.locator('[data-ops-help-button="howto-overbezetting-oplossen"]');
   const open = () => page.evaluate(() => window.__OPS__!.store.getState().setUI({ showLevelingDialog: true }));
 
-  // Ook zonder wijziging komt de vraag. Terug: de vraag sluit, het venster blijft staan.
   await open();
   await expect(dialog).toBeVisible();
   await help.click();
@@ -200,7 +184,6 @@ test('nivelleren: de ?-knop vraagt altijd eerst — Terug, Annuleren en Opslaan'
   await expect(leaveDialog(page)).toHaveCount(0);
   await expect(dialog).toBeVisible();
 
-  // Annuleren met een voorstel: het voorstel vervalt, Help staat op het artikel, de planning is gelijk.
   await dialog.getByRole('button', { name: /^(Berekenen|Calculate)$/ }).click();
   await expect(dialog.locator('table tbody tr')).toHaveCount(1);
   await help.click();
@@ -209,7 +192,6 @@ test('nivelleren: de ?-knop vraagt altijd eerst — Terug, Annuleren en Opslaan'
   await expectHelpOn(page, 'howto-overbezetting-oplossen');
   expect(await starts()).toEqual(before);
 
-  // Opslaan zonder voorstel past niets toe: het venster blijft open.
   await open();
   await help.click();
   await choose(page, 'save');
@@ -217,7 +199,6 @@ test('nivelleren: de ?-knop vraagt altijd eerst — Terug, Annuleren en Opslaan'
   await expect(dialog).toBeVisible();
   expect(await starts()).toEqual(before);
 
-  // Opslaan met een voorstel: toegepast, daarna Help.
   await dialog.getByRole('button', { name: /^(Berekenen|Calculate)$/ }).click();
   await expect(dialog.locator('table tbody tr')).toHaveCount(1);
   await help.click();
@@ -310,9 +291,6 @@ test('voortgang importeren: bij het kiezen meteen Help, met een ingelezen blad e
 });
 
 test('herstellen na een crash: ? opent Help zonder te kiezen; terug staat het venster er weer en herstellen werkt', async ({ page, ops: _ops }) => {
-  // Fixture: een gewijzigd project krijgt meteen een herstelkopie (eerste auto-save-ronde); daarna
-  // herladen in hetzelfde tabblad, zoals de gids beschrijft. De welkomst staat als gezien, zodat hij
-  // na het herstel niet tussendoor komt.
   await seedProject(page, [{ name: 'Onopgeslagen werk', start: '2026-09-07', finish: '2026-09-11' }]);
   const recordCount = () => page.evaluate(() => new Promise<number>((resolve) => {
     const request = indexedDB.open('ops-recovery');
@@ -336,10 +314,8 @@ test('herstellen na een crash: ? opent Help zonder te kiezen; terug staat het ve
   await expect(leaveDialog(page)).toHaveCount(0);
   await expect(dialog).toHaveCount(0);
   await expectHelpOn(page, 'howto-herstellen-na-een-crash');
-  // Niets gekozen: de kopie staat er nog.
   expect(await recordCount()).toBeGreaterThan(0);
 
-  // Terug uit Help: het herstelvenster staat er weer, en Herstellen haalt het werk terug.
   await page.locator('[data-ops-backstage-back]').click();
   await expect(dialog).toBeVisible();
   await dialog.getByRole('button', { name: /^(Restore|Herstellen)$/ }).click();

@@ -1,5 +1,3 @@
-// Tutorial 3 — De kalender en datumafspraken (`tut-3-kalender`): de bouwvak in de projectkalender, een
-// constraint en een deadline.
 import { l, same, type Action, type Check, type Snap, type TutorialScript } from './dsl';
 import { T, taskIs } from './project';
 
@@ -11,7 +9,6 @@ const notStale: Check = { state: (s: Snap) => (s.stale ? ['planning nog verouder
 const status = (nl: string, en: string): Check => ({ see: statusBar, text: l(nl, en) });
 const BOUWVAK = 'Bouwvak (Midden) 2027-08-02..2027-08-20';
 
-/** De deadline in Eigenschappen: de drie vakjes dag, maand, jaar; daarna Enter en F5. */
 const setDeadline = (date: string): Action[] => [
   { date: { field: l('Deadline', 'Deadline'), within: props }, value: same(date) },
   { press: 'Enter' },

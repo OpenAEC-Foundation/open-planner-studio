@@ -1,17 +1,14 @@
-// Tutorial 1 — Je eerste planning (`tut-1-eerste-planning`): nieuw project, fasen, taken, mijlpalen, Bereken.
 import { l, same, type Action, type L, type Snap, type TutorialScript } from './dsl';
 import { PHASES as P, T, taskIs } from './project';
 
 const dialog = { dialog: true } as const;
 const durationField = { role: 'textbox', name: l('Duur', 'Duration') } as const;
 
-/** Een nieuwe taak onder de geselecteerde: Taak, naam, Enter. */
 const addTask = (name: L): Action[] => [
   { ribbon: 'start:addTask', label: l('Taak', 'Task') },
   { type: name },
   { press: 'Enter' },
 ];
-/** De duur in Eigenschappen: dubbelklik selecteert de oude waarde, dan typen en Enter. */
 const setDuration = (days: number): Action[] => [
   { click: durationField, double: true },
   { type: String(days) },
@@ -29,7 +26,6 @@ const START_MS = l('Startmijlpaal', 'Start milestone');
 const FINISH_MS = l('Eindmijlpaal', 'Finish milestone');
 const INSPECTION_MS = l('Inspectiemoment (verplicht)', 'Inspection point (mandatory)');
 
-/** De taken van een fase (vanaf de tweede: de eerste krijgt inspringen erbij). */
 type Item = { name: L; days?: number; ms?: L };
 const phaseItems = (items: Item[]): Action[] => items.flatMap((item, i) => [
   ...(item.ms ? milestone(item.ms, item.name) : addTask(item.name)),
@@ -37,7 +33,6 @@ const phaseItems = (items: Item[]): Action[] => items.flatMap((item, i) => [
   ...(item.days !== undefined ? setDuration(item.days) : []),
 ]);
 
-/** Klopt de fase: precies deze taken eronder, in deze volgorde, met deze duur? */
 const phaseIs = (phase: L, items: Item[]) => (s: Snap, lang: 'nl' | 'en') => {
   const under = s.tasks.filter(t => t.parent === phase[lang]).map(t => t.name);
   const want = items.map(i => i.name[lang]);

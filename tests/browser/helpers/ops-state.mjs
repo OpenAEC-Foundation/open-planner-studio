@@ -9,8 +9,6 @@ export async function readOpsState(page) {
     const xerNotification = notifications.find((item) => item.messageKey === xerMessageKey);
     return {
       documents: state.documents.count,
-      // De 4 WBS-samenvattingsrijen zijn afgeleide structuur; SMALL-A telt de 8 echte
-      // geïmporteerde werk-/mijlpaaltaken die in de XER TASK-tabel staan.
       tasks: state.tasks.importedCount,
       relations: state.sequences.count,
       cpm: state.cpmResult,
@@ -108,10 +106,6 @@ export const MULTI_DOCUMENT_EXPECTED_ENCODING = Object.freeze({
 
 export const RECOVERY_EXPECTED_DOCUMENTS = 12;
 
-// De taakpin wordt door de echte headed proef aan de actieve rijke projectprojectie gemeten.
-// De zichtbare browserroute telt 6.977 niet-samenvattende werk-/mijlpaaltaken. De X11-planoracle
-// van 6.976 betreft de bronactiviteiten vóór deze UI-projectie. De overige tellingen komen uit
-// dezelfde actieve, rijke projectprojectie.
 export const LARGE_RESOURCE_EXPECTED_COUNTS = Object.freeze({
   tasks: 6977,
   assignments: 52640,
@@ -160,8 +154,6 @@ const FNV1A_FINGERPRINT = /^fnv1a-[0-9a-f]{8}$/;
 const exactString = (...allowed) => (value) => allowed.includes(value);
 const matchesString = (pattern) => (value) => pattern.test(value);
 
-// Positieve stringgrens: ieder evidencekanaal legt alle toegestane stringpaden en
-// hun structurele waardeformaat vast. Een string op ieder ander pad is standaard rood.
 export const PHASE2B_STRING_FIELD_ALLOWLIST = Object.freeze({
   metadata: Object.freeze([
     Object.freeze({ path: /^metadata\.runId$/, format: 'opaque-x11-uuid', validate: matchesString(OPAQUE_EVIDENCE_ID) }),
@@ -233,7 +225,6 @@ function inspectPathlikeStrings(value, channel, violations, seen) {
   }
 }
 
-/** Gesloten fase-2B-privacygrens voor alle tekstuele evidencekanalen. */
 export function assertPhase2BEvidencePrivacy(envelope) {
   const shapeViolations = [];
   const denylistViolations = [];

@@ -1,15 +1,9 @@
-// Karakterisering van de gedeelde `use`-fabrieken in ribbonConfig: een gepersisteerde aan/uit-
-// knop (Beeld → spelingsband) wisselt de vlag én bewaart hem, en een knop die alleen UI-state zet
-// (Instellingen → Projectinfo) opent zijn dialoog — telkens opnieuw, ook na sluiten. Vooraf: het
-// muiswiel boven het lint wisselt van tab (#688), een horizontale veeg niet, en de instelling zet het uit.
-// Echte klikken en echte wielgebeurtenissen; de storebrug leest alleen de uitkomst.
 import { expect, seedProject, test } from './fixtures/ops';
 import { box, chooseLocale, LOCALE_CASES } from './fixtures/locale';
 import type { Page } from '@playwright/test';
 
 const activeTab = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().ui.activeRibbonTab);
 
-/** Eén wielklik (100 px, Chromium) met de muis boven het midden van `selector`. */
 async function wheelOver(page: Page, selector: string, deltaY: number, deltaX = 0): Promise<void> {
   const box = await page.locator(selector).first().boundingBox();
   if (!box) throw new Error(`${selector} niet zichtbaar`);
@@ -18,8 +12,6 @@ async function wheelOver(page: Page, selector: string, deltaY: number, deltaX = 
 }
 
 test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart, UI-actieknop opent zijn dialoog herhaald', async ({ page, ops: _ops }) => {
-  // #688: wiel boven het lint (tabrij en knoppen). Omlaag = volgende tab, omhoog = vorige; bij Start stopt het
-  // (Bestand doet niet mee). Het wiel boven de lege rij zelf telt ook: de hele rij is het doel.
   expect(await activeTab(page)).toBe('start');
   await wheelOver(page, '.ribbon-tab[data-ops-ribbon-tab="resources"]', 100);
   await expect.poll(() => activeTab(page)).toBe('planning');
@@ -28,13 +20,10 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
   await wheelOver(page, '.ribbon-tabs', -100);
   await page.waitForTimeout(100);
   expect(await activeTab(page)).toBe('start');
-  // Boven de knoppen van het lint wisselt het wiel ook: de hele lint is het doel.
   await wheelOver(page, '.ribbon-content', 100);
   await expect.poll(() => activeTab(page)).toBe('planning');
   await wheelOver(page, '.ribbon-content', -100);
   await expect.poll(() => activeTab(page)).toBe('start');
-  // Een vooral horizontale veeg (touchpad) wisselt geen tab en blijft van de browser: een smal
-  // lint scrolt er zijn verborgen knoppen mee in beeld. Planning is breed genoeg om te overlopen.
   const size = page.viewportSize()!;
   await page.locator('[data-ops-ribbon-tab="planning"]').click();
   await page.setViewportSize({ width: 480, height: size.height });
@@ -48,8 +37,6 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
   await page.locator('[data-ops-ribbon-tab="start"]').click();
   await expect.poll(() => activeTab(page)).toBe('start');
 
-  // Een getypte, nog niet bevestigde waarde blijft bewaard, net als bij een klik op een tab:
-  // Tabel → duur typen → wiel omlaag → IFC (daar verdwijnt het eigenschappenpaneel).
   const [taskId] = await seedProject(page, [{ name: 'Duurconcept', start: '2026-09-07', finish: '2026-09-08', durationDays: 2 }]);
   const duration = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.scheduleDuration, taskId);
   await page.locator('[data-ops-ribbon-tab="table"]').click();
@@ -68,7 +55,6 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
   expect(await duration()).toBe(3);
   await page.locator('[data-ops-ribbon-tab="start"]').click();
 
-  // Instelling uit (echte klik in App-instellingen → Werkruimte): het wiel wisselt niet meer.
   await page.getByTitle(/^(App settings|App-instellingen)$/, { exact: true }).click();
   const settings = page.locator('.settings-dialog');
   await settings.locator('[data-ops-settings-group="workspace"]').click();
@@ -109,7 +95,6 @@ test('lint: muiswiel wisselt tabs, gepersisteerde schakelaar wisselt en bewaart,
 
 test('lint: een keuzemenu-item (Mijlpaal → Startmijlpaal) voegt precies die mijlpaal toe', async ({ page, ops: _ops }) => {
   const before = await page.evaluate(() => window.__OPS__!.store.getState().tasks.length);
-  // Zonder B2 (#844) staat ▾ weer in het label, zoals vóór #765.
   await page.getByRole('button', { name: /^(Milestone|Mijlpaal)( ▾)?$/ }).click();
   await page.getByRole('button', { name: /^(Start milestone|Startmijlpaal)$/ }).click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.length)).toBe(before + 1);
@@ -121,7 +106,6 @@ test('lint: een keuzemenu-item (Mijlpaal → Startmijlpaal) voegt precies die mi
   expect(added).toEqual({ isMilestone: true, milestoneKind: 'START' });
 });
 
-/** Het paneel staat helemaal in het venster, en de uitleg is niet afgekapt. */
 async function expectBarColorsMenuInView(page: Page): Promise<void> {
   const title = page.locator('[data-ops-bar-colors-menu]');
   await expect(title).toBeVisible();
@@ -135,7 +119,6 @@ async function expectBarColorsMenuInView(page: Page): Promise<void> {
   expect(await hint.evaluate(element => element.scrollWidth <= element.clientWidth), 'uitleg is niet afgekapt').toBe(true);
 }
 
-/** De kleurvelden staan verder in dan de tekst van de keuzes, in een eigen vlak. */
 async function expectBarColorsBlockApart(page: Page): Promise<void> {
   const editor = page.locator('[data-ops-bar-colors-editor]');
   const rtl = await page.evaluate(() => document.documentElement.dir === 'rtl');
@@ -158,14 +141,10 @@ async function openBarColors(page: Page): Promise<void> {
 const barColors = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().ui.barColorSelection);
 
 test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, en de tekst is overal gelijk', async ({ page, ops: _ops }) => {
-  // #692, ontwerpcontrole: op een venster van 1343 px viel het menu 30,7 px buiten de rechterrand.
-  // Waar de knop staat, hangt af van de inpassing van het lint; op 900 px valt een breedte van 305
-  // px ook in een vers venster buiten beeld.
   await page.setViewportSize({ width: 900, height: 760 });
   await openBarColors(page);
   await expectBarColorsMenuInView(page);
 
-  // De drie kleuren en het herstellen staan direct onder Kritiek pad, boven de andere keuzes.
   const editor = page.locator('[data-ops-bar-colors-editor]');
   const critical = page.locator('[data-ops-bar-color-mode="critical"]');
   const auto = page.locator('[data-ops-bar-color-mode="auto"]');
@@ -174,7 +153,6 @@ test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, e
   expect((await box(editor)).bottom).toBeLessThanOrEqual((await box(auto)).top + 1);
   await expectBarColorsBlockApart(page);
 
-  // Keuzes zien eruit als keuzes: gewone tekstkleur, geen uitgegrijsde lintlabels.
   const textColor = (selector: string) => page.locator(selector).first().evaluate(element => {
     const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
     return getComputedStyle(walker.nextNode()!.parentElement!).color;
@@ -183,7 +161,6 @@ test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, e
   expect(await textColor('[data-ops-bar-color-mode="auto"]')).not.toBe(dim);
   expect(await textColor('[data-ops-bar-color-mode="category"]')).not.toBe(dim);
 
-  // Eén tekstgrootte in het hele menu: elke tekst, ook de velden.
   const fontSizes = () => page.locator('[data-ops-bar-colors-menu]').evaluate(title => {
     const panel = title.closest<HTMLElement>('div[style*="fixed"]')!;
     const walker = document.createTreeWalker(panel, NodeFilter.SHOW_TEXT);
@@ -195,7 +172,6 @@ test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, e
   });
   expect(await fontSizes()).toHaveLength(1);
 
-  // Kleur kiezen, van stand wisselen en terugkomen: de kleurvelden horen alleen bij Kritiek pad.
   await editor.locator('input[type="color"]').first().fill('#123456');
   expect((await barColors(page)).colors?.critical).toBe('#123456');
   await category.click();
@@ -203,7 +179,6 @@ test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, e
   await expect(page.locator('[data-ops-bar-colors-menu]')).toBeVisible();
   expect(await fontSizes()).toHaveLength(1);
   await expectBarColorsMenuInView(page);
-  // Elke keuze laat het menu open; alleen een klik buiten sluit het.
   await auto.click();
   expect((await barColors(page)).mode).toBe('auto');
   await expect(page.locator('[data-ops-bar-colors-menu]')).toBeVisible();
@@ -219,7 +194,6 @@ test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, e
   await editor.getByRole('button').click();
   expect((await barColors(page)).colors).toBeUndefined();
 
-  // Het venster verandert terwijl het menu open staat: het schuift mee.
   await page.setViewportSize({ width: 1343, height: 760 });
   await expectBarColorsMenuInView(page);
   await page.setViewportSize({ width: 420, height: 760 });
@@ -229,14 +203,12 @@ test('lint: menu Balkkleuren staat in beeld, de kleuren horen bij Kritiek pad, e
   await page.mouse.click(5, 400);
   await expect(page.locator('[data-ops-bar-colors-menu]')).toHaveCount(0);
 
-  // Een laag venster: de onderkant blijft in beeld, het menu scrolt.
   await page.setViewportSize({ width: 1343, height: 300 });
   await openBarColors(page);
   await expectBarColorsMenuInView(page);
   await page.mouse.click(5, 280);
   await expect(page.locator('[data-ops-bar-colors-menu]')).toHaveCount(0);
 
-  // Rechts-naar-links, breed en smal.
   await page.setViewportSize({ width: 1343, height: 760 });
   await chooseLocale(page, LOCALE_CASES[0]);
   await openBarColors(page);

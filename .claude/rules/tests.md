@@ -57,3 +57,5 @@ Draai de planningssuite na elke wijziging aan planningscode. Tussenregels als "(
 De checks over werkregels, voortgang en het voortgangsblad, vastgelegde datums, het minutenmodel en de takentabel halen hun verwachting niet uit de code die ze toetsen en laten rondgangen door de echte schrijver en lezer lopen (deel 5 van `check-progress-import.ts` gebruikt de gedeelde kolomherkenning zonder de bestandslezer); de keuzes die daar verrassen (eigen "vandaag", vaste kopteksten, de oude voorbeelden van vóór het minutenmodel, asserties die niet leeg mogen lopen) staan in ADR 1270.
 
 De IFC-tests in `tests/planning/` (eigen STEP-lezer als meetlat, uitvoer van een oudere writer, grenzen die niet van de machine afhangen): `docs/adr/1250-ifc-tests-eigen-step-lezer-oude-uitvoer-en-machinevrije-grenzen.md`.
+
+De browsertests van de app-schil, dialogen, rapporten, resources en tutorials (wachten in de `ops`-fixture, `completeTour`, nagebootste events waar een echte handeling het onderwerp niet levert, de stilgezette nepklok, ruime grenzen): `docs/adr/1380-browsertests-van-de-app-schil-hulpcontracten-nagebootste-events-en-ruime-grenzen.md`.

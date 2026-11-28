@@ -1,6 +1,3 @@
-// Documenttabstrook zonder scrollbalk: pijlknoppen < > bij overloop, twee tabbladen per klik
-// (uitgelijnd op de rand van een tabblad), het scrollwiel schuift horizontaal, en RTL spiegelt.
-// De brug zet alleen de fixture (twaalf open projecten); klikken en scrollwiel zijn echte events.
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 import { LOCALE_CASES, chooseLocale } from './fixtures/locale';
@@ -21,7 +18,6 @@ async function openProjects(page: Page, count: number): Promise<void> {
   await expect(page.locator('[data-testid="document-tab"]')).toHaveCount(count);
 }
 
-/** Afstand tussen de beginrand van de viewport en de beginrand van tabblad `index` (0-based). */
 async function startEdgeGap(page: Page, index: number, rtl: boolean): Promise<number> {
   return page.evaluate(({ sel, i, isRtl }) => {
     const viewport = document.querySelector(sel)!;
@@ -40,7 +36,6 @@ async function expectTabAtStartEdge(page: Page, index: number, rtl: boolean): Pr
   await expect.poll(async () => Math.abs(await startEdgeGap(page, index, rtl)), {
     message: `tabblad ${index + 1} staat aan de beginrand`,
   }).toBeLessThanOrEqual(1);
-  // Het schuiven moet tot rust gekomen zijn (vloeiend), niet toevallig voorbij komen.
   const settled = await scrollOffset(page);
   await page.waitForTimeout(150);
   expect(await scrollOffset(page)).toBeCloseTo(settled, 0);
@@ -68,7 +63,6 @@ async function expectDimmed(locator: Locator, dimmed: boolean): Promise<void> {
   else expect(opacity, 'actieve pijl is niet gedimd').toBe(1);
 }
 
-/** Vrije ruimte in de strook na de "+" (in de logische eindrichting), met een breed venster. */
 async function stripSlack(page: Page): Promise<number> {
   return page.evaluate(() => {
     const strip = document.querySelector('[data-ops-tabstrip]')! as HTMLElement;
@@ -81,7 +75,6 @@ async function stripSlack(page: Page): Promise<number> {
   });
 }
 
-/** Aantal keer dat de pijlen binnen `ms` verschijnen of verdwijnen (0 = rustig). */
 async function arrowToggles(page: Page, ms: number): Promise<number> {
   return page.evaluate(duration => new Promise<number>((resolve) => {
     let count = 0;
@@ -93,12 +86,6 @@ async function arrowToggles(page: Page, ms: number): Promise<number> {
   }), ms);
 }
 
-/**
- * Loop de vensterbreedte per pixel langs de grens waar alles net past, eerst smaller en dan weer
- * breder. Bij elke stap moet de app er nog staan, de pijlen rustig zijn, en het juiste gedrag
- * gelden: smaller dan de grens pijlen, breder geen pijlen, en bij het breder worden een marge van
- * een paar pixels voordat ze verdwijnen.
- */
 async function sweepOverflowBoundary(page: Page, label: string): Promise<void> {
   await page.setViewportSize({ width: 2600, height: 800 });
   await expect(page.locator('[data-ops-tabstrip-scroll]')).toHaveCount(0);
@@ -149,7 +136,6 @@ test('geen scrollbalk; pijlen alleen bij overloop; klik schuift twee tabbladen; 
   await page.setViewportSize({ width: 1280, height: 800 });
   const viewport = page.locator(viewportSel);
 
-  // Eén tabblad: geen overloop, geen pijlen.
   await expect(page.locator('[data-testid="document-tab"]')).toHaveCount(1);
   await expect(page.locator('[data-ops-tabstrip-scroll]')).toHaveCount(0);
   await expectNoScrollbar(viewport);
@@ -162,7 +148,6 @@ test('geen scrollbalk; pijlen alleen bij overloop; klik schuift twee tabbladen; 
   await expect(page.locator(startSel)).toHaveAttribute('title', 'Scroll tabs towards the start');
   await expect(page.locator(endSel)).toHaveAttribute('aria-label', 'Scroll tabs towards the end');
 
-  // De pijlen staan tussen de tabbladen en de "+", de "+" aan de eindrand.
   const vBox = (await viewport.boundingBox())!;
   const sBox = (await page.locator(startSel).boundingBox())!;
   const eBox = (await page.locator(endSel).boundingBox())!;
@@ -172,14 +157,12 @@ test('geen scrollbalk; pijlen alleen bij overloop; klik schuift twee tabbladen; 
   expect(addBox.x).toBeGreaterThanOrEqual(eBox.x + eBox.width - 0.5);
   await expect(page.locator('.ops-tabstrip-add')).toBeInViewport({ ratio: 1 });
 
-  // Het laatst geopende project is actief en in beeld: aan het eind, dus ">" uit.
   await expect(page.locator('[data-testid="document-tab"]').nth(11)).toBeInViewport({ ratio: 0.99 });
   await expect(page.locator(endSel)).toBeDisabled();
   await expect(page.locator(startSel)).toBeEnabled();
   await expectDimmed(page.locator(endSel), true);
   await expectDimmed(page.locator(startSel), false);
 
-  // Activeren via het overzicht brengt tabblad 1 in beeld; aan het begin is "<" uit.
   await activateViaOverview(page, 0);
   await expect(page.locator('[data-testid="document-tab"]').nth(0)).toBeInViewport({ ratio: 0.99 });
   await expect.poll(() => scrollOffset(page)).toBeLessThanOrEqual(1);
@@ -188,7 +171,6 @@ test('geen scrollbalk; pijlen alleen bij overloop; klik schuift twee tabbladen; 
   await expectDimmed(page.locator(startSel), true);
   await expectDimmed(page.locator(endSel), false);
 
-  // Ctrl+wiel is zoomen, geen schuiven: de tabbladen blijven staan.
   await viewport.hover();
   await page.keyboard.down('Control');
   await page.mouse.wheel(0, 240);
@@ -196,28 +178,23 @@ test('geen scrollbalk; pijlen alleen bij overloop; klik schuift twee tabbladen; 
   await page.waitForTimeout(250);
   expect(await scrollOffset(page), 'Ctrl+wiel schuift de tabbladen niet').toBeLessThanOrEqual(1);
 
-  // ">" schuift precies twee tabbladen: tabblad 3 staat heel aan de beginrand.
   await page.locator(endSel).click();
   await expectTabAtStartEdge(page, 2, false);
   await expect(page.locator(startSel)).toBeEnabled();
   await page.locator(endSel).click();
   await expectTabAtStartEdge(page, 4, false);
-  // "<" schuift twee terug.
   await page.locator(startSel).click();
   await expectTabAtStartEdge(page, 2, false);
   await page.locator(startSel).click();
   await expectTabAtStartEdge(page, 0, false);
   await expect(page.locator(startSel)).toBeDisabled();
 
-  // Snel twee keer ">" (tijdens het vloeiend schuiven): samen vier tabbladen, tabblad 5 aan de rand.
   const endBox = (await page.locator(endSel).boundingBox())!;
   await page.mouse.click(endBox.x + endBox.width / 2, endBox.y + endBox.height / 2);
   await page.waitForTimeout(50);
   await page.mouse.click(endBox.x + endBox.width / 2, endBox.y + endBox.height / 2);
   await expectTabAtStartEdge(page, 4, false);
 
-  // Half tabblad aan de rand (wiel 60 px): "<" telt dat halve tabblad als eerste stap en zet
-  // tabblad 4 heel aan de rand; ">" schuift vanaf een half tabblad 2 twee verder (tabblad 4).
   await viewport.hover();
   await page.mouse.wheel(0, 60);
   await expect.poll(() => startEdgeGap(page, 4, false)).toBeLessThan(-30);
@@ -231,11 +208,9 @@ test('geen scrollbalk; pijlen alleen bij overloop; klik schuift twee tabbladen; 
   await page.locator(endSel).click();
   await expectTabAtStartEdge(page, 3, false);
 
-  // Terug naar het begin.
   await activateViaOverview(page, 0);
   await expect.poll(() => scrollOffset(page)).toBeLessThanOrEqual(1);
 
-  // Klikken tot het eind: ">" wordt uitgeschakeld en het laatste tabblad staat in beeld.
   for (let i = 0; i < 8 && await page.locator(endSel).isEnabled(); i += 1) {
     await page.locator(endSel).click();
     await page.waitForTimeout(700);
@@ -243,11 +218,9 @@ test('geen scrollbalk; pijlen alleen bij overloop; klik schuift twee tabbladen; 
   await expect(page.locator(endSel)).toBeDisabled();
   await expect(page.locator('[data-testid="document-tab"]').nth(11)).toBeInViewport({ ratio: 0.99 });
 
-  // Activeren via het overzicht van een tabblad buiten beeld brengt het in beeld.
   await activateViaOverview(page, 1);
   await expect(page.locator('[data-testid="document-tab"]').nth(1)).toBeInViewport({ ratio: 0.99 });
 
-  // Verticaal scrollwiel boven de tabstrook schuift horizontaal.
   await activateViaOverview(page, 0);
   await expect.poll(() => scrollOffset(page)).toBeLessThanOrEqual(1);
   await viewport.hover();
@@ -256,7 +229,6 @@ test('geen scrollbalk; pijlen alleen bij overloop; klik schuift twee tabbladen; 
   await page.mouse.wheel(0, -240);
   await expect.poll(() => scrollOffset(page)).toBeLessThanOrEqual(1);
 
-  // Venster breed genoeg: alles past, de pijlen verdwijnen en de "+" volgt het laatste tabblad.
   await page.setViewportSize({ width: 2600, height: 800 });
   await expect(page.locator('[data-ops-tabstrip-scroll]')).toHaveCount(0);
   const last = (await page.locator('.ops-tab-group').last().boundingBox())!;
@@ -264,7 +236,6 @@ test('geen scrollbalk; pijlen alleen bij overloop; klik schuift twee tabbladen; 
   expect(Math.abs(plus.x - (last.x + last.width))).toBeLessThanOrEqual(8);
   await expectNoScrollbar(viewport);
 
-  // En weer smaller: de pijlen komen terug.
   await page.setViewportSize({ width: 1280, height: 800 });
   await expect(page.locator(endSel)).toBeVisible();
 });
@@ -274,8 +245,6 @@ test('RTL: pijlen gespiegeld, klik schuift twee tabbladen, wiel schuift', async 
   const ar = LOCALE_CASES.find(locale => locale.code === 'ar')!;
   await chooseLocale(page, ar);
   await openProjects(page, 12);
-  // Eén tabblad zonder wijzigingen (geen stipje): daar loopt de naam door tot de padding, dus
-  // alleen hier toont zich of het kruisje de naam raakt.
   await page.evaluate(() => window.__OPS__!.store.getState().newDocument());
   await expect(page.locator('[data-testid="document-tab"]')).toHaveCount(13);
   await expect(page.locator('.ops-tab-group').last().locator('.ops-dirty-dot')).toHaveCount(0);
@@ -287,19 +256,14 @@ test('RTL: pijlen gespiegeld, klik schuift twee tabbladen, wiel schuift', async 
   await expectTabAtStartEdge(page, 0, true);
   await expect(page.locator(startSel)).toBeDisabled();
 
-  // Gespiegeld: de pijlen staan links van de tabbladen, de knop naar het begin rechts van die naar
-  // het eind, en wijst naar rechts.
   const vBox = (await viewport.boundingBox())!;
   const sBox = (await page.locator(startSel).boundingBox())!;
   const eBox = (await page.locator(endSel).boundingBox())!;
   expect(sBox.x + sBox.width).toBeLessThanOrEqual(vBox.x + 0.5);
   expect(sBox.x).toBeGreaterThan(eBox.x);
-  // B2-pijlen behouden hun betekenis en spiegelen via de richtingsklasse.
   await expect(page.locator(`${startSel} svg`)).toHaveAttribute('data-icon', 'tabs.scroll-start');
   await expect(page.locator(`${endSel} svg`)).toHaveAttribute('data-icon', 'tabs.scroll-end');
 
-  // Elk sluitkruisje staat binnen zijn eigen tabblad, aan de logische eindkant (in RTL links).
-  // Anders staat het naast de naam van het buurtabblad en sluit een klik het verkeerde project.
   const closeLayout = await page.evaluate(() => [...document.querySelectorAll('.ops-tab-group')].map((group) => {
     const g = group.getBoundingClientRect();
     const c = group.querySelector('.ops-tab-close')!.getBoundingClientRect();
@@ -321,9 +285,6 @@ test('RTL: pijlen gespiegeld, klik schuift twee tabbladen, wiel schuift', async 
     if (tab.latinName) expect(tab.nameLtr, `naam ${i + 1} (Latijns) loopt ltr, begin blijft zichtbaar`).toBe(true);
   }
   expect(closeLayout.filter(tab => tab.clean), 'de controle omvat een tabblad zonder wijzigingen').toHaveLength(1);
-  // Een klik op het kruisje van tabblad 2 vraagt om tabblad 2 te sluiten, niet een buurtabblad.
-  // De fixtureprojecten hebben wijzigingen, dus de klik vraagt eerst om bevestiging. De brug leest
-  // alleen welk document gevraagd is; Annuleren (heeft de focus) laat alles open.
   const secondId = await page.locator('[data-testid="document-tab"]').nth(1).getAttribute('data-ops-tab');
   const closeTarget = page.locator('.ops-tab-group').nth(1).locator('.ops-tab-close');
   const closeBox = (await closeTarget.boundingBox())!;

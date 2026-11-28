@@ -1,10 +1,6 @@
 import { expect, test, seedProject } from './fixtures/ops';
 import type { Page, Request, Route } from '@playwright/test';
 
-// De feedbackdialoog verstuurt meldingen naar Open Feedback Studio. Elke test vangt de API af met
-// `page.route`: er gaat NOOIT een echte melding naar productie. De handelingen zijn echte klikken
-// en toetsaanslagen; de verstuurde body lezen we uit het afgevangen verzoek.
-
 const ENDPOINT = 'https://open-feedback-studio.pages.dev/api/feedback';
 const TITLE = 'Balk springt terug';
 const DESCRIPTION = 'Na slepen van de balk staat hij weer op de oude plek.';
@@ -25,7 +21,6 @@ async function capture(request: Request): Promise<Captured> {
   return { contentType, json: JSON.parse(request.postData() ?? 'null') as Record<string, unknown>, form: null };
 }
 
-/** Vang de API af; `reply` bepaalt het antwoord. Geeft de lijst met afgevangen verzoeken terug. */
 async function mockApi(page: Page, reply: (route: Route) => Promise<void>): Promise<Captured[]> {
   const seen: Captured[] = [];
   await page.route(ENDPOINT, async route => {
@@ -69,7 +64,6 @@ test('succes zonder screenshot: JSON-body klopt en het bedankscherm verschijnt',
   await dialog.getByRole('button', { name: 'Send', exact: true }).click();
 
   await expect(dialog.getByText('Thank you, your report has been sent.')).toBeVisible();
-  // Zonder issue: geen link en geen belofte van een issue.
   await expect(dialog.getByRole('link')).toHaveCount(0);
   await expect(dialog.getByText(/issue on GitHub/)).toHaveCount(0);
 
@@ -85,7 +79,6 @@ test('succes zonder screenshot: JSON-body klopt en het bedankscherm verschijnt',
   expect(body.email).toBe('planner@example.com');
   expect(body).not.toHaveProperty('website');
 
-  // Het e-mailadres is onthouden voor de volgende melding.
   expect(await page.evaluate(() => localStorage.getItem('ops-feedbackEmail'))).toBe('planner@example.com');
   await dialog.getByRole('button', { name: 'Close' }).last().click();
   await expect(dialog).toBeHidden();
@@ -121,7 +114,6 @@ test('succes met githubIssueUrl: de melder ziet de link naar zijn issue en opent
   await dialog.getByRole('button', { name: 'Send', exact: true }).click();
   await expect(dialog.getByText('Thank you, your report has been sent.')).toBeVisible();
   await expect(dialog.getByText('Your report is now an issue on GitHub. You can read our reply there:')).toBeVisible();
-  // De link zelf staat in beeld, zodat de melder hem kan terugvinden of overnemen.
   const link = dialog.getByRole('link', { name: 'github.com/OpenAEC-Foundation/open-planner-studio/issues/999' });
   await expect(link).toHaveAttribute('href', issue);
   await expect(dialog.getByRole('button', { name: 'View on GitHub' })).toHaveCount(0);
@@ -132,7 +124,6 @@ test('succes met githubIssueUrl: de melder ziet de link naar zijn issue en opent
   const opened = await popup;
   expect(opened.url()).toBe(issue);
   await opened.close();
-  // Het bedankscherm blijft staan na het openen.
   await expect(dialog.getByText('Thank you, your report has been sent.')).toBeVisible();
 });
 
@@ -158,7 +149,6 @@ test('429: vertaalde fout, de ingevulde tekst blijft staan, geen GitHub-terugval
 const UNCERTAIN = 'We are not sure whether your report arrived. Wait a minute and then send it again; if it is already there, we will see that automatically.';
 const FAILED = 'Sending failed. Check your internet connection and try again, or open the report on GitHub.';
 
-/** Korte timeout in de dev-build (zelfde module-instantie als de dialoog), zodat de test geen 20 s wacht. */
 async function shortTimeout(page: Page, ms: number) {
   await page.evaluate(async (value) => {
     const modulePath = '/src/services/feedback/feedbackService.ts';
@@ -183,8 +173,6 @@ test('5xx: zeker niet aangekomen, de knop Open op GitHub volgt de oude weg', asy
   await expect(dialog.getByRole('button', { name: 'Open on GitHub' })).toBeVisible();
   await expect(dialog.getByLabel('Title')).toHaveValue(TITLE);
 
-  // De terugval opent de oude GitHub-new-issue-URL (zonder screenshot meteen). GitHub zelf wordt
-  // afgevangen: de test gaat niet echt naar buiten.
   await page.context().route('https://github.com/**', route => route.fulfill({ status: 200, body: 'ok' }));
   const popup = page.waitForEvent('popup');
   await dialog.getByRole('button', { name: 'Open on GitHub' }).click();
@@ -195,7 +183,7 @@ test('5xx: zeker niet aangekomen, de knop Open op GitHub volgt de oude weg', asy
 });
 
 test('offline vóór verzenden: zeker niet aangekomen, Open op GitHub', async ({ page, ops }) => {
-  void ops; // geen fetch, dus ook geen netwerkfout in de console
+  void ops;
   let fetched = 0;
   await page.exposeFunction('__countFeedbackFetch', () => { fetched += 1; });
   await page.evaluate((endpoint) => {
@@ -220,7 +208,6 @@ test('R2-1: online gestart, verbinding valt weg tijdens het verzoek: onzeker, ge
   let calls = 0;
   await page.route(ENDPOINT, async route => {
     calls += 1;
-    // Het verzoek is al vertrokken; nu valt de verbinding weg en faalt de fetch.
     await page.context().setOffline(true);
     await route.abort('internetdisconnected');
   });
@@ -246,7 +233,6 @@ test('netwerkfout na verzenden (abort): onzeker, geen GitHub-knop, tekst blijft'
 
 const ALREADY_IN = 'We have already received this report. Want to add something? Then change the text and send it again.';
 
-/** Eerste poging hangt (en wordt dus `uncertain` na de korte timeout); daarna `next`. */
 async function firstHangsThen(page: Page, next: (route: Route) => Promise<void>) {
   const state = { calls: 0, hanging: [] as Route[] };
   await page.route(ENDPOINT, async route => {
@@ -290,7 +276,7 @@ test('(b) onzeker, daarna gewijzigde invoer + 409: "al binnen", wijziging blijft
   await expect(emailField).toHaveValue('planner@example.com');
   expect(await page.evaluate(() => localStorage.getItem('ops-feedbackEmail'))).toBe('planner@example.com');
   expect(state.calls).toBe(2);
-  for (const r of state.hanging) await r.abort().catch(() => { /* verzoek al afgebroken door de client */ });
+  for (const r of state.hanging) await r.abort().catch(() => { });
 });
 
 test('(c) onzeker, daarna offline-poging: mislukt, maar ZONDER GitHub-knop', async ({ page, ops }) => {
@@ -308,21 +294,18 @@ test('(c) onzeker, daarna offline-poging: mislukt, maar ZONDER GitHub-knop', asy
   await expect(dialog.getByLabel('Title')).toHaveValue(TITLE);
   expect(state.calls, 'offline: geen tweede verzoek').toBe(1);
   await page.context().setOffline(false);
-  for (const r of state.hanging) await r.abort().catch(() => { /* verzoek al afgebroken door de client */ });
+  for (const r of state.hanging) await r.abort().catch(() => { });
 });
 
 test('B1: headers meteen, body valt stil: de timeout slaat ook dan toe', async ({ page, ops }) => {
   void ops;
   await shortTimeout(page, 400);
-  // De body-stream die nooit sluit kan Playwright niet nabootsen met route.fulfill; daarom levert
-  // een vervangen fetch voor alleen dit endpoint een 200 met een stilvallende body. De
-  // gebruikershandeling (klikken op Versturen) blijft echt.
   await page.evaluate((endpoint) => {
     const realFetch = window.fetch.bind(window);
     window.fetch = (input, init) => {
       const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
       if (url !== endpoint) return realFetch(input, init);
-      const stalled = new ReadableStream<Uint8Array>({ start() { /* nooit data, nooit sluiten */ } });
+      const stalled = new ReadableStream<Uint8Array>({ start() { } });
       return Promise.resolve(new Response(stalled, { status: 200, headers: { 'content-type': 'application/json' } }));
     };
   }, ENDPOINT);
@@ -399,8 +382,6 @@ test('met screenshot: multipart met één verkleinde afbeelding onder 1 MB', asy
 test('verkleinen: een te groot beeld gaat eerst op volle resolutie, daarna smaller onder 900 KB', async ({ page, ops }) => {
   void ops;
   test.setTimeout(60_000);
-  // Ruisbeeld van 2560x1440: als PNG ver boven 1 MB, en ook als WebP op volle resolutie te groot.
-  // Dit test de pure verkleinfunctie (geen gebruikershandeling), via de Vite-module van de dev-build.
   const result = await page.evaluate(async () => {
     const c = document.createElement('canvas');
     c.width = 2560; c.height = 1440;

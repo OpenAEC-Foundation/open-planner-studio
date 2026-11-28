@@ -7,13 +7,6 @@ test('de ontwikkelapp start met de zelftestbrug', async ({ page }) => {
   await expect.poll(() => page.evaluate(() => '__OPS__' in window)).toBe(true);
 });
 
-// Issue #895: geen half getekende eerste weergave en geen lege vlakte bij Bestand. Een
-// MutationObserver kijkt bij elke DOM-wijziging (vóór de browser tekent) wat er staat: het bewaarde
-// uiterlijk moet er al zijn zodra de app iets in `#root` zet, en vanaf de klik op Bestand moet elk
-// tussenbeeld óf de werkruimte zijn, óf Bestand met navigatie, eigen opmaak en een gevuld inhoudsvlak.
-// De modules van Bestand en Help komen 1,5 s later binnen: zo telt ook een klik vóórdat iets dat apart
-// laadt binnen is (Bestand zit in de eerste bundel, dus dat vertraagt alleen de start), en is de laadstand
-// van Help echt te zien.
 test('de eerste weergave heeft het bewaarde uiterlijk en Bestand opent zonder lege vlakte', async ({ page }) => {
   await page.route(/\/src\/components\/backstage\/(Backstage|HelpPanel)\.tsx/, async route => {
     await new Promise(resolve => setTimeout(resolve, 1500));
@@ -65,8 +58,6 @@ test('de eerste weergave heeft het bewaarde uiterlijk en Bestand opent zonder le
     'elk tussenbeeld is de werkruimte of een afgewerkt Bestand').toEqual([]);
 });
 
-// Issue #895: mislukt de start, dan een zichtbaar foutscherm met details en Opnieuw laden, geen leeg
-// venster. De app-bundel laadt hier niet (de echte faalroute in `main.tsx`); de tweede keer wel.
 test('een mislukte start toont het foutscherm, en Opnieuw laden start de app', async ({ page }) => {
   let block = true;
   await page.route(/\/src\/App\.tsx/, route => (block ? route.abort() : route.fallback()));

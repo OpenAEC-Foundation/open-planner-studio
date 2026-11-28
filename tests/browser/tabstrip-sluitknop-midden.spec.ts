@@ -1,6 +1,3 @@
-// Het sluitkruisje van een documenttabblad staat verticaal in het midden van zijn zichtbare tabblad:
-// actief en niet-actief, licht en donker, LTR en RTL (ar). De brug zet alleen de fixture (drie open
-// projecten en het thema); de taalkeuze en het wisselen van tabblad zijn echte klikken.
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 import { LOCALE_CASES, chooseLocale } from './fixtures/locale';
@@ -19,13 +16,11 @@ async function openProjects(page: Page, count: number): Promise<void> {
   await expect(page.locator('[data-testid="document-tab"]')).toHaveCount(count);
 }
 
-/** Verticale afwijking (px) van het midden van knop en kruisje (icoon) t.o.v. het midden van het tabblad. */
 async function offsets(page: Page): Promise<Offset[]> {
   return page.evaluate(() => Array.from(document.querySelectorAll('.ops-tab-group')).map((group) => {
     const tab = group.querySelector('.ops-tab')!.getBoundingClientRect();
     const close = group.querySelector('.ops-tab-close')!;
     const button = close.getBoundingClientRect();
-    // Zonder B2 (#844) is het kruisje weer het ×-teken van vóór #765; met B2 een icoon.
     const glyph = close.querySelector('span, svg')!.getBoundingClientRect();
     const mid = (r: DOMRect) => r.top + r.height / 2;
     const active = group.querySelector('.ops-tab')!.classList.contains('active');
@@ -52,7 +47,6 @@ async function checkThemes(page: Page, context: string): Promise<void> {
     await page.evaluate((id) => window.__OPS__!.store.getState().setUI({ uiTheme: id }), theme);
     await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.uiTheme)).toBe(theme);
     await expectCentered(page, `${context} ${theme}`);
-    // Echte klik op een ander tabblad: ook na het wisselen van het actieve tabblad blijft het kruisje in het midden.
     await page.locator('[data-testid="document-tab"]').first().click();
     await expect(page.locator('[data-testid="document-tab"]').first()).toHaveAttribute('aria-selected', 'true');
     await expectCentered(page, `${context} ${theme} na klik`);

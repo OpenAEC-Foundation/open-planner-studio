@@ -1,13 +1,9 @@
-// De dagenmaat (§3.14): einde di 31 aug 12:00, een werkdag na de basisplanning (minute-model-tutorial-f3.json).
-// Tutorial 7 — Rapporteren en delen (`tut-7-rapport`): Variance, Voortgangsrapport, papier, PDF en
-// Bestand › Exporteren. Het project verandert niet: de eindstand is `na-tut-7` (= `na-tut-6`).
 import { l, type Check, type Snap, type TutorialScript } from './dsl';
 
 const statusBar = { anchor: 'status-bar' } as const;
 const report = { anchor: 'report-panel' } as const;
 const notStale: Check = { state: (s: Snap) => (s.stale ? ['planning nog verouderd'] : []) };
 const status = (nl: string, en: string): Check => ({ see: statusBar, text: l(nl, en) });
-/** De keuzelijst voor het rapporttype: de eerste keuzelijst bovenaan de kolom Rapportage (zonder zichtbaar label). */
 const reportType = { css: '[aria-haspopup="listbox"]', within: report } as const;
 const see = (nl: string, en: string): Check => ({ see: report, text: l(nl, en) });
 
@@ -38,7 +34,6 @@ export const TUTORIAL_7: TutorialScript = {
     {
       id: 'voortgangsrapport',
       do: [{ select: reportType, option: l('Voortgangsrapport', 'Progress report') }],
-      // Statusdatum, einde van de basisplanning en het prognose-einde.
       expect: [see('28-06-2027', '28-06-2027'), see('30-08-2027', '30-08-2027'), see('31-08-2027', '31-08-2027')],
       shots: [{ name: 'tut-7-voortgangsrapport', of: report, pad: 0, maxHeight: 600, viewport: { width: 1000, height: 1050 } }],
     },

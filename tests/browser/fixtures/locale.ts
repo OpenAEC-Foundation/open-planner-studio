@@ -1,8 +1,6 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect } from './ops';
 
-/** Twee rechts-naar-linkstalen en twee ltr-talen: dezelfde stappen in nl/en bewijzen dat ltr niet
- *  veranderde. */
 export const LOCALE_CASES = [
   { code: 'ar', option: /العربية/, rtl: true },
   { code: 'fa', option: /فارسی/, rtl: true },
@@ -11,8 +9,6 @@ export const LOCALE_CASES = [
 ] as const;
 export type LocaleCase = typeof LOCALE_CASES[number];
 
-/** Taal kiezen zoals een gebruiker dat doet: Instellingen → Taal → optie. De brug opent alleen het
- *  instellingenvenster; de taalkeuze zelf is een klik. */
 export async function chooseLocale(page: Page, locale: LocaleCase): Promise<void> {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   await page.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();

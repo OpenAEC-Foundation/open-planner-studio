@@ -1,19 +1,8 @@
-// Gebruikstest rekenprofielen 24-09, B2 en B5 — in de echte gebruikersflow.
-// B2: een niet-toegepaste wijziging in Backstage → Projectinfo gaat niet meer stil verloren bij
-//     wegnavigeren (Terug, zijbalk, Escape, linttabblad); de actiebalk plakt onderaan in beeld en
-//     toont een gekleurd blok "niet toegepast".
-// B5: de meldingenstapel bedekt nooit een knop van een open dialoog (Projectinfo, wizard) of de
-//     plakkende actiebalk.
-// `window.__OPS__` zet alleen de meldingen als fixture (`notify`) en leest de uitkomst; alle geteste
-// handelingen zijn echte klikken en toetsen.
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
 const SHOTS = process.env.OPS_UI_2409_SHOTS;
 
-// De draftwijziging is een reken-optie (open eind kritiek), geen conventie: sinds de review van #169
-// (eigenaar, 2026-10-14) zijn de conventies van een ingebouwd profiel alleen-lezen, en dit project
-// rekent als OPS. Het gaat hier om "niet toegepast", niet om welk veld het is.
 const OPTION = '[data-ops-open-ended]';
 const optionValue = (page: Page) => page.evaluate(() =>
   window.__OPS__!.store.getState().project.schedulingOptions?.makeOpenEndedCritical ?? null);
@@ -32,15 +21,12 @@ test('B2: wegnavigeren met een niet-toegepaste wijziging vraagt Toepassen/Verwer
   const bar = page.locator('[data-ops-project-info-actions]');
   const apply = bar.getByRole('button', { name: /^(Apply|Toepassen)$/ });
 
-  // Zonder wijziging: Terug gaat gewoon terug, geen dialoog, geen markering.
   await toProjectInfo(page);
   await expect(marker).toHaveCount(0);
   await page.locator('[data-ops-backstage-back]').click();
   await expect(dialog).toHaveCount(0);
   await expect.poll(() => activeTab(page)).toBe('start');
 
-  // Wijzigen ⇒ gekleurd blok "niet toegepast" in de actiebalk. De balk plakt NIET (eigenaar,
-  // 2026-10-13): hij staat onder het formulier, dus het blok hangt niet over de inhoud.
   await toProjectInfo(page);
   expect(await optionValue(page)).toBeNull();
   await page.locator(OPTION).check();
@@ -53,7 +39,6 @@ test('B2: wegnavigeren met een niet-toegepaste wijziging vraagt Toepassen/Verwer
   expect(applyBox.y).toBeGreaterThanOrEqual(0);
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/b2-01-markering-niet-toegepast.png` });
 
-  // Terug ⇒ dialoog; Annuleren houdt de sectie en de wijziging.
   await page.locator('[data-ops-backstage-back]').click();
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('[data-ops-unapplied-choice="cancel"]')).toBeFocused();
@@ -64,7 +49,6 @@ test('B2: wegnavigeren met een niet-toegepaste wijziging vraagt Toepassen/Verwer
   await expect(page.locator(OPTION)).toBeChecked();
   await expect(marker).toBeVisible();
 
-  // Escape ⇒ dialoog; Escape in de dialoog = Annuleren (Backstage blijft open).
   await page.locator('.backstage-title').click();
   await page.keyboard.press('Escape');
   await expect(dialog).toBeVisible();
@@ -73,13 +57,11 @@ test('B2: wegnavigeren met een niet-toegepaste wijziging vraagt Toepassen/Verwer
   expect(await activeTab(page)).toBe('file');
   await expect(page.locator(OPTION)).toBeChecked();
 
-  // Linttabblad ⇒ dialoog (het lint staat buiten Backstage); annuleren.
   await page.locator('.ribbon-tabs button').filter({ hasText: /^(Planning)$/ }).click();
   await expect(dialog).toBeVisible();
   await dialog.locator('[data-ops-unapplied-choice="cancel"]').click();
   expect(await activeTab(page)).toBe('file');
 
-  // Zijbalk → Instellingen ⇒ dialoog; Verwerpen ⇒ naar Instellingen, niets in de store.
   await page.locator('.backstage-sidebar').getByRole('button', { name: /^(App settings|App-instellingen)$/ }).click();
   await expect(dialog).toBeVisible();
   await dialog.locator('[data-ops-unapplied-choice="discard"]').click();
@@ -90,14 +72,12 @@ test('B2: wegnavigeren met een niet-toegepaste wijziging vraagt Toepassen/Verwer
   await expect(page.locator(OPTION)).not.toBeChecked();
   await expect(marker).toHaveCount(0);
 
-  // Verwerpen in de plakkende balk zet de draft terug zonder weg te gaan.
   await page.locator(OPTION).check();
   await expect(marker).toBeVisible();
   await bar.locator('[data-ops-project-info-discard]').click();
   await expect(page.locator(OPTION)).not.toBeChecked();
   await expect(marker).toHaveCount(0);
 
-  // Opnieuw wijzigen, Terug ⇒ Toepassen in de dialoog ⇒ toegepast én terug naar de werkruimte.
   await page.locator(OPTION).check();
   await page.locator('[data-ops-backstage-back]').click();
   await expect(dialog).toBeVisible();
@@ -111,7 +91,6 @@ const activeDoc = (page: Page) => page.evaluate(() => window.__OPS__!.store.getS
 
 test('B2: F1 en Ctrl+1 lopen niet dwars door een niet-toegepaste draft of de keuzedialoog', async ({ page, ops: _ops }) => {
   const dialog = page.locator('[data-ops-unapplied-dialog]');
-  // Fixture: een tweede document, zodat Ctrl+1 iets te wisselen heeft (het tweede is nu actief).
   const firstId = await activeDoc(page);
   const secondId = await page.evaluate(() => window.__OPS__!.store.getState().newDocument());
   expect(secondId).not.toBe(firstId);
@@ -119,29 +98,24 @@ test('B2: F1 en Ctrl+1 lopen niet dwars door een niet-toegepaste draft of de keu
 
   await toProjectInfo(page);
   await page.locator(OPTION).check();
-  // Focus uit het selectievakje (in een invoerveld vuren deze sneltoetsen sowieso niet).
   await page.locator('.backstage-title').click();
 
-  // Ctrl+1 met een niet-toegepaste draft ⇒ geblokkeerd: geen wissel, geen dialoog, draft staat.
   await page.keyboard.press('Control+1');
   await expect(dialog).toHaveCount(0);
   expect(await activeDoc(page)).toBe(secondId);
   expect(await section(page)).toBe('project-info');
   await expect(page.locator(OPTION)).toBeChecked();
 
-  // F1 ⇒ de keuzedialoog (niet stil naar Help).
   await page.keyboard.press('F1');
   await expect(dialog).toBeVisible();
   expect(await section(page)).toBe('project-info');
 
-  // Met de dialoog open: F1 en Ctrl+1 doen niets — geen sectiewissel, geen documentwissel.
   await page.keyboard.press('F1');
   await page.keyboard.press('Control+1');
   await expect(dialog).toBeVisible();
   expect(await section(page)).toBe('project-info');
   expect(await activeDoc(page)).toBe(secondId);
 
-  // Annuleren ⇒ draft blijft; opnieuw F1 ⇒ Verwerpen ⇒ naar Help.
   await dialog.locator('[data-ops-unapplied-choice="cancel"]').click();
   await expect(dialog).toHaveCount(0);
   await expect(page.locator(OPTION)).toBeChecked();
@@ -152,13 +126,11 @@ test('B2: F1 en Ctrl+1 lopen niet dwars door een niet-toegepaste draft of de keu
   await expect.poll(() => section(page)).toBe('help');
   expect(await optionValue(page)).toBeNull();
 
-  // Controle dat de test gevoelig is: zonder draft wisselt Ctrl+1 wél.
   await page.locator('.backstage-title').click();
   await page.keyboard.press('Control+1');
   await expect.poll(() => activeDoc(page)).toBe(firstId);
 });
 
-/** Bedekt geen enkele melding `button`? Box-overlap én een echte hit-test in het midden van de knop. */
 async function expectNotCovered(page: Page, button: Locator): Promise<void> {
   await expect(button).toBeVisible();
   const box = (await button.boundingBox())!;
@@ -175,7 +147,6 @@ async function expectNotCovered(page: Page, button: Locator): Promise<void> {
     if (!t) continue;
     const onTop = await toast.evaluate((el) => getComputedStyle(el.closest('.ops-toast-stack')!).zIndex);
     const overlaps = t.x < box.x + box.width && box.x < t.x + t.width && t.y < box.y + box.height && box.y < t.y + t.height;
-    // Een overlap mag alleen als de stapel onder de dialoogbackdrop ligt (smal venster).
     if (overlaps) expect(Number(onTop)).toBeLessThan(50);
   }
 }
@@ -202,7 +173,6 @@ async function openProjectInfoDialog(page: Page): Promise<void> {
 test('B5: meldingen bedekken geen knoppen van de Projectinfo-dialoog, de wizard of de plakkende balk', async ({ page, ops: _ops }) => {
   await seedToasts(page);
 
-  // Projectinfo-dialoog: de stapel gaat naast de dialoog.
   await openProjectInfoDialog(page);
   await expect(page.locator('.ops-toast-stack')).toHaveAttribute('data-ops-toast-placement', 'side');
   await expectNotCovered(page, page.locator('[data-ops-project-cancel]'));
@@ -211,7 +181,6 @@ test('B5: meldingen bedekken geen knoppen van de Projectinfo-dialoog, de wizard 
   await page.locator('[data-ops-project-cancel]').click();
   await expect(page.locator('.ops-toast-stack')).toHaveAttribute('data-ops-toast-placement', 'default');
 
-  // Nieuw-projectwizard (via de tabstrip-plus).
   await page.locator('[data-ops-tabstrip] .ops-tabstrip-add').click();
   await page.locator('[data-ops-new-project-choice]').click();
   await expect(page.locator('[data-ops-project-dialog="new"]')).toBeVisible();
@@ -221,7 +190,6 @@ test('B5: meldingen bedekken geen knoppen van de Projectinfo-dialoog, de wizard 
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/b5-02-wizard.png` });
   await page.locator('[data-ops-project-cancel]').click();
 
-  // Smal venster: geen ruimte naast de dialoog ⇒ de stapel zakt onder de backdrop.
   await page.setViewportSize({ width: 640, height: 720 });
   await openProjectInfoDialog(page);
   await expect(page.locator('.ops-toast-stack')).toHaveAttribute('data-ops-toast-placement', 'underModal');
@@ -231,8 +199,6 @@ test('B5: meldingen bedekken geen knoppen van de Projectinfo-dialoog, de wizard 
   await page.locator('[data-ops-project-cancel]').click();
   await page.setViewportSize({ width: 1280, height: 720 });
 
-  // Backstage → Projectinfo met een niet-toegepaste wijziging: staat de balk in beeld, dan schuift de
-  // stapel erboven. De balk plakt niet meer, dus eerst naar de balk scrollen.
   await toProjectInfo(page);
   await page.locator(OPTION).check();
   const bar = page.locator('[data-ops-project-info-actions]');
@@ -242,8 +208,6 @@ test('B5: meldingen bedekken geen knoppen van de Projectinfo-dialoog, de wizard 
   await expectNotCovered(page, bar.locator('[data-ops-project-info-discard]'));
   if (SHOTS) await page.screenshot({ path: `${SHOTS}/b5-04-backstage-balk.png` });
 
-  // De niet-toegepast-keuzedialoog opent vanuit lokale Backstage-state (geen storewijziging): de
-  // stapel moet toch naast die dialoog gaan (signaal: de dialoogstapel) en na Annuleren terug boven de balk.
   await page.locator('[data-ops-backstage-back]').click();
   const unapplied = page.locator('[data-ops-unapplied-dialog]');
   await expect(unapplied).toBeVisible();
@@ -256,7 +220,6 @@ test('B5: meldingen bedekken geen knoppen van de Projectinfo-dialoog, de wizard 
   await expect(unapplied).toHaveCount(0);
   await expect(page.locator('.ops-toast-stack')).toHaveAttribute('data-ops-toast-placement', 'above');
 
-  // Smal venster met de keuzedialoog open: de stapel zakt onder de backdrop (signaal: resize).
   await page.locator('[data-ops-backstage-back]').click();
   await expect(unapplied).toBeVisible();
   await page.setViewportSize({ width: 520, height: 720 });

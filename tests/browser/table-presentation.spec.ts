@@ -1,7 +1,3 @@
-// Issue #89 — de tabelweergave als de gebruiker hem ziet: hiërarchie-inspringing van taaknamen,
-// precies één tooltip per cel, een Delete-melding in de interfacetaal, lucht rond de
-// kolom-plusknop en een naameditor over de volle kolombreedte. Alle handelingen zijn echte
-// muis- en toetsevents; de brug zet alleen de fixture.
 import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, state, test } from './fixtures/ops';
 
@@ -23,7 +19,6 @@ async function left(locator: Locator): Promise<number> {
   return box!.x;
 }
 
-/** Bouwt via de publieke acties een boom: ouder › (blad, samenvatting › (blad, blad)), blad. */
 async function seedTree(page: Page): Promise<{ root: string; leaf1: string; summary: string; deep1: string; deep2: string; leaf2: string; top: string }> {
   const [root, top] = await seedProject(page, [
     { name: 'Ruwbouw', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
@@ -63,8 +58,6 @@ test('tabel: taaknamen springen per niveau in en het triehoekje staat onder de o
   const leaf2Text = await left(label(tree.leaf2));
   const topText = await left(label(tree.top));
 
-  // De kern van de melding: een subtaak stond links van zijn ouder. Nu begint elk niveau exact één
-  // eenheid verder, blad of samenvatting, en het triehoekje van "Casco" staat waar "Ruwbouw" begint.
   expect(leaf1Text).toBeGreaterThan(rootText);
   expect(Math.round(leaf1Text - rootText)).toBe(20);
   expect(Math.round(summaryText - rootText)).toBe(20);
@@ -72,7 +65,6 @@ test('tabel: taaknamen springen per niveau in en het triehoekje staat onder de o
   expect(Math.round(deep1Text - summaryText)).toBe(20);
   expect(Math.round(deep2Text - deep1Text)).toBe(0);
   expect(Math.round(leaf2Text - leaf1Text)).toBe(0);
-  // Een blad op het hoogste niveau ("Afbouw") begint op dezelfde kolom als de samenvatting ernaast.
   expect(Math.round(topText - rootText)).toBe(0);
 });
 
@@ -85,15 +77,11 @@ test('gantt en tabel: de subtaak-plus staat rechts in de naamkolom, achter de te
   const plusBox = (await plus.boundingBox())!;
   const labelBox = (await cell.locator('.full-task-grid-name-label').boundingBox())!;
   expect(plusBox.x).toBeGreaterThan(labelBox.x + labelBox.width);
-  // Rechts uitgelijnd, maar met lucht tot de kolomrand (punt 4 van het issue ging juist over een
-  // plus die tegen de rand aan stond).
   const gapToEdge = cellBox.x + cellBox.width - (plusBox.x + plusBox.width);
   expect(gapToEdge).toBeGreaterThanOrEqual(5);
   expect(gapToEdge).toBeLessThanOrEqual(12);
 
 
-  // Knownbug 60: de 'd' van 2d moet in de standaard Gantt-kolommen volledig zichtbaar blijven.
-  // Alleen de fixture wijzigen; kolombreedten, paneelbreedte en scrollstand blijven standaard.
   await page.evaluate(id => {
     const s = window.__OPS__!.store.getState();
     const task = s.tasks.find(candidate => candidate.id === id)!;
@@ -125,9 +113,6 @@ test('gantt en tabel: de subtaak-plus staat rechts in de naamkolom, achter de te
       .toEqual({ clippedBy: [], suffixInsideCell: true });
   }
 
-  // Issue #901: de Tabel toont hetzelfde plusje met hetzelfde gedrag. Automatisch passen (dubbelklik
-  // op de kolomrand) rekent inspringing, triehoekje en plusje mee, zodat elke naam heel blijft. Eerst
-  // bepaalt een middellange samenvatting op niveau 0 de breedte, daarna een lange op niveau 1.
   await page.evaluate(id => window.__OPS__!.store.getState().updateTask(id, { name: 'Ruwbouw hoofdgebouw' }), tree.root);
   await openTable(page);
   const tableCell = taskCell(page, tree.summary, 'task.name');
@@ -232,8 +217,6 @@ test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde a
   await page.evaluate(({ from, to }) => {
     const s = window.__OPS__!.store.getState();
     s.addSequence({ predecessorId: from, successorId: to, type: 'FINISH_START', lagDays: 2 });
-    // De voorgangerskolom staat niet in de standaardset van de tabel; dezelfde voorkeur als via
-    // de kolomkiezer, zonder de kiezerdialoog zelf te hoeven bedienen.
     const columns = window.__OPS__!.store.getState().taskGridSurfaces['full-task-grid'].columns;
     window.__OPS__!.store.getState().setTaskGridColumns('full-task-grid', [
       ...columns,
@@ -243,11 +226,8 @@ test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde a
   }, { from: longId, to: shortId });
   await openTable(page);
   const tooltip = page.locator('.gantt-tooltip');
-  // De app toont elk `title`-attribuut via zijn eigen TooltipHost-bubbel (na 400 ms) en neemt het
-  // attribuut tijdens de hover weg; de zichtbare bubbel is dus wat de gebruiker ziet.
   const bubble = page.locator('.ops-tooltip');
 
-  // Een gewone, volledig zichtbare cel: geen taakkaart en geen bubbel.
   const shortName = taskCell(page, shortId, 'task.name');
   await shortName.hover();
   await page.mouse.move((await shortName.boundingBox())!.x + 10, (await shortName.boundingBox())!.y + 5);
@@ -256,26 +236,18 @@ test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde a
   await expect(bubble).toHaveCount(0);
   await expect(shortName).not.toHaveAttribute('title', /.+/);
 
-  // Een datumcel toont de canonieke waarde achter de persoonlijke notatie: die zegt méér dan de
-  // zichtbare tekst en blijft dus altijd bereikbaar, zonder taakkaart ernaast. (Met de
-  // jaar-maand-dag-notatie zou weergave en waarde samenvallen en verdwijnt de tooltip terecht.)
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ dateNotation: 'dmy' }));
-  // Standaardkolom Start (de getoonde datum; voor deze handmatig geplande taak gelijk aan het anker).
   const startCell = taskCell(page, shortId, 'task.time.start');
   await expect(startCell).toHaveText('07-09-2026');
   await startCell.hover();
   await expect(bubble).toHaveText('2026-09-07T07:00');
   await expect(tooltip).toHaveCount(0);
 
-  // Een afgeknipte naam: de volledige waarde als bubbel, nog steeds geen taakkaart. De meting
-  // gebeurt pas bij binnenkomst van de muis; de host kijkt daarom één keer opnieuw.
   const longNameCell = taskCell(page, longId, 'task.name');
   await longNameCell.hover();
   await expect(bubble).toHaveText(longName);
   await expect(tooltip).toHaveCount(0);
 
-  // De relatiecel: boven de link precies één zwevende kaart (van de andere taak, mét
-  // relatiedetails) en geen native title op cel of chip.
   const relationCell = taskCell(page, shortId, 'relation.predecessors');
   const link = relationCell.locator('.task-grid-relation-jump');
   await expect(link).toBeVisible();
@@ -290,9 +262,6 @@ test('tabel: één tooltip per cel — geen taakkaart op gewone cellen, waarde a
 });
 
 test('tabel: relatiechips krijgen één kleur per richting, sturend als sterkere tint (issue #94)', async ({ page, ops: _ops }) => {
-  // Voorganger met haakje (FS+2d, wordt de sturende relatie) en een tweede voorganger die veel
-  // eerder klaar is en dus speling houdt (niet-sturend) — zo staan een sturende én een
-  // niet-sturende chip tegelijk in dezelfde kolom.
   const [drivingPredId, slackPredId, mainId] = await seedProject(page, [
     { name: 'Sturende voorganger', start: '2026-09-07', finish: '2026-09-18', durationDays: 10 },
     { name: 'Voorganger met speling', start: '2026-09-07', finish: '2026-09-09', durationDays: 3 },
@@ -300,14 +269,6 @@ test('tabel: relatiechips krijgen één kleur per richting, sturend als sterkere
   ]);
   await page.evaluate(({ drivingPredId, slackPredId, mainId }) => {
     const s = window.__OPS__!.store.getState();
-    // `seedProject` maakt alle taken `manuallyScheduled: true` (haar eigen invariant: een expliciet
-    // opgegeven start/finish moet blijven staan zoals opgegeven). Voor de hoofdtaak is dat hier
-    // ongewenst: `CPMSolver.forwardPass` slaat voor een manual taak de hele voorganger-drukberekening
-    // over (haar early/late komen rauw van haar eigen opgeslagen datums) en zet dus nooit een
-    // `seqConstraint` voor een relatie die op haar uitkomt — zonder dat kan `scheduleAnalysis`
-    // geen enkele binnenkomende relatie ooit als sturend (`relFloat === 0`) markeren. Om hier een
-    // echte sturende/niet-sturende relatie te krijgen moet de hoofdtaak dus automatisch gepland
-    // zijn, zodat haar vroege datums écht uit de twee voorgangerrelaties worden afgeleid.
     s.updateTask(mainId, { manuallyScheduled: false });
     s.addSequence({ predecessorId: drivingPredId, successorId: mainId, type: 'FINISH_START', lagDays: 2 });
     s.addSequence({ predecessorId: slackPredId, successorId: mainId, type: 'FINISH_START', lagDays: 0 });
@@ -339,19 +300,14 @@ test('tabel: relatiechips krijgen één kleur per richting, sturend als sterkere
   await slackChip.locator('.task-grid-relation-jump').hover();
   await expect(page.locator('.gantt-tooltip')).toContainText(/Niet bepalend|Not driving/);
 
-  // Binnen één chip zijn referentie en type/lag exact dezelfde kleur — voor zowel de sturende als
-  // de niet-sturende chip (klacht 1: niet langer alleen het WBS-deel gekleurd bij niet-sturend).
   const drivingJump = await chipColor(drivingChip, 'task-grid-relation-jump');
   const drivingDetail = await chipColor(drivingChip, 'task-grid-relation-detail');
   expect(drivingJump).toBe(drivingDetail);
   const slackJump = await chipColor(slackChip, 'task-grid-relation-jump');
   const slackDetail = await chipColor(slackChip, 'task-grid-relation-detail');
   expect(slackJump).toBe(slackDetail);
-  // Sturend is een sterkere tint van dezelfde voorgangerkleur, niet een andere kleur.
   expect(drivingJump).not.toBe(slackJump);
 
-  // De opvolgerkant van diezelfde sturende relatie (gezien vanaf de voorganger) krijgt de
-  // opvolgerkleur — een andere rolkleur dan de voorgangerkant (klacht 2).
   const successorsCell = taskCell(page, drivingPredId, 'relation.successors');
   const successorChip = successorsCell.locator('.task-grid-relation-chip').first();
   await expect(successorChip).toHaveCount(1);
@@ -374,12 +330,9 @@ test('tabel: Delete op een verplichte cel meldt in de interfacetaal, niet in het
   const error = page.locator('.full-task-grid-error');
   await expect(error).toBeVisible();
   const text = (await error.textContent()) ?? '';
-  // De browser draait in het Engels; de melding hoort dan Engels te zijn en nooit de oude
-  // Nederlandse `defaultValue`. (Een Nederlandse interface krijgt de Nederlandse tekst.)
   expect(text).not.toContain('Wissen is');
   if (locale.startsWith('en')) expect(text).toBe('This value is required and cannot be left empty.');
   else if (locale.startsWith('nl')) expect(text).toBe('Deze waarde is verplicht en kan niet leeg blijven.');
-  // De taak zelf blijft bestaan: Delete wist celinhoud, geen taken.
   await expect.poll(() => state(page).then(snapshot => snapshot.tasks.length)).toBe(1);
 });
 
@@ -410,7 +363,6 @@ test('tabel: de kolom-plusknop staat vrij van de kaderrand en van de laatste kol
   const anchor = shell.locator('.task-grid-column-chooser-anchor');
   const anchorBox = (await anchor.boundingBox())!;
   const buttonBox = (await button.boundingBox())!;
-  // Zes pixels lucht links en rechts van de knop binnen de strook, en de knop staat verticaal vrij.
   expect(anchorBox.x + anchorBox.width - (buttonBox.x + buttonBox.width)).toBeGreaterThanOrEqual(5);
   expect(buttonBox.x - anchorBox.x).toBeGreaterThanOrEqual(5);
   expect(anchorBox.y + anchorBox.height - (buttonBox.y + buttonBox.height)).toBeGreaterThanOrEqual(2);
