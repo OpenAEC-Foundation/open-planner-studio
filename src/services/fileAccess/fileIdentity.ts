@@ -1,14 +1,10 @@
-/** Metadata van het DOEL van een pad: `stat`, nooit `lstat` (dat de link zelf beschrijft). */
 export interface FileIdentityInfo {
   isFile: boolean;
   dev: number | null;
   ino: number | null;
-  /** Wijzigingstijd, als die bekend is (plugin-fs `FileInfo.mtime`). De MCP-tool
-   *  `planner_refresh_external_links` gebruikt hem als bronversie (keuze 4, #809). */
   mtime?: Date | null;
 }
 
-/** De bestaande plugin-fs-naad, injecteerbaar zonder Tauri-runtime. */
 export interface FileIdentityFs {
   stat(path: string): Promise<FileIdentityInfo>;
 }
@@ -16,36 +12,17 @@ export interface FileIdentityFs {
 export type FileIdentityComparison = 'same' | 'different' | 'unknown';
 
 function usableIdentity(info: FileIdentityInfo): boolean {
-  // plugin-fs serialiseert u64 als JS-number. Afgeronde IDs mogen nooit bewijzen dat bestanden
-  // verschillen. Windows levert null; een ontbrekende/ongeldige ID wordt geen padheuristiek.
   return info.isFile && info.dev !== null && info.ino !== null
     && Number.isSafeInteger(info.dev) && info.dev >= 0
     && Number.isSafeInteger(info.ino) && info.ino > 0;
 }
 
-/**
- * Alleen de concrete ENOENT-vorm van plugin-fs `get_fs_metadata` (2.5 tot en met 2.7.1) bewijst een nieuw doel.
- * Code 2 is ENOENT op Unix en FILE_NOT_FOUND op Windows. Andere fouten (ook scope, rechten,
- * kapotte metadata of een onbekende foutvorm) blijven onbekend. `exists() === false` volstaat
- * hier niet: plugin-fs gebruikt Path::exists, dat ook bij onleesbare metadata false kan geven.
- * Sinds 2.7.0 geeft een nieuw pad onder een link naar buiten de scope "forbidden path" in plaats van ENOENT:
- * ook dat blijft onbekend. Bron: https://github.com/tauri-apps/plugins-workspace/blob/fs-v2.7.1/plugins/fs/src/commands.rs
- */
 export function missingTarget(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
   return message.startsWith('failed to get metadata of path: ')
     && message.includes(' with error: ') && message.endsWith(' (os error 2)');
 }
 
-/**
- * Kan schrijven naar `target` het geopende `source` vervangen? Het OS beslist via dev+ino,
- * dus case-alias, symlink (ook in een bovenliggende map) en harde link delen hun identiteit.
- * Geen lowercasing, platformdetectie, inhoudsvergelijking of muterende probe.
- *
- * Een aantoonbaar ontbrekend doel is vrij voor export. Een bestaand doel mag alleen als beide
- * identiteiten betrouwbaar verschillen; metadatafouten leveren `unknown`, nooit toestemming.
- * Dit is een preflight, geen lock: een extern proces kan na de controle nog een pad vervangen.
- */
 export async function compareFilePaths(
   fs: FileIdentityFs, target: string, source: string,
 ): Promise<FileIdentityComparison> {

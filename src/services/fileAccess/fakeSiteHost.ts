@@ -1,29 +1,3 @@
-/**
- * NEP-SITE voor ontwikkeling (issue #309). Alleen in DEV: `main.tsx` laadt deze module dynamisch
- * achter `import.meta.env.DEV` en `?fakeSite=1`, dus hij valt volledig uit een productiebouw.
- *
- * Doet wat een echte site doet volgens het contract in `siteHost.ts`: bestanden met versies, hier in
- * IndexedDB (`ops-fake-site`, dus met het `ops-`-voorvoegsel). Bij de eerste keer komen er een paar
- * startbestanden in uit `public/examples/`; het eerste krijgt twee versies, zodat "oudere versie
- * openen" meteen te proberen is.
- *
- * Extra URL-vlaggen, alleen om paden te kunnen proberen:
- *  - `fakeSiteConflict=1`: elke opslag van een nieuwe versie wordt geweigerd met `code: 'conflict'`.
- *  - `fakeSiteInitial=1`: de host zet `initialFileId` op het eerste bestand (startbestand).
- *  - `skipWelcome=1`: de host zet `skipWelcome: true` (#583). Dat staat er meteen, nog vóór de
- *    database gevuld is, zodat de welkomstcheck (na de herstelcontrole) het in de regel al ziet.
- *  - `fakeSiteShape=supercloud`: de host heeft de SuperCloud-vorm (#818): de functies direct op
- *    `window.openaecHost`, versies als GETAL, inhoud als `bytes`. (`main.tsx` laadt de nep-site alleen
- *    met `fakeSite=1`; daarom een aparte vlag.) In die vorm:
- *     - `fakeSiteReadOnly=1`: `open` geeft `readOnly: true`, ook voor de nieuwste versie.
- *     - `fakeSiteConflict=1`: elke nieuwe versie wordt een conflictkopie (een nieuw bestand met
- *       "(kopie)" in de naam), zoals de SuperCloud doet. Een `expectedVersion` die niet de nieuwste
- *       is, geeft ook een kopie.
- *     - Opslaan als met een andere extensie dan `.ifc` weigert met `code: 'soort_niet_toegestaan'`.
- *
- * De host komt pas na het vullen van de database, dus via het event `openaec-host-ready` — precies de
- * route van een site die de host na het laden zet.
- */
 import { openDb, idbGetAll } from '@/utils/idb';
 import {
   SITE_CONFLICT_CODE, SITE_HOST_READY_EVENT, SITE_NOT_FOUND_CODE,
@@ -38,7 +12,6 @@ const STORE = 'files';
 const AUTHOR = 'Nep-site';
 
 interface FakeVersion { version: string; modified: string; author: string; data: string }
-/** Eén bestand; `versions` oudste eerst. */
 interface FakeFile { id: string; name: string; versions: FakeVersion[] }
 
 async function allFiles(): Promise<FakeFile[]> {
@@ -48,14 +21,11 @@ async function allFiles(): Promise<FakeFile[]> {
 async function findFile(id: string): Promise<FakeFile> {
   const file = (await allFiles()).find((f) => f.id === id);
   if (!file) {
-    // Zoals het contract het vraagt: "bestaat niet" met een eigen code, zodat Recent het opruimt.
     throw Object.assign(new Error(`Bestand ${id} bestaat niet op de nep-site.`), { code: SITE_NOT_FOUND_CODE });
   }
   return file;
 }
 
-/** Schrijven MET foutmelding (anders dan `idbPut`, dat stil faalt): een nep-site die doet alsof hij
- *  opsloeg terwijl dat niet zo is, zou precies het verkeerde gedrag laten zien. */
 async function putFile(file: FakeFile): Promise<void> {
   const db = await openDb(DB, STORE);
   await new Promise<void>((resolve, reject) => {
@@ -74,8 +44,6 @@ function infoOf(file: FakeFile, version = latest(file)): SiteFileInfo {
 }
 
 function newId(): string {
-  // Geen `crypto.randomUUID`: dat bestaat alleen in een veilige context (https of localhost), en de
-  // dev-server draait ook op een gewoon http-adres (Tailscale).
   return generateId('fake');
 }
 
@@ -100,8 +68,6 @@ const storage: SiteStorage = {
   },
 
   async save({ id, name, data, baseVersion }) {
-    // Bewust `arrayBuffer` en geen `instanceof Blob` (zie het contract): ook een site in een ander
-    // venster moet zo met de inhoud overweg kunnen.
     const text = new TextDecoder('utf-8').decode(await data.arrayBuffer());
     const modified = new Date().toISOString();
     if (id === undefined) {
@@ -130,9 +96,6 @@ const storage: SiteStorage = {
   },
 };
 
-// ── De SuperCloud-vorm (#818) ──────────────────────────────────────────────────────────────────
-
-/** Schrijf een nieuwe versie van een bestaand bestand weg. */
 async function pushVersion(file: FakeFile, text: string): Promise<void> {
   const modified = new Date().toISOString();
   file.versions.push({ version: String(Number(latest(file).version) + 1), modified, author: AUTHOR, data: text });
@@ -143,7 +106,6 @@ function hostRef(file: FakeFile, version = latest(file)) {
   return { id: file.id, name: file.name, version: Number(version.version) };
 }
 
-/** De nep-site in de SuperCloud-vorm: dezelfde database, een andere vorm van de functies. */
 const superCloudFunctions = {
   async open(id: string, version?: HostVersion) {
     const file = await findFile(id);
@@ -171,7 +133,6 @@ const superCloudFunctions = {
     const file = await findFile(options.id);
     const current = Number(latest(file).version);
     if (flag('fakeSiteConflict') || (options.expectedVersion !== undefined && Number(options.expectedVersion) !== current)) {
-      // Zoals de SuperCloud: geen fout, maar een kopie naast het bestand.
       const ext = /\.[^.]+$/.exec(file.name)?.[0] ?? '';
       const copy: FakeFile = {
         id: newId(),
@@ -199,7 +160,6 @@ const superCloudFunctions = {
 
 interface ExampleEntry { file: string; name: string; category?: string }
 
-/** Vul een lege nep-site met twee voorbeelden; het eerste krijgt twee versies. */
 async function seedIfEmpty(): Promise<void> {
   if ((await allFiles()).length > 0) return;
   const base = import.meta.env.BASE_URL;
@@ -218,10 +178,8 @@ async function seedIfEmpty(): Promise<void> {
   }
 }
 
-/** Installeer de nep-site op `window.openaecHost` en meld dat met `openaec-host-ready`. */
 export async function installFakeSiteHost(): Promise<void> {
   const skipWelcome = flag('skipWelcome');
-  // Alleen het welkomstveld, zonder opslag: zo is er nog geen site tot de database klaar is.
   if (skipWelcome) window.openaecHost = { skipWelcome: true } satisfies OpenAECHost;
   try {
     await seedIfEmpty();
