@@ -10,8 +10,7 @@ voor één bewerking, met daartussen een stand die de gebruiker nooit zag. Met h
 ## Gevolgen
 
 - `setProject` rekent alleen door als de nieuwe projectstart werkelijk wortel-ankers klemde, zodat de melding
-  "meegeschoven" klopt op het moment dat ze verschijnt. Anders zet het alleen `stale`, en alleen bij een gewijzigde
-  projectstart of als taken van duurmaat veranderen.
+  "meegeschoven" klopt op het moment dat ze verschijnt.
 - `moveProject` verschuift elk taakanker zelf en zet de nieuwe startdatum exact, niet als oude start plus het
   verschil: de projectstart is geen ondergrens voor het eigen anker van een wortel-taak (ADR 0011), en een start met
   tijd zou anders verlopen.
