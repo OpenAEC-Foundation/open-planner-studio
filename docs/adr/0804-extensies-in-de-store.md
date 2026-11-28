@@ -1,9 +1,8 @@
 # Extensies in de store
 
 Een lintknop van een extensie komt binnen met het publieke type `ExtRibbonTab` en wordt op de API-grens vertaald
-(`extMappers.fromExtRibbonTab`); de store (`extensionSlice.ts`) bewaart het interne `RibbonTab`. De twee unies zijn nu
-gelijk, maar zo loopt het publieke contract niet door tot in de renderlaag, en breekt een toekomstig verschil hier
-op de compiler in plaats van stil door te lopen.
+(`extMappers.fromExtRibbonTab`); de store (`extensionSlice.ts`) bewaart het interne `RibbonTab`. Het publieke `relations`
+wordt daar bijvoorbeeld het interne `table`; zo loopt het publieke contract niet door tot in de renderlaag.
 
 ## Gevolgen
 

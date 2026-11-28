@@ -1845,6 +1845,12 @@ en noem het in je rapport of PR-tekst.
       dezelfde tint als `GANTT_TRACE_COLORS.successorDriving` en als `DOC_PALETTE[3]` (`src/utils/documents.ts`). Bij
       een op de acht documenten is de identiteitskleur van het document dus de kleur van een mijlpaal. Uit het
       weggehaalde commentaar, de hexwaarden in de code nagekeken. — S
+2770. **Na een afgewezen taakgridvoorkeur overschrijft verticaal scrollen haar met de standaardvoorkeuren.**
+     `hydrateTaskGridPreferences` met `autoWrite: false` (`src/state/slices/taskGridSlice.ts`) houdt alleen de
+     automatische kolombreedtemeting tegen. De scrollhandler van `DataGridCore.tsx` geeft bij elke scroll ook de
+     horizontale positie door, ook als die gelijk bleef, en de opslagactie schrijft dan de getoonde standaardvoorkeuren
+     over de afgewezen ruwe waarde. Gezien in de review van #1361 (Sol), in Node nagespeeld vanaf de store-aanroep, niet
+     in de browser. — B
 
 ## Kalenders
 
