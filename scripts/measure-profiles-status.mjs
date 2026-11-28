@@ -1,23 +1,13 @@
-// Pure oordeelsfuncties van `measure-profiles.mjs`, los zodat `tests/dev-server/measure-profiles.test.mjs`
-// ze zonder corpus kan toetsen. Geen I/O.
-
-/** De drie X12-nuldoelregels die by design rood staan zolang het nuldoel niet gehaald is. */
 export const KNOWN_GOAL_PREFIXES = [
   'XX X12 nuldoel is baseline-onafhankelijk: ieder bestand haalt de zesassige poort: ',
   'XX X12 nuldoel is baseline-onafhankelijk: alle zes assen zijn nul: ',
   'XX X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul: ',
 ];
-/** De v2-tellingenbaseline wijkt af van de meting — bij een zuivere verbetering: herpinnen. */
 export const V2_EQUALITY_PREFIX = 'XX X12 productbaseline is de verse volledige productmeting: ';
 export const CELL_OK_PREFIX = 'OK  X12 cel-baseline (regel A):';
-/** Een verbetering die nog niet gepind is, is ROOD (Fable-critreview PR #169, bevinding 9): per cel
- *  geldt de pin, niet de beste ooit gemeten stand — een ongepinde verbetering kan anders later stil
- *  terugvallen naar de oude pin. Herpinnen en opnieuw meten geeft NULDOEL/GROEN. */
 export const VERBETERD_STATUS = 'ROOD (VERBETERD zonder herpin — herpin v2 + cellen in dezelfde commit en meet opnieuw)';
-/** Alleen kleinere cellen binnen dezelfde emmer (grootte-ratchet): v2 telt emmers en blijft gelijk. */
 export const VERBETERD_GROOTTE_STATUS = 'ROOD (VERBETERD (grootte) zonder herpin — herpin de cellen en meet opnieuw)';
 
-/** Env-sleutels die een kindproces in schrijf- of rapportmodus zouden zetten. */
 export const CHILD_ENV_STRIP = [
   'OPS_XER_CELLS_WRITE', 'OPS_XER_V2_WRITE', 'OPS_XER_GATE_PINS', 'OPS_XER_FIDELITY_REPORT', 'OPS_MPP_FIDELITY_REPORT',
   'OPS_XER_CELLS_DEBT_INIT', 'OPS_XER_CELLS_V1_UPGRADE',
@@ -30,16 +20,11 @@ export function childEnv(env, { dropXerCorpus = false } = {}) {
   return out;
 }
 
-/** Alle faalregels: XX (ook ingesprongen, zie AGENTS.md) plus stacktraces/esbuild-fouten. */
 export function failureLines(lines) {
   return lines.filter((line) => /^\s*XX\s/.test(line) || /^\s*XX$/.test(line)
     || /^\s+at \S.*:\d+:\d+\)?$/.test(line) || /^✘ \[ERROR\]/.test(line));
 }
 
-/** `CELLDELTA p6 nieuw=… verslechterd=… groter=… verbeterd=… kleiner=… onmeetbaar=… … schuld=…` → getallen;
- *  ontbreekt iets (ook een oude regel zonder groter=/kleiner=/schuld=) ⇒ undefined, dus fail-closed rood.
- *  `schuld` is de ratchet-schuld (eenmalig ontstaan 2026-09-23, alleen dalend); informatief in het oordeel:
- *  de X12-check zelf is rood als hij stijgt. */
 export function parseCellDelta(lines, profile = 'p6') {
   const line = lines.find((candidate) => candidate.startsWith(`CELLDELTA ${profile} `));
   if (!line) return undefined;
@@ -56,26 +41,6 @@ export function parseCellDelta(lines, profile = 'p6') {
     .some((number) => number === undefined) ? undefined : delta;
 }
 
-/**
- * Oordeel over de X12-run mét corpus. Rood is de standaard; alleen GROEN en NULDOEL slagen. De twee
- * VERBETERD-toestanden worden herkend (eigen status, eigen herpinadvies) maar zijn sinds de
- * Fable-critreview PR #169 (bevinding 9) ook rood: regel A pint elke verbetering, zodat ze niet stil
- * kan terugvallen. Een schrijfmodus bereikt het kindproces nooit (`childEnv`), dus een meting vergelijkt
- * altijd met de gecommitte pin — na de herpin geeft dezelfde meting NULDOEL/GROEN.
- *  - exit 0 met groene cel-poort                                         ⇒ GROEN;
- *  - uitsluitend (een deel van) de drie nuldoelregels rood, cel-poort groen, geen nieuwe of
- *    verslechterde cel                                                    ⇒ NULDOEL (regel A gehouden);
- *  - daarnaast alleen de v2-gelijkheidsregel rood, cel-delta nieuw=0 verslechterd=0 groter=0
- *    onmeetbaar=0 verbeterd>0                                             ⇒ VERBETERD (rood): herpin
- *    v2 én cellen in dezelfde commit;
- *  - geen v2-afwijking, groter=0 en kleiner>0 (alleen de grootte-ratchet verbeterd)
- *                                                                         ⇒ VERBETERD (grootte) (rood):
- *    herpin de cellen (v2 telt emmers en verandert niet).
- * `groter>0` (een cel binnen dezelfde emmer sameday/diff groter afgeweken) is altijd ROOD.
- * Een meetbaarheids-/dekkingsafwijking t.o.v. v2 ("X12 meetbaarheid/dekking wijkt af van v2") heeft
- * een eigen prefix en is dus altijd een overige faalregel ⇒ ROOD: een blinder orakel is geen verbetering.
- * `strict` maakt elke nog rode nuldoelregel rood.
- */
 export function classifyP6({ exit, lines, strict = false }) {
   const failures = failureLines(lines);
   const cellOk = lines.some((line) => line.startsWith(CELL_OK_PREFIX));
@@ -102,7 +67,6 @@ export function classifyP6({ exit, lines, strict = false }) {
   return red(`exit ${exit} zonder herkende faalregel`);
 }
 
-/** Dekking per effectieve wortel; een ontbrekende of lege lus is geen volledige meting. */
 function mppScannedRoots(lines) {
   const roots = { corpus: 0, crawl: 0 };
   for (const line of lines) {
@@ -112,12 +76,10 @@ function mppScannedRoots(lines) {
   return roots;
 }
 
-/** Totaal gescande `.mpp`-bestanden, onafhankelijk van de dekking per wortel. */
 export function mppScannedFiles(lines) {
   return Object.values(mppScannedRoots(lines)).reduce((sum, count) => sum + count, 0);
 }
 
-/** MS Project-oordeel: fail-closed — nul gescande bestanden is "niet gemeten", dus rood. */
 export function classifyMsp({ exit, lines }) {
   const failures = failureLines(lines);
   const roots = mppScannedRoots(lines);

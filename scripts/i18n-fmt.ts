@@ -1,6 +1,3 @@
-// `npm run i18n:fmt` — zet alle locale-bestanden in de canonieke opmaak (zie scripts/i18n-tools.ts):
-// één sleutel per regel, in de volgorde van `nl`. `--check` schrijft niets en faalt (exit 1) zodra
-// een bestand afwijkt; die vorm draait mee in `npm run verify:i18n`.
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { LOCALES, NAMESPACES, formatLocale } from './i18n-tools';
