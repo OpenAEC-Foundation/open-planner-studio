@@ -72,3 +72,6 @@ afsluiten (niets meer ongeopgeslagen, de poort voor projectopslag dicht) maakt `
 wortel in `App.tsx`, `data-ops-app-root`), ook een dialoog die al openstond en het werkvlak, zonder eigen melding, tot
 het venster weg is; `useDialogKeys` negeert Escape en Enter zolang de wortel inert is. Alles blijft gemount, dus na
 afbreken staat een dialoog er nog met zijn invoer.
+
+**Besluiten in `src/components/common/`** (gedeelde velden, zwevende panelen, de tooltip en het extensie-icoon) staan in
+`docs/adr/0670-gedeelde-componenten-keuzes-die-verrassen.md`; die voor het datumveld in ADR 0460 tot en met 0465.

@@ -2,43 +2,12 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import './Tooltip.css';
 
-/**
- * Globale non-native tooltip. Eén host (in App.tsx gemount) onderschept via event-delegatie ELK
- * element met een `title`-attribuut: de native browser-tooltip wordt onderdrukt (het `title` wordt
- * tijdens de hover tijdelijk weggehaald en bij vertrek teruggezet) en in plaats daarvan verschijnt
- * na een korte vertraging het thema-bewuste `.ops-tooltip`-bubbeltje. Zo krijgt élke bestaande
- * `title=` in de app automatisch dezelfde tooltip — zonder per knop iets te bedraden.
- *
- * Het bubbeltje gaat via een portal naar `document.body` (net als {@link Popover}) zodat overflow-
- * clips (bv. de ribbon-strook) het niet afsnijden; de horizontale positie wordt binnen de viewport
- * geklemd.
- *
- * Info-iconen (`data-tooltip-instant`) zijn er voor de uitleg zelf. Daarom:
- *  - tonen ze de tooltip ook bij toetsenbordfocus en bij een klik of tik (een touchscreen kent geen
- *    hover); een klik op een icoon binnen een `<label>` zet dat label NIET om (review #350, punt 3);
- *  - blijft de tooltip van het icoon met focus of onder de muis staan als de pagina scrolt (Tab laat
- *    een lange lijst scrollen), op de nieuwe plek;
- *  - blijft een tooltip die door focus kwam staan zolang zijn element de focus heeft: een `mouseout`/
- *    `mouseover` doordat de inhoud onder een stilstaande muis wegscrolt, sluit of vervangt hem niet;
- *  - sluit Escape alleen de tooltip (niet ook de dialoog of Backstage eronder), net als focusverlies of
- *    een klik elders; verdwijnt het element uit de DOM, dan ruimt de host de tooltip op en slikt hij
- *    geen Escape meer;
- *  - wijst `aria-describedby` meteen bij het tonen (synchroon, vóór het bubbeltje er is) naar een
- *    verborgen element dat altijd bestaat en de uitleg bevat, zodat een schermlezer hem bij focus leest.
- *
- * `data-tooltip-lead` (optioneel): de eerste regel van het `title` (tot de eerste `\n`) staat vet,
- * elke volgende regel staat apart eronder. Zo kan een uitleg met een kernzin beginnen (veld *Werkregel*).
- */
 const DELAY_MS = 400;
-/** `data-tooltip-instant`: geen vertraging — voor info-iconen waar de tooltip dé inhoud is. */
 const isInstant = (el: HTMLElement): boolean => el.hasAttribute('data-tooltip-instant');
 const instantDelay = (el: HTMLElement): number => (isInstant(el) ? 0 : DELAY_MS);
 const DESCRIPTION_ID = 'ops-tooltip-description';
-/** `data-tooltip-lead`: de eerste regel van het `title` staat vet. */
 const hasLead = (el: HTMLElement): boolean => el.hasAttribute('data-tooltip-lead');
 
-/** Inhoud van het bubbeltje: met `lead` de eerste regel vet en elke volgende regel (`\n`) als eigen
- *  regel, zodat zinnen zonder taalafhankelijke spatie onder elkaar staan; anders de tekst zoals hij is. */
 function TipText({ text, lead }: { text: string; lead?: boolean }) {
   if (!lead || !text.includes('\n')) return <>{text}</>;
   const [first, ...rest] = text.split('\n');
@@ -50,7 +19,6 @@ function TipText({ text, lead }: { text: string; lead?: boolean }) {
   );
 }
 
-/** `above`: bovenrand van het element, voor als het bubbeltje onder de viewport zou vallen. */
 interface TipState { text: string; x: number; y: number; above: number; lead?: boolean; }
 
 export function TooltipHost() {
@@ -59,16 +27,12 @@ export function TooltipHost() {
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const activeEl = useRef<HTMLElement | null>(null);
   const stashed = useRef<string | null>(null);
-  // Altijd aanwezig, verborgen: de beschrijving voor `aria-describedby` (zie hierboven).
   const descriptionRef = useRef<HTMLSpanElement>(null);
 
   useEffect(() => {
-    // Verdwijnt het element van de tooltip uit de DOM (bv. een dialoog sluit), dan opruimen.
     const removal = new MutationObserver(() => {
       if (activeEl.current && !activeEl.current.isConnected) dismiss();
     });
-    // Zet React tijdens het tonen een nieuw `title` (de waarde veranderde, bv. na Ctrl+Z), dan is
-    // DAT de tekst: haal hem weer weg (geen native tooltip) en toon hem meteen in het bubbeltje.
     const titleWatch = new MutationObserver(() => {
       const el = activeEl.current;
       const next = el?.getAttribute('title');
@@ -80,8 +44,6 @@ export function TooltipHost() {
       }
       setTip(prev => (prev ? { ...prev, text: next } : prev));
     });
-    // Zet het weggehaalde `title` terug op het element waar we het van leenden, maar nooit over een
-    // `title` dat er intussen weer staat: dat is de nieuwere waarde (review PR #359, punt 1).
     const restore = () => {
       removal.disconnect();
       titleWatch.disconnect();
@@ -100,7 +62,6 @@ export function TooltipHost() {
       restore();
       setTip(null);
     };
-    // Dichtstbijzijnde voorouder (incl. het element zelf) met een niet-leeg `title`.
     const titledAncestor = (start: EventTarget | null): HTMLElement | null => {
       let el = start as HTMLElement | null;
       while (el && el !== document.body && el.nodeType === 1) {
@@ -110,10 +71,6 @@ export function TooltipHost() {
       }
       return null;
     };
-    // Een `title` die pas bij binnenkomst van de muis wordt gezet (de taakgrid meet dan pas of een
-    // cel afknipt) bestaat nog niet op het moment dat deze capture-listener loopt: React
-    // verwerkt zijn mouseenter-state ná ons. Kijk daarom bij een leeg resultaat één keer opnieuw
-    // zodra die update is doorgevoerd; blijft het leeg, dan is er gewoon niets te tonen.
     let retryTarget: EventTarget | null = null;
     const onOver = (e: MouseEvent, retried = false) => {
       const el = titledAncestor(e.target);
@@ -125,13 +82,11 @@ export function TooltipHost() {
         return;
       }
       if (!el || el === activeEl.current) return;
-      if (focusTip()) return; // de tooltip van het element met focus blijft
+      if (focusTip()) return;
       show(el, instantDelay(el));
     };
-    // Kwam de actieve tooltip door focus (een direct info-icoon dat nu de focus heeft)?
     const focusTip = (): boolean => !!activeEl.current && isInstant(activeEl.current)
       && document.activeElement === activeEl.current;
-    // Toon de tooltip van `el` na `delay` ms; het `title` gaat zolang naar `stashed`.
     const show = (el: HTMLElement, delay: number) => {
       dismiss();
       const text = el.getAttribute('title');
@@ -139,7 +94,7 @@ export function TooltipHost() {
       activeEl.current = el;
       stashed.current = text;
       removal.observe(document.body, { childList: true, subtree: true });
-      el.removeAttribute('title'); // onderdrukt de native tooltip
+      el.removeAttribute('title');
       titleWatch.observe(el, { attributes: true, attributeFilter: ['title'] });
       if (isInstant(el) && !el.hasAttribute('aria-describedby') && descriptionRef.current) {
         descriptionRef.current.textContent = text;
@@ -150,7 +105,6 @@ export function TooltipHost() {
         setTip({ text: stashed.current ?? text, x: r.left + r.width / 2, y: r.bottom + 6, above: r.top - 6, lead: hasLead(el)});
       }, delay);
     };
-    // Info-icoon met focus (toetsenbord, of de focus na een klik of tik): meteen tonen.
     const instantTarget = (target: EventTarget | null): HTMLElement | null => {
       const el = target instanceof Element ? target.closest<HTMLElement>('[data-tooltip-instant]') : null;
       return el && (el === activeEl.current || el.getAttribute('title')) ? el : null;
@@ -164,23 +118,18 @@ export function TooltipHost() {
       const to = e.relatedTarget as Node | null;
       if (e.target === activeEl.current && !(to && activeEl.current.contains(to))) dismiss();
     };
-    // Klik of tik op een info-icoon: tonen (mousedown heeft hem net gesloten; een tik op een
-    // touchscreen geeft geen blijvende hover). Een niet-focusbaar icoon krijgt zo ook zijn uitleg.
     const onClick = (e: MouseEvent) => {
       const el = instantTarget(e.target);
       if (!el) return;
-      // Het icoon staat soms in een <label> (LayoutsDialog): de klik is voor de uitleg, niet voor het vinkje.
       if (el.closest('label')) e.preventDefault();
       if (el !== activeEl.current) show(el, 0);
     };
     const onKeyDown = (e: KeyboardEvent) => {
       if (e.key !== 'Escape' || !activeEl.current) return;
-      if (!activeEl.current.isConnected) { dismiss(); return; } // achtergebleven: niet slikken
-      // Een directe tooltip sluit eerst zelf; de dialoog of Backstage eronder pas bij de volgende Escape.
+      if (!activeEl.current.isConnected) { dismiss(); return; }
       if (isInstant(activeEl.current)) { e.preventDefault(); e.stopPropagation(); }
       dismiss();
     };
-    // Scrollen: de tooltip van het icoon met focus of onder de muis verschuift mee; andere sluiten.
     const onScroll = () => {
       const el = activeEl.current;
       if (el && isInstant(el) && stashed.current !== null && (document.activeElement === el || el.matches(':hover'))) {
@@ -192,10 +141,9 @@ export function TooltipHost() {
     };
     const onOut = (e: MouseEvent) => {
       if (!activeEl.current || focusTip()) return;
-      // Alleen als de muis het actieve element zelf verlaat (niet bij een mouseout elders).
       if (!(e.target instanceof Node) || !activeEl.current.contains(e.target)) return;
       const to = e.relatedTarget as Node | null;
-      if (to && activeEl.current.contains(to)) return; // nog binnen het actieve element
+      if (to && activeEl.current.contains(to)) return;
       dismiss();
     };
 
@@ -223,13 +171,11 @@ export function TooltipHost() {
     };
   }, []);
 
-  // Horizontaal binnen de viewport houden (triggers vlak bij de rand).
   useLayoutEffect(() => {
     if (!tip || !bubbleRef.current) return;
     const half = bubbleRef.current.offsetWidth / 2;
     const cx = Math.max(half + 6, Math.min(tip.x, window.innerWidth - half - 6));
     bubbleRef.current.style.left = `${cx}px`;
-    // Valt het bubbeltje onder de viewport, dan boven het element (lange uitleg laag in beeld).
     const h = bubbleRef.current.offsetHeight;
     if (tip.y + h > window.innerHeight - 6 && tip.above - h >= 6) {
       bubbleRef.current.style.top = `${tip.above - h}px`;
