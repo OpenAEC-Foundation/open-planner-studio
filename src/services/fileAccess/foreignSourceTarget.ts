@@ -1,22 +1,3 @@
-// Is het gekozen doel van een opslag of export het bronbestand van een document met een vreemd deel (#804 fase 1a,
-// fixronde 1)? Dan schreef de app alleen planning (of CSV, XML, ...) over het modelbestand. Deze controle draait vóór het
-// schrijven: in de Tauri-route na de padkeuze, in de browser na `showSaveFilePicker` en vóór `createWritable()`, en vóór
-// een nieuwe versie op de site.
-//
-// Per route:
-//  - pad (Tauri): hetzelfde genormaliseerde pad, of dezelfde bestandsidentiteit (`compareFilePaths`: dev en ino);
-//  - handle (browser): `isSameEntry` met de handle van de bron; zonder handle (na crashherstel bewaart de app geen
-//    handle) dezelfde inhoud: lengte en SHA-256 van het gekozen bestand gelijk aan de bron;
-//  - site: hetzelfde `siteFileId`.
-// Is niet vast te stellen of het doel hetzelfde bestand is (een download, een fout bij lezen), dan telt het als een ander
-// bestand: het nieuwe bestand mag.
-//
-// Fixronde 2: daarnaast controleert de app het gekozen bestaande doel zelf (`targetRefusal`): een IFC met
-// een gebouwmodel krijgt geen planning eroverheen, ook als het geen bron van een open document is (een gewijzigde
-// modelversie na herstel, of een modelbestand dat niet open is).
-// Review van #870 (besluit Trias): vindt de grammatica van ISO 10303-21 in een STEP-doel geen datasectie (een kapotte
-// kop, of geen DATA-sectie), dan weigert `targetRefusal` het doel met 'unreadable': een scan zonder uitkomst is geen
-// vrijbrief.
 import { normalizeExternalSourcePath } from '@/engine/taskGrid/relationFormat';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
 import { scanForeignTargetBlob, scanForeignTargetBytesAsync, type OwnBomVersion, type TargetForeignScan } from '@/services/ifc/foreign/targetForeignScan';
@@ -26,11 +7,9 @@ import type { IfcxClassification } from '@/services/ifc/ifcx';
 import type { FileRef } from './index';
 
 export interface ForeignSourceTargetDeps {
-  /** Bestandsidentiteit voor paden (Tauri: plugin-fs `stat`). Zonder: alleen het genormaliseerde pad. */
   identityFs?: FileIdentityFs;
 }
 
-/** Hetzelfde pad, lexicaal: dezelfde regel als de externe bronnen (`normalizeExternalSourcePath`). */
 export function samePath(a: string, b: string): boolean {
   if (a === b) return true;
   const na = normalizeExternalSourcePath(a);
@@ -45,11 +24,6 @@ export async function sameEntry(a: FileSystemFileHandle, b: FileSystemFileHandle
   }
 }
 
-/**
- * De inhoud van het gekozen bestand, voor de kenmerken zonder handle (na herstel of uit een backup). Hoogstens één
- * `getFile()` en één SHA-256 per controle, ook bij veel kenmerken (fixronde 3): eerst de lengte (goedkoop), de SHA-256
- * pas als een kenmerk dezelfde lengte heeft. Een leesfout telt als een ander bestand.
- */
 function targetContent(handle: FileSystemFileHandle): (mark: ForeignSourceMark) => Promise<boolean> {
   let file: Promise<File | null> | undefined;
   let digest: Promise<string | null> | undefined;
@@ -62,19 +36,12 @@ function targetContent(handle: FileSystemFileHandle): (mark: ForeignSourceMark) 
   };
 }
 
-/** Lezers van een bestaand doel, per route. Ontbreekt een lezer, dan is het doel niet leesbaar. */
 export interface TargetReaders {
-  /** Een bestaand pad als stroom lezen (Tauri); `null` = bewezen ontbrekend nieuw pad; leesfouten geven unreadable. */
   scanPath?: (path: string, ownBomVersion: OwnBomVersion | null) => Promise<TargetForeignScan | null>;
-  /** Een bestand op de site lezen; `null` = niet leesbaar, dus weigeren. */
   readSite?: (id: string) => Promise<Uint8Array | null>;
   readPath?: (path: string) => Promise<Uint8Array | null>;
 }
 
-/** De lezers van de doelcontrole voor het doel dat de bestandskiezer vastlegde (was knownbug 1891): één scan van de
- *  vastgelegde bytes, gedeeld door de controle direct na de kiezer en die na de eerste herstelronde. Zonder vastgelegde
- *  inhoud (een vrije naam, een link, een map) scant de controle het pad, zoals voorheen. Een onleesbaar bestand blijft
- *  een onleesbaar doel. */
 export function capturedTargetReaders(current: Uint8Array | 'unreadable' | null, base: () => TargetReaders): () => TargetReaders {
   if (current === null) return base;
   let scan: Promise<TargetForeignScan> | undefined;
@@ -88,12 +55,6 @@ export function capturedTargetReaders(current: Uint8Array | 'unreadable' | null,
   });
 }
 
-/** Doelindeling met de flag aan (in headless altijd): model eerst als stroom, daarna dezelfde C/A/V-scan als openen.
- * 'model' en 'foreign' weigeren. Een scanfout, onleesbaar bestaand doel of ontbrekende lezer is 'unreadable'.
- * 'no-model' is pas veilig na de volledige indeling zonder vreemd deel; 'not-ifc' blijft een normaal ander formaat.
- * Alleen een bewezen nieuw pad (scanPath geeft null) of een lege picker-file is een nieuw doel. Een download heeft
- * geen bestaand FileRef en komt hier niet langs. De app met de flag uit slaat deze controle nog altijd over.
- */
 export async function targetRefusal(
   target: FileRef, readers: TargetReaders = {}, ownBomVersion: OwnBomVersion | null = null,
 ): Promise<'model' | 'foreign' | 'unreadable' | null> {
@@ -145,14 +106,11 @@ async function existingTargetBytes(target: Exclude<FileRef, { kind: 'site' }>, r
   return readers.readPath(target.path);
 }
 
-/** Wijzen twee lokale paden naar hetzelfde bestand? Hetzelfde genormaliseerde pad, of (met `identityFs`) dezelfde
- *  bestandsidentiteit. Eén vergelijking voor de bronkenmerken en de paden van open documenten. */
 export async function sameLocalFile(a: string, b: string, deps: ForeignSourceTargetDeps = {}): Promise<boolean> {
   if (samePath(a, b)) return true;
   return !!deps.identityFs && (await compareFilePaths(deps.identityFs, a, b)) === 'same';
 }
 
-/** Is `target` de bron van een van de `marks`? */
 export async function isForeignSourceTarget(
   target: FileRef,
   marks: readonly ForeignSourceMark[],
