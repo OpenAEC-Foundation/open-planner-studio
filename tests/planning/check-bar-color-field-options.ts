@@ -40,7 +40,6 @@ const ctx: FieldCatalogCtx = {
 };
 
 const actual = barColorFieldOptions(ctx).map(option => encodeFieldRef(option.field));
-// Issue #173: Resourcetype is een groepeerveld maar geen kleurbron (typen hebben geen kleur).
 const resourceType = encodeFieldRef({ src: 'resourceType' });
 const expected = groupFieldList(ctx).map(encodeFieldRef).filter(value => value !== resourceType);
 ok(JSON.stringify(actual) === JSON.stringify(expected), 'Balkkleuren gebruikt dezelfde velden en volgorde als Group, zonder Resourcetype');
@@ -64,10 +63,6 @@ ok(
 );
 ok(original.field.typeId === 'verwijderd', 'de globale selectie wordt niet gemuteerd');
 
-// Regressie: een categorieveld stond eerst in een tweede, geportalde Popover. De buitenste
-// Balkkleuren-popover zag de mousedown in dat portaal als buitenklik en ontkoppelde de opties vóór
-// hun click-handler. Een echte inline select heeft geen tweede kliklaag en moet de gekozen waarde
-// direct via zijn eigen change-event doorgeven.
 const taskTypeValue = encodeFieldRef({ src: 'builtin', key: 'taskType' });
 const resourceValue = encodeFieldRef({ src: 'resource' });
 let selectedValue = '';

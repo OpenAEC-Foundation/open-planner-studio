@@ -55,8 +55,6 @@ function observed(state: AppState): unknown {
   };
 }
 
-// Een meercellige paste moet mijlpaalovergangen semantisch ordenen, niet op basis van de
-// toevallige links-naar-rechtsvolgorde van de zichtbare kolommen.
 {
   function runMilestonePaste(initialMilestone: boolean, milestoneFirst: boolean): {
     ok: boolean; milestone?: boolean; duration?: number;
@@ -93,10 +91,6 @@ function observed(state: AppState): unknown {
     [fromMilestoneRight.milestone, fromMilestoneRight.duration], [false, 1]);
 }
 
-// De volledige mijlpaalgroep wordt tegen de gezamenlijke eindtoestand toegepast. Bij uitzetten
-// mogen milestoneKind/mandatory tijdens dezelfde paste dus niet read-only worden vóór hun writes
-// zijn verwerkt. Alle 24 kolomvolgordes moeten exact dezelfde gewone taak opleveren, zowel met
-// lege als met gevulde bronmetadata (de overgang wist metadata uiteindelijk altijd).
 {
   function permutations<T>(values: readonly T[]): T[][] {
     if (values.length <= 1) return [[...values]];
@@ -144,9 +138,6 @@ function observed(state: AppState): unknown {
   }
 }
 
-// Meerdere relatiecellen in één paste worden tegen hun gezamenlijke eindtoestand beoordeeld.
-// De eerste write maakt hier tijdelijk A->B->C->A; de tweede haalt B->C weg, zodat het eindresultaat
-// geldig is. De toevallige writevolgorde mag die geldige herschikking niet blokkeren.
 {
   reset();
   const a = S().addTask({ name: 'A' });
@@ -171,8 +162,6 @@ function observed(state: AppState): unknown {
   eq('Meercellige relatiepaste blijft één undo-eenheid', S().historyEvents.length, 1);
 }
 
-// Twee cellen mogen niet stil verschillende opdrachten geven voor dezelfde relatie. Dit is geen
-// "laatste write wint": de hele paste wordt geweigerd en laat de live store ongemoeid.
 {
   reset();
   const a = S().addTask({ name: 'A' });
@@ -189,7 +178,6 @@ function observed(state: AppState): unknown {
   eq('Tegenspraak tussen overlappende relatiecellen faalt', result.ok, false);
   eq('Tegenspraak benoemt relationSetConflict', result.ok ? null : result.errors[0]?.code, 'relationSetConflict');
   eq('Tegenspraak laat store byte-identiek', JSON.stringify(observed(S())), before);
-  // Bewaak ook de omgekeerde invoervolgorde: conflictgedrag mag niet van arrayvolgorde afhangen.
   const reversed = runGridMutation([{
     kind: 'paste',
     writes: [relationSet(b, 'predecessor', []), relationSet(a, 'successor', [wbsB])],
@@ -198,7 +186,6 @@ function observed(state: AppState): unknown {
   eq('Omgekeerde tegenspraak laat store byte-identiek', JSON.stringify(observed(S())), before);
 }
 
-// Leeg = geldige no-op: geen publicatie en geen history.
 {
   reset();
   let publications = 0;
@@ -210,7 +197,6 @@ function observed(state: AppState): unknown {
   eq('Lege intentlijst registreert niets', S().historyEvents.length, 0);
 }
 
-// Een factory-store gebruikt zijn eigen slicegetters en raakt de app-singleton niet.
 {
   reset();
   const singletonTask = S().addTask({ name: 'Singleton' });
@@ -224,7 +210,6 @@ function observed(state: AppState): unknown {
   eq('Factory-store raakt singleton-taak niet', S().tasks.find(task => task.id === singletonTask)?.name, 'Singleton');
 }
 
-// Prepare rekent uitsluitend op een geïsoleerde draft en mag de live store niet publiceren.
 {
   reset();
   const taskId = S().addTask({ name: 'Live blijft staan' });
@@ -240,7 +225,6 @@ function observed(state: AppState): unknown {
   eq('Prepare bevat wel de voorgenomen waarde', prepared.ok ? prepared.value.after.tasks[0]?.name : null, 'Alleen voorbereid');
 }
 
-// Eén celcommit publiceert data, afgeleiden, dirty en exact één event tegelijk.
 {
   reset();
   const taskId = S().addTask({ name: 'Voor' });
@@ -266,7 +250,6 @@ function observed(state: AppState): unknown {
   eq('Redo van gridcommit materialiseert passende rijen', S().viewRows.flatMap(row => row.kind === 'task' ? [row.task.name] : []), ['Na']);
 }
 
-// Cel twee faalt: niets van cel één mag lekken.
 {
   reset();
   const taskId = S().addTask({ name: 'Oorspronkelijk' });
@@ -283,8 +266,6 @@ function observed(state: AppState): unknown {
   eq('Gefaalde paste laat alle bewaakte state byte-identiek', JSON.stringify(observed(S())), before);
 }
 
-// Een relationele celset loopt door de pure planner en commit samen met een gewone celwrite in
-// exact dezelfde transactie: geen tussenpublicatie met alleen de naam of alleen de relatie.
 {
   reset();
   const taskId = S().addTask({ name: 'Relatiegrens' });
@@ -311,7 +292,6 @@ function observed(state: AppState): unknown {
   eq('Relatiepaste maakt één gezamenlijk history-event', S().historyEvents.length, 1);
 }
 
-// Dezelfde bronmutatie met exact dezelfde waarde dedupliceert tot één wijziging.
 {
   reset();
   const taskId = S().addTask({ name: 'Dubbel gelijk' });
@@ -326,9 +306,6 @@ function observed(state: AppState): unknown {
   eq('Gelijke dubbele veldmutatie maakt één event', S().historyEvents.length, 1);
 }
 
-// Een relationele Excel-cel met een technisch ogende maar onbekende externe payload mag evenmin
-// een eerdere write uit dezelfde paste laten lekken. Task 17 bewijst de precieze parserfout apart;
-// deze check bewaakt hier daarnaast de atomaire transactiegrens van de aangesloten relatieplanner.
 {
   reset();
   const taskId = S().addTask({ name: 'Externe suffix voor' });
@@ -345,7 +322,6 @@ function observed(state: AppState): unknown {
   eq('Onbekende externe suffix laat alle bewaakte state byte-identiek', JSON.stringify(observed(S())), before);
 }
 
-// Twee verschillende waarden voor hetzelfde onderliggende taakveld zijn een setbrede fout.
 {
   reset();
   const taskId = S().addTask({ name: 'Dubbel' });
@@ -356,7 +332,6 @@ function observed(state: AppState): unknown {
   eq('Tegenstrijdige dubbele veldmutatie maakt geen event', S().historyEvents.length, 0);
 }
 
-// Een geldige bewerking naar de reeds aanwezige waarde blijft een volledige no-op.
 {
   reset();
   const taskId = S().addTask({ name: 'Ongewijzigd' });
@@ -371,7 +346,6 @@ function observed(state: AppState): unknown {
   eq('Gelijke celwaarde maakt geen event', S().historyEvents.length, 0);
 }
 
-// Een buiten de wrapper vastgehouden prepare mag een latere wijziging niet overschrijven.
 {
   reset();
   const taskId = S().addTask({ name: 'Oorspronkelijk' });
@@ -384,13 +358,12 @@ function observed(state: AppState): unknown {
   eq('Stale rechtstreekse commit overschrijft latere waarde niet', S().tasks[0]?.name, 'Latere wijziging');
 }
 
-// Een throw binnen de enige producer rolt ook reeds toegepaste snapshotvelden volledig terug.
 {
   reset();
   const taskId = S().addTask({ name: 'Voor producerfout' });
   useAppStore.setState(state => {
     state.historyEvents = [];
-    state.nextHistorySequence = 0; // Dwing recordDocumentDataHistoryDelta om in de producer te gooien.
+    state.nextHistorySequence = 0;
     state.isDirty = false;
   });
   const prepared = prepareGridMutation(S(), [nameEdit(taskId, 'Mag niet landen')]);
@@ -404,7 +377,6 @@ function observed(state: AppState): unknown {
   eq('Producerfout laat live state byte-identiek', JSON.stringify(observed(S())), before);
 }
 
-// Een subscriber kan tijdens de buitenste call geen tweede gridtransactie binnensmokkelen.
 {
   reset();
   const taskId = S().addTask({ name: 'Buiten' });
@@ -426,7 +398,6 @@ function observed(state: AppState): unknown {
   eq('Alleen de buitenste transactie maakt history', S().historyEvents.length, 1);
 }
 
-// De registry blijft eigenaar van naamvalidatie; leeg en witruimte zijn ongeldig.
 {
   for (const [label, value] of [['lege', ''], ['witruimte', '   ']] as const) {
     reset();
@@ -440,7 +411,6 @@ function observed(state: AppState): unknown {
   }
 }
 
-// Read-only/berekende kolom wordt al in prepare geweigerd.
 {
   reset();
   const taskId = S().addTask({ name: 'Read-only' });
@@ -453,7 +423,6 @@ function observed(state: AppState): unknown {
   eq('Read-only intent benoemt readOnly', result.ok ? null : result.errors[0]?.code, 'readOnly');
 }
 
-// Task 12: verschillende bewaakte routes landen samen als één atomaire documentmutatie.
 {
   reset();
   const taskId = S().addTask({ name: 'Bewaakt' });
@@ -484,8 +453,6 @@ function observed(state: AppState): unknown {
   eq('Planningrelevante route zet scheduleStale', S().scheduleStale, true);
 }
 
-// Gekoppelde taakvelden worden tegen één gewenste eindtoestand beoordeeld. Geen tijdelijke
-// constraint- of actualtoestand en geen visuele kolomvolgorde mag het resultaat bepalen.
 {
   for (const reverse of [false, true]) {
     reset();
@@ -577,15 +544,11 @@ function observed(state: AppState): unknown {
       actualFinish: task.time.actualFinish,
     });
   }
-  // Import/export-audit (vervolg bevinding 6): één status-cel "voltooid" op een taak zonder
-  // actualStart via de echte gridtransactie ⇒ AS = de eigen geplande start, precies wat
-  // setTaskProgress(1) op een identieke taak geeft; de voltooide balk krimpt niet tot één dag.
   {
     reset();
     S().setProject({ startDate: '2026-01-05' });
     const viaGrid = S().addTask({ name: 'Status-cel voltooid', time: { scheduleStart: '2026-01-05', scheduleDuration: 5 } as never });
     const viaStore = S().addTask({ name: 'setTaskProgress voltooid', time: { scheduleStart: '2026-01-05', scheduleDuration: 5 } as never });
-    // Eerst rekenen, dán de statusdatum (anders tilt de data-date-vloer de onbegonnen taak naar ná 10-01).
     S().runCPM();
     useAppStore.setState(state => { state.project.statusDate = '2026-01-10'; });
     const plannedStart = S().tasks.find(candidate => candidate.id === viaGrid)!.time.earlyStart;
@@ -745,7 +708,6 @@ function observed(state: AppState): unknown {
     ]);
 }
 
-// Een fout in de laatste bewaakte write rolt eerdere geldige writes volledig terug.
 {
   reset();
   const taskId = S().addTask({ name: 'Rollback bewaakt' });
@@ -767,7 +729,6 @@ function observed(state: AppState): unknown {
   eq('Late fout laat alle bekeken state byte-identiek', JSON.stringify(observed(S())), before);
 }
 
-// Duur-/datumedit wist alleen afgeleide timephased-sturing en meldt pas na de commit.
 {
   reset();
   const taskId = S().addTask({ name: 'Timephased grid' });
@@ -805,7 +766,6 @@ function observed(state: AppState): unknown {
     ['notifications.mppTimephasedSteeringLost']);
 }
 
-// Ook vaste technische en conditioneel read-only descriptors komen uit de registry.
 {
   reset();
   const ordinary = S().addTask({ name: 'Gewoon' });
@@ -824,8 +784,6 @@ function observed(state: AppState): unknown {
   }
 }
 
-// Algemene eindtoestandvalidatie mag een conditioneel veld niet door zijn eigen write laten
-// openzetten. Een taak met meerdere notities blijft via de compacte tabelcel read-only.
 {
   reset();
   const taskId = S().addTask({ name: 'Meerdere notities' });
@@ -843,14 +801,11 @@ function observed(state: AppState): unknown {
     result.ok ? null : result.errors[0]?.code, 'readOnly');
 }
 
-// Solverfout blijft door gridcommit én de daaropvolgende undo/redo zonder schijnbelasting.
 {
   reset();
   const a = S().addTask({ name: 'Cyclus A' });
   const b = S().addTask({ name: 'Cyclus B' });
   S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
-  // De store-route weigert een kring vooraf (check-relation-routes.ts); een kring komt nog wel binnen
-  // zoals een importer hem schrijft: rechtstreeks in `sequences`.
   useAppStore.setState(state => {
     state.sequences.push({ id: 'seq-kring', predecessorId: b, successorId: a, type: 'FINISH_START', lagDays: 0 });
   });
@@ -872,7 +827,6 @@ function observed(state: AppState): unknown {
   eq('Resourcebewerking houdt belasting null bij solverfout', S().resourceLoadResult, null);
 }
 
-// Prepare is puur; documentwissel vóór rechtstreekse commit wordt defensief geweigerd.
 {
   reset();
   const taskId = S().addTask({ name: 'Document A' });
@@ -888,7 +842,6 @@ function observed(state: AppState): unknown {
   eq('Setup wisselde werkelijk document', S().activeDocumentId === documentA, false);
 }
 
-// Uitgestelde melding verschijnt pas ná de ene brondata/historyproducer.
 {
   reset();
   const taskId = S().addTask({ name: 'Melding voor' });
@@ -907,7 +860,6 @@ function observed(state: AppState): unknown {
   eq('Melding verschijnt pas in een latere publicatie', states.map(state => state.ui.notifications.length), [0, 1]);
 }
 
-// Bronstructuur: prepare raakt geen live store en het kritieke commitvenster blijft synchroon.
 {
   let root = process.cwd();
   if (!existsSync(join(root, 'package.json'))) {
@@ -937,23 +889,12 @@ function observed(state: AppState): unknown {
   eq('Kritieke commit controleert document vóór de producer',
     commitSource.indexOf('activeDocumentId') < commitSource.indexOf('set(state =>'), true);
 
-  // De kolomcontext van de transactie krijgt dezelfde projectkalenderroute als het UI-raster. Zonder
-  // die route viel de registry vroeger terug op een kale ma–vr-telling (zie check-task-column-registry).
   const runtimeStart = source.indexOf('function buildGridColumnRuntime(');
   const runtimeSource = source.slice(runtimeStart, source.indexOf('\n}\n', runtimeStart));
   eq('Transactiekolomcontext levert de echte werkdagdelta mee',
     runtimeStart >= 0 && /signedWorkDaysBetween: \(fromIso, toIso\) => signedWorkDaysBetween\(/.test(runtimeSource), true);
 }
 
-// Aanbeveling 4 (onafhankelijke eindreview): CONTROLLER_COLUMN_IDS in gridTransaction.ts is een
-// met de hand onderhouden set, gebaseerd op de aanname dat precies deze vier velden ooit de
-// conditionele readOnly-uitkomst van een ANDERE cel bepalen. Die aanname is niet automatisch
-// afleidbaar uit de registry (readOnly is een ondoorzichtige functie `(task, ctx) => boolean`,
-// geen gestructureerde afhankelijkheidslijst) — deze pin bewaakt 'm daarom EXPLICIET: hij faalt
-// zodra de registry een NIEUWE conditioneel read-only, echt via cell-edit schrijfbare kolom krijgt
-// (of een bestaande verdwijnt) zonder dat dit gecertificeerde overzicht wordt bijgewerkt. Dat
-// dwingt een bewuste herbeoordeling van CONTROLLER_COLUMN_IDS af in plaats van een stille
-// aanname die uit de pas gaat lopen.
 {
   let root = process.cwd();
   if (!existsSync(join(root, 'package.json'))) {
@@ -983,16 +924,9 @@ function observed(state: AppState): unknown {
     [
       'task.constraint.hard', 'task.isHammock', 'task.mandatory', 'task.milestoneKind',
       'task.notes', 'task.time.durationUnit', 'task.time.scheduleDuration', 'task.wbsCode',
-      // Audit "weergaven" bevinding 2: Start/Einde lezen `manuallyScheduled`, `childIds` en
-      // `isHammock` (controller); Gepland einde leest alleen `manuallyScheduled`. Geen nieuwe
-      // controller nodig: `manuallyScheduled` is nooit via een cel-edit schrijfbaar (pin hieronder).
       'task.time.finish', 'task.time.scheduleFinish', 'task.time.start',
-      // Voortgang op een verzameltaak is alleen-lezen (`SUMMARY_PROGRESS_READ_ONLY`). Gecertificeerd:
-      // die zes lezen uitsluitend `task.childIds` — aanname 1 hieronder — dus geen nieuw controllerveld.
       'task.status', 'task.time.actualStart', 'task.time.actualFinish', 'task.time.actualDuration',
       'task.time.remainingTime', 'task.time.completion',
-      // Taaktypes-etappe (2026-09-05): `task.workRule` leest alleen isMilestone/isHammock (controllers)
-      // en childIds (nooit cel-schrijfbaar) — gecertificeerd, zelfde klasse als scheduleDuration.
       'task.workRule',
     ].sort());
   const manuallyScheduledDescriptor = byId.get('task.manuallyScheduled');
@@ -1003,30 +937,14 @@ function observed(state: AppState): unknown {
       byId.has(controllerId) && typeof byId.get(controllerId)?.parse === 'function');
   }
 
-  // Stilzwijgende aanname 1 (task.childIds): de conditionele readOnly-functies van isHammock, de
-  // duurkolommen en de zes voortgangskolommen lezen task.childIds.length, maar childIds staat NOOIT in CONTROLLER_COLUMN_IDS. Dat is veilig
-  // omdat childIds nooit los via een cel-paste schrijfbaar is (readonlyColumn, geen parse/
-  // planWrite) — er bestaat structureel geen CellEditIntent-route die childIds binnen dezelfde
-  // transactie kan veranderen, dus de aanname "childIds blijft constant tijdens één paste" hoeft
-  // niet apart bewaakt te worden zolang dit klopt.
   const childIdsDescriptor = byId.get('task.childIds');
   ok('task.childIds is nooit los via een paste schrijfbaar (geen parse-functie)',
     childIdsDescriptor !== undefined && typeof childIdsDescriptor.parse !== 'function');
 
-  // Stilzwijgende aanname 2 (ctx.assignmentsByTaskId): assignment.resources/unitsPerDay/curve zijn
-  // ZELF ook conditioneel read-only (mede via `assignments(task, ctx).length === 0`, dus via
-  // ctx.assignmentsByTaskId), maar staan bewust NIET in CONTROLLER_COLUMN_IDS of het bovenstaande
-  // overzicht. Dat is veilig zolang hun writes altijd een AssignmentSetIntent opleveren
-  // ('assignment-set'), nooit een CellEditIntent ('cell-edit') — dan lopen ze structureel NOOIT
-  // door applyCellEdits' conditionele controle (die uitsluitend CellEditIntent[] ziet), en hoeft
-  // ctx.assignmentsByTaskId geen deel te zijn van CONTROLLER_COLUMN_IDS.
   for (const assignmentId of ['assignment.resources', 'assignment.unitsPerDay', 'assignment.curve']) {
     const descriptor = byId.get(assignmentId);
     ok(`${assignmentId} bestaat en is conditioneel read-only (leest ctx.assignmentsByTaskId)`,
       descriptor !== undefined && typeof descriptor.readOnly === 'function');
-    // planWriteUnchecked is de rauwe writer (slaat de eigen readOnly-check bewust over — dat is
-    // precies waarom clipboard.ts 'm gebruikt voor de gezamenlijke-eindtoestandplanning), dus een
-    // minimale nep-taak/-context volstaat om alleen de vorm van de opgeleverde intent te toetsen.
     const written = descriptor?.planWriteUnchecked?.(
       [], { id: 'aanbeveling-4-pin-task' } as unknown as Parameters<NonNullable<typeof descriptor.planWriteUnchecked>>[1],
       {} as unknown as Parameters<NonNullable<typeof descriptor.planWriteUnchecked>>[2],
@@ -1036,14 +954,6 @@ function observed(state: AppState): unknown {
   }
 }
 
-// Napunt 2 (onafhankelijke eindreview op 62b37ea6): task.isHammock zit zowel in
-// CONTROLLER_COLUMN_IDS als heeft zelf een conditionele readOnly (isMilestone || childIds > 0).
-// Tegencase van de reviewer: een samenvattende taak (childIds > 0) met isHammock=true, geplakt met
-// {isHammock: false, duur: 5d}. Vóór de fixed-point-lus in gridTransaction.ts werd isHammock
-// terecht overgeslagen, maar scheduleDuration daardoor TEN ONRECHTE als schrijfbaar beoordeeld
-// (de gedeelde controllertoestanden namen optimistisch aan dat isHammock wél zou worden
-// toegepast) — de write faalde dan hard op de VERKEERDE cel. Beide cellen moeten nu netjes
-// overgeslagen worden, met precies één geaggregeerde melding.
 {
   reset();
   const parentId = S().addTask({ name: 'Samenvattende taak', isHammock: true });

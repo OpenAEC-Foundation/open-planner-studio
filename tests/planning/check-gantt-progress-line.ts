@@ -1,13 +1,3 @@
-// Voortgangslijn (fase 2.6, §6.3): of een rij uitstulpt, hangt af van een DAGNIVEAU-vergelijking
-// tussen de balk en de statusdatum. Die vergelijking rekende met LOKALE getters
-// (`new Date(d.getFullYear(), d.getMonth(), d.getDate())`) tegen een statusdatum op UTC-middernacht,
-// zodat de lijn per tijdzone van de machine anders liep: in een zone vóór UTC (Auckland, maar ook
-// Amsterdam) valt de lokale middernacht van 2026-06-10 op 2026-06-09 in UTC, dus een uurtaak die
-// pas op de statusdag start telde als "al begonnen" en trok de lijn naar zijn balkstart. De
-// tijdzone-matrix in run.sh draait deze check onder vijf zones; de engine rekent overal in UTC.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -29,8 +19,6 @@ function eq(label: string, got: unknown, want: unknown): void {
 }
 
 interface Pt { kind: 'M' | 'L'; x: number; y: number }
-/** Legt alleen padpunten vast die getekend worden terwijl er een streepjespatroon actief is: de
- *  voortgangslijn (en de statusdatumlijn), niet de balken, labels of vinkjes. */
 function makeCtx(): { ctx: CanvasRenderingContext2D; lines: Pt[] } {
   const lines: Pt[] = [];
   const noop = () => {};
@@ -75,11 +63,8 @@ function task(id: string, start: string, finish: string, completion: number): Ta
 }
 
 const tasks = [
-  // Start op de statusdag om 08:00 UTC, nog niet begonnen ⇒ rechte lijn.
   task('uur-niet-gestart', '2026-06-10T08:00', '2026-06-10T16:00', 0),
-  // Voltooid op de statusdag om 20:00 UTC ⇒ rechte lijn.
   task('uur-voltooid', '2026-06-10T12:00', '2026-06-10T20:00', 1),
-  // Positieve controle: halverwege en over de statusdatum heen ⇒ stulpt uit.
   task('dag-halverwege', '2026-06-08', '2026-06-12', 0.5),
 ];
 const rows: ViewRow[] = tasks.map(t => ({ kind: 'task', rowKey: t.id, task: t, depth: 0, dimmed: false }));
@@ -101,9 +86,6 @@ new GanttRenderer(ctx, {
   headerHeight: HDRH,
 }).render();
 
-/** Per rij tekent de voortgangslijn óf een recht stuk `statusX` van rowTop naar rowBottom, óf een
- *  uitstulping: twee stukken die op de voortgangspunt (rowMid) BEGINNEN en naar de statusdatumlijn
- *  lopen. Geeft progressX − statusX terug (0 = recht), of null als de rij geen lijn kreeg. */
 function bend(row: number): number | null {
   const top = HDRH + row * ROWH;
   const mid = top + ROWH / 2;
@@ -117,8 +99,6 @@ eq('Uurtaak die pas op de statusdag start: rechte lijn (tijdzone-onafhankelijk)'
 eq('Uurtaak die op de statusdag voltooid is: rechte lijn (tijdzone-onafhankelijk)', bend(1), 0);
 const control = bend(2);
 eq('Controle: een half voltooide taak stulpt uit', control !== null && control !== 0, true);
-// De uitstulping begint met een moveTo OP de punt: dan begint het streepjespatroon daar, en staat er
-// altijd een streepje precies op de voortgangsgrens van de balk (zie drawProgressLine).
 const tip = lines.find(p => p.y === HDRH + 2 * ROWH + ROWH / 2);
 eq('Uitstulping begint op de voortgangspunt', tip?.kind, 'M');
 

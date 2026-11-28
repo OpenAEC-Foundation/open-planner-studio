@@ -1,11 +1,3 @@
-// Grenscontracten voor de gefaseerde extractie uit GanttCanvas.
-//
-// Deze batterij is bewust DOM-vrij. Zij bewaakt niet het uiteindelijke browsergedrag (dat ligt al
-// vast in tests/browser/gantt-*.spec.ts), maar de vorm van de drie nieuwe coördinatornaden:
-// renderer-levenscyclus, viewport/splitters en pointerprioriteit. De type-asserties breken tijdens
-// `npm run typecheck` zodra iemand een volledige AppState of een domeinmutator door de verkeerde
-// grens duwt; de bronchecks voorkomen daarnaast dat een singletonselector de contractmodule zelf
-// binnensluipt.
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -38,8 +30,6 @@ type ForbiddenCoordinatorKey =
   | 'runCPM';
 type NoForbiddenKeys<T> = Extract<keyof T, ForbiddenCoordinatorKey> extends never ? true : false;
 
-// Renderer- en viewportcoördinatie mogen geen domeinmutators krijgen. De pointercoördinator is de
-// gerichte eigenaar van taakgebaren en krijgt daarom wel expliciete, smalle taakacties.
 const rendererInputIsNarrow: NoForbiddenKeys<GanttRendererHostInput> = true;
 const rendererOutputIsNarrow: NoForbiddenKeys<GanttRendererHost> = true;
 const viewportInputIsNarrow: NoForbiddenKeys<GanttViewportCoordinatorInput> = true;

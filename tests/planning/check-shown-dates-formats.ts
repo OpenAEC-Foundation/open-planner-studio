@@ -1,12 +1,3 @@
-// Integratie ronde 2 (#326 × #330): de GETOONDE datums (`shownStart`/`shownFinish`, utils/taskDates.ts)
-// na het openen van XER, P6 XML en MSPDI via de echte open-pijplijn (`parseOpenedFile` →
-// `applyOpenedImport`, met herberekenen).
-//
-// De regel van #326 (eigenaarsbesluit 2026-10-12, optie 1): een gestarte taak toont haar werkelijke
-// start, een voltooide ook haar werkelijke einde; een lopende taak eindigt op haar berekende einde; een
-// niet-gestarte taak toont de rekendatums. De regel van #330: in P6 XML wint `Status = Not Started`
-// van werkelijke datums in het bestand; zo'n taak is dus NIET gestart en toont de rekendatums.
-// Corpusloos (CI). Fixtures inline. Exit 0 = alles groen.
 import { parseOpenedFile } from '@/services/formatRegistry';
 import { useAppStore } from '@/state/appStore';
 import { computedFinish, computedStart, finishIsActual, shownFinish, shownStart, startIsActual } from '@/utils/taskDates';
@@ -28,7 +19,6 @@ function eq(label: string, got: unknown, want: unknown): void {
 const day = (iso: string) => iso.slice(0, 10);
 
 async function openText(name: string, text: string): Promise<Task[]> {
-  // XER leest de bytes zelf (codering); de andere formaten de tekst.
   const parsed = await parseOpenedFile(name.endsWith('.xer') ? { name, text, bytes: new TextEncoder().encode(text) } : { name, text });
   S().newProject();
   S().applyOpenedImport(parsed, { filePath: null, recompute: true, fit: false, linkedOpen: true });
@@ -39,11 +29,8 @@ const byCode = (tasks: Task[], code: string) => {
   if (!task) throw new Error(`taak ${code} niet gevonden`);
   return task;
 };
-/** [getoonde start, getoond einde, start vast, einde vast] op dagniveau. */
 const shown = (task: Task) => [day(shownStart(task)), day(shownFinish(task)), startIsActual(task), finishIsActual(task)];
 
-// ── XER (P6-profiel): A19 zet de rekenstart van een lopende taak op de statusdatum; het scherm toont
-//    de werkelijke start. ─────────────────────────────────────────────────────────────────────────────
 const WORKWEEK = `(0||CalendarData()((0||DaysOfWeek()(${[1, 2, 3, 4, 5, 6, 7]
   .map(n => `(0||${n}()(${n >= 2 && n <= 6 ? '(0||0(s|08:00|f|17:00)())' : ''}))`).join('')}))(0||Exceptions()())))`;
 const XER = [
@@ -63,7 +50,6 @@ const XER = [
   '%E',
 ].join('\n');
 
-// ── P6 XML (OPS-profiel; Not Started wint van werkelijke datums, #330). ───────────────────────────────
 const P6XML = `<?xml version="1.0" encoding="UTF-8"?>
 <APIBusinessObjects xmlns="http://xmlns.oracle.com/Primavera/P6/V8.3/API/BusinessObjects">
 <Project><ObjectId>1</ObjectId><Id>P1</Id><Name>Echte datums</Name>
@@ -80,7 +66,6 @@ const P6XML = `<?xml version="1.0" encoding="UTF-8"?>
     <ActualStartDate>2026-01-12T08:00:00</ActualStartDate><ActualFinishDate>2026-01-13T17:00:00</ActualFinishDate></Activity>
 </Project></APIBusinessObjects>`;
 
-// ── MSPDI (OPS-profiel). ───────────────────────────────────────────────────────────────────────────────
 const mspTask = (uid: number, name: string, start: string, finish: string, extra: string) => `<Task><UID>${uid}</UID><ID>${uid}</ID><Name>${name}</Name>
   <OutlineLevel>1</OutlineLevel><WBS>${name}</WBS><Start>${start}</Start><Finish>${finish}</Finish><Duration>PT40H0M0S</Duration>${extra}</Task>`;
 const MSPDI = `<?xml version="1.0" encoding="UTF-8"?>
@@ -92,7 +77,6 @@ ${mspTask(3, 'M3', '2026-03-09T08:00:00', '2026-03-13T17:00:00', '<PercentComple
 </Tasks></Project>`;
 
 async function main(): Promise<void> {
-  // XER
   let tasks = await openText('echte-datums.xer', XER);
   const xa1 = byCode(tasks, 'A1');
   const xa2 = byCode(tasks, 'A2');
@@ -103,7 +87,6 @@ async function main(): Promise<void> {
   eq('X2b lopend (P6-profiel, A19): rekenstart = statusdatum, getoond = werkelijk', day(computedStart(xa2)), '2026-03-02');
   eq('X3 niet gestart: rekendatums', [day(shownStart(xa3)) === day(computedStart(xa3)), startIsActual(xa3), finishIsActual(xa3)], [true, false, false]);
 
-  // P6 XML
   tasks = await openText('echte-datums.xml', P6XML);
   const pa1 = byCode(tasks, 'A1');
   const pa2 = byCode(tasks, 'A2');
@@ -116,7 +99,6 @@ async function main(): Promise<void> {
     [shownStart(pa3) === computedStart(pa3), shownFinish(pa3) === computedFinish(pa3), startIsActual(pa3), day(shownStart(pa3)) >= '2026-03-02'],
     [true, true, false, true]);
 
-  // MSPDI
   tasks = await openText('echte-datums-msp.xml', MSPDI);
   const m1 = byCode(tasks, 'M1');
   const m2 = byCode(tasks, 'M2');

@@ -1,29 +1,3 @@
-// Gantt-renderopties: karakterisering + gedragscontract (K-item 33).
-//
-// WAAROM DEZE BATTERIJ BESTAAT. De zes bestaande renderer-batterijen (arrow-routing,
-// axis-consolidation, drag-duration-badge, gantt-float-cull, header-compress, renderer-dateless)
-// draaien de ECHTE `GanttRenderer`, maar bouwen hun `GanttRenderOptions` MET DE HAND op. Ze staan
-// dus stroomafwaarts van het rekenwerk dat bepaalt wat er in die opties komt: de tijdas-oorsprong,
-// de contentbreedte, de baseline-overlay, de trace, de histogramreeks. Dat rekenwerk zat tot nu toe
-// als `useMemo`-body in `GanttCanvas.tsx` en werd door geen enkele test aangeraakt — een fout erin
-// gaf geen rode suite maar een scheve Gantt.
-//
-// Deel 1 (karakterisering) houdt de verhuisde functies tegen een VERBATIM KOPIE van de code zoals
-// die vóór de extractie in het component stond. Dat is dezelfde techniek als
-// `oldGanttCanvasRevealX` in check-axis-consolidation.ts: de oude formule blijft als orakel staan,
-// zodat "verplaatst" aantoonbaar "onveranderd" betekent. Deel 2 pint het gedrag dat daarna moet
-// blijven gelden, ook als het orakel ooit verdwijnt. Deel 3 zijn bron-asserts.
-//
-// GRENS VAN DEZE BATTERIJ, expliciet. Wat hier NIET in zit is de BEDRADING: er is geen jsdom of
-// testing-library in dit project, dus het component is niet headless te renderen. Geef je in
-// `drawPrimary` per ongeluk `view.viewStartDate` mee waar `effectiveViewStart` hoort, dan is dat
-// typecorrect en blijft deze suite groen (gemeten) terwijl de tijdas scheef staat en het histogram
-// onder de verkeerde kolommen komt. Deel 3 dekt daar één ding van af — dat het component deze
-// functies daadwerkelijk gebruikt en er geen tweede kopie naast ontstaat — maar niet dát de juiste
-// argumenten worden meegegeven. Daarvoor is een browser-pass nodig (tier 1 uit
-// docs/self-test-harness.md).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import {
   buildBaselineOverlay, buildSharedAxis,
@@ -58,14 +32,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
     diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
   }
 };
-/**
- * Vergelijkbare JSON-vorm die Map en Set zichtbaar maakt — RECURSIEF, en dat woord is hier de hele
- * pointe. `JSON.stringify(new Set([...]))` levert `{}`, dus een Set die genest in een object zit
- * (zoals `HistogramSeries.overSet`) valt volledig weg uit de vergelijking. Een eerdere versie van
- * dit bestand keek alleen op het bovenste niveau; met een negatieve controle bleek dat de hele
- * overallocatie-uitkomst daardoor ongetoetst was — de epsilon uit `buildHistogramSeries` slopen
- * hield de suite groen.
- */
 const shape = (v: unknown): unknown => {
   if (v instanceof Map) return { __map: [...v.entries()].map(([k, val]) => [k, shape(val)]).sort() };
   if (v instanceof Set) return { __set: [...v].sort() };
@@ -80,13 +46,6 @@ const shape = (v: unknown): unknown => {
   return v;
 };
 const eqDeep = (label: string, got: unknown, want: unknown) => eq(label, shape(got), shape(want));
-
-// ════════════════════════════════════════════════════════════════════════════
-// DEEL 1 — Karakterisering: verbatim kopieën van de pre-extractie-`useMemo`-bodies.
-// Deze vier functies zijn met opzet NIET opgeschoond: elke regel is letterlijk overgenomen uit
-// `GanttCanvas.tsx` zoals hij vóór K-item 33 was. Wijk hier niet van af — de waarde zit erin dat
-// het orakel onafhankelijk is van de nieuwe implementatie.
-// ════════════════════════════════════════════════════════════════════════════
 
 function oldBaselineOverlay(baselines: Baseline[], activeBaselineId: string | null) {
   if (!activeBaselineId) return undefined;
@@ -181,27 +140,14 @@ function oldHistogramPicker(resources: Resource[], resourceLoadResult: ResourceL
   return items;
 }
 
-// ── Projectje met echte taken uit de echte store (geen handgeknutselde Task-literals). ──────
 S().setProject({ startDate: '2027-03-01' });
 const idA = S().addTask({ name: 'Fundering', time: { ...S().tasks[0]?.time ?? ({} as Task['time']) } as Task['time'] });
 S().updateTask(idA, { time: { ...S().tasks.find(t => t.id === idA)!.time, scheduleStart: '2027-03-01', scheduleFinish: '2027-03-12', scheduleDuration: 10 } });
-// LET OP — de duur van 700 werkdagen is geen willekeurige keuze. `computeContentSpanDays` start op
-// een bodem van 365 dagen; blijft het project daaronder, dan geeft de functie 365 terug ongeacht
-// welk rekenpad hij neemt en is de check VACUÜM. Met 700 werkdagen loopt de span naar ~1023
-// kalenderdagen (ongecomprimeerd) resp. ~719 werkdag-eenheden (gecomprimeerd), zodat beide takken
-// meetbaar verschillen. Gemeten met een negatieve controle: op de oude 48-daagse fixture bleef de
-// suite groen als je de compressie-tak volledig weghaalde.
 const idB = S().addTask({ name: 'Ruwbouw' });
 S().updateTask(idB, { time: { ...S().tasks.find(t => t.id === idB)!.time, scheduleStart: '2027-03-15', scheduleDuration: 700 } });
-// Een taak die VÓÓR de opgeslagen viewStartDate begint — precies het geval waar
-// `computeEffectiveViewStart` voor bestaat (anders is hij onbereikbaar links van de oorsprong).
 const idC = S().addTask({ name: 'Vooronderzoek' });
 S().updateTask(idC, { time: { ...S().tasks.find(t => t.id === idC)!.time, scheduleStart: '2026-11-04', scheduleFinish: '2026-11-20', scheduleDuration: 12 } });
 S().addSequence({ predecessorId: idA, successorId: idB, type: 'FINISH_START', lagDays: 0 });
-// Een OPVOLGER van de trace-focus (idB). Zonder deze zijn `successors`/`drivenSuccessors` in
-// `buildTrace` structureel leeg en kun je die halve functie hardcoderen zonder dat de suite rood
-// wordt (gemeten). Bewust een nieuwe taak en niet idC: die begint vóór de opgeslagen viewStartDate
-// en dat is precies waarvoor hij in deze fixture zit — een FS-relatie zou hem naar achteren duwen.
 const idD = S().addTask({ name: 'Afbouw' });
 S().addSequence({ predecessorId: idB, successorId: idD, type: 'FINISH_START', lagDays: 0 });
 S().runCPM();
@@ -211,39 +157,23 @@ const sequences = S().sequences;
 const cpm = S().cpmResult;
 const calendar = S().calendar;
 
-// Taken die de VELDKETEN-terugvallen raken. Ná `runCPM` heeft elke echte taak zowel `earlyStart`
-// als `scheduleStart` gezet, en die zijn dan gelijk — dus de `||`-ketens
-// (`earlyStart || scheduleStart || lateStart`) zijn op de gewone fixture NIET te onderscheiden:
-// je kunt de hele staart weghalen en de suite blijft groen (gemeten). Deze vier taken zetten
-// precies één schakel van elke keten, met onderling ver uiteenliggende datums.
 const chainBase = tasks[0];
 const chained = (over: Partial<Task['time']>): Task => ({
   ...chainBase,
   id: `chain-${JSON.stringify(over)}`,
   time: { ...chainBase.time, earlyStart: '', scheduleStart: '', lateStart: '', earlyFinish: '', scheduleFinish: '', lateFinish: '', ...over },
 });
-//
-// LET OP hoe de extrema verdeeld zijn. Een eerdere versie legde het minimum/maximum steeds op de
-// LAATSTE schakel; dan domineert die de min/max en meet de middelste schakel niets — je kon
-// `earlyX || scheduleX || lateX` inkorten tot `earlyX || lateX`, of de hele keten omkeren, en de
-// suite bleef groen (gemeten). Hier ligt het extremum juist op de MIDDELSTE schakel
-// (`scheduleStart` 2019 is de vroegste, `scheduleFinish` 2038 de laatste), zodat het weglaten van
-// die schakel meteen omvalt.
 const chainTasks: Task[] = [
-  chained({ earlyStart: '2025-05-20', earlyFinish: '2031-01-02' }),        // 1e schakel
-  chained({ scheduleStart: '2019-02-28', scheduleFinish: '2038-07-11' }),  // 2e schakel — het extremum
-  chained({ lateStart: '2023-08-08', lateFinish: '2033-12-24' }),          // 3e schakel
-  chained({}),                                                            // geen datums: draagt niets bij
+  chained({ earlyStart: '2025-05-20', earlyFinish: '2031-01-02' }),
+  chained({ scheduleStart: '2019-02-28', scheduleFinish: '2038-07-11' }),
+  chained({ lateStart: '2023-08-08', lateFinish: '2033-12-24' }),
+  chained({}),
 ];
-// PRECEDENTIE. Bovenstaande taken zetten elk één schakel, dus ze tonen wel dat elke schakel
-// meedoet maar niet in welke VOLGORDE. Deze taak zet ze alle drie tegelijk met ver uiteenliggende
-// waarden: alleen de eerste schakel mag tellen. Keer de keten om en dit valt om.
 const precedenceTasks: Task[] = [chained({
   earlyStart: '2029-06-01', scheduleStart: '2021-01-01', lateStart: '2017-03-03',
   earlyFinish: '2029-07-01', scheduleFinish: '2040-01-01', lateFinish: '2045-01-01',
 })];
 
-// 1 — effectiveViewStart, over vier tijdvenster-oorsprongen én de veldketen.
 for (const [i, vsd] of ['2027-03-01', '2026-01-01', '2028-12-31', '2026-11-04'].entries()) {
   eq(`01.${i} effectiveViewStart identiek aan het orakel (viewStartDate=${vsd})`,
     computeEffectiveViewStart(tasks, vsd), oldEffectiveViewStart(tasks, vsd));
@@ -252,16 +182,11 @@ eq('01b effectiveViewStart volgt elke schakel van de start-veldketen (early → 
   computeEffectiveViewStart(chainTasks, '2030-01-01'), oldEffectiveViewStart(chainTasks, '2030-01-01'));
 eq('01d effectiveViewStart: bij drie gezette schakels wint de EERSTE (earlyStart)',
   computeEffectiveViewStart(precedenceTasks, '2035-01-01'), '2029-05-18');
-// Hard gepind zodat 01b ook zonder het orakel iets zegt: de vroegste schakel over de vier
-// ketting-taken is `scheduleStart` (2019-02-28), min de marge van 14 dagen.
 eq('01c effectiveViewStart: de vroegste schakel wint, min de marge van 14 dagen',
   computeEffectiveViewStart(chainTasks, '2030-01-01'), '2019-02-14');
 eq('02 effectiveViewStart: leeg takenlijst valt terug op viewStartDate − marge',
   computeEffectiveViewStart([], '2027-03-01'), oldEffectiveViewStart([], '2027-03-01'));
 
-// 3 — sharedAxis + contentSpanDays. Twee assen (compressie aan/uit) × drie viewports. De viewports
-// met scrollX ≠ 0 en chartOriginX ≠ 0 zitten er omdat een as die die twee negeert anders
-// onopgemerkt bleef: met alles op 0 is `dateToX` er ongevoelig voor (negatieve controle gemeten).
 const VIEWPORTS = [
   { chartOriginX: 300, zoom: 30, scrollX: 0 },
   { chartOriginX: 300, zoom: 30, scrollX: 1750 },
@@ -284,20 +209,16 @@ for (const compress of [false, true]) {
     eq(`05.${compress}.${j} contentSpanDays identiek aan het orakel`,
       computeContentSpanDays(tasks, evs, compress, axisNew), oldContentSpanDays(tasks, evs, compress, axisOld));
   }
-  // De bodem van 365 moet daadwerkelijk overschreden zijn, anders zeggen de checks hierboven niets
-  // over het rekenpad — dit is de bewaker op de fixture zelf.
   const axis0 = buildSharedAxis({ calendar, compressNonWorkdays: compress, viewStartDate: evs, ...VIEWPORTS[0] });
   checks++;
   const span = computeContentSpanDays(tasks, evs, compress, axis0);
   if (span === null || span <= 365) diffs.push(`05b.${compress} fixture te kort: contentSpanDays bleef op de 365-bodem (${span}) — de check is dan vacuüm`);
-  // De finish-veldketen (early → schedule → late), om dezelfde reden als bij de start hierboven.
   eq(`05c.${compress} contentSpanDays volgt elke schakel van de finish-veldketen`,
     computeContentSpanDays(chainTasks, '2023-07-25', compress, axis0),
     oldContentSpanDays(chainTasks, '2023-07-25', compress, axis0));
   eq(`05e.${compress} contentSpanDays: bij drie gezette schakels wint de EERSTE (earlyFinish)`,
     computeContentSpanDays(precedenceTasks, '2029-01-01', compress, axis0),
     oldContentSpanDays(precedenceTasks, '2029-01-01', compress, axis0));
-  // Én de 365-bodem zelf: een kort project mag níét lager uitkomen.
   eq(`05d.${compress} contentSpanDays: kort project blijft op de bodem van 365`,
     computeContentSpanDays([chained({ earlyStart: '2027-01-01', earlyFinish: '2027-02-01' })], '2027-01-01', compress, axis0),
     365);
@@ -306,14 +227,6 @@ eq('06 contentSpanDays: leeg project ⇒ null', computeContentSpanDays([], '2027
   calendar, compressNonWorkdays: false, viewStartDate: '2027-03-01', chartOriginX: 0, zoom: 30, scrollX: 0,
 })), null);
 
-// 06b/06c/06d — een taak met alleen een start (geen enkele finish) telde vroeger wél mee voor de
-// Ctrl+0-fit (`computeFitToProject` had een eigen `|| s`) maar niet voor de contentbreedte
-// (`computeContentSpanDays` had die terugval niet), zodat de fit naar een positie buiten
-// `maxScrollX` kon zoomen. Beide functies delen nu `resolveTaskFinish` (`ganttViewport.ts`).
-// Bereikbaarheid: IFC/CSV/MSPDI/P6/MPP zetten alle vijf altijd een niet-lege finish-keten
-// (`csvDateOrToday`, `parseDateFromIFC` en `createDefaultTaskTime` vullen desnoods een datum in),
-// dus dit is defensief — geen bekend importscenario — maar een fit die buiten de contentbreedte
-// zoomt is de echte bug ongeacht bereikbaarheid. Deze drie cases houden de twee ketens gekoppeld.
 {
   const farViewStart = '2020-01-01';
   const soloStart = '2030-01-01';
@@ -322,9 +235,6 @@ eq('06 contentSpanDays: leeg project ⇒ null', computeContentSpanDays([], '2027
   const axisFar = buildSharedAxis({
     calendar, compressNonWorkdays: false, viewStartDate: farViewStart, chartOriginX: 0, zoom: 30, scrollX: 0,
   });
-  // Zonder de `|| resolveTaskStart`-terugval blijft dit op de 365-bodem (end is dan leeg) terwijl
-  // de expliciete same-day taak een echte span van ~3653 dagen geeft — ruim boven de bodem, dus
-  // deze vergelijking is niet-vacuüm.
   eq('06b contentSpanDays: taak met alleen start valt terug op start (== expliciete same-day taak)',
     computeContentSpanDays([startOnlyTask], farViewStart, false, axisFar),
     computeContentSpanDays([explicitSameDayTask], farViewStart, false, axisFar));
@@ -344,23 +254,16 @@ eq('06 contentSpanDays: leeg project ⇒ null', computeContentSpanDays([], '2027
   }
 }
 
-// 7 — contentWidthFor: de bodem van 2000px en de lineaire tak.
 eq('07 computeContentWidth: leeg project ⇒ vaste 2000px', computeContentWidth(null, 30), 2000);
 eq('08 computeContentWidth: korte span blijft op de 2000px-bodem', computeContentWidth(10, 30), 2000);
 eq('09 computeContentWidth: lange span schaalt uitsluitend met zoom',
   computeContentWidth(500, 30), Math.max(2000, (500 * 1.2) * 30));
 
-// 10 — trace, over alle vier de standen. De focus is `idB`, die zowel een VOORGANGER (idA) als een
-// OPVOLGER (idC) heeft. Dat tweede is niet cosmetisch: met alleen een voorganger zijn
-// `successors`/`drivenSuccessors` structureel leeg, en dan kun je die twee takken hardcoderen op
-// `[]` — of de hele predecessors/successors-conditie omdraaien — zonder dat de suite rood wordt
-// (gemeten). De helft van `buildTrace` was zo ongetoetst.
 const traceModes: TraceMode[] = ['off', 'predecessors', 'successors', 'both'];
 for (const mode of traceModes) {
   eqDeep(`10.${mode} trace identiek aan het orakel`,
     buildTrace(mode, [idB], sequences, cpm), oldTrace(mode, [idB], sequences, cpm));
 }
-// Bewaker op de fixture zelf: heeft de focus wel iets aan béíde kanten om te traceren?
 {
   const tr = buildTrace('both', [idB], sequences, cpm)!;
   checks++;
@@ -369,8 +272,6 @@ for (const mode of traceModes) {
   if (tr.successors.length === 0) diffs.push('10z fixture: focus heeft geen opvolgers — de trace-checks zijn dan half vacuüm');
 }
 eq('11 trace: lege selectie ⇒ undefined', buildTrace('both', [], sequences, cpm), undefined);
-// Knownbug 105: zonder driving-informatie krijgt het hele betrokken pad dezelfde nadruk.
-// De oude sluitingen blijven het onafhankelijke orakel; alleen de nadruk verandert bewust.
 const cpmFailed = { ...(cpm as CPMResult), error: 'cyclus' } as CPMResult;
 const oldFailedTrace = oldTrace('both', [idB], sequences, cpmFailed)!;
 eqDeep('12 trace bij een mislukte CPM behoudt het pad met gelijke nadruk',
@@ -380,7 +281,6 @@ eqDeep('12 trace bij een mislukte CPM behoudt het pad met gelijke nadruk',
     drivenSuccessors: oldFailedTrace.successors,
   });
 
-// 13 — baselineOverlay.
 const baselines: Baseline[] = [{
   id: 'bl1', name: 'Nulmeting', createdAt: '2027-02-01T00:00:00', projectEnd: '2027-05-20', projectDuration: 58,
   tasks: [
@@ -392,18 +292,12 @@ eqDeep('13 baselineOverlay identiek aan het orakel', buildBaselineOverlay(baseli
 eq('14 baselineOverlay: geen actieve baseline ⇒ undefined', buildBaselineOverlay(baselines, null), undefined);
 eq('15 baselineOverlay: onbekend id ⇒ undefined (niet een lege Map)', buildBaselineOverlay(baselines, 'weg'), undefined);
 
-// 16 — histogram. Materiaal telt bewust NIET mee in de "alle resources"-som (§6.4).
 const resources: Resource[] = [
   { id: 'r1', name: 'Timmerman', type: 'LABOR', description: '', maxUnits: 2 },
   { id: 'r2', name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1 },
   { id: 'r3', name: 'Beton', type: 'MATERIAL', description: '', maxUnits: 999, unitOfMeasure: 'm3' },
-  { id: 'r4', name: '', type: 'LABOR', description: '', maxUnits: 1 },  // naamloos ⇒ label valt terug op id
+  { id: 'r4', name: '', type: 'LABOR', description: '', maxUnits: 1 },
 ];
-// De drie dagen 03/04/05 dekken de EPSILON-grens in de overallocatie-toets (`> cap + 1e-9`):
-// exact gelijk, een overschrijding kleiner dan epsilon (drijvende-kommaruis — mag NIET als
-// overbelast tellen) en een echte overschrijding. Zonder die dagen bleef de suite groen als je
-// `+ 1e-9` weghaalde (negatieve controle gemeten). Let op: `>` versus `>=` is dankzij diezelfde
-// epsilon een equivalente mutant — dat verschil is niet waarneembaar en is dus geen dekkingsgat.
 const load: ResourceLoadResult = {
   load: {
     r1: { '2027-03-01': 3, '2027-03-02': 1, '2027-03-03': 2, '2027-03-04': 2 + 5e-10, '2027-03-05': 2.5 },
@@ -416,14 +310,9 @@ const load: ResourceLoadResult = {
     r3: { '2027-03-01': 999 },
   },
   overallocatedDays: { r1: ['2027-03-01', '2027-03-05'], r2: [], r3: [], r4: [] },
-  // R1: beide overbezette dagen zijn "gewone" overvraag (inzet > capaciteit op een echte werkdag),
-  // geen kalendermismatch — vandaar over-capacity op allebei.
   overallocatedReasons: { r1: { '2027-03-01': 'over-capacity', '2027-03-05': 'over-capacity' } },
   hours: {},
 };
-// Losse fixture waarin ALLEEN materiaal overbelast is. Nodig omdat `anyRenewableOver` in de fixture
-// hierboven sowieso true is (r1 is overbelast): de MATERIAL-uitsluiting in `buildHistogramPicker`
-// was daardoor ongetoetst — je kon hem eruit slopen en de suite bleef groen (gemeten).
 const materialOnlyOver: ResourceLoadResult = {
   load: { r3: { '2027-03-01': 1500 } },
   capacity: { r3: { '2027-03-01': 999 } },
@@ -448,16 +337,9 @@ eq('19c histogramPicker: de materiaalrij zelf toont zijn overbelasting wél',
 eqDeep('19d histogramSeries: MATERIAL telt niet mee in de som over alle resources',
   buildHistogramSeries(materialOnlyOver, undefined, resources), { load: {}, capacity: {}, overSet: new Set<string>() });
 
-// ════════════════════════════════════════════════════════════════════════════
-// DEEL 2 — Gedragscontract van `buildGanttRenderOptions`.
-// ════════════════════════════════════════════════════════════════════════════
-
 const axis = buildSharedAxis({
   calendar, compressNonWorkdays: false, viewStartDate: '2027-02-25', chartOriginX: 300, zoom: 30, scrollX: 0,
 });
-// De echte CPM-uitkomst heeft hier lege `violatedConstraintTaskIds` én `missedDeadlineTaskIds`, en
-// dan is `[]` vs `[]` geen vergelijking: je kunt de twee velden in de bouwer verwisselen en de
-// suite blijft groen (gemeten). Vandaar drie ONDERLING VERSCHILLENDE herkenbare lijsten.
 const cpmDistinct = {
   ...(cpm as CPMResult),
   drivingSequenceIds: ['seq-driving'],
@@ -465,20 +347,6 @@ const cpmDistinct = {
   missedDeadlineTaskIds: ['taak-deadline-gemist'],
 } as CPMResult;
 
-// LET OP — twee regels voor deze fixture.
-//
-// (1) Geen enkele waarde mag samenvallen met de default die de renderer zelf hanteert wanneer het
-// veld ontbreekt. Anders is de passthrough-check `x` vs `x` en overleeft een
-// bouwer die het veld hardcodeert. Dat gold eerder voor weekStartDay ('monday'), barSplitMode
-// ('selection'), showProgressLine/enableQuarterHourZoom/highContrast (false) en fontScale (1) —
-// zes vacuüme checks, alle gemeten met een negatieve controle.
-//
-// (2) De booleans mogen ook niet allemaal DEZELFDE waarde hebben. Stonden ze alle zes op `true`,
-// dan zijn ze onderling niet te onderscheiden en overleeft een kruisbedrading
-// (`showStatusDateLine: input.showProgressLine`) — de meest waarschijnlijke fout bij overtypen.
-// Gemeten: drie van zulke verwisselingen bleven groen. Vandaar drie op `false` en drie op `true`.
-// (#130: `showFloatBand` kwam er als zevende bij, op `false` — de renderer-default is `true`.)
-// (#868: `showBarDates` als achtste, op `true` — de renderer-default is uit.)
 const baseInput: GanttRenderOptionsInput = {
   rows: S().viewRows,
   sequences,
@@ -521,16 +389,12 @@ const baseInput: GanttRenderOptionsInput = {
   barSplitMode: 'always',
 
   durationDisplay: 'auto',
-  // NIET de standaard (aan): zo valt een bouwer op die het veld laat vallen.
   workdayDurationMeasure: false,
   durationSuffixes: { day: 'd', hour: 'u', minute: 'm' },
   externalStaleLabel: 'verouderd (NL-test)',
   durationDrag: { taskId: idA, edge: 'right' },
   highContrast: false,
   darkTheme: true,
-  // NIET `undefined`: met undefined is `palette: input.palette` niet te onderscheiden van
-  // `palette: undefined` en overleeft een bouwer die het veld laat vallen (gemeten). De waarde
-  // wordt hier alleen doorgegeven, nooit getekend, dus een herkenbare stand-in volstaat.
   palette: { __testPalette: true } as unknown as GanttRenderOptions['palette'],
   compressNonWorkdays: false,
   axis,
@@ -540,13 +404,10 @@ const baseInput: GanttRenderOptionsInput = {
 
 const optsOk = buildGanttRenderOptions(baseInput);
 
-// 20 — het CPM-resultaat wordt op één plek uitgepakt; de drie lijsten komen uit dezelfde bron.
 eq('20 geslaagde CPM: drivingSequenceIds komt door', optsOk.drivingSequenceIds, ['seq-driving']);
 eq('21 geslaagde CPM: violatedConstraintTaskIds komt door', optsOk.violatedConstraintTaskIds, ['taak-geschonden']);
 eq('22 geslaagde CPM: missedDeadlineTaskIds komt door', optsOk.missedDeadlineTaskIds, ['taak-deadline-gemist']);
 
-// 23 — een MISLUKTE berekening mag geen markeringen opleveren. Alle drie tegelijk, want dit was
-// vóór de extractie drie losse ternaries die elk apart konden verlopen.
 const optsFailed = buildGanttRenderOptions({ ...baseInput, cpmResult: cpmFailed });
 eq('23 mislukte CPM: geen drivingSequenceIds', optsFailed.drivingSequenceIds, undefined);
 eq('24 mislukte CPM: geen violatedConstraintTaskIds', optsFailed.violatedConstraintTaskIds, undefined);
@@ -556,11 +417,6 @@ eq('26 geen CPM: geen drivingSequenceIds', optsNoCpm.drivingSequenceIds, undefin
 eq('27 geen CPM: geen violatedConstraintTaskIds', optsNoCpm.violatedConstraintTaskIds, undefined);
 eq('28 geen CPM: geen missedDeadlineTaskIds', optsNoCpm.missedDeadlineTaskIds, undefined);
 
-// 28b–28d — N4 (prestatiemeting rehab-2, 2026-10-07): "Datums zoals opgeslagen" reconstrueert het
-// resultaat uit het bestand en weet NIET welke relaties driving zijn (de lege lijst betekent daar
-// "onbekend", niet "niets driving"). Vroeger las de renderer die lege lijst als "alles non-driving"
-// en streepte hij ELKE relatie — fout volgens zijn eigen regel, en op rehab-2 de duurste
-// canvasbewerking. Onbekend ⇒ `undefined` ⇒ neutraal doorgetrokken; de overige lijsten blijven.
 const recordedRecon = cpmResultFromRecorded(
   { [idA]: buildRecordedTime({ start: '2027-03-01', finish: '2027-03-05' })! },
   S().tasks, calendar, [],
@@ -571,8 +427,6 @@ eq('28c opgeslagen datums: missedDeadlineTaskIds komt nog door', optsRecorded.mi
 eq('28d berekend en niets driving blijft een lege lijst (gestreept)',
   buildGanttRenderOptions({ ...baseInput, cpmResult: { ...cpmDistinct, drivingSequenceIds: [] } }).drivingSequenceIds, []);
 
-// 29 — doorgeefvelden. Dit is de check die omvalt als iemand een veld hernoemt of laat vallen:
-// het zijn precies de velden die het component eerder twee keer met de hand overtypte.
 const passthrough: [string, unknown, unknown][] = [
   ['rows', optsOk.rows, baseInput.rows],
   ['sequences', optsOk.sequences, baseInput.sequences],
@@ -623,13 +477,9 @@ const passthrough: [string, unknown, unknown][] = [
 for (const [name, got, want] of passthrough) {
   eqDeep(`29.${name} gaat ongewijzigd door naar de renderer`, got, want);
 }
-// `axis` moet DEZELFDE instantie zijn, niet een kopie — de Histogram deelt hem (§10.1).
 checks++;
 if (optsOk.axis !== axis) diffs.push('30 axis: renderer krijgt niet dezelfde as-INSTANTIE als de histogram');
 
-// 31 — de secundaire split-view-pane. Hij geeft bewust `undefined` mee waar de primaire een waarde
-// heeft; dat moet undefined BLIJVEN (de renderer valt dan terug op zijn eigen defaults), en de
-// gedeelde velden moeten identiek zijn aan de primaire.
 const optsSecondary = buildGanttRenderOptions({
   ...baseInput,
   view: { ...baseInput.view, zoom: 12, scrollX: 400 },
@@ -644,32 +494,11 @@ eq('31 secundair: geen eigen as (renderer bouwt hem zelf uit view+compressNonWor
 eq('33 secundair: geen sleep-pilletje', optsSecondary.durationDrag, undefined);
 eq('34 secundair: eigen zoom', optsSecondary.view.zoom, 12);
 eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
-// GESCHRAPT: hier stonden veertien checks `36.<veld> secundair deelt dit veld met de primaire pane`.
-// Ze maten niets. Beide kanten komen uit DEZELFDE bouwer met DEZELFDE waarde (`optsSecondary` is
-// `{...baseInput, <overrides>}` en geen van die veertien velden zat in de overrides), dus elke
-// mutatie van de bouwer verschoof beide kanten even hard — gemeten: `statusDate` hardcoderen liet
-// 29.statusDate omvallen en 36.statusDate groen. De eigenschap die dat label beschreef — dat de
-// twee AANROEPPLEKKEN in GanttCanvas dezelfde waarde meegeven — woont in het component en is hier
-// per constructie niet te zien. Veertien regels die het totaal opbliezen en niets bewaakten.
 
-// ════════════════════════════════════════════════════════════════════════════
-// DEEL 3 — Bron-assert op `GanttCanvas.tsx` en zijn rendererhost.
-//
-// Grens van deze batterij, expliciet: alles hierboven toetst de FUNCTIES, niet de BEDRADING. Er is
-// geen jsdom/testing-library in dit project, dus het component is niet headless te renderen — een
-// verwisseld argument op de aanroepplek (`view.viewStartDate` waar `effectiveViewStart` hoort) is
-// typecorrect en zou hierboven niet omvallen. Wat wél machinaal te bewaken is, is dat het component
-// deze functies daadwerkelijk gebruikt in plaats van er stilletjes een tweede kopie naast te zetten
-// — precies de situatie die K-item 33 opruimde (de origin-lus stond twee keer in het bestand).
-// Zelfde techniek als `runSourceParity` in harness.ts.
-// ════════════════════════════════════════════════════════════════════════════
 {
   const { readFileSync, existsSync } = await import('node:fs');
   const { fileURLToPath } = await import('node:url');
   const { join, dirname } = await import('node:path');
-  // Loop omhoog tot de repo-root i.p.v. een vast aantal `..`: dit bestand draait als GEBUNDELDE
-  // .mjs, en waar die bundel landt bepaalt `run.sh` — een hardgecodeerde `../..` leest dan het
-  // verkeerde pad (en crasht met ENOENT in plaats van een nette faalregel).
   let root = dirname(fileURLToPath(import.meta.url));
   while (!existsSync(join(root, 'package.json')) && dirname(root) !== root) root = dirname(root);
   const canvasPath = join(root, 'src/components/canvas/GanttCanvas.tsx');
@@ -677,9 +506,6 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
   const coordinatorPath = join(root, 'src/components/canvas/hooks/useGanttViewportCoordinator.ts');
   const histogramInteractionPath = join(root, 'src/components/canvas/hooks/useGanttHistogramInteraction.ts');
   const viewportPath = join(root, 'src/utils/ganttViewport.ts');
-  // Zonder deze guard eindigt een bundel die BUITEN de repo landt in een ongevangen ENOENT uit
-  // readFileSync — een crash in plaats van een faalregel, precies wat de walk hierboven wil
-  // vermijden. Zelf gereproduceerd.
   checks++;
   if (!existsSync(canvasPath) || !existsSync(hostPath) || !existsSync(coordinatorPath)
     || !existsSync(histogramInteractionPath) || !existsSync(viewportPath)) {
@@ -687,17 +513,6 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
   } else {
   const raw = readFileSync(canvasPath, 'utf8');
 
-  // Commentaar eruit vóór we iets beweren. Dit bestand is zwaar becommentarieerd en verwijst in
-  // proza naar precies de namen die we hier zoeken (`ORIGIN_PADDING_DAYS` staat nog in een
-  // toelichting), dus een kale `includes` zou op de uitleg matchen in plaats van op code — een
-  // permanent rode check die niets meet. Toestandsmachientje omdat een regel-gebaseerde aanpak
-  // struikelt over `//` binnen een string.
-  // BEPERKING, expliciet: dit machientje kent geen JSX en geen regexliterals. Een apostrof in
-  // JSX-tekst (`<p>z'n Gantt</p>`) of in een karakterklasse (`/['"]/`) zet 'm in string-modus,
-  // waardoor een daaropvolgend `//`-commentaar blijft staan. Gemeten, en met gewone Nederlandse
-  // tekst ("z'n", "'s ochtends", "API's") makkelijk te raken. De faalrichting is OVERtellen: er
-  // blijft commentaar staan, dus een assert hieronder kan vals ROOD worden — nooit vals groen.
-  // Daarom acceptabel, maar reken er niet op dat commentaar gegarandeerd weg is.
   const stripComments = (s: string): string => {
     let out = '';
     let mode: 'code' | 'line' | 'block' | '"' | "'" | '`' = 'code';
@@ -713,7 +528,6 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
       } else if (mode === 'block') {
         if (c === '*' && n === '/') { mode = 'code'; i++; }
       } else {
-        // Binnen een string/template: escapes overslaan, sluiter herkennen.
         if (c === '\\') { out += c + (n ?? ''); i++; continue; }
         if (c === mode) mode = 'code';
         out += c;
@@ -725,27 +539,16 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
   const hostSrc = stripComments(readFileSync(hostPath, 'utf8'));
   const coordinatorSrc = stripComments(readFileSync(coordinatorPath, 'utf8'));
   const histogramInteractionSrc = stripComments(readFileSync(histogramInteractionPath, 'utf8'));
-  // De stripper zelf toetsen op SYNTHETISCHE invoer, niet op het bestand. Een eerdere versie
-  // beweerde "laat strings met // intact" en controleerde toen `src.includes('useCanvasLayer')` —
-  // een kale identifier, geen string, en `GanttCanvas.tsx` bevat helemaal geen string met `//`.
-  // Die check kón dus niet falen. Hieronder staan de gevallen wél in de invoer.
   eq('36a stripComments haalt regelcommentaar weg', stripComments('const a = 1; // weg\nconst b = 2;'), 'const a = 1; \nconst b = 2;');
   eq('36b stripComments haalt blokcommentaar weg', stripComments('const /* weg */ a = 1;'), 'const  a = 1;');
   eq('36c stripComments laat een string met // intact', stripComments("const u = 'https://x'; // weg"), "const u = 'https://x'; ");
   eq('36d stripComments laat een template met // intact', stripComments('const t = `a//b`; /* weg */'), 'const t = `a//b`; ');
   eq('36e stripComments laat een ontsnapt aanhalingsteken heel', stripComments("const s = 'a\\'b'; // weg"), "const s = 'a\\'b'; ");
-  // De bekende beperking, hier vastgelegd in plaats van weggemoffeld: op een JSX-apostrof loopt het
-  // machientje vast en blijft het commentaar staan. Valt deze check ooit om omdat de uitkomst wél
-  // gestript is, dan is de beperking verholpen en mag de waarschuwing hierboven weg.
   eq('36h stripComments is NIET sluitend op een JSX-apostrof (bekende beperking)',
     stripComments("return <p>Don't</p>; // BLIJFT STAAN"), "return <p>Don't</p>; // BLIJFT STAAN");
-  // En op het echte bestand: commentaar eruit, code erin.
   eq('36f stripComments haalt commentaar uit het echte bestand', src.includes('K-item 33: de pure afleidingen'), false);
   eq('36g stripComments laat de code van het echte bestand staan', src.includes('export function GanttCanvas('), true);
 
-  // De shell levert alleen getypeerde bronopties; de host bezit één gedeelde constructieroute voor
-  // primary en secondary. Het KOPPEL van builder- en constructortelling bewaakt dat een pane niet
-  // alsnog met een handgemaakt optieobject naast `buildGanttRenderOptions` ontstaat.
   eq('37 GanttCanvas instantieert geen renderer meer',
     (src.match(/new (?:GanttRenderer|HistogramRenderer)\(/g) ?? []).length, 0);
   eq('38 rendererhost heeft één gedeelde Gantt-constructorroute',
@@ -765,31 +568,13 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
     'dateToX', 'buildHistogramPicker', 'buildHistogramSeries', 'useAppStore',
   ].filter(name => histogramInteractionSrc.includes(name)), []);
 
-  // De origin-lus stond drie keer in de codebase: de render-memo, `revealTaskIfOffscreen` en
-  // `computeScrollToDate`. Alleen `GanttCanvas.tsx` scannen ving die derde per constructie niet —
-  // vandaar dat de volgende bewering over de HELE `src/` gaat en op de VORM van de lus zoekt, niet
-  // op een importnaam. Wie hem opnieuw uitschrijft (met een eigen constante, zonder
-  // `computeEffectiveViewStart`) valt hier alsnog om.
   const { execSync } = await import('node:child_process');
   const { relative } = await import('node:path');
-  // De keten met `lateStart` als anker: de getoonde start (`shownStart`, sinds 2026-10-12 de
-  // werkelijke start van een gestarte taak, anders early → schedule) en dan de late start. Zonder
-  // het `lateStart`-anker vlagt deze check ten onrechte de datumloos-guard in
-  // `GanttRenderer.barGeometry`/`dragDurationText` (`shownStart(task) || ''`), geen oorsprongsberekening.
   const chain = String.raw`shownStart\([a-zA-Z_.]*\) \|\| [a-zA-Z_.]*lateStart`;
   const hits = execSync(
     `grep -rlE ${JSON.stringify(chain)} ${JSON.stringify(join(root, 'src'))} || true`,
     { encoding: 'utf8' },
   ).split('\n').filter(Boolean).map(f => relative(root, f)).sort();
-  // Let op wat deze check WEL en NIET zegt. `grep -rl` geeft een BESTANDSlijst: hij bewaakt dat de
-  // keten nergens buiten `ganttViewport.ts` opduikt, niet dat hij daarbinnen één keer voorkomt (dat
-  // is hij ook niet — `computeFitToProject` heeft zijn eigen variant, zie de toelichting daar).
-  // Verder is hij regel-verankerd en filesystem-gebaseerd. Een achtergebleven `.bak`/`.orig` in
-  // `src/` geeft een vals rood (gemeten) — hinderlijk, maar de veilige richting. Een kopie die
-  // over twee regels is afgebroken ontsnapt aan DEZE check; check 40 hieronder vangt hem dan
-  // alsnog, want die telt de aanroepen van de gedeelde functie. Een eerdere versie van dit
-  // commentaar beweerde beide dingen tegelijk ("ontsnapt" én "overtellen, geen gat"); dat kon
-  // niet allebei waar zijn.
   eq('39 de start-veldketen staat in geen enkel bestand buiten ganttViewport.ts',
     hits, ['src/utils/ganttViewport.ts']);
   eq('40 GanttCanvas orkestreert geen viewportformules meer', [
@@ -809,23 +594,14 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
     ['computeFitToProject', 'computeFocusTaskHorizontal', 'computeGanttScrollBounds',
       'setGanttScrollBounds', 'resolveWheelFunction']);
 
-  // En de gedeelde functie moet daadwerkelijk gedeeld zijn: `computeScrollToDate` had een eigen
-  // kopie, alleen door een commentaarregel aan de render-memo gekoppeld.
   const viewport = stripComments(readFileSync(viewportPath, 'utf8'));
   eq('41 computeScrollToDate hergebruikt de gedeelde oorsprongsfunctie',
     /computeScrollToDate[\s\S]{0,400}computeEffectiveViewStart\(/.test(viewport), true);
 
-  // BEIDE panes moeten het vertaalde "verouderd"-label meegeven. Dat is geen tabelveld: de badge
-  // wordt in de CHART getekend (`drawTaskBars` → `drawExternalGhosts`), dus een pane dat het
-  // weglaat valt terug op de hardgecodeerde NL-tekst in de renderer — zichtbaar voor elke
-  // niet-Nederlandse gebruiker met een externe koppeling in split view. Precies de fout die de
-  // secundaire pane had.
   eq('42 beide panes geven het vertaalde "verouderd"-label mee',
     (src.match(/externalStaleLabel:\s*tTask\(/g) ?? []).length, 2);
   eq('43 geen pane laat externalStaleLabel leeg',
     /externalStaleLabel:\s*undefined/.test(src), false);
-  // G13: de kiezer staat aan de kant van de takenlijst (rechts in ar/fa); de as begint op het
-  // plotbegin van dezelfde indeling als de renderer, niet altijd op pickerWidth.
   eq('44 histogramas begint op het plotbegin uit pickerWidth en pickerSide',
     /const histogramAxis[\s\S]{0,500}chartOriginX:\s*histogramPlotInsets\(input\.histogramPickerWidth,\s*input\.histogramPickerSide\)\.left/
       .test(coordinatorSrc), true);
@@ -835,7 +611,6 @@ eq('35 secundair: eigen scrollX', optsSecondary.view.scrollX, 400);
   }
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  gantt-render-options: alle checks groen (${checks})`);
   process.exit(0);

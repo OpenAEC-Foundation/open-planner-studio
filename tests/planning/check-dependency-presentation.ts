@@ -1,12 +1,3 @@
-/**
- * Presentatiecontract van de dependency-rij in het eigenschappenpaneel (issue #65, polishronde).
- *
- * De echte hover-/klikinteractie en de zichtbare uitlijning worden in de browser gecontroleerd.
- * Deze bronpoort bewaakt juist de bedrading die daar makkelijk stil kan afdrijven: alle rijen delen
- * één gridschema (inclusief een altijd aanwezige driving-kolom), de WBS-knop gebruikt de standaard
- * Gantt-tracekleur voor zijn rol, en er staat geen native `title` meer op die knop naast de rijke
- * taaktooltip.
- */
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,7 +22,6 @@ function rejectSource(label: string, source: string, pattern: RegExp): void {
   if (pattern.test(source)) diffs.push(label);
 }
 
-// Eén expliciete griddefinitie voorkomt dat de type-/lag-/verwijderkolommen per rij verspringen.
 expectSource(
   'dependency-rij gebruikt het gedeelde vaste kolommenschema',
   css,
@@ -45,7 +35,6 @@ expectSource(
 expectSource(
   'driving-kolom bestaat altijd; alleen de inhoud is conditioneel',
   component,
-  // Ook de onbekend-markering staat binnen dit vaste vak; de berekende driving-tak blijft bewaakt.
   /className="dependency-driving-slot"[\s\S]*?\{(?:drivingIds\s*===\s*undefined\s*\?[\s\S]*?:\s*)?isDriving\s*&&/,
 );
 expectSource(
@@ -54,9 +43,6 @@ expectSource(
   /\.dependency-list\s*\{[\s\S]*?container-type:\s*inline-size;[\s\S]*?@container\s*\(max-width:\s*14rem\)[\s\S]*?"wbs wbs wbs wbs wbs"[\s\S]*?"\. driving type lag remove"/,
 );
 
-// Issue #989: de sectie splitst de relaties in twee aparte lijsten (voorgangers/opvolgers), elk
-// met een eigen kop met het aantal; de kolommen staan naast elkaar en stapelen alleen op een
-// smalle sectie.
 expectSource(
   'relaties worden per rol in twee kolommen gegroepeerd (#989)',
   component,
@@ -78,7 +64,6 @@ expectSource(
   /@container\s*\(max-width:\s*22rem\)\s*\{\s*\.dependency-col\s*\{\s*grid-column:\s*1 \/ -1;/,
 );
 
-// Vanuit de geselecteerde taak gezien is `predecessorId === taskId` de ANDERE taak een opvolger.
 expectSource(
   'relatiekant wordt vanuit de geselecteerde taak correct afgeleid',
   component,
@@ -89,10 +74,6 @@ expectSource(
   component,
   /--dependency-role-color['"]?:\s*GANTT_TRACE_COLORS\[role\]/,
 );
-// Issue #114: de rijmarkering in het taakraster (border-inline-start) leest `--trace-predecessor`/
-// `--trace-successor`; die CSS-variabelen moeten letterlijk dezelfde hex dragen als het Gantt-palet,
-// anders staan er twee kleurtalen naast elkaar (raster paars/blauw, balken goud/paars — het
-// gerapporteerde beeld).
 function cssVar(name: string): string | null {
   const m = new RegExp(`--${name}:\\s*(#[0-9A-Fa-f]{6})\\s*;`).exec(css);
   return m ? m[1].toUpperCase() : null;
@@ -125,7 +106,6 @@ expectSource(
   /export const GANTT_TRACE_COLORS\s*=\s*\{[\s\S]*?predecessor:[\s\S]*?successor:/,
 );
 
-// Lange externe WBS-codes moeten de rij niet oprekken; de rijke portal-tooltip blijft de uitleg.
 expectSource(
   'WBS-knop kan binnen zijn gridkolom krimpen en kapt lange codes af',
   component,
@@ -161,8 +141,6 @@ expectSource(
   css,
   /\.dependency-wbs-link\s*\{[\s\S]*?color:\s*var\(--theme-text\);/,
 );
-// Eigenaar 2026-10-19: geen losse (witte) ring meer om de markering. Op licht haalt de tracekleur
-// zelf geen 3:1, daar krijgt de vorm een rand in een donkerdere tint van zijn eigen kleur.
 expectSource(
   'rolmarkering gebruikt de tracekleur',
   css,

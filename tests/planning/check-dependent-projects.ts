@@ -1,22 +1,3 @@
-// Stap 1.11 (keuze 7 en keuze 3 zonder cloud, Ethan 2026-11-03; `docs/relaties-tussen-projecten.md` §7.3
-// en §7.4): *Afhankelijke projecten zoeken…* en de waarschuwing vóór opslaan bij de bron.
-//
-// Wat deze check vastlegt:
-// 1. `findDependentLinks`: match op project-id (niet op pad), het eigen project telt niet mee, een
-//    geopend document wint van zijn bestand, één project telt één keer, koppelingen naar een ander
-//    project tellen niet.
-// 2. `isAnchorTighter`: bij een externe voorganger (onze taak is hun voorganger) is een later anker te
-//    krap, bij een externe opvolger een vroeger anker. Meer ruimte of gelijk ⇒ geen waarschuwing.
-// 3. Diezelfde richting volgt uit de rekenmotor van het afhankelijke project (`solveProject`): een later
-//    voorganger-anker duwt hun taak later, een vroeger opvolger-anker geeft de melding van stap 1.4.
-// 4. `tightDependentAnchors` rekent het nieuwe anker met `sourceAnchorDate` (voorganger: vroege datum,
-//    opvolger: late datum) uit de huidige taken; een eigen taak die weg is, geeft geen regel.
-// 5. Kandidaten: een IFC-bestand alleen-lezen (ook de koppelingen uit `OPS_ExternalLink`), een bestand
-//    dat geen planning is ⇒ overgeslagen; geopende documenten zonder het actieve document.
-// 6. `withDependentResult` vervangt het resultaat van een document en laat gesloten documenten weg.
-// 7. De opslaanroute: alleen met een zoekresultaat én een te krap anker vraagt Opslaan het; *Annuleren*
-//    slaat niets op; een ander project-id (resultaat van vóór *Opslaan als* kopie) telt niet.
-// 8. De route zit alleen in Opslaan en Opslaan als: AutoSave, crashherstel en MCP vragen niets.
 import { readFileSync } from 'node:fs';
 import { createAppStoreContext, useAppStore } from '@/state/appStore';
 import { autoSearchDependentProjects } from '@/state/dependentProjectsSearch';
@@ -52,7 +33,6 @@ const cand = (projectId: string, opened: boolean, tasks: DependentCandidate['tas
   projectId, projectName: projectId.toUpperCase(), opened, tasks, ...(fileName ? { fileName } : {}),
 });
 
-// (1) Match op project-id.
 {
   const aannemer = cand('aannemer', false, [
     { id: 'a1', name: 'Afbouw', externalLinks: [link('x', OWN, 'b1', 'predecessor', '2027-03-05T16:00')] },
@@ -79,7 +59,6 @@ const cand = (projectId: string, opened: boolean, tasks: DependentCandidate['tas
   eq('1f samenvatting telt projecten en koppelingen', summarizeDependentLinks(found), { projects: 2, links: 2 });
 }
 
-// (2) De richtingsregel.
 {
   eq('2a voorganger: later anker ⇒ te krap', isAnchorTighter('predecessor', '2027-03-05T16:00', '2027-03-08T16:00'), true);
   eq('2b voorganger: vroeger anker ⇒ meer ruimte', isAnchorTighter('predecessor', '2027-03-05T16:00', '2027-03-04T16:00'), false);
@@ -92,7 +71,6 @@ const cand = (projectId: string, opened: boolean, tasks: DependentCandidate['tas
     isAnchorTighter('successor', 'onzin', '2027-03-05')], [false, false]);
 }
 
-// (3) De regel tegen de rekenmotor van het afhankelijke project.
 {
   const depTask = (links: ExternalLink[]): Task => ({
     id: 'a1', name: 'Afbouw', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -114,14 +92,12 @@ const cand = (projectId: string, opened: boolean, tasks: DependentCandidate['tas
   eq('3a voorganger: een later anker duwt hun taak later (motor) en heet te krap (regel)',
     [late > early, isAnchorTighter('predecessor', '2027-03-05T16:00', '2027-03-10T16:00')], [true, true]);
   const violated = (anchor: string) => (solveDep(link('y', OWN, 'b1', 'successor', anchor)).cpmResult?.externalSuccessorViolations ?? []).length;
-  // Hun taak loopt 1–3 maart; een opvolger-anker op 10 maart laat ruimte, op 2 maart niet.
   eq('3b opvolger: een vroeger anker geeft de melding van stap 1.4 (motor) en heet te krap (regel)',
     [violated('2027-03-10T07:00'), violated('2027-03-02T07:00'), isAnchorTighter('successor', '2027-03-10T07:00', '2027-03-02T07:00')],
     [0, 1, true]);
   void solveProject;
 }
 
-// (4) Het nieuwe anker uit de huidige taken.
 {
   const own = (over: Partial<Task['time']>): Task => ({
     id: 'b1', name: 'Installatie', description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -134,21 +110,19 @@ const cand = (projectId: string, opened: boolean, tasks: DependentCandidate['tas
     direction, relType: 'FS', anchorDate,
   });
   const tight = tightDependentAnchors([
-    dl('p-krap', 'predecessor', '2027-03-05T16:00'), // nieuw: vroege finish 8 maart ⇒ later ⇒ te krap
-    dl('p-ruim', 'predecessor', '2027-03-09T16:00'), // nieuw 8 maart ⇒ eerder ⇒ ruimer
-    dl('s-krap', 'successor', '2027-03-05T07:00'),   // nieuw: late start 3 maart ⇒ eerder ⇒ te krap
-    dl('s-ruim', 'successor', '2027-03-01T07:00'),   // nieuw 3 maart ⇒ later ⇒ ruimer
+    dl('p-krap', 'predecessor', '2027-03-05T16:00'),
+    dl('p-ruim', 'predecessor', '2027-03-09T16:00'),
+    dl('s-krap', 'successor', '2027-03-05T07:00'),
+    dl('s-ruim', 'successor', '2027-03-01T07:00'),
     dl('weg', 'predecessor', '2027-01-01', 'bestaat-niet'),
   ], [own({})]);
   eq('4a alleen de te krappe, met het nieuwe anker uit sourceAnchorDate',
     tight.map(t => [t.linkId, t.anchorDate, t.newAnchorDate, t.ownTaskName]),
     [['p-krap', '2027-03-05T16:00', '2027-03-08T16:00', 'Installatie'], ['s-krap', '2027-03-05T07:00', '2027-03-03T07:00', 'Installatie']]);
-  // Een gestarte brontaak valt voor een opvolger terug op de vroege datum (keuze 10), net als bij vernieuwen.
   const started = tightDependentAnchors([dl('s', 'successor', '2027-03-05T07:00')], [own({ actualStart: '2027-03-01T07:00' })]);
   eq('4b gestarte taak: opvolger rekent met de vroege start', started.map(t => t.newAnchorDate), ['2027-03-01T07:00']);
 }
 
-// (5) Kandidaten uit bestanden en geopende documenten.
 const buildDependent = () => {
   const { store } = createAppStoreContext();
   const S = () => store.getState();
@@ -175,14 +149,12 @@ await (async () => {
     opened.map(o => [o.projectName, o.opened, findDependentLinks([o], OWN).length]), [['Aannemer', true, 1]]);
 })();
 
-// (6) Het resultaat per document.
 {
   const r = (documentId: string, n: number) => ({ documentId, projectId: OWN, links: new Array(n).fill(null) as DependentLink[] });
   const next = withDependentResult([r('d1', 1), r('d2', 2), r('dicht', 3)], r('d1', 4), new Set(['d1', 'd2']));
   eq('6a vervangt d1, houdt d2, laat een gesloten document weg', next.map(x => [x.documentId, x.links.length]), [['d2', 2], ['d1', 4]]);
 }
 
-// (7) De opslaanroute.
 await (async () => {
   const { store } = createAppStoreContext();
   const S = () => store.getState();
@@ -201,8 +173,6 @@ await (async () => {
     links: [{ projectId: 'aannemer', projectName: 'Aannemer', taskId: 'a1', taskName: 'Afbouw', ownTaskId: b1, linkId: 'x',
       direction: 'predecessor', relType: 'FS', anchorDate }],
   }] });
-  // Zonder browser loopt het echte schrijven daarna op een fout (geen `document`); dat is hier niet de
-  // vraag. De opslaanroute vangt die fout zelf en meldt hem; de console blijft stil.
   const consoleError = console.error;
   console.error = () => {};
   try {
@@ -229,10 +199,6 @@ await (async () => {
   }
 })();
 
-// (7B) Review #857 ronde 1, bevinding 1: de vraag vergelijkt met de bron zoals het afhankelijke project
-// hem leest. De brontaak duurt 5 dagen en eindigt op vrijdag 5 maart 16:00; het afhankelijke project rekent
-// daarop. De duur gaat naar 10 dagen, ZONDER F5. De bronleesroute rekent het opgeslagen bestand door en geeft
-// 12 maart 16:00: krapper. Opslaan én Opslaan als moeten het vragen; het geopende document rekent niet.
 await (async () => {
   const { store } = createAppStoreContext();
   const S = () => store.getState();
@@ -249,7 +215,6 @@ await (async () => {
   }] });
   S().updateTask(b1, { time: { ...task().time, scheduleDuration: 10 } });
   eq('7B-b de planning is verouderd, het scherm toont nog 5 maart', [S().scheduleStale, task().time.earlyFinish], [true, '2027-03-05T16:00']);
-  // Wat de afnemer krijgt: de bestaande bronleesroute op precies dit bestand.
   const read = externalSourceFromImport(await readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))), '/p/Installateur.ifc');
   eq('7B-c de bronleesroute rekent het bestand door: 12 maart 16:00',
     read.tasks.find(t => t.id === b1)?.time.earlyFinish, '2027-03-12T16:00');
@@ -266,8 +231,6 @@ await (async () => {
   }
 })();
 
-// (9) Review #857 ronde 1, bevinding 2: een tabwissel tijdens de automatische zoektocht schakelt hem niet
-// uit. Het resultaat wordt dan weggegooid; bij terugwisselen zoekt de app opnieuw en plaatst het alsnog.
 await (async () => {
   const S = () => useAppStore.getState();
   S().newProject();
@@ -276,7 +239,6 @@ await (async () => {
   S().runCPM();
   const docA = S().activeDocumentId;
   const pid = S().project.id;
-  // Het afhankelijke project, als bestand in de map.
   const dep = createAppStoreContext().store;
   dep.getState().newProject();
   dep.getState().setProject({ startDate: '2027-03-01', name: 'Aannemer' });
@@ -306,7 +268,6 @@ await (async () => {
   eq('9d daarna niet nog eens', reads, 2);
 })();
 
-// (8) Alleen Opslaan en Opslaan als.
 {
   const read = (p: string) => readFileSync(p, 'utf8');
   const slice = read('src/state/slices/fileSlice.ts');

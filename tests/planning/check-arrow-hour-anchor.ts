@@ -1,10 +1,3 @@
-// Relatiepijlen op uurtaken ankeren op de BALKranden — de ECHTE GanttRenderer met een opnemende
-// 2D-context-stub (zelfde opzet als check-arrow-routing.ts). Vóór de fix rekende de pijl ook bij een
-// uurtaak met `parseDate` + één dagcel: een FS-pijl vertrok aan het einde van de DAG i.p.v. aan het
-// einde van de balk (14:00) en kwam aan op het BEGIN van de dag i.p.v. op de balkstart (15:00) — op
-// zoom 48 px/dag zo'n 20 px ernaast. Dagtaken blijven op de dagcelranden (check-arrow-routing).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -18,7 +11,6 @@ let checks = 0;
 const fails: string[] = [];
 const ok = (label: string, cond: boolean, detail = '') => { checks++; if (!cond) fails.push(`${label}${detail ? `: ${detail}` : ''}`); };
 
-// Balkvlakken zijn effen in de basiskleur.
 const BAR = new Set(['#b0b0b0', '#b1b1b1']);
 const ARROW = new Set(['#a0a0a0', '#b0b0b0']);
 const palette = {

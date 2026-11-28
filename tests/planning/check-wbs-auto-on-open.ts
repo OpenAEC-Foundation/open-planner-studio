@@ -1,12 +1,3 @@
-// WBS auto bij het openen (eigenaarsbesluit 2026-10-17). Via de echte open-pijplijn:
-// `parseOpenedFile` (formatRegistry) → `openAsDocument` → `applyLoadedProject` (store).
-// Regel: draagt het bestand GEEN `wbsAutoNumber`-vlag en is elke WBS-code precies de boomnummering
-// (zelfde nummering als `deriveWbsCodes`/"Hernummer WBS"), dan staat "WBS auto" na het openen aan.
-// Anders blijft alles zoals het was (vrije tekst; een vlag uit het bestand blijft staan, ook `false`).
-// Een leeg bestand zonder vlag krijgt ook true (zoals een nieuw project). Alleen op de echte
-// open-paden: `loadState` (IFC-paneel *Toepassen*, extensie-`loadProject`) laat de vlag staan.
-// Bewaakt ook: geen undo-stap, document niet gewijzigd, codes ongewijzigd, IFC-export zelfde codes.
-// Corpusloos (CI). Fixtures: inline, zelf geschreven.
 import './domStub';
 import { parseOpenedFile } from '@/services/formatRegistry';
 import { useAppStore } from '@/state/appStore';
@@ -32,7 +23,6 @@ function eq(label: string, got: unknown, want: unknown): void {
   }
 }
 
-// MSPDI met een boom van drie niveaus. `codes[i]` is de <WBS> van taak i (in bestandsvolgorde).
 const TREE: { name: string; level: number }[] = [
   { name: 'Voorbereiding', level: 1 },
   { name: 'Ontwerp', level: 2 },
@@ -72,7 +62,6 @@ const codesInTreeOrder = () => flattenOrder(S().tasks).map(t => t.wbsCode);
 const ifcExportCodes = () => flattenOrder(readIFC(writeIFC(buildExportIFCInput(S(), 'planOnly'))).tasks).map(t => t.wbsCode);
 
 async function main(): Promise<void> {
-  // (a) Codes gelijk aan de boom ⇒ vlag true; codes ongewijzigd; geen undo-stap; niet gewijzigd.
   const parsedA = await openText('gelijk.xml', mspdi(TREE_CODES));
   eq('a0 bestand draagt geen vlag', activeImportResult(parsedA).project.wbsAutoNumber, undefined);
   eq('a1 vlag na openen', S().project.wbsAutoNumber, true);
@@ -80,13 +69,11 @@ async function main(): Promise<void> {
   eq('a3 geen undo-stap', [undoEventCount(), selectUndoHistoryEvent(S().historyEvents, S().activeDocumentId)?.id ?? null], [0, null]);
   eq('a4 document niet gewijzigd', S().isDirty, false);
 
-  // IFC-export schrijft dezelfde codes als vóór de wijziging (vlag weg = de oude stand na openen).
   const withFlag = ifcExportCodes();
   useAppStore.setState(st => { st.project.wbsAutoNumber = undefined; });
   eq('a8 IFC-export: zelfde codes', withFlag, ifcExportCodes());
   eq('a9 IFC-export: codes = bron', withFlag, TREE_CODES);
 
-  // (a') Na het openen nummert de app live: een ingevoegde taak krijgt geen dubbele code.
   await openText('gelijk.xml', mspdi(TREE_CODES));
   const besluit = S().tasks.find(t => t.name === 'Besluit')!;
   const nieuw = S().addTask({ name: 'Nieuw', position: { anchorId: besluit.id, where: 'above' } });
@@ -97,43 +84,34 @@ async function main(): Promise<void> {
   eq('a11 geen dubbele code na inspringen', new Set(after).size, after.length);
   eq('a12 nieuwe taak is kind van Aanvraag', S().tasks.find(t => t.id === nieuw)?.wbsCode, '1.2.1.1');
 
-  // (b) Eén afwijkende code ⇒ undefined; codes blijven vrije tekst.
   const B = [...TREE_CODES]; B[4] = '1.2.3';
   await openText('afwijkend.xml', mspdi(B));
   eq('b1 één afwijking ⇒ geen vlag', S().project.wbsAutoNumber, undefined);
   eq('b2 codes ongewijzigd', codesInTreeOrder(), B);
-  // Alleen het eerste niveau gelijk is niet genoeg.
   const B2 = [...TREE_CODES]; B2[1] = '1.9';
   await openText('afwijkend2.xml', mspdi(B2));
   eq('b3 dieper niveau wijkt af ⇒ geen vlag', S().project.wbsAutoNumber, undefined);
-  // Eigen opbouw (P6-stijl).
   await openText('eigen.xml', mspdi(TREE_CODES.map((_c, i) => `OCEC97${30 + i}`)));
   eq('b4 eigen opbouw ⇒ geen vlag', S().project.wbsAutoNumber, undefined);
 
-  // (c) IFC van de app met vlag false ⇒ blijft false. En met vlag true ⇒ blijft true.
   await openText('gelijk.xml', mspdi(TREE_CODES));
   useAppStore.setState(st => { st.project.wbsAutoNumber = false; });
   const ifcFalse = writeIFC(buildExportIFCInput(S(), 'planOnly'));
   eq('c0 IFC draagt de vlag false', readIFC(ifcFalse).project.wbsAutoNumber, false);
   await openText('eigen-false.ifc', ifcFalse);
   eq('c1 IFC met vlag false ⇒ blijft false', S().project.wbsAutoNumber, false);
-  // IFC zonder vlag (zoals uit een ander pakket) met boomcodes ⇒ true.
   useAppStore.setState(st => { st.project.wbsAutoNumber = undefined; });
   const ifcNone = writeIFC(buildExportIFCInput(S(), 'planOnly'));
   eq('c2 IFC zonder vlag', readIFC(ifcNone).project.wbsAutoNumber, undefined);
   await openText('derden.ifc', ifcNone);
   eq('c3 IFC zonder vlag + boomcodes ⇒ true', S().project.wbsAutoNumber, true);
 
-  // (d) Lege code ⇒ undefined. (MSPDI vult een lege <WBS> met de UID, dus de lege code komt
-  // rechtstreeks in de geparste payload.)
   const parsedD = await parseOpenedFile({ name: 'leeg.xml', text: mspdi(TREE_CODES) });
   const resD = activeImportResult(parsedD);
   const emptyCode: ImportResult = { ...resD, tasks: resD.tasks.map((t, i) => (i === 3 ? { ...t, wbsCode: '' } : t)) };
   await openParsed(emptyCode, 'leeg.xml');
   eq('d1 lege code ⇒ geen vlag', S().project.wbsAutoNumber, undefined);
 
-  // (e) Leeg bestand zonder vlag ⇒ true (zoals een nieuw project): toevoegen + invoegen boven geeft
-  // daarna geen dubbele code (zonder de vlag: A=1, N=2, B=2).
   const emptyProject: ImportResult = { ...resD, tasks: [], sequences: [], assignments: [] };
   await openParsed(emptyProject, 'leeg-project.xml');
   eq('e1 leeg bestand ⇒ vlag true', S().project.wbsAutoNumber, true);
@@ -143,11 +121,9 @@ async function main(): Promise<void> {
   S().addTask({ name: 'N', position: { anchorId: b, where: 'above' } });
   const emptyAfter = codesInTreeOrder();
   eq('e3 leeg bestand: geen dubbele code na invoegen', emptyAfter, ['1', '2', '3']);
-  // Leeg bestand met vlag false (eigen IFC) ⇒ blijft false.
   await openParsed({ ...emptyProject, project: { ...emptyProject.project, wbsAutoNumber: false } }, 'leeg-false.xml');
   eq('e4 leeg bestand met vlag false ⇒ blijft false', S().project.wbsAutoNumber, false);
 
-  // (f) loadState (IFC-paneel *Toepassen*, extensie-`loadProject`) is geen openen: de vlag blijft.
   S().newProject();
   S().loadState(resD);
   eq('f1 loadState: boomcodes ⇒ vlag blijft undefined', S().project.wbsAutoNumber, undefined);
@@ -155,8 +131,6 @@ async function main(): Promise<void> {
   S().loadState(emptyProject);
   eq('f3 loadState: leeg ⇒ vlag blijft undefined', S().project.wbsAutoNumber, undefined);
 
-  // (g) De iteratieve WBS-wandeling (168) houdt de rauwe siblingvolgorde aan, óók als
-  // childIds een andere volgorde draagt. Wezen en parentId-kringen houden hun oude vangnet.
   const node = (id: string, parentId: string | null, childIds: string[] = []): Task => ({
     ...resD.tasks[0], id, parentId, childIds,
   });

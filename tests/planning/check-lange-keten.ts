@@ -1,11 +1,3 @@
-// Audit 2026-09-26 — schaal van de solver-grafiekstappen, via de ECHTE `solveProject`:
-//  1. `detectCycle` liep recursief (`dfsVisit`) en klapte bij een lineaire keten van ~6000 taken op
-//     `RangeError: Maximum call stack size exceeded`. Nu iteratief met exact dezelfde bezoekvolgorde.
-//  2. De cyclusmelding na een lange keten blijft dezelfde kring (zelfde ids, zelfde volgorde).
-//  3. `topologicalSort` was O(n²) (`queue.shift()` + `result.includes`); de uitkomst moet identiek
-//     blijven — hier bewaakt via de eind-datums van een keten plus losse taken.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -42,7 +34,6 @@ function chain(n: number, extra: Sequence[] = [], isolated = 0): { tasks: Task[]
 const calendar = createDefaultCalendar();
 const N = 12000;
 
-// 1. Lange keten zonder kring: geen crash, geen fout, laatste taak ná de eerste.
 {
   const { tasks, sequences } = chain(N, [], 3);
   let err: unknown = null;
@@ -56,7 +47,6 @@ const N = 12000;
   eq('1 losse taken rekenen mee (topologische rest)', tasks[N].time.scheduleStart, START);
 }
 
-// 2. Kring aan het eind van een lange keten: dezelfde, volledige kringmelding.
 {
   const { tasks, sequences } = chain(N, [fs(`t${N - 1}`, `t${N - 3}`)]);
   let err: unknown = null;

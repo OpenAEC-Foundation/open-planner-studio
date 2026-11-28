@@ -1,15 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// moveTask-cykelguard + addTask.notes-checks (fase 2.10 onderdeel 2, QA-fixes P1 en 4) —
-// headless tegen de ECHTE Zustand-store (zelfde `useAppStore.getState()`-patroon als
-// harness.ts/check-move-assignment.ts). Bewijst met echte code:
-//  1) TaskDialog.handleSave verhangt een taak via `moveTask` (niet via een kale `updateTask`-
-//     parentId-patch) — childIds blijven op BEIDE ouders correct gesynchroniseerd, en `viewRows`
-//     toont de verhangen taak meteen op de nieuwe plek.
-//  2) `moveTask` weigert een cyclische move (een summary onder zijn eigen kind hangen) zonder
-//     halftoegepaste state — geen snapshot, geen mutatie.
-//  3) `addTask` geeft `partial.notes` door aan de nieuwe taak.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import type { Task } from '@/types/task';
 
@@ -26,7 +14,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
 const task = (id: string): Task | undefined => S().tasks.find(t => t.id === id);
 const visibleTaskIds = () => S().viewRows.filter(r => r.kind === 'task').map(r => (r as { task: Task }).task.id);
 
-// ── 1) Root → onder summary: childIds bevat de taak, viewRows toont hem onder de summary. ──
 const idSum = S().addTask({ name: 'Summary' });
 const idRoot = S().addTask({ name: 'RootTask' });
 eq('01 setup: root is top-level (geen ouder)', task(idRoot)?.parentId, null);
@@ -42,7 +29,6 @@ eq('04 root→summary: summary.childIds bevat de taak', task(idSum)?.childIds.in
   eq('05 root→summary: viewRows toont de taak ná (onder) de summary', rootIdx > sumIdx && rootIdx === sumIdx + 1, true);
 }
 
-// ── 2) Kind A→B: A verliest childIds, B krijgt het kind. ──
 const idA = S().addTask({ name: 'ParentA' });
 const idB = S().addTask({ name: 'ParentB' });
 const idChild = S().addTask({ name: 'Child', parentId: idA });
@@ -54,14 +40,13 @@ eq('08 A→B: child.parentId == B', task(idChild)?.parentId, idB);
 eq('09 A→B: A.childIds verliest het kind', task(idA)?.childIds.includes(idChild), false);
 eq('10 A→B: B.childIds krijgt het kind', task(idB)?.childIds.includes(idChild), true);
 
-// ── 3) Cyklische move geweigerd: summary onder zijn eigen kind hangen. ──
 const idOuter = S().addTask({ name: 'Outer' });
 const idInner = S().addTask({ name: 'Inner', parentId: idOuter });
 const undoLenBefore = S().historyEvents.filter(event => event.state === 'applied').length;
 const outerSnapshotBefore = JSON.stringify(task(idOuter));
 const innerSnapshotBefore = JSON.stringify(task(idInner));
 
-S().moveTask(idOuter, idInner); // Outer onder zijn eigen kind Inner -> cykel, moet geweigerd worden
+S().moveTask(idOuter, idInner);
 
 eq('11 cykel: Outer.parentId ongewijzigd (null)', task(idOuter)?.parentId, null);
 eq('12 cykel: Inner.parentId ongewijzigd (Outer)', task(idInner)?.parentId, idOuter);
@@ -70,12 +55,10 @@ eq('14 cykel: geen halftoegepaste state (Outer-object byte-identiek)', JSON.stri
 eq('15 cykel: geen halftoegepaste state (Inner-object byte-identiek)', JSON.stringify(task(idInner)), innerSnapshotBefore);
 eq('16 cykel: geen undo-snapshot gepusht (geweigerde move is een no-op)', S().historyEvents.filter(event => event.state === 'applied').length, undoLenBefore);
 
-// ── 3b) Cyklische move geweigerd: taak onder zichzelf hangen (newParentId === id). ──
 const idSelf = S().addTask({ name: 'SelfMove' });
 S().moveTask(idSelf, idSelf);
 eq('17 self-move: parentId blijft null', task(idSelf)?.parentId, null);
 
-// ── 4) addTask geeft partial.notes door. ──
 const idNotes = S().addTask({
   name: 'MetAantekeningen',
   notes: [{ id: 'n1', text: 'Controleer levering', done: false }],
@@ -85,12 +68,6 @@ eq('18 addTask: notes komt aan op de nieuwe taak', task(idNotes)?.notes, [{ id: 
 const idNoNotes = S().addTask({ name: 'ZonderAantekeningen' });
 eq('19 addTask: geen notes-arg ⇒ undefined (byte-identiek default)', task(idNoNotes)?.notes, undefined);
 
-// ── 4) addTask's eigen `time`-default (K-item 31) ────────────────────────────
-// Negen callsites gaven `time: createDefaultTaskTime(project.startDate || vandaag, 5)` mee —
-// letterlijk wat de store zelf al doet. Die zijn weggehaald; deze checks zijn de reden dat dat
-// veilig is. Ze pinnen precies wat de callsites deden, dus als iemand de default in taskSlice
-// verandert (of hem terugzet op `new Date()`) valt dat hier om, en niet pas als een gebruiker
-// een taak op de verkeerde datum ziet verschijnen.
 S().setProject({ startDate: '2027-03-01' });
 
 const idDefTime = S().addTask({ name: 'ZonderTijd' });
@@ -101,8 +78,6 @@ const idDefMilestone = S().addTask({ name: 'ZonderTijdMijlpaal', isMilestone: tr
 eq('22 addTask zonder time: mijlpaal krijgt duur 0', task(idDefMilestone)?.time.scheduleDuration, 0);
 eq('23 addTask zonder time: mijlpaal start ook op project.startDate', task(idDefMilestone)?.time.scheduleStart, "2027-03-01T07:00");
 
-// Een expliciete `time` moet nog steeds voorrang houden — anders zouden de callsites die hem
-// wél om een reden meegeven (sjablonen, import, de SDK) stil overschreven worden.
 const idExplicit = S().addTask({
   name: 'EigenTijd',
   time: { ...task(idDefTime)!.time, scheduleStart: '2027-06-15', scheduleDuration: 12 },
@@ -110,17 +85,12 @@ const idExplicit = S().addTask({
 eq('24 addTask mét time: expliciete waarde wint van de default', task(idExplicit)?.time.scheduleStart, "2027-06-15T07:00");
 eq('25 addTask mét time: expliciete duur wint van de default', task(idExplicit)?.time.scheduleDuration, 12);
 
-// ── 5) moveTask zonder position: WBS-volgorde moet childIds-volgorde volgen (regressie voor de
-//      gerapporteerde 3.1/3.2/3.3-bug — een taak die vóór zijn latere siblings werd aangemaakt en
-//      via het Taakdialoog van ouder wisselt (TaskDialog.handleSave roept moveTask zónder position
-//      aan), moet het WBS-nummer van zijn NIEUWE (laatste) plek krijgen, niet van zijn oude
-//      array-positie). ──
-const idNieuweTaak = S().addTask({ name: 'Nieuwe taak' }); // root, vroeg in de rauwe array
+const idNieuweTaak = S().addTask({ name: 'Nieuwe taak' });
 const idRuwbouw = S().addTask({ name: 'ruwbouw' });
 const idFundering = S().addTask({ name: 'herstellen fundering', parentId: idRuwbouw });
 const idScheiding = S().addTask({ name: 'scheidingswanden', parentId: idRuwbouw });
 
-S().moveTask(idNieuweTaak, idRuwbouw); // zoals TaskDialog.handleSave: geen position
+S().moveTask(idNieuweTaak, idRuwbouw);
 
 eq('26 moveTask zonder position: childIds-volgorde = [fundering, scheiding, nieuweTaak]',
   task(idRuwbouw)?.childIds, [idFundering, idScheiding, idNieuweTaak]);
@@ -131,7 +101,6 @@ eq('28 moveTask zonder position: fundering blijft 1e kind',
 eq('29 moveTask zonder position: scheiding blijft 2e kind',
   task(idScheiding)?.wbsCode, `${task(idRuwbouw)?.wbsCode}.2`);
 
-// ── 6) addTask: taskType overerven van de bestaande ouder (alleen bij aanmaken). ──────────
 const idOuderLogistiek = S().addTask({ name: 'OuderLogistiek', taskType: 'LOGISTIC' });
 const idKindZonderType = S().addTask({ name: 'KindZonderType', parentId: idOuderLogistiek });
 eq('30 addTask met ouder: kind zonder eigen taskType erft LOGISTIC van de ouder', task(idKindZonderType)?.taskType, 'LOGISTIC');
@@ -148,7 +117,6 @@ eq('33 addTask erft de stabiele custom-type-id samen met USERDEFINED', task(idKi
 const idKindBuiltinWint = S().addTask({ name: 'KindBuiltinWint', parentId: idOuderCustom, taskType: 'CONSTRUCTION' });
 eq('34 expliciete builtin op kind wist de custom-type-id van de ouder', task(idKindBuiltinWint)?.customTaskTypeId, undefined);
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  move-task-check: alle checks groen (${checks})`);
   process.exit(0);

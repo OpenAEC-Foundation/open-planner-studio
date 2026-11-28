@@ -81,9 +81,6 @@ ok('De paneelsplitter blijft tijdens hover, focus en resizen neutraal',
   splitterInteractionRule.includes('background: transparent')
     && !splitterInteractionRule.includes('var(--theme-accent)'));
 
-// Zwevende balken (eigenaarsbesluit 2026-10-15): het raster toont geen native balken. Waar de
-// verticale overlay begint (onder de kolomkop) is gedrag, geen brontekst: dat meet
-// tests/browser/task-grid-overlay-scrollbars.spec.ts in de echte browser (ltr, ar en Tabel).
 ok('De taakgrid verbergt zijn native balken en reserveert geen strook',
   /\.task-grid-core\s*\{[^}]*scrollbar-width:\s*none/s.test(styles)
     && /\.task-grid-core::-webkit-scrollbar\s*\{[^}]*display:\s*none/s.test(styles));
@@ -93,9 +90,6 @@ ok('Taaknamen benutten de cel tot vlak voor de rechter kolomgrens',
 
 const chooserAnchorRule = cssRule(/\.task-grid-column-chooser-anchor\s*\{([^}]*)\}/);
 const addColumnRule = cssRule(/\.task-grid-add-column\s*\{([^}]*)\}/);
-// Issue #89: de plusknop stond tegen de kaderrand en tegen de laatste kolominhoud aan. De strook
-// is nu knop (20px) plus zes pixels lucht aan weerszijden, en de knop zelf heeft een vast vierkant
-// met een pas bij hover/focus zichtbare rand — géén permanent gevuld vlak.
 ok('De kolomkiezer reserveert een strook met lucht rond de plusknop',
   TASK_GRID_CHOOSER_STRIP === 32
     && /'--task-grid-chooser-strip':\s*`\$\{TASK_GRID_CHOOSER_STRIP\}px`/.test(read('src/components/task-grid/TaskGrid.tsx'))

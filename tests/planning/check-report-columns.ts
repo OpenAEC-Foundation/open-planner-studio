@@ -1,17 +1,3 @@
-// De kolomlijst van de Gantt-afdruk (issue #817, deel B). Bewaakt:
-//  1. Zonder kolomlijst en met dezelfde lijst als expliciete ingebouwde kolommen geeft de render
-//     byte-gelijke tekenopdrachten, met de kolomgrenzen in de oude volgorde. Let op: dit vergelijkt de
-//     huidige render met zichzelf. Het legt het gedrag van vóór #817 (main) niet vast (review Sol #847).
-//  2. Volgorde: de kolommen staan op papier in de volgorde van de lijst, de taaknaam altijd erbij.
-//  3. Celtekst: een registerkolom (Kalenderdagen) toont per taak dezelfde tekst als de cel in het
-//     taakraster (`getCell`), via één bron (`taskGridCellText`).
-//  4. Breedte: gemeten = langste tekst + opvulling, begrensd; zonder meting de vaste terugvalbreedte
-//     (het pad zonder meten is deterministisch).
-//  5. Opslag: een oude instelling zonder kolomlijst valt terug op de standaard, met de keuze Voltooiing;
-//     rommel valt terug; de taaknaam komt er altijd in. De breedte per dag mag een breuk onder 1 zijn; de
-//     vervallen stap "export" valt terug op stap 1.
-//  6. Caches voor 5000 taken: een kolom erbij meet alleen die kolom (zelfde breedtes als zonder cache), en
-//     dezelfde registerkolom blijft hetzelfde object.
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -46,7 +32,6 @@ const eq = (got: unknown, want: unknown, msg: string) => {
   if (g !== w) fail(`${msg}: verwacht ${w}, kreeg ${g}`);
 };
 
-// ── Opnemende Draw2D: elke tekenopdracht als één regel tekst ──────────────────────────────────
 interface Recorded { log: string[]; texts: { text: string; x: number; y: number }[] }
 function record(options: PrintOptions): Recorded & { result: ReturnType<typeof renderReport> } {
   const log: string[] = [];
@@ -77,7 +62,6 @@ function record(options: PrintOptions): Recorded & { result: ReturnType<typeof r
   return { log, texts, result };
 }
 
-// ── Fixture: het echte voorbeeldproject (57 taken) ────────────────────────────────────────────
 const project = readIFC(readFileSync(join(ROOT, 'public/examples/03-kantoorgebouw-zuidas.ifc'), 'utf8'));
 const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   showCritical: true, showFloat: true, showDeps: true, showWeekends: true, showLegend: true,
@@ -93,7 +77,6 @@ const BUILTIN_DEFAULT: PrintTableColumn[] = [
   { key: 'task.time.finish', builtin: 'end' }, { key: 'task.time.completion', builtin: 'complete' },
 ];
 
-// ── 1. Zonder lijst = expliciete standaardlijst, byte-gelijk (de huidige render met zichzelf) ─────
 {
   const legacy = record(baseOptions());
   const explicit = record(baseOptions({ tableColumns: BUILTIN_DEFAULT }));
@@ -104,14 +87,12 @@ const BUILTIN_DEFAULT: PrintTableColumn[] = [
   eq((legacy.result.tableColumnBounds ?? []).map(c => c.key), ['wbs', 'name', 'duration', 'start', 'end', 'complete'],
     'vaste tabel: kolomgrenzen in de oude volgorde');
 
-  // Voltooiing uit zonder lijst ⇒ geen Volt.-kolom (oud gedrag); met een lijst stuurt de lijst.
   const noCompletion = record(baseOptions({ showCompletion: false }));
   ok(!(noCompletion.result.tableColumnBounds ?? []).some(c => c.key === 'complete'), 'vaste tabel: Voltooiing uit ⇒ geen Volt.-kolom');
   const listWithCompletion = record(baseOptions({ showCompletion: false, tableColumns: BUILTIN_DEFAULT }));
   ok((listWithCompletion.result.tableColumnBounds ?? []).some(c => c.key === 'complete'), 'met lijst: de lijst bepaalt de Volt.-kolom, niet showCompletion');
 }
 
-// ── 2. Volgorde en verplichte taaknaam ──────────────────────────────────────────────────────────
 {
   const reordered = record(baseOptions({ tableColumns: [
     { key: 'task.time.finish', builtin: 'end' }, { key: 'task.name', builtin: 'name' }, { key: 'task.wbsCode', builtin: 'wbs' },
@@ -131,7 +112,6 @@ const BUILTIN_DEFAULT: PrintTableColumn[] = [
   eq((dupes.result.tableColumnBounds ?? []).map(c => c.key), ['name', 'start'], 'dubbele soort telt één keer');
 }
 
-// ── 3. Celtekst uit één bron: Kalenderdagen zoals het taakraster ────────────────────────────────
 const domain = createTaskGridAdapterDomain({
   projectId: project.project.id, tasks: project.tasks, sequences: project.sequences, cpmResult: null,
   assignments: project.assignments, resources: project.resources, baselines: project.baselines ?? [],
@@ -147,7 +127,6 @@ const domain = createTaskGridAdapterDomain({
 const CAL_DAYS = 'task.time.calendarDays';
 {
   ok(domain.descriptorsById.has(taskColumnId(CAL_DAYS)), 'register: de kolom Kalenderdagen bestaat');
-  // De kop zoals het raster hem noemt; hier het laatste deel van de sleutel, kort genoeg om te passen.
   const resolved = resolveReportColumns([...REPORT_DEFAULT_COLUMNS, CAL_DAYS, 'cf.bestaat-niet'], domain, project.tasks, key => key.split('.').pop() ?? key);
   eq(resolved.missing, ['cf.bestaat-niet'], 'onbekende kolom komt in "missing" en niet in de afdruk');
   eq(resolved.columns.map(c => c.key), [...REPORT_DEFAULT_COLUMNS, CAL_DAYS], 'opgeloste kolommen in volgorde');
@@ -155,7 +134,6 @@ const CAL_DAYS = 'task.time.calendarDays';
   ok(!cal.builtin && typeof cal.header === 'string' && cal.header.length > 0, 'registerkolom: eigen kop');
   ok(cal.align === 'right', `registerkolom met een getal: rechts uitgelijnd (kreeg ${cal.align})`);
 
-  // Dezelfde tekst als de cel in het raster.
   const rows: ViewRow[] = project.tasks.map(task => ({ kind: 'task', rowKey: task.id, task, depth: 0, dimmed: false }));
   const adapter = createTaskGridAdapter({ surfaceId: 'gantt-task-grid', rows, selectedTaskIds: [] }, domain);
   let compared = 0;
@@ -168,8 +146,6 @@ const CAL_DAYS = 'task.time.calendarDays';
   }
   ok(compared > 10, `celtekst: genoeg gevulde cellen vergeleken (${compared})`);
 
-  // En die tekst staat op papier, in de kolom Kalenderdagen.
-  // Zoals het paneel: meten op koppen en cellen van dit rapport, dan tekenen met die breedtes.
   const measuredWidths = measureTableColumnWidths(buildPrintRows(project.tasks, undefined),
     { showCompletion: true, tableColumns: resolved.columns }, text => text.length * 6);
   ok((measuredWidths[CAL_DAYS] ?? 0) >= AUTO_COLUMN_MIN_WIDTH, 'meten: registerkolom krijgt een gemeten breedte');
@@ -186,7 +162,6 @@ const CAL_DAYS = 'task.time.calendarDays';
   }
 }
 
-// ── 6. Caches voor een groot plan: alleen de nieuwe kolom meten ────────────────────────────────
 {
   const labelFor = (key: string) => key.split('.').pop() ?? key;
   const columnCache = new Map<string, PrintTableColumn>();
@@ -211,7 +186,6 @@ const CAL_DAYS = 'task.time.calendarDays';
   eq(calls, 0, 'cache: een kolom verplaatsen meet niets opnieuw');
 }
 
-// ── 4. Breedte: meten en terugval ─────────────────────────────────────────────────────────────
 {
   const meter = (text: string) => text.length * 6;
   const custom: PrintTableColumn = {
@@ -221,29 +195,24 @@ const CAL_DAYS = 'task.time.calendarDays';
   };
   const rows = buildPrintRows(project.tasks, undefined);
   const widths = measureTableColumnWidths(rows, { showCompletion: true, tableColumns: [{ key: 'task.name', builtin: 'name' }, custom] }, meter);
-  // Langste tekst 15 tekens × 6 = 90 + 2 × 4 opvulling + 1 = 99 ⇒ begrensd op maxWidth 90.
   eq(widths.k1, 90, 'meten: begrensd op maxWidth');
   const narrow = measureTableColumnWidths(rows, { showCompletion: true, tableColumns: [{ ...custom, cells: new Map([[project.tasks[0].id, 'x']]) }] }, meter);
   eq(narrow.k1, Math.max(AUTO_COLUMN_MIN_WIDTH, 3 * 6 + 2 * 4 + 1), 'meten: de kop telt mee, met ondergrens');
   ok(widths.duration === undefined, 'meten: een kolom buiten de lijst wordt niet gemeten');
 
-  // Zonder meting: de terugvalbreedte van de kolom; zonder eigen terugval de algemene.
   const fallback = record(baseOptions({ tableColumns: [{ key: 'task.name', builtin: 'name' }, custom, { key: 'k2', header: 'B', cells: new Map() }] }));
   const fb = new Map((fallback.result.tableColumnBounds ?? []).map(c => [c.key, c.w] as const));
   const k = (fb.get('k1') ?? 0) / 50;
   ok(k > 0, 'terugval: kolom k1 heeft een breedte');
   ok(Math.abs((fb.get('k2') ?? 0) - CUSTOM_COLUMN_FALLBACK_WIDTH * k) < 0.01, `terugval: zonder eigen breedte de algemene (${CUSTOM_COLUMN_FALLBACK_WIDTH})`);
-  // Deterministisch: twee keer renderen geeft dezelfde opdrachten.
   const again = record(baseOptions({ tableColumns: [{ key: 'task.name', builtin: 'name' }, custom, { key: 'k2', header: 'B', cells: new Map() }] }));
   ok(again.log.join('\n') === fallback.log.join('\n'), 'terugval: twee renders geven dezelfde tekenopdrachten');
 
-  // Gemeten breedte gaat via columnWidths door naar de render.
   const measured = record(baseOptions({ tableColumns: [{ key: 'task.name', builtin: 'name' }, custom], columnWidths: { k1: 70 } }));
   const mw = (measured.result.tableColumnBounds ?? []).find(c => c.key === 'k1')?.w ?? 0;
   ok(Math.abs(mw - 70 * k) < 0.01, `render: gemeten breedte 70 wordt gebruikt (kreeg ${mw / k})`);
 }
 
-// ── 5. Opslag en lijstbewerkingen ───────────────────────────────────────────────────────────────
 {
   eq(DEFAULT_REPORT_SETTINGS.columns, [...REPORT_DEFAULT_COLUMNS], 'standaard: de zes kolommen van vóór #817');
   eq(DEFAULT_REPORT_SETTINGS.sidebar, 'open', 'standaard: zijbalk open');
@@ -280,8 +249,6 @@ const CAL_DAYS = 'task.time.calendarDays';
   localStorage.setItem('ops-reportSettings', JSON.stringify({ barColors: { mode: 'regenboog' } }));
   eq((await loadReportSettings()).barColors, { mode: 'critical' }, 'onbekende balkkleur ⇒ de standaard (kritiek pad)');
 
-  // Eén gedeelde stand en één schrijfroute (review Terra #893): een patch leest de opslag op het moment van
-  // schrijven, zodat een wijziging van elders in een ander veld blijft staan, en zet alleen zijn eigen velden.
   patchReportSettings({ ...DEFAULT_REPORT_SETTINGS });
   const stale = await loadReportSettings();
   localStorage.setItem('ops-reportSettings', JSON.stringify({ ...stale, columns: ['task.name', CAL_DAYS] }));
@@ -289,7 +256,6 @@ const CAL_DAYS = 'task.time.calendarDays';
   const merged = await loadReportSettings();
   eq(merged.paperSize, 'A4', 'patch: het eigen veld staat erin');
   eq(merged.columns, ['task.name', CAL_DAYS], 'patch: de kolommen van elders blijven staan');
-  // De optiegroepen per optie: een tabeloptie of resourceoptie van elders blijft staan.
   localStorage.setItem('ops-reportSettings', JSON.stringify({
     ...merged,
     tableReports: { ...merged.tableReports, nearCriticalDays: 11 },
@@ -301,12 +267,9 @@ const CAL_DAYS = 'task.time.calendarDays';
   eq([groups.tableReports.nearCriticalDays, groups.tableReports.wbsSummaryLevel], [11, 3], 'patch: tabeloptie van elders blijft, de eigen staat erin');
   eq([groups.resourceGantt.groupByType, groups.resourceGantt.includeUnassigned], [!merged.resourceGantt.groupByType, !merged.resourceGantt.includeUnassigned],
     'patch: resourceoptie van elders blijft, de eigen staat erin');
-  // De patch geeft de nieuwe gedeelde stand terug, en de stand is precies wat er opgeslagen staat.
   const afterA2 = patchReportSettings({ paperSize: 'A2' });
   eq(afterA2, await loadReportSettings(), 'patch: geeft de opgeslagen stand terug');
   ok(reportSettingsSnapshot() === afterA2, 'de gedeelde stand is de stand van de laatste patch');
-  // Komt een schrijfactie niet in de opslag (vol, geblokkeerd), dan blijft de keuze in de gedeelde stand en bouwt
-  // de volgende patch daarop voort; het rapporttype wisselt dus ook zonder opslag (was knownbug 1355).
   const setItem = localStorage.setItem.bind(localStorage);
   localStorage.setItem = () => { throw new Error('QuotaExceededError'); };
   patchReportSettings({ reportType: 'lookAhead' });
@@ -317,8 +280,6 @@ const CAL_DAYS = 'task.time.calendarDays';
   patchReportSettings({ paperSize: 'A1' });
   const back = await loadReportSettings();
   eq([back.reportType, back.orientation, back.paperSize], ['lookAhead', 'portrait', 'A1'], 'opslag weer beschikbaar: de keuzes uit de sessie komen erin');
-  // Een opslag die tijdelijk niet te lezen is, is geen lege opslag (review Sol #893): een keuze in die tijd zet
-  // geen standaardwaarden over de bewaarde stand, ook niet bij de eerstvolgende schrijfactie na herstel.
   const getItem = localStorage.getItem.bind(localStorage);
   localStorage.getItem = () => { throw new Error('SecurityError'); };
   localStorage.setItem = () => { throw new Error('SecurityError'); };
@@ -331,8 +292,6 @@ const CAL_DAYS = 'task.time.calendarDays';
   const healed = await loadReportSettings();
   eq([healed.paperSize, healed.orientation, healed.showLegend, healed.showFloat], ['A1', 'portrait', !back.showLegend, !back.showFloat],
     'na herstel: de bewaarde keuzes blijven, de keuzes uit de sessie komen erbij');
-  // Zonder lezer luistert niemand naar `storage`: wie zich daarna weer aanmeldt, krijgt wat een ander venster
-  // intussen schreef (review Terra #893 ronde 7, was knownbug 1359).
   const g = globalThis as { window?: unknown };
   const hadWindow = 'window' in g;
   if (!hadWindow) g.window = { addEventListener() {}, removeEventListener() {} };

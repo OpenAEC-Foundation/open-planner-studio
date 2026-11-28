@@ -1,15 +1,3 @@
-// Issue #868 — begin- en einddatum naast de Gantt-balken (instelling `showBarDates`, standaard uit).
-//
-// Met de instelling aan staat de begindatum links vóór de balk (rechts uitgelijnd tegen de balk) en de
-// einddatum rechts achter de balk, voorbij de knik van de eigen uitgaande relatie. Een naam die niet in
-// de balk past (en de naam van een samenvatting of hammock) schuift door tot achter de einddatum. Een
-// nulduurmijlpaal heeft één datum: die staat tussen de ruit en de naam. De tekst volgt de Datumnotatie
-// en de B4-regel van de tabel (een datum zonder tijd op een dagrand, anders met de tijd in de
-// Tijdnotatie). Zonder de instelling tekent de renderer geen datum.
-//
-// Draait de ECHTE renderer met een opnemende ctx-stub (measureText = 6 px per teken).
-// Draait via run.sh. Exit 0 = alles groen.
-
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -29,8 +17,8 @@ function ok(label: string, cond: boolean): void {
 }
 
 const CHAR_W = 6;
-const OUTSIDE_GAP = 8 + 6; // ARROW_STUB + OUTSIDE_LABEL_GAP
-const DATE_GAP = 6;        // ruimte tussen begindatum en balk, en tussen einddatum en naam
+const OUTSIDE_GAP = 8 + 6;
+const DATE_GAP = 6;
 
 interface TextCall { text: string; x: number; y: number }
 function makeCtx(): { ctx: CanvasRenderingContext2D; texts: TextCall[] } {
@@ -54,9 +42,9 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; texts: TextCall[] } {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, texts };
 }
 
-const START = '2026-01-05'; // maandag
+const START = '2026-01-05';
 const FINISH = '2026-01-09';
-const VIEW_START = '2025-12-29'; // een week eerder: de begindatum links van de balk staat in beeld
+const VIEW_START = '2025-12-29';
 const KORT = 'Fundering';
 const LANG = 'Gevelbekleding noordzijde aanbrengen';
 
@@ -107,14 +95,12 @@ const inRow = (texts: TextCall[], i: number) => texts.filter(t => t.y > rowBand(
 const fmt = (ts: TextCall[]) => JSON.stringify(ts.map(t => [t.text, t.x]));
 const near = (a: number, b: number) => Math.abs(a - b) < 0.001;
 
-// ── Standaard uit: geen datum in de Gantt ──
 {
   const { texts } = render({});
   ok(`uit: geen datumtekst getekend (${fmt(texts.filter(t => /\d{2}-\d{2}-\d{4}/.test(t.text)))})`,
     !texts.some(t => /\d{2}-\d{2}-\d{4}/.test(t.text)));
 }
 
-// ── Aan, Datumnotatie dag-maand-jaar ──
 {
   const { texts, renderer } = render({ showBarDates: true, dateNotation: 'dmy' });
   const rect = renderer.getTaskBarRect('kort');
@@ -138,14 +124,12 @@ const near = (a: number, b: number) => Math.abs(a - b) < 0.001;
       eind1 !== undefined && near(eind1.x, rectLang.right + OUTSIDE_GAP));
     ok(`lange naam: naam schuift door tot achter de einddatum (${fmt(r1)})`,
       eind1 !== undefined && naam1 !== undefined && near(naam1.x, eind1.x + eind1.text.length * CHAR_W + DATE_GAP));
-    // De klikbare naam ligt op de verschoven plek, niet op de datum.
     if (eind1 && naam1) {
       const y = HDRH + 1 * ROWH + ROWH / 2;
       ok('lange naam: klik op de naam vindt de taak', renderer.getTaskNameAt(naam1.x + 3, y)?.id === 'lang');
       ok('lange naam: klik op de einddatum is geen naamklik', renderer.getTaskNameAt(eind1.x + 3, y) === null);
     }
 
-    // Samenvatting: zelfde datums als 'kort', naam altijd achter de einddatum.
     const r2 = inRow(texts, 2);
     const eind2 = r2.find(t => t.text === '09-01-2026');
     const naam2 = r2.find(t => t.text === 'Ruwbouw');
@@ -154,7 +138,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 0.001;
       eind2 !== undefined && naam2 !== undefined && near(eind2.x, rect.right + OUTSIDE_GAP)
       && near(naam2.x, eind2.x + eind2.text.length * CHAR_W + DATE_GAP));
 
-    // Mijlpaal: één datum, tussen de ruit en de naam.
     const r3 = inRow(texts, 3);
     const datums3 = r3.filter(t => /\d{2}-\d{2}-\d{4}/.test(t.text));
     const naam3 = r3.find(t => t.text === 'Oplevering');
@@ -164,11 +147,9 @@ const near = (a: number, b: number) => Math.abs(a - b) < 0.001;
   }
 }
 
-// ── Weinig ruimte rechts (review Sol #951): datums en naam overlappen nooit ──
 {
   const span = (t: TextCall) => [t.x, t.x + t.text.length * CHAR_W] as const;
   const overlap = (ts: TextCall[]) => ts.some((a, i) => ts.some((b, j) => j > i && span(a)[0] < span(b)[1] && span(b)[0] < span(a)[1]));
-  // 450 px: de einddatum past nog achter de balk, de naam niet helemaal.
   const smal = render({ showBarDates: true, dateNotation: 'dmy', canvasWidth: 450 });
   const rect = smal.renderer.getTaskBarRect('lang');
   const r1 = inRow(smal.texts, 1);
@@ -178,7 +159,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 0.001;
   ok(`smal: naam afgekapt achter de einddatum (${fmt(r1)})`,
     eind !== undefined && naam !== undefined && naam.text.endsWith('…') && near(naam.x, eind.x + eind.text.length * CHAR_W + DATE_GAP));
   ok(`smal: niets overlapt (${fmt(r1)})`, !overlap(r1));
-  // Zo smal dat de einddatum niet past: die vervalt, en de naam schuift niet over de begindatum.
   if (rect) {
     const krap = render({ showBarDates: true, dateNotation: 'dmy', canvasWidth: Math.round(rect.right + OUTSIDE_GAP + 30) });
     const k1 = inRow(krap.texts, 1);
@@ -191,7 +171,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 0.001;
   }
 }
 
-// ── Mijlpaal met alleen een start: die datum staat bij de ruit ──
 {
   const losseStart: Task = { ...mijlpaal, time: { ...mijlpaal.time, scheduleFinish: '', earlyFinish: '', lateFinish: '' } } as Task;
   const { ctx, texts } = makeCtx();
@@ -208,7 +187,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 0.001;
   ok(`mijlpaal met alleen start: datum 09-01-2026 (${fmt(r0)})`, r0.some(t => t.text === '09-01-2026'));
 }
 
-// ── Andere Datumnotatie ──
 {
   const { texts } = render({ showBarDates: true, dateNotation: 'mdy' });
   const r0 = inRow(texts, 0);
@@ -216,7 +194,6 @@ const near = (a: number, b: number) => Math.abs(a - b) < 0.001;
     r0.some(t => t.text === '01-05-2026') && r0.some(t => t.text === '01-09-2026'));
 }
 
-// ── Momenten met een tijd: de tijd komt erbij, in de Tijdnotatie (zoals de tabel) ──
 {
   const uren: Task = { ...kort, time: tijd('2026-01-05T10:00', '2026-01-09T14:30') } as Task;
   const { ctx, texts } = makeCtx();

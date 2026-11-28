@@ -1,8 +1,3 @@
-// Resourcediagram (issue #113): het rapporttype en zijn twee opties zijn rapportvoorkeuren in
-// ops-reportSettings. Deze batterij bewaakt de defaults (uit/uit — een verse installatie gedraagt
-// zich als vóór het bestaan van het type), de round-trip door de echte opslagroute en de
-// tolerantie voor een ontbrekend of geprutst `resourceGantt`-blok (per veld terug op de default,
-// nooit de rest van de voorkeuren wegvagen).
 import './domStub';
 import {
   DEFAULT_REPORT_SETTINGS, DEFAULT_RESOURCE_GANTT_OPTIONS, loadReportSettings, patchReportSettings,

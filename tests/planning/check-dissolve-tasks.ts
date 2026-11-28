@@ -1,11 +1,3 @@
-// Dissolve (issue #887) — headless tegen de echte store.
-//
-// Eigenaarsbesluit 2026-11-14: Dissolve staat naast Verwijderen. De taak gaat weg en de keten
-// blijft heel: A → B → C wordt A → C. De nieuwe relatie is altijd einde-begin zonder vertraging,
-// van elke voorganger naar elke opvolger. Verder volgt Dissolve Verwijderen: toewijzingen gaan mee
-// weg, een samenvattingstaak neemt zijn hele tak mee, en één Ctrl+Z zet alles terug.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domShim';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -28,7 +20,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
 
 const FS: SequenceType = 'FINISH_START';
 
-/** Vers project met taken op naam; geeft naam → id. */
 function plan(names: string[]): Record<string, string> {
   S().newProject();
   S().setProject({ startDate: '2026-06-01' });
@@ -42,7 +33,6 @@ function link(ids: Record<string, string>, from: string, to: string, type: Seque
   if (!id) throw new Error(`relatie ${from} → ${to} geweigerd in de opzet`);
 }
 
-/** Alle relaties als "A>C FS 0", gesorteerd: zo leest een verwachting als een planning. */
 function relations(): string[] {
   const name = (id: string) => S().tasks.find(t => t.id === id)?.name ?? '?';
   const short: Record<SequenceType, string> = {
@@ -56,7 +46,6 @@ function relations(): string[] {
 const names = () => S().tasks.map(t => t.name).sort();
 const appliedEvents = () => S().historyEvents.filter(event => event.state === 'applied').length;
 
-// ── 1) A → B → C wordt A → C ─────────────────────────────────────────────────
 {
   const ids = plan(['A', 'B', 'C']);
   link(ids, 'A', 'B');
@@ -76,7 +65,6 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   eq('08 redo: weer A → C', relations(), ['A>C FS 0']);
 }
 
-// ── 2) elke voorganger naar elke opvolger, soort en vertraging vervallen ────
 {
   const ids = plan(['A1', 'A2', 'B', 'C1', 'C2']);
   link(ids, 'A1', 'B', 'START_START', 2);
@@ -88,8 +76,6 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
     ['A1>C1 FS 0', 'A1>C2 FS 0', 'A2>C1 FS 0', 'A2>C2 FS 0']);
 }
 
-// ── 3) bestaande relatie tussen voorganger en opvolger ──────────────────────
-// Eigenaarsbesluit 2026-11-14 (`alreadyLinked`): bij een andere soort komt einde-begin erbij.
 {
   const ids = plan(['A', 'B', 'C']);
   link(ids, 'A', 'B');
@@ -109,7 +95,6 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   eq('12 andere soort tussen A en C: einde-begin komt erbij', relations(), ['A>C FS 0', 'A>C SS 2']);
 }
 
-// ── 4) een selectie werkt als geheel ────────────────────────────────────────
 {
   const ids = plan(['A', 'B', 'C', 'D']);
   link(ids, 'A', 'B');
@@ -130,7 +115,6 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   eq('15 losse taken B en D: A → C en C → E, niet A → E', relations(), ['A>C FS 0', 'C>E FS 0']);
 }
 
-// ── 5) toewijzingen gaan mee weg, net als bij Verwijderen ───────────────────
 {
   const ids = plan(['A', 'B', 'C']);
   link(ids, 'A', 'B');
@@ -145,7 +129,6 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   eq('18 undo: toewijzing van B terug', S().assignments.map(a => a.taskId).sort(), [ids.B, ids.C].sort());
 }
 
-// ── 6) geen voorganger of geen opvolger: gewoon weg ─────────────────────────
 {
   const ids = plan(['A', 'B', 'C']);
   link(ids, 'A', 'B');
@@ -153,7 +136,6 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   eq('19 eindtaak zonder opvolger: B weg, geen nieuwe relatie', [names(), relations()], [['A', 'C'], []]);
 }
 
-// ── 7) niets te doen ⇒ geen undo-stap ───────────────────────────────────────
 {
   plan(['A']);
   const before = appliedEvents();
@@ -162,8 +144,6 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   eq('20 leeg of onbekend: geen undo-stap', appliedEvents(), before);
 }
 
-// ── 8) samenvattingstaak: de hele tak gaat weg en telt als één blok ─────────
-// Standaardstand van de instelling `dissolveSummaryMode` (eigenaarsbesluit 2026-11-14).
 {
   const ids = plan(['A', 'A2', 'F', 'B1', 'B2', 'C', 'C2']);
   S().moveTask(ids.B1, ids.F, 0);
@@ -179,10 +159,7 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
     ['A2>C FS 0', 'A2>C2 FS 0', 'A>C FS 0', 'A>C2 FS 0']);
 }
 
-// ── 9) een brug die een kring zou sluiten: weigering, de rest gaat door ───
 {
-  // Fase F met losse kinderen B1 en B2: X → B1, B2 → Y en Y → X is geen kring. Met Dissolve als blok
-  // zou X → Y er wel een sluiten; die brug komt er niet, B2 → Z wel.
   const ids = plan(['X', 'Y', 'Z', 'F', 'B1', 'B2']);
   S().moveTask(ids.B1, ids.F, 0);
   S().moveTask(ids.B2, ids.F, 1);
@@ -197,8 +174,6 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   eq('25 weigering noemt de relatie', notice?.detailLines?.[0]?.params, { names: 'X → Y' });
 }
 {
-  // Review #937 ronde 1: X → B1 en B2 → X met losse kinderen is geen kring, maar als blok zou het
-  // X → X worden. Die brug komt er niet, en de melding noemt hem (eerder stil overgeslagen).
   const ids = plan(['X', 'F', 'B1', 'B2']);
   S().moveTask(ids.B1, ids.F, 0);
   S().moveTask(ids.B2, ids.F, 1);
@@ -211,8 +186,6 @@ const appliedEvents = () => S().historyEvents.filter(event => event.state === 'a
   eq('25c zelfrelatie gemeld', notice?.params, { count: 1 });
 }
 
-// ── 9b) relaties die via een blijvende fase gelden (review #937 ronde 2) ────
-// Een relatie op een fase geldt voor elke taak eronder. A → P met B in P is dus ook A → B.
 const taskOf = (name: string) => S().tasks.find(t => t.name === name)!;
 const timeOf = (name: string) => taskOf(name).time;
 {
@@ -238,7 +211,6 @@ const timeOf = (name: string) => taskOf(name).time;
   eq('25g na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
 }
 {
-  // Ligt de opvolger in dezelfde fase, dan geldt A → P daar al: geen extra pijl.
   const ids = plan(['A', 'P', 'B', 'C']);
   S().moveTask(ids.B, ids.P, 0);
   S().moveTask(ids.C, ids.P, 1);
@@ -248,7 +220,6 @@ const timeOf = (name: string) => taskOf(name).time;
   eq('25h opvolger in dezelfde fase: geen dubbele pijl', relations(), ['A>P FS 0']);
 }
 {
-  // Voorganger én opvolger hangen alleen aan de fase: de fase blijft en draagt de keten zelf.
   const ids = plan(['A', 'P', 'B', 'D', 'C']);
   S().moveTask(ids.B, ids.P, 0);
   S().moveTask(ids.D, ids.P, 1);
@@ -258,9 +229,6 @@ const timeOf = (name: string) => taskOf(name).time;
   eq('25i alleen relaties op de fase: geen nieuwe pijl', relations(), ['A>P FS 0', 'P>C FS 0']);
 }
 
-// ── 9c) externe relaties van een weggehaalde taak (wrakko 2026-11-14, optie 1) ─
-// Een externe voorganger of opvolger is ook een voorganger of opvolger: E ⇢ B → C wordt E ⇢ C, en
-// A → B ⇢ E wordt A ⇢ E, einde-begin zonder vertraging, met het anker en de bron van de oude relatie.
 const westSource = { projectId: 'west', projectName: 'Project West', taskId: 'bron-1', taskName: 'Fundering' };
 const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   .map(l => `${l.direction} ${l.relType} ${l.lagDays ?? 0} ${l.sourceRef.taskId}`);
@@ -286,8 +254,6 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
     [[], ['predecessor FF 3 bron-1', 'successor SS 1 bron-1'], []]);
 }
 {
-  // Een begin-begin-voorganger bewaart de begindatum van de brontaak; einde-begin heeft de einddatum
-  // nodig. Zonder nieuw bronanker weigert de app dat, net als bij kopiëren: geen koppeling, wel een melding.
   const ids = plan(['B', 'C']);
   link(ids, 'B', 'C');
   S().addExternalLink(ids.B, {
@@ -300,7 +266,6 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   eq('25p en wel gemeld', notice?.params, { count: 1 });
 }
 {
-  // Externe voorganger op een fase die blijft: E ⇢ P met B in P is ook E ⇢ B, dus E ⇢ C.
   const ids = plan(['P', 'B', 'D', 'C']);
   S().moveTask(ids.B, ids.P, 0);
   S().moveTask(ids.D, ids.P, 1);
@@ -313,9 +278,7 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
     [['predecessor FS 0 bron-1'], ['predecessor FS 2 bron-1']]);
 }
 
-// ── 9d) review #937 ronde 3 ─────────────────────────────────────────────────
 {
-  // B → P met D in P is ook B → D. Gaan B en D samen weg, dan loopt de keten A → B → D → C door.
   const ids = plan(['A', 'B', 'P', 'D', 'X', 'C']);
   S().moveTask(ids.D, ids.P, 0);
   S().moveTask(ids.X, ids.P, 1);
@@ -328,7 +291,6 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   eq('25s na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
 }
 {
-  // Gespiegeld: A → D, P → B met D in P (dus D → B), B → C.
   const ids = plan(['A', 'P', 'D', 'X', 'B', 'C']);
   S().moveTask(ids.D, ids.P, 0);
   S().moveTask(ids.X, ids.P, 1);
@@ -339,7 +301,6 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   eq('25t gespiegelde keten via een fase', relations(), ['A>C FS 0', 'P>C FS 0']);
 }
 {
-  // A → P is begin-begin: die vervangt de einde-begin naar C binnen P niet (besluit 2 en 3).
   const ids = plan(['A', 'P', 'B', 'C']);
   S().moveTask(ids.B, ids.P, 0);
   S().moveTask(ids.C, ids.P, 1);
@@ -351,7 +312,6 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   eq('25v na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
 }
 {
-  // Hetzelfde voor een externe einde-einde-voorganger op de fase.
   const ids = plan(['P', 'B', 'C']);
   S().moveTask(ids.B, ids.P, 0);
   S().moveTask(ids.C, ids.P, 1);
@@ -365,7 +325,6 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   eq('25x na F5 wacht C op het einde van de brontaak', timeOf('C').earlyStart >= '2026-06-30', true);
 }
 {
-  // Wordt de fase leeg, dan draagt ze de keten niet meer: A → P → C met alleen B in P.
   const ids = plan(['A', 'P', 'B', 'C']);
   S().moveTask(ids.B, ids.P, 0);
   S().updateTask(ids.P, { isSummary: true });
@@ -376,7 +335,6 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   eq('25y fase leeg: na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
 }
 {
-  // C heeft al een externe einde-begin van dezelfde brontaak: geen weigering voor het anker.
   const ids = plan(['B', 'C']);
   link(ids, 'B', 'C');
   S().addExternalLink(ids.B, {
@@ -388,8 +346,6 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   eq('25z bestaande externe einde-begin: niets geweigerd', planDissolve(S().tasks, S().sequences, [ids.B]).refused, []);
 }
 {
-  // P → Q tussen twee blijvende fasen, met D in P en B in Q, is ook D → B. Gaan D en B samen weg,
-  // dan loopt A → D → B → C door (review #937 ronde 4).
   const ids = plan(['A', 'P', 'D', 'X', 'Q', 'B', 'Y', 'C']);
   S().moveTask(ids.D, ids.P, 0);
   S().moveTask(ids.X, ids.P, 1);
@@ -404,7 +360,6 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   eq('25z3 na F5 start C niet vóór het einde van A', timeOf('C').earlyStart >= timeOf('A').earlyFinish, true);
 }
 {
-  // Twee relaties van A naar P, waarvan één einde-begin: die draagt de keten, in welke volgorde ook.
   for (const types of [['START_START', FS], [FS, 'START_START']] as SequenceType[][]) {
     const ids = plan(['A', 'P', 'B', 'C']);
     S().moveTask(ids.B, ids.P, 0);
@@ -416,11 +371,6 @@ const extOf = (name: string) => (taskOf(name).externalLinks ?? [])
   }
 }
 
-// ── 11) instelling: alleen de kopregel van een samenvattingstaak ────────────
-// Eigenaarsbesluit 2026-11-14: een instelling met twee standen, standaard de hele fase. In de
-// stand "alleen de kopregel" schuiven de subtaken een niveau omhoog, op de plek van de kopregel,
-// en gaan de relaties van de kopregel over naar de begin- en eindsubtaken, met soort en vertraging
-// (begin = zonder voorganger binnen de fase, eind = zonder opvolger binnen de fase).
 const order = () => flattenOrder(S().tasks).map(t => t.name);
 const parentName = (name: string) => {
   const task = S().tasks.find(t => t.name === name);
@@ -450,7 +400,6 @@ S().setUI({ dissolveSummaryMode: 'header' });
     'A>B1 SS 2', 'A>B3 SS 2',
     'B1>B2 FS 0', 'B2>C FS 4', 'B3>C FS 0',
   ]);
-  // B2 → C einde-begin +4 bestond al: de overgezette einde-begin is dan een duplicaat en vervalt.
   eq('38 toewijzing van een subtaak blijft', S().assignments.map(a => a.taskId), [ids.B1]);
   eq('39 één undo-stap', appliedEvents(), before + 1);
   S().undo();
@@ -458,8 +407,6 @@ S().setUI({ dissolveSummaryMode: 'header' });
   eq('41 undo: relaties terug', relations(), ['A>F SS 2', 'B1>B2 FS 0', 'B2>C FS 4', 'F>C FS 0']);
 }
 {
-  // Een fase op het hoogste niveau, een subfase als begin- en eindsubtaak, en een gewone taak in
-  // dezelfde selectie: die laatste krijgt gewoon Dissolve.
   const ids = plan(['A', 'F', 'S', 'S1', 'X', 'C', 'D']);
   S().moveTask(ids.S, ids.F, 0);
   S().moveTask(ids.S1, ids.S, 0);
@@ -474,9 +421,6 @@ S().setUI({ dissolveSummaryMode: 'header' });
     ['A>S FS 0', 'C>D FS 0', 'S>C FS 0']);
 }
 {
-  // Review #937 ronde 1: geneste subfasen. De eerste en laatste subtaken worden op de echte taken
-  // bepaald; een subfase krijgt de relatie als geheel alleen als al haar taken aan die kant vooraan
-  // (of achteraan) staan, anders gaat de relatie naar de taken in die subfase.
   const ids = plan(['A', 'F', 'P', 'P1', 'P2', 'Q', 'Q1', 'Q2', 'C']);
   S().moveTask(ids.P, ids.F, 0);
   S().moveTask(ids.Q, ids.F, 1);
@@ -508,8 +452,6 @@ S().setUI({ dissolveSummaryMode: 'header' });
     ['A>P FS 0', 'A>Q2 FS 0', 'P1>Q1 FS 0', 'P2>C FS 0', 'Q>C FS 0']);
 }
 {
-  // Review #937 ronde 2: de externe relaties van de kopregel gaan mee naar de eerste en laatste
-  // subtaken, met soort, vertraging, anker en bron.
   const ids = plan(['F', 'B1', 'B2']);
   S().moveTask(ids.B1, ids.F, 0);
   S().moveTask(ids.B2, ids.F, 1);
@@ -534,8 +476,6 @@ S().setUI({ dissolveSummaryMode: 'header' });
   eq('44f na F5 start B1 nog steeds na de externe voorganger', timeOf('B1').earlyStart, startBefore);
 }
 {
-  // Review #937 ronde 2: een lege WBS-fase (isSummary zonder kinderen) is geen taak. Haar relatie
-  // E → L telt in de rekenkern niet, dus L blijft een eerste en laatste subtaak.
   const ids = plan(['A', 'F', 'P', 'L', 'E', 'C']);
   S().moveTask(ids.P, ids.F, 0);
   S().moveTask(ids.L, ids.P, 0);
@@ -550,7 +490,6 @@ S().setUI({ dissolveSummaryMode: 'header' });
   eq('44g lege WBS-fase telt niet als eerste taak', relations(), ['A>P FS 0', 'E>L FS 0', 'P>C FS 0']);
 }
 {
-  // Een gewone taak in de stand "alleen de kopregel": geen verschil.
   const ids = plan(['A', 'B', 'C']);
   link(ids, 'A', 'B');
   link(ids, 'B', 'C');
@@ -561,12 +500,10 @@ S().setUI({ dissolveSummaryMode: 'branch' });
 {
   const registry = fs.readFileSync(path.join(process.cwd(), 'src/utils/settingsRegistry.ts'), 'utf8');
   eq('46 instelling wordt bewaard', /key: 'dissolveSummaryMode', field: 'dissolveSummaryMode'/.test(registry), true);
-  // Het gedeelde paneel leest zijn instellingen uit één lijst (`catalog/settingsCatalog.tsx`).
   const catalog = fs.readFileSync(path.join(process.cwd(), 'src/components/settings/catalog/settingsCatalog.tsx'), 'utf8');
   eq('47 instelling staat in het gedeelde paneel', /saveDissolveSummaryMode/.test(catalog) && /settings\.dissolveSummaryMode/.test(catalog), true);
 }
 
-// ── 10) opdracht, lint en rechtsklikmenu ────────────────────────────────────
 {
   const ids = plan(['A', 'B', 'C', 'D']);
   link(ids, 'A', 'B');

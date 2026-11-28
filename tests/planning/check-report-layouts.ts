@@ -1,20 +1,3 @@
-// Layouts in het Rapport-tabblad (issue #861): de meegeleverde layout Resourcediagram op de Gantt-afdruk moet
-// precies doen wat het oude rapporttype Resourcediagram deed (dat type is sinds #817 weg). Deze check legt de twee
-// wegen naast elkaar, op een plan met gelijknamige resources, een naamloze resource, taken met meer resources,
-// een taak met twee records van dezelfde resource, een mijlpaal, een hammock en een taak zonder resource.
-//
-//   oud   = wat het oude rapportpaneel deed bij `reportType: 'resourceGantt'` (rijen uit `computeResourceGanttRows`, en
-//           `showDeps` uit, `showCritical` aan, blad per resource, tijdvenster, toewijzingskolommen);
-//   nieuw = wat het tabblad doet: de keuze uit de opslag (`reportTaskSource`), de layout uit
-//           `builtinLayouts`, de rijen uit `computeLayoutReportRows` en de printvelden uit `studioRowPrintFields`.
-//
-// Vergeleken per variant (alle 16 standen van de vier opties, zonder en met periode): de rijen (soort, sleutel,
-// label, diepte, telling, taak), de toewijzingen per rij, de tellingen, de printvelden, en de bladen
-// (`measurePrintReport` + dezelfde tegeling als papier en PDF). Daarna een paar regels van de nieuwe weg zelf:
-// filter en sortering van een eigen layout, de keuze in de opslag, en wat een layout aan kolommen en
-// schakelaars meebrengt.
-// Draait via run.sh. Exit 0 = alles groen.
-
 import { computeResourceGanttRows, type ResolvedPeriod } from '@/engine/reports';
 import { computeLayoutReportRows, groupIsMultiBand, resourceBandShape } from '@/engine/reports/layoutReport';
 import { computeViewRows, type ViewContext, type ViewRow } from '@/engine/view/visibleRows';
@@ -42,7 +25,6 @@ const eq = (msg: string, got: unknown, want: unknown) => {
   if (a !== b) fail(`${msg}\n   kreeg  ${a}\n   wilde  ${b}`);
 };
 
-// ── Plan ──────────────────────────────────────────────────────────────────────────────────────────
 const cal = {
   id: 'c1', name: 'Standaard', description: '', workDays: [1, 2, 3, 4, 5],
   workStartHour: 7, workEndHour: 15, hoursPerDay: 8, holidays: [],
@@ -67,7 +49,6 @@ const leaves: Task[] = [
   task('t5', 'Begeleiding', '2026-03-02', '2026-05-04', { isHammock: true }),
   task('t6', 'Afwerking', '2026-04-27', '2026-05-01'),
   task('t7', 'Losse taak', '2026-02-16', '2026-02-20'),
-  // Begint vóór Fundering: binnen een band staat hij op start bovenaan, in invoervolgorde onderaan.
   task('t8', 'Bouwrijp maken', '2026-02-23', '2026-02-27'),
 ];
 const fase = task('fase', 'Fase 1', '2026-02-16', '2026-05-04', { parentId: undefined, childIds: leaves.map(l => l.id) });
@@ -87,11 +68,9 @@ const asg = (taskId: string, resourceId: string, unitsPerDay = 1, over: Partial<
 const assignments: ResourceAssignment[] = [
   asg('t1', 'r-jan1'), asg('t1', 'r-kraan', 0.5),
   asg('t2', 'r-jan2'), asg('t2', 'r-jan1', 2), asg('t2', 'r-ploeg'),
-  // Twee records van dezelfde resource op één taak: één rij, eenheden opgeteld, curve verschilt ⇒ onbekend.
   asg('t3', 'r-leeg', 1), asg('t3', 'r-leeg', 2, { curve: 'BELL' }),
   asg('t4', 'r-ploeg'), asg('t5', 'r-kraan'), asg('t6', 'r-jan1', 1, { curve: 'FRONT_LOADED' }),
   asg('t8', 'r-ploeg'), asg('t8', 'r-jan1'),
-  // Een toewijzing aan een onbekende resource telt niet.
   asg('t7', 'r-weg'),
 ];
 
@@ -101,7 +80,6 @@ const typeLabels = { LABOR: 'Arbeid', CREW: 'Ploeg', SUBCONTRACTOR: 'Onderaannem
 const ctx: ViewContext = { activityCodeTypes: [], customFieldDefs: [], resources, assignments, noneLabel, resourceTypeLabels: typeLabels };
 const tLabel = ((key: string) => key) as Parameters<typeof builtinLayouts>[0];
 
-// Basisopties zoals het paneel ze voor beide wegen zet (alles behalve wat uit de rijenbron volgt).
 const base = (over: Partial<PrintOptions>): PrintOptions => ({
   showCritical: true, showFloat: true, showDeps: true, showWeekends: true, showLegend: true,
   showTaskNames: true, showCompletion: true, autoFit: true, customZoom: 22,
@@ -125,7 +103,6 @@ const rowShape = (rows: readonly ViewRow[]) => rows.map(r => (r.kind === 'group'
   : r.kind === 'milestones' ? ['m', r.rowKey, r.tasks.map(t => t.id).join('|'), r.depth]
     : ['t', r.rowKey, r.task.id, r.depth]));
 
-/** Bladen zoals papier en PDF ze tegelen: aantal, en per blad het bereik op het papier. */
 function pages(options: PrintOptions) {
   const dims = measurePrintReport(tasks, [], cal, 'Plan', options);
   const layout = computeTileLayout(reportTileInput(dims, ganttTileOptions(options, true, true)));
@@ -136,26 +113,21 @@ function pages(options: PrintOptions) {
   };
 }
 
-// ── 1. De keuze: een bewaard Resourcediagram opent de meegeleverde layout ───────────────────────────
 const source = reportTaskSource({ ...DEFAULT_REPORT_SETTINGS, reportType: 'resourceGantt' });
 eq('opslag: reportType resourceGantt ⇒ layout Resourcediagram', source, { kind: 'layout', id: RESOURCE_DIAGRAM_LAYOUT_ID });
 const rd = builtinLayouts(tLabel).find(l => source.kind === 'layout' && l.id === source.id);
 ok(!!rd, 'de layout Resourcediagram staat in de meegeleverde layouts');
 eq('terug naar de opslag: de layout Resourcediagram ⇒ layoutId, en het rapporttype weer de Gantt-afdruk', taskSourcePatch(source), { reportType: 'gantt', layoutId: RESOURCE_DIAGRAM_LAYOUT_ID, followView: false });
-// Een ander rapport bekijken overschrijft alleen `reportType` (review Sol #847, ronde 4): de layout blijft.
 for (const reportType of ['milestones', 'gantt'] as const) {
   eq(`uitstap: reportType ${reportType} met layoutId Resourcediagram ⇒ layout Resourcediagram`,
     reportTaskSource({ ...taskSourcePatch(source), reportType }), { kind: 'layout', id: RESOURCE_DIAGRAM_LAYOUT_ID });
 }
-// Een oude opslag: het rapporttype Resourcediagram (vóór #817) naast een bewaarde eigen layout. Het rapporttype
-// was de latere keuze en wint.
 eq('oude opslag: reportType resourceGantt wint van een bewaarde eigen layout',
   reportTaskSource({ reportType: 'resourceGantt', layoutId: 'layout-x', followView: false }), { kind: 'layout', id: RESOURCE_DIAGRAM_LAYOUT_ID });
 eq('een eigen layout ⇒ gantt + layoutId', taskSourcePatch({ kind: 'layout', id: 'layout-x' }), { reportType: 'gantt', layoutId: 'layout-x', followView: false });
 eq('Zoals de weergave', taskSourcePatch({ kind: 'view' }), { reportType: 'gantt', layoutId: '', followView: true });
 eq('Alle taken', reportTaskSource({ reportType: 'gantt', layoutId: '', followView: false }), { kind: 'all' });
 
-// ── 2. Pariteit met het oude rapporttype, alle opties en een periode ───────────────────────────────
 const windows: (ResolvedPeriod | undefined)[] = [undefined, { from: '2026-03-20', to: '2026-04-20' }];
 let variants = 0;
 for (const window of windows) {
@@ -168,7 +140,6 @@ for (const window of windows) {
     };
     const name = `[${Object.entries(opts).filter(([, v]) => v).map(([k]) => k).join(',') || 'geen opties'}${window ? ', periode' : ''}]`;
 
-    // Oud: het oude rapportpaneel bij reportType 'resourceGantt'.
     const old = computeResourceGanttRows({ tasks, resources, assignments }, {
       includeUnassigned: opts.includeUnassigned, noneLabel, locale, groupByType: opts.groupByType, typeLabels, window,
     });
@@ -178,8 +149,6 @@ for (const window of windows) {
       assignmentColumns: opts.showAssignmentColumns, rowAssignments: old.assignmentByRowKey,
     });
 
-    // Nieuw: de stap Taken van het tabblad, met de planner-schakelaars bewust andersom (relaties aan, kritiek
-    // pad uit): de layout moet die net als het oude type overrulen.
     const fresh = computeLayoutReportRows(rd!, { tasks, ctx }, {
       includeUnassigned: opts.includeUnassigned, groupByType: opts.groupByType, window, locale, typeLabels,
     });
@@ -202,7 +171,6 @@ for (const window of windows) {
 }
 ok(variants === 32, 'alle 32 varianten vergeleken');
 
-// Het plan raakt wat het moet raken (anders bewijst de pariteit weinig).
 {
   const r = computeResourceGanttRows({ tasks, resources, assignments }, { includeUnassigned: true, noneLabel, locale, typeLabels });
   const bands = r.rows.filter(x => x.kind === 'group').map(x => (x.kind === 'group' ? x.label : ''));
@@ -219,8 +187,6 @@ ok(variants === 32, 'alle 32 varianten vergeleken');
   ok(paged.forced.length > 0 && paged.rows > 1, 'een blad per resource geeft gedwongen bladovergangen');
 }
 
-// ── 3. Regels van de nieuwe weg zelf ────────────────────────────────────────────────────────────────
-// Een eigen layout met een resourcegroepering: dezelfde bouwer (identiteit, niet naam), met filter en sortering.
 {
   const own: Layout = {
     id: 'layout-eigen', name: 'Eigen',
@@ -248,7 +214,6 @@ ok(variants === 32, 'alle 32 varianten vergeleken');
   eq('[resourcetype, resource] is de typelaag van het oude rapport', rowShape(typed.rows),
     rowShape(computeResourceGanttRows({ tasks, resources, assignments }, { includeUnassigned: false, noneLabel, locale, groupByType: true, typeLabels }).rows));
 }
-// Een groepering zonder resource: de rijen van het scherm, zonder ingeklapte banden; relaties blijven aan.
 {
   const filterOnly: Layout = { id: 'f', name: 'Filter', filter: { kind: 'rule', field: { src: 'builtin', key: 'isMilestone' }, operator: 'eq', value: true } };
   const r = computeLayoutReportRows(filterOnly, { tasks, ctx }, { includeUnassigned: false, groupByType: false, locale });
@@ -259,12 +224,10 @@ ok(variants === 32, 'alle 32 varianten vergeleken');
     'alleen op resourcetype: relaties uit, maar de rijen van het scherm');
   const fields = studioRowPrintFields({ rows: r.rows, multiBand: false, resource: null, window: undefined }, { showDeps: true, showCritical: false });
   eq('zonder resource volgen relaties en kritiek pad de planner', [fields.showDeps, fields.showCritical, fields.pageBreakBeforeGroups, fields.assignmentColumns], [true, false, false, false]);
-  // Zoals de weergave, terwijl het scherm op resource groepeert: de rijen van het scherm, relaties uit, kritiek pad aan.
   const banded = studioRowPrintFields({ rows: r.rows, multiBand: true, resource: null, window: undefined }, { showDeps: true, showCritical: false });
   eq('banden zonder resourcebouwer: relaties uit, kritiek pad aan, geen resourcevelden',
     [banded.showDeps, banded.showCritical, banded.pageBreakBeforeGroups, banded.assignmentColumns, banded.timeWindow], [false, true, false, false, undefined]);
 }
-// Wat een layout bij het kiezen meebrengt.
 {
   const available = new Set(['task.wbsCode', 'task.name', 'task.time.start', 'task.time.finish', 'task.custom.x']);
   const layout: Layout = {
@@ -282,19 +245,16 @@ ok(variants === 32, 'alle 32 varianten vergeleken');
   eq('het Resourcediagram brengt niets mee (relaties staan daar toch uit)', layoutReportPatch(rd!, available), {});
   eq('een layout zonder delen brengt niets mee', layoutReportPatch({ id: 'x', name: 'X', filter: null }, available), {});
 }
-// Eigen balkkleuren van het rapport (keuze Ethan, 10 november 2026): bij Zoals de weergave die van het scherm.
 {
   const screen = { mode: 'category', field: { src: 'builtin', key: 'taskType' } } as const;
   const own = { mode: 'auto' } as const;
   const base = { ...DEFAULT_REPORT_SETTINGS };
-  // Geen volgstand meer (review Sol #877, ronde 1): ook de standaard is een eigen, vaste keuze.
   eq('standaard: het kritieke pad', base.barColors, { mode: 'critical' });
   eq('alle taken met de standaard: die van het rapport, niet die van het scherm', reportBarColors(base, screen), { mode: 'critical' });
   eq('alle taken met eigen keuze: die van het rapport', reportBarColors({ ...base, barColors: own }, screen), own);
   eq('een layout met eigen keuze: die van het rapport', reportBarColors({ ...base, layoutId: 'l', barColors: own }, screen), own);
   eq('zoals de weergave: altijd die van het scherm', reportBarColors({ ...base, followView: true, barColors: own }, screen), screen);
 }
-// Een filterveld dat het project niet heeft (review Sol #847, ronde 4): de stap Taken meldt het, het filter blijft.
 {
   const ctx = {
     activityCodeTypes: [{ id: 'ac-fase', name: 'Fase', values: [] }], customFieldDefs: [{ id: 'cf-zone', name: 'Zone', type: 'text' }],

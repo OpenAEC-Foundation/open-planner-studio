@@ -1,9 +1,3 @@
-// Audit 2026-09-26: `Math.min(...array)` / `Math.max(...array)` gooien vanaf ~125k elementen
-// `RangeError: Maximum call stack size exceeded` (bv. de kinderen van één samenvatting in
-// `applyCpmResult`, de outline-niveaus van een grote import). `minOf`/`maxOf` zijn de spreadloze
-// vervangers met exact dezelfde uitkomst.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { minOf, maxOf } from '@/utils/collections';
 
 const diffs: string[] = [];
