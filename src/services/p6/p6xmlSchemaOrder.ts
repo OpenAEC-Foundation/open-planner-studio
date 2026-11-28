@@ -1,3 +1,4 @@
+// Bron: MPXJ, © Jon Iles e.a., elementvolgorde en lengtegrenzen uit de schemaklassen `org.mpxj.primavera.schema` V25.12 (LGPL-2.1, github.com/joniles/mpxj).
 import { escapeXml, replaceInvalidXmlChars } from '@/services/xmlInterchange';
 
 export const P6_ID_MAX_LENGTH = 40;

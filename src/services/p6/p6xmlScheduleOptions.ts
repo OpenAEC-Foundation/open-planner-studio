@@ -1,3 +1,4 @@
+// Bron: MPXJ `org.mpxj.primavera.schema` (`ScheduleOptionsType`) als gedragsreferentie, geen code overgenomen (LGPL-2.1, github.com/joniles/mpxj).
 import type { BuiltInProfileId } from '@/types/project';
 import type { XerRow, XerTable } from '@/services/xer/xerTables';
 import { deriveXerScheduleOptions, indexXerScheduleOptions, type XerScheduleOptionsResult } from '@/services/xer/xerScheduleOptions';

@@ -1,3 +1,4 @@
+// Bron: MPXJ, © Jon Iles e.a., constraintlabels en -tokens volgens `ConstraintTypeHelper` (LGPL-2.1, github.com/joniles/mpxj).
 import type { ConstraintType, TaskConstraint } from '@/types/task';
 
 export const P6_CONSTRAINT_KINDS: readonly {
