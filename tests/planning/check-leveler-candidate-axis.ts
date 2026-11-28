@@ -1,16 +1,3 @@
-// check-leveler-candidate-axis.ts — aanval a12 na #600: de kandidaat-as van de nivelleerder
-// (`candidateAxis` in ResourceLeveler.ts) liep elke kandidaat opnieuw vanaf de eerste start door alle
-// overgeslagen werkdagen. Per taak kwadratisch, over een rij concurrerende taken de derde macht: 2000 taken
-// nivelleren kostte 13–14 s in plaats van 0,6 s. Nu loopt elke kandidaat alleen de nieuw overgeslagen
-// werkdag vanaf de vorige kandidaat.
-//
-// Deel 1 telt kalenderwerk (`findContaining`, de bloktoets onder elke bandwandeling), niet wandkloktijd:
-// bij een verdubbeling van de concurrerende taken groeit het met ongeveer 4 (n kandidaten voor n taken).
-// Met de oude wandeling was dat ongeveer 7 tot 8. De telling is deterministisch, dus stabiel op CI.
-//
-// Deel 2 legt de uitkomst vast op kalenders waar de stappen ongelijk zijn: een korte vrijdag, een
-// nachtdienst over middernacht en een feestdag, met een start midden op de dag. De verwachte momenten
-// zijn met de hand uitgerekend (zie per geval); de oude en de nieuwe as geven ze allebei.
 import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { solveOptionsFor } from '@/engine/scheduler/solveInput';
@@ -57,7 +44,6 @@ function task(id: string, t: Partial<TaskTime>, extra: Partial<Task> = {}): Task
 }
 const KRAAN: Resource = { id: 'kraan', name: 'Kraan', description: '', type: 'EQUIPMENT', maxUnits: 1 };
 
-/** Nivelleer `leaves` (allemaal op de kraan, capaciteit 1) en geef per taak de start na nivelleren. */
 function level(cal: WorkCalendar, leaves: Task[]): { starts: string[]; unresolved: number } {
   const tasks = leaves.map(t => ({ ...t, resourceIds: ['kraan'] }));
   const assignments: ResourceAssignment[] = tasks.map(t => ({ id: 'a' + t.id, taskId: t.id, resourceId: 'kraan', unitsPerDay: 1 }));
@@ -68,11 +54,7 @@ function level(cal: WorkCalendar, leaves: Task[]): { starts: string[]; unresolve
   return { starts, unresolved: Object.keys(r.unresolved).length };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Deel 1: kalenderwerk groeit kwadratisch, niet met de derde macht
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-candidate-axis: kalenderwerk bij oplopende capaciteitsdruk --');
-/** De a12-waaier in het klein: één start, n parallelle eendaagse taken op de kraan, één einde. */
 function calendarWork(n: number): number {
   const leaves = Array.from({ length: n }, (_, i) => task(`t${i}`, {}, { resourceIds: ['kraan'] }));
   const tasks = [task('start', { scheduleDuration: 0 }, { isMilestone: true }), ...leaves, task('end', { scheduleDuration: 0 }, { isMilestone: true })];
@@ -83,7 +65,6 @@ function calendarWork(n: number): number {
   const assignments: ResourceAssignment[] = leaves.map(t => ({ id: `a-${t.id}`, taskId: t.id, resourceId: 'kraan', unitsPerDay: 1 }));
   const base = solveProject({ tasks, sequences, calendar: WEEK, calendars: [], ...options });
   if (base.error) throw new Error(JSON.stringify(base.error));
-  // `findContaining` is privé in TypeScript; op het prototype is hij gewoon een methode.
   const proto = CalendarEngine.prototype as unknown as { findContaining: (...args: unknown[]) => unknown };
   const original = proto.findContaining;
   let calls = 0;
@@ -100,24 +81,15 @@ function calendarWork(n: number): number {
 {
   const small = calendarWork(60);
   const large = calendarWork(120);
-  // Gemeten op 9a636ec69 (oude as): 173 214 → 1 260 854, factor 7,3. Met de stapsgewijze as: 36 334 →
-  // 137 494, factor 3,8.
   ok(`kalenderwerk groeit sterker dan kwadratisch: ${small} → ${large} (factor ${(large / small).toFixed(2)}, grens 5)`,
     small > 0 && large <= small * 5);
   console.log(`   kalenderwerk 60/120 taken: ${small} → ${large} (factor ${(large / small).toFixed(2)})`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Deel 2: dezelfde kandidaatmomenten op ongelijke kalenders
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-candidate-axis: korte vrijdag, nachtdienst en feestdag --');
 const snet = (date: string): { constraint: TaskConstraint } => ({ constraint: { type: 'SNET', date } });
 const hourTask = (minutes: number) => ({ durationUnit: 'hours' as const, durationMinutes: minutes, scheduleDuration: minutes / 480 });
 
-// Korte vrijdag (ma–do 08–16, vr 08–14). Vier taken van 8 u, niet vóór wo 3 juni 14:00.
-// Kandidaten vanaf wo 14:00: +480 = do 14:00; +960 = vr 14:00 (blokeinde) ⇒ ma 08:00; +1320 = ma 14:00;
-// +1800 = di 14:00. A wo 14:00–do 14:00 (wo 0,25, do 0,75); B do 14:00 (do 0,25, vr 0,75); C past niet op
-// do en krijgt ma 08:00; D botst op wo/do, do, ma (2×) en krijgt di 9 juni 14:00.
 {
   const cal = calendar('korte-vrijdag', { byWeekday: { 1: [B(480, 960)], 2: [B(480, 960)], 3: [B(480, 960)], 4: [B(480, 960)], 5: [B(480, 840)], 6: [], 7: [] } });
   const leaves = ['A', 'B', 'C', 'D'].map(id => task(id, hourTask(480), snet('2026-06-03T14:00')));
@@ -126,8 +98,6 @@ const hourTask = (minutes: number) => ({ durationUnit: 'hours' as const, duratio
   eq('korte vrijdag: niets onopgelost', r.unresolved, 0);
 }
 
-// Nachtdienst (ma–vr 22:00–06:00, het blok hoort bij zijn startdag). Zes taken van 8 u: elke kandidaat is
-// de volgende dienst; de zesde valt na het weekend op ma 8 juni 22:00.
 {
   const cal = calendar('nacht', makeBands([1, 2, 3, 4, 5], [B(1320, 1800)]));
   const leaves = ['A', 'B', 'C', 'D', 'E', 'F'].map(id => task(id, hourTask(480)));
@@ -137,9 +107,6 @@ const hourTask = (minutes: number) => ({ durationUnit: 'hours' as const, duratio
   eq('nachtdienst: niets onopgelost', r.unresolved, 0);
 }
 
-// Feestdag wo 3 juni, start midden op de dag. Drie taken van 8 u, niet vóór di 2 juni 12:00. A en B
-// passen samen (di 0,5 + 0,5 en do 0,5 + 0,5). C: di en do zijn vol; +480 = do 12:00 (de feestdag telt
-// niet mee), +960 = vr 12:00 ⇒ vr 0,5 en ma 0,5.
 {
   const cal = calendar('feestdag', makeBands([1, 2, 3, 4, 5], [B(480, 960)]),
     [{ name: 'feestdag', startDate: '2026-06-03', endDate: '2026-06-03' }]);
@@ -149,7 +116,6 @@ const hourTask = (minutes: number) => ({ durationUnit: 'hours' as const, duratio
   eq('feestdag: niets onopgelost', r.unresolved, 0);
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) { console.log(`OK  leveler-candidate-axis: alle checks groen (${checks})`); process.exit(0); }
 console.log(`XX  leveler-candidate-axis: ${diffs.length} afwijking(en) van ${checks}`);
 for (const d of diffs) console.log(`   - ${d}`);

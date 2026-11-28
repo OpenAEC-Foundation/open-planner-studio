@@ -1,10 +1,3 @@
-// `planner_update_tasks` en de gevolgregels op WAARDE (niet op sleutel-aanwezigheid) — de MCP-kant
-// van dezelfde fix als tests/planning/check-value-based-triggers.ts (store + taakraster). Alles via
-// de ECHTE dispatch-weg (`handleMcpMessage`), zodat schemapoort, guards en transactie meedoen.
-//
-// Gepind: exact de huidige duur (of constraint) terugsturen laat de MSP-sturing (laag 3 en laag 4
-// met bevroren werk) en de nivelleergaten staan en draagt GEEN `timephasedGuidanceLost`; een ándere
-// duur ontkoppelt zoals altijd, met envelopveld en K8a-melding.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -15,8 +8,6 @@ import type { TaskSplitGap } from '@/types/task';
 const store = useAppStore;
 const S = () => store.getState();
 
-// Warm-up (zelfde reden als cases-splits.ts): de projectkalender-cache promoveert bij de eerste
-// restore tot bibliotheek-entry; één edit + undo zet dat vooraf recht.
 S().addTask({ name: 'warmup' });
 S().undo();
 registerAllTools();
@@ -25,7 +16,6 @@ function makeCtx(overrides: McpContextOverrides = {}): McpContext {
   return makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId, ...overrides });
 }
 
-/** Roep een tool aan via de ECHTE JSON-RPC-weg; geeft `structuredContent` (het tool-resultaat). */
 async function rpc(name: string, args: unknown): Promise<any> {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
@@ -47,10 +37,6 @@ const STEERING_LOST = 'notifications.mppTimephasedSteeringLost';
 
 type Layer = 'laag3' | 'laag4';
 
-/** Nieuw project (verse meldingspoort) met één taak van 5 werkdagen, SNET-constraint, MSP-sturing
- *  (laag 3 of laag 4 met bevroren werk), een importsplit en een nivelleergat. De sturing is via de
- *  tool-allowlist bewust niet zetbaar, dus rechtstreeks op de store (zoals `seedTimephasedWindow` in
- *  cases-taskfields.ts). */
 async function freshTask(layer: Layer): Promise<string> {
   S().newProject();
   S().setProject({ startDate: '2026-06-01' });
@@ -125,16 +111,11 @@ test('planner_batch: dezelfde duur via een batchstap laat de sturing staan', asy
   assertEq(task(id).splitGaps, [IMPORT_SPLIT, LEVELING_GAP], 'gaten blijven');
 });
 
-// --- Per saldo niets gewijzigd ⇒ ook het document niet ------------------------------------------
-// De omvattende transactie herrekent altijd (eind-`runCPM`) en legt die herberekening vast als één
-// "MCP-bewerking" — ook een lege `run(() => undefined)` doet dat, en verlaat "datums zoals opgeslagen".
-// Dat is transactieniveau en hier niet gepind. Wat wél van de draft komt: `isDirty`. Die hoort, net
-// als bij de store-`updateTask` (#186), alleen bij een ECHTE wijziging.
 const cleanDoc = (): void => { store.setState((s) => { s.isDirty = false; }); };
 
 test('planner_update_tasks met alleen de huidige waarden laat het document ongewijzigd', async () => {
   const id = await freshTask('laag3');
-  S().runCPM(); // de ingezette gaten doorrekenen, zodat "taak onveranderd" alleen de bewerking meet
+  S().runCPM();
   const payloads: Record<string, unknown>[] = [
     { duration: 5 },
     { name: 'Metselwerk' },
@@ -149,7 +130,6 @@ test('planner_update_tasks met alleen de huidige waarden laat het document ongew
     assertEq(S().isDirty, false, `${JSON.stringify(fields)}: document niet gewijzigd`);
     assertEq(JSON.stringify(task(id)), before, `${JSON.stringify(fields)}: taak onveranderd`);
   }
-  // Controle: een echte wijziging maakt het document wél gewijzigd.
   cleanDoc();
   okResult(await rpc('planner_update_tasks', { updates: [{ id, fields: { name: 'Metselwerk 1e verdieping' } }] }));
   assertEq(S().isDirty, true, 'echte naamwijziging: document gewijzigd');
@@ -175,7 +155,7 @@ test('progress met de huidige waarde laat het nivelleergat staan; een andere waa
   store.setState((s) => { s.project.statusDate = '2026-06-03'; });
   okResult(await rpc('planner_update_tasks', { updates: [{ id, progress: { completion: 50 } }] }));
   store.setState((s) => { s.tasks.find((x) => x.id === id)!.splitGaps = [IMPORT_SPLIT, LEVELING_GAP]; });
-  S().runCPM(); // zie hierboven
+  S().runCPM();
   const actualStart = task(id).time.actualStart;
   assert(!!actualStart, 'opzet: 50% met afgeleide actualStart');
 

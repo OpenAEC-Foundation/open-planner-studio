@@ -1,27 +1,3 @@
-// Z15 (etappe "nul afwijkingen") — onderbroken balken in de Gantt-canvas én print/PDF.
-//
-// ACHTERGROND. `GanttRenderer.drawTaskBar` had de segmentmachinerie al (barGeometry → shouldSplit
-// → workIntervalsBetween → segs, necking-connector, per-segment roundRect, voortgangsvulling op de
-// GLOBALE progressEnd, selectiering over de volle extent) — alleen gevoed vanuit de kalender-
-// necking (`barSplitMode`). Deze taak voedt `segs` daarnaast uit `Task.splitGaps` (Z4: ECHTE MS
-// Project-splits, uit een .mpp-import afgeleid), met dezelfde `split`-vlag, via de gedeelde
-// afleiding `computeSplitSegments` — de implementatie leeft sinds B1c-W0.4 in
-// `src/engine/scheduler/splitWalk.ts`; `src/engine/renderer/splitBarGeometry.ts` is een dunne
-// re-export, gebruikt door zowel `GanttRenderer` als `printPreview.ts` (via de `Draw2D`-
-// abstractie: bedient zowel de rasterpreview als de vector-PDF). De semantiek van de wandeling zelf
-// (H1-as, overlap-samenvoeging, taakeinde-klem, vijandige invoer) wordt getoetst in
-// `check-split-walk.ts` — dit bestand toetst alleen het RENDER-specifieke gedrag (x-posities,
-// rects, necking-connector, voortgangsvulling).
-//
-// O5 (orkestratorbesluit 2026-08-17, plan-§10): een ECHTE split tekent ALTIJD gesplitst, ongeacht
-// `barSplitMode` (die blijft uitsluitend de kalender-necking sturen). Model naar
-// `check-milestone-duration-render.ts`/`check-gantt-float-cull.ts`/`check-renderer-dateless.ts`:
-// DOM-stubs + een opnemende 2D-context-stub (Gantt) resp. `Draw2D`-stub (print/PDF).
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
-// ── DOM-stubs (vóór het instantiëren): de renderer leest themakleuren via
-//    getComputedStyle(document.documentElement); zonder stub gooit dat in Node.
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -56,15 +32,10 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   checks++;
   if (actual !== expected) diffs.push(`${label}: kreeg ${JSON.stringify(actual)}, verwacht ${JSON.stringify(expected)}`);
 }
-/** Getalvergelijking met tolerantie — voor px-posities die uit een deling volgen. */
 function near(label: string, actual: number, expected: number, tol = 0.01): void {
   checks++;
   if (!(Math.abs(actual - expected) <= tol)) diffs.push(`${label}: kreeg ${actual}, verwacht ${expected} (±${tol})`);
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Gedeeld gereedschap — de canvas-opnemer en de twee kalenders
-// ═══════════════════════════════════════════════════════════════════════════
 
 interface RRect { x: number; y: number; w: number; h: number; fillStyle: string }
 interface LineEv { kind: 'move' | 'line'; x: number; y: number }
@@ -96,7 +67,6 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; rects: RRect[]; lines: Line
   return { ctx: ctx as unknown as CanvasRenderingContext2D, rects, lines };
 }
 
-// Uur-kalender: ma-vr 08:00-16:00 (8u/dag) — zelfde vorm als `check-project-start-anchor.ts`.
 const HOUR_CAL: WorkCalendar = {
   id: 'cal-hour-z15', name: 'uur', description: '', workDays: [1, 2, 3, 4, 5],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
@@ -105,32 +75,14 @@ const HOUR_CAL: WorkCalendar = {
     4: [{ start: 480, end: 960 }], 5: [{ start: 480, end: 960 }], 6: [], 7: [],
   } },
 };
-// Dag-kalender: zelfde weekpatroon, GEEN workTime — dwingt het `addWorkingDaysSigned`-pad af i.p.v.
-// `addWorkMinutes` (dat op een dag-kalender crasht, zie `splitBarGeometry.ts`'s moduleuitleg).
 const DAY_CAL: WorkCalendar = {
   id: 'cal-day-z15', name: 'dag', description: '', workDays: [1, 2, 3, 4, 5],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
 };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Deel 0 — `computeSplitSegments` rechtstreeks: LIGT DE AS GOED?
-//
-// De as-definitie (H1) staat in `TaskSplitGap`'s docblok en wordt door `splitTotalSpanMinutes`
-// (`duration.ts`) al zo gelezen: `afterMinutes` is de positie van het gat op MSP's cumulatieve
-// `elapsedWorkMinutes`-as, en die telt de EERDERE GATEN AL MEE. Het zuivere werksegment vóór een
-// gat is dus `afterMinutes − asPositie`, met een asPositie die na elk gat naar
-// `afterMinutes + gapMinutes` springt.
-//
-// De renderer las die as eerder fout (asPositie sprong naar `afterMinutes`, dus zónder de gatlengte
-// erbij) en telde elk voorgaand gat daardoor DUBBEL. Dat is met een assertie op het AANTAL
-// segmenten niet te zien — beide lezingen geven evenveel segmenten. Alleen de GRENZEN verraden het,
-// en alleen bij ≥2 gaten die elkaar op de as niet overlappen. Vandaar dit blok.
-// ═══════════════════════════════════════════════════════════════════════════
-
 const dayEng = new CalendarEngine(DAY_CAL);
 const hourEng = new CalendarEngine(HOUR_CAL);
 
-/** Segmentgrenzen als `"start→eind"`-strings, zodat één `eq` de hele lijst toetst. */
 function segStrings(
   gaps: TaskSplitGap[] | undefined, from: string, to: string, hourMode: boolean, eng: CalendarEngine,
 ): string {
@@ -140,12 +92,6 @@ function segStrings(
     .join(' | ');
 }
 
-// ── 0a. Dag-modus, twee NIET-overlappende gaten (de reviewer-reproductie) ──────────────────────
-//    3 zuivere werkdagen met twee gaten van 1 dag. Op de correcte as: gat 1 op 480 (na dag 1),
-//    gat 2 op 1440 (= 480 werk + 480 gat + 480 werk). CPM-spanne = 5 werkdagen ⇒ ma 06-01 t/m
-//    vr 06-05. De werkblokken zijn dus ma | wo | vr, elk exact één dag.
-//    De oude, foute as gaf hier 06-01→06-02, 06-03→06-05 (twéé werkdagen waar er één hoort) en
-//    06-08→06-05 — een segment dat ACHTERSTEVOREN, ná het taakeinde begint.
 console.log('-- split-bar-render: as-definitie (H1) bij twee niet-overlappende gaten --');
 eq(
   'dag-modus, gaten {480,480}+{1440,480} ⇒ werkblokken ma | wo | vr',
@@ -154,9 +100,6 @@ eq(
   '2026-06-01→2026-06-02 | 2026-06-03→2026-06-04 | 2026-06-05→2026-06-05',
 );
 
-// ── 0b. Uur-modus, twee niet-overlappende gaten van een uur ────────────────────────────────────
-//    Werk 120 | gat 60 | werk 120 | gat 60 | werk 120 op één werkdag 08:00-16:00.
-//    As: gat 1 op 120, gat 2 op 300 (= 120 werk + 60 gat + 120 werk). Spanne 480 min ⇒ 08:00-16:00.
 eq(
   'uur-modus, gaten {120,60}+{300,60} ⇒ 08-10 | 11-13 | 14-16',
   segStrings([{ afterMinutes: 120, gapMinutes: 60 }, { afterMinutes: 300, gapMinutes: 60 }],
@@ -164,8 +107,6 @@ eq(
   '2026-06-01T08:00→2026-06-01T10:00 | 2026-06-01T11:00→2026-06-01T13:00 | 2026-06-01T14:00→2026-06-01T16:00',
 );
 
-// ── 0c. Drie gaten: de fout groeide met elk volgend gat (het derde segment liep bij de oude as
-//    drie gatlengtes achter). Werk 60 | gat 60 | werk 60 | gat 60 | werk 60 | gat 60 | werk 60. ──
 eq(
   'uur-modus, drie gaten ⇒ vier gelijke werkblokken van een uur',
   segStrings(
@@ -175,7 +116,6 @@ eq(
   + '2026-06-01T12:00→2026-06-01T13:00 | 2026-06-01T14:00→2026-06-01T15:00',
 );
 
-// ── 0d. Volgorde-onafhankelijk: dezelfde gaten omgekeerd aangeleverd geven dezelfde grenzen ────
 eq(
   'ongesorteerde invoer geeft dezelfde grenzen',
   segStrings([{ afterMinutes: 300, gapMinutes: 60 }, { afterMinutes: 120, gapMinutes: 60 }],
@@ -183,15 +123,6 @@ eq(
   segStrings([{ afterMinutes: 120, gapMinutes: 60 }, { afterMinutes: 300, gapMinutes: 60 }],
     '2026-06-01T08:00', '2026-06-01T16:00', true, hourEng),
 );
-
-// ── 0e/0f verhuisd naar `check-split-walk.ts` (reviewronde taak 2, B1c-W0.4-vervolg): overlappende
-//    gaten die samenvallen tot één werkonderbreking, en vijandige invoer (NaN/Infinity/niet-
-//    positieve gatlengtes, geen grens voorbij het taakeinde) zijn semantiek van de wandeling zelf,
-//    niet van de renderer — dat bestand is nu de canonieke plek voor die cases.
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Deel A — GanttRenderer (canvas)
-// ═══════════════════════════════════════════════════════════════════════════
 
 S().newProject();
 S().addTask({ name: 'basis' });
@@ -237,29 +168,17 @@ const barTop = (i: number) => HDRH + i * ROWH;
 const inRow = (r: { y: number }, i: number) => r.y >= barTop(i) && r.y < barTop(i + 1);
 const rowMidY = (i: number) => HDRH + i * ROWH + ROWH / 2;
 
-// ── 1. Taak met 2 NIET-OVERLAPPENDE gaten ⇒ 3 roundRect-aanroepen op die rij, op de X-POSITIES
-//    die de as voorschrijft, plus de necking-connector ertussen.
-//
-//    Het aantal segmenten alleen is geen bewijs: beide as-lezingen geven er drie. Deze case pint
-//    daarom de randen. Uur-modus, werkdag 08:00-16:00, zoom 240 px/dag ⇒ 10 px/uur en x(08:00)=80.
-//    Werk 120 | gat 60 | werk 120 | gat 60 | werk 120 ⇒ blokken 08-10, 11-13, 14-16, dus
-//    x = 80..100, 110..130, 140..160 — drie blokken van 20 px met 10 px ertussen.
 console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-posities + connector --');
 {
   const twoGaps: TaskSplitGap[] = [
     { afterMinutes: 120, gapMinutes: 60 },
     { afterMinutes: 300, gapMinutes: 60 },
   ];
-  // F3 (alleen uren §3.14): dit is weer het oorspronkelijke scenario, een DAGtaak (1 d) op een kalender met
-  // werkblokken. De renderer wandelt haar pauzes in de dagenmaat, net als de motor, dus een pauze van een
-  // uur blijft een uur (B3, knownbug 242: in F2 werden de gaten hele dagen en de stukken 2 px breed).
   const twoGapTask = hourTask('row0', '2026-06-01T08:00', '2026-06-01T16:00', twoGaps);
   eq('geval 1 is een dagtaak (de dagenmaat)', taskDurationUnit(twoGapTask), 'days');
   const rows: ViewRow[] = [
     { kind: 'task', rowKey: 'row0', task: twoGapTask, depth: 0, dimmed: false },
   ];
-  // barSplitMode:'never' — bewijst meteen mede dat de necking-instelling hier NIET aan te pas komt
-  // (O5): met 'never' zou de kalender-necking nooit splitsen, maar `splitGaps` doet het toch.
   const { rects, lines } = renderRows(rows, { barSplitMode: 'never', view: { ...view, zoom: 240 } });
   const row0Rects = rects.filter(r => inRow(r, 0));
   eq('2 gaten ⇒ exact 3 roundRect-aanroepen (3 segmenten) op die rij', row0Rects.length, 3);
@@ -277,10 +196,6 @@ console.log('-- split-bar-render: 2 gaten ⇒ 3 segmenten op de juiste x-positie
   ok('connector: eerst moveTo dan lineTo', connectorLines[0]?.kind === 'move' && connectorLines[1]?.kind === 'line');
 }
 
-// ── Knownbug 243. Revisie van geval 3 uit check-split-solver-placement, ditmaal via canvas.
-// Vrijdag 07–13, de andere werkdagen 07–15. Een dagtaak begint vr 07:00, met een gat van
-// 240 min op aspositie 120. In OPS zijn dat 0,25 + 0,5 dagslot (vr 08:30–11:30).
-// In P6/MSP zijn het 120 + 240 werkminuten (vr 09:00–13:00). De laatste rand volgt CPM.
 console.log('-- split-bar-render: knownbug 243, profiel bepaalt de splitranden van een dagtaak --');
 {
   const long = [{ start: 420, end: 900 }];
@@ -311,7 +226,6 @@ console.log('-- split-bar-render: knownbug 243, profiel bepaalt de splitranden v
     });
     const pieces = rects.filter(r => inRow(r, 0));
     eq(`${baseId}: twee zichtbare stukken`, pieces.length, 2);
-    // 10 px/uur vanaf vrijdag 00:00; maandag begint daardoor op x=720.
     if (pieces.length === 2) {
       const [first, second] = pieces;
       near(`${baseId}: balkstart`, first.x, 70);
@@ -322,11 +236,6 @@ console.log('-- split-bar-render: knownbug 243, profiel bepaalt de splitranden v
   }
 }
 
-// ── 2. Dezelfde assertie in DAG-modus, op de reviewer-reproductie: 3 zuivere werkdagen met twee
-//    gaten van één dag ({480,480} en {1440,480}). CPM-spanne 5 werkdagen (ma 06-01 t/m vr 06-05),
-//    dus de werkblokken zijn ma | wo | vr. Met zoom 30 en viewStart 06-01 is x(06-01)=0 en elke
-//    dag 30 px breed ⇒ blokken op 0, 60 en 120, elk 30 px.
-//    Op de oude as werd blok 2 twee dagen breed en begon blok 3 ná het taakeinde (achterstevoren).
 console.log('-- split-bar-render: dag-modus, twee gaten ⇒ ma | wo | vr op de juiste x --');
 {
   const twoDayGaps: TaskSplitGap[] = [
@@ -358,9 +267,6 @@ console.log('-- split-bar-render: dag-modus, twee gaten ⇒ ma | wo | vr op de j
   }
 }
 
-// ── 3. barSplitMode:'never' ⇒ een taak ZONDER splitGaps blijft ONgesplitst (scheiding van de
-//    twee mechanismen — de vorige case bewees al dat een taak MET splitGaps onder 'never' toch
-//    splitst) ─────────────────────────────────────────────────────────────────────────────────
 console.log('-- split-bar-render: barSplitMode=never + geen splitGaps ⇒ geen split --');
 {
   const rows: ViewRow[] = [
@@ -373,10 +279,6 @@ console.log('-- split-bar-render: barSplitMode=never + geen splitGaps ⇒ geen s
   eq('geen connector zonder split', connectorLines.length, 0);
 }
 
-// ── 4. Voortgangsvulling loopt door over de segmenten heen (GLOBALE progressEnd), niet per
-//    segment opnieuw. Twee passes: pass A (completion=0) meet de segmentgrenzen zelf (geen
-//    aanname over exacte kalenderposities nodig); pass B zet de voortgang op een punt HALVERWEGE
-//    segment 1 en toetst dat ALLEEN segment 1 een voortgangskleur-vulling krijgt. ────────────────
 console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --');
 {
   const oneGap: TaskSplitGap[] = [{ afterMinutes: 120, gapMinutes: 2880 }];
@@ -390,7 +292,7 @@ console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --
     const overallX1 = seg1.x;
     const overallX2 = seg2.x + seg2.w;
     const overallWidth = overallX2 - overallX1;
-    const targetProgressEnd = seg1.x + seg1.w * 0.5; // halverwege segment 1
+    const targetProgressEnd = seg1.x + seg1.w * 0.5;
     const completion = (targetProgressEnd - overallX1) / overallWidth;
     ok('opzet: completion ligt in (0,1)', completion > 0 && completion < 1);
 
@@ -398,7 +300,6 @@ console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --
       { kind: 'task', rowKey: 'row2', task: hourTask('row2', '2026-06-01T08:00', '2026-06-22T16:00', oneGap, completion), depth: 0, dimmed: false },
     ]);
     const row2Rects = passB.rects.filter(r => inRow(r, 0));
-    // Het voltooide deel is grijs (`doneBarTones` van de balkkleur). Herken dat rechtstreeks.
     const progressTone = doneBarTones(readGanttPalette().normal, false).fill.toLowerCase();
     const progressFills = row2Rects.filter(r => r.fillStyle.toLowerCase() === progressTone);
     ok('er is minstens 1 voortgangsvulling', progressFills.length > 0);
@@ -410,14 +311,9 @@ console.log('-- split-bar-render: voortgangsvulling globaal, niet per segment --
   }
 }
 
-// ── Extra (dag-modus-regressie, niet één van de 5 genummerde punten maar wél verplicht uit de
-//    spec: "denk aan dag- vs uur-modus... kies de juiste engine-primitief per modus"). Een
-//    dag-kalender heeft geen `workTime`; `CalendarEngine.addWorkMinutes` GOOIT daarop (leunt op
-//    `calendar.workTime!.byWeekday`). Deze case bewijst dat het dag-pad (`addWorkingDaysSigned`)
-//    daadwerkelijk gebruikt wordt: render() gooit niet én de taak splitst zichtbaar. ─────────────
 console.log('-- split-bar-render: dag-modus splitGaps (addWorkingDaysSigned-pad, geen crash) --');
 {
-  const dayGap: TaskSplitGap[] = [{ afterMinutes: 1440, gapMinutes: 960 }]; // 3 dagen, gat van 2 dagen
+  const dayGap: TaskSplitGap[] = [{ afterMinutes: 1440, gapMinutes: 960 }];
   const dayTask: Task = {
     ...base, id: 'dayrow',
     time: { ...base.time, earlyStart: '2026-06-01', earlyFinish: '2026-06-20', scheduleStart: '2026-06-01', scheduleFinish: '2026-06-20', completion: 0 },
@@ -428,12 +324,6 @@ console.log('-- split-bar-render: dag-modus splitGaps (addWorkingDaysSigned-pad,
   eq('dag-modus: 1 gat ⇒ 2 segmenten, GEEN crash', dayRects.length, 2);
 }
 
-// ── Etappe 3 (issue #146): de hit-test kent de STUKKEN van een gesplitste balk. Een stuk-body en
-//    een stuk-rechterrand zijn grijpvlakken met hun eigen index; een pauze is GEEN grijpvlak. Een
-//    ongesplitste balk is één stuk (index 0 van 1) en houdt zijn oude randen. ──────────────────
-//    10-daagse dag-taak (ma 06-01), gat na 5 werkdagen van 3 werkdagen ⇒ ma–vr | pauze ma–wo |
-//    do 06-11 t/m wo 06-17. Zoom 30, viewstart 06-01 ⇒ stuk 1 x 0..210 (de exclusieve stukgrens
-//    is de volgende WERKdag, ma 06-08, dus het weekend tekent aan het stuk vast), stuk 2 x 300..510.
 console.log('-- split-bar-render: hit-test per stuk (segmentIndex/segmentCount, pauze = null) --');
 {
   const splitTask: Task = {
@@ -488,7 +378,6 @@ console.log('-- split-bar-render: hit-test per stuk (segmentIndex/segmentCount, 
     eq('x in de pauze: getSplitGapAt geeft de taak', renderer.getSplitGapAt(255, y)?.task.id, 'dayrow');
     eq('x op een stuk: getSplitGapAt null', renderer.getSplitGapAt((s2.x + s2.x + s2.w) / 2, y), null);
   }
-  // Ongesplitste balk: één stuk, randen en body zoals altijd.
   const y2 = rowMidY(1);
   const plainBody = renderer.getTaskBarBounds(150, y2);
   eq('ongesplitst: body', plainBody?.edge, 'body');
@@ -499,9 +388,6 @@ console.log('-- split-bar-render: hit-test per stuk (segmentIndex/segmentCount, 
   eq('ongesplitst: getSplitGapAt null', renderer.getSplitGapAt(150, y2), null);
 }
 
-// ── Audit 2026-09-26: een uur-taak van TWEE jaar, gescrold naar het tweede jaar. De necking
-//    (`workIntervalsBetween`) stopte na ~368 dagen, dus hier stond vroeger geen enkel segment. Nu
-//    wordt alleen het zichtbare venster opgesplitst, over de hele looptijd.
 console.log('-- split-bar-render: uur-taak > 1 jaar, gescrold naar jaar 2 ⇒ segmenten in beeld --');
 {
   const longHour = hourTask('row0', '2026-06-01T08:00', '2028-06-01T16:00');
@@ -509,18 +395,12 @@ console.log('-- split-bar-render: uur-taak > 1 jaar, gescrold naar jaar 2 ⇒ se
   const rows: ViewRow[] = [
     { kind: 'task', rowKey: 'row0', task: longHour, depth: 0, dimmed: false },
   ];
-  // zoom 240 px/dag; scroll naar 2027-09-01 (457 dagen na viewStart).
   const scrollX = 457 * 240;
   const { rects } = renderRows(rows, { barSplitMode: 'always', view: { ...view, zoom: 240, scrollX } });
   const visible = rects.filter(r => inRow(r, 0) && r.x + r.w > 0 && r.x < W && r.w > 0);
   ok(`uur-taak in jaar 2: werksegmenten in beeld (kreeg ${visible.length})`, visible.length >= 3);
   ok('uur-taak in jaar 2: segmenten zijn een werkdag breed of smaller (gesplitst)', visible.every(r => r.w <= 240));
 }
-
-// ═══════════════════════════════════════════════════════════════════════════
-// Deel B — print/PDF (`renderReport`, via de gedeelde `Draw2D`-opnemer, patroon
-// `check-print-working-exceptions.ts`/`check-today-label.ts`)
-// ═══════════════════════════════════════════════════════════════════════════
 
 interface PRect { x: number; y: number; w: number; h: number; fillStyle: string }
 interface PLine { kind: 'move' | 'line'; x: number; y: number; strokeStyle: string }
@@ -550,12 +430,6 @@ function makeD2D(): { d2d: Draw2D; rects: PRect[]; lines: PLine[] } {
   return { d2d, rects, lines };
 }
 
-// De necking-connector is de ENIGE moveTo/lineTo-bron met `strokeStyle` eindigend op de hex-alpha-
-// suffix `'80'` (§Deel B, `printPreview.ts`'s nieuwe `d2d.strokeStyle = color + '80'`) — grid-/
-// tijdlijn-/vandaag-lijnen gebruiken allemaal hun EIGEN, andere `PRINT_COLORS`-waarden zonder die
-// suffix. Isoleert de connector zonder de interne rij-/kolomgeometrie van `renderReport` te hoeven
-// kennen (die is bewust niet extern zichtbaar, zie `check-print-working-exceptions.ts`'s
-// zelfde-uitleg).
 const isConnectorLine = (l: PLine) => l.strokeStyle.endsWith('80');
 
 const printTask = (id: string, from: string, to: string, splitGaps?: TaskSplitGap[], completion = 0): Task => ({
@@ -580,7 +454,6 @@ const printOptions: PrintOptions = {
   }, locale: 'nl', reportFontScale: 100,
 } as PrintOptions;
 
-// ── 5. Print/PDF: dezelfde assertie (segmentaantal + connector) op de Draw2D-opnemer ───────────
 console.log('-- split-bar-render (print/PDF): dezelfde assertie op de Draw2D-opnemer --');
 {
   const twoGaps: TaskSplitGap[] = [
@@ -594,12 +467,6 @@ console.log('-- split-bar-render (print/PDF): dezelfde assertie op de Draw2D-opn
   } catch (e) { err = e; }
   ok(`renderReport gooit niet: ${String(err)}`, err === null);
   eq('print: 2 gaten ⇒ exact 3 roundRect-aanroepen (3 segmenten)', rects.length, 3);
-  // Segmentranden, net als in de Gantt — maar `renderReport`'s rij-/kolomgeometrie is bewust niet
-  // extern zichtbaar (zelfde uitleg als in `check-print-working-exceptions.ts`), dus meten we
-  // RELATIEF: segment 1 is 3 werkdagen breed, dus zijn breedte gedeeld door 3 geeft de px-per-dag
-  // van dit rapport. Daarmee liggen de overige randen vast.
-  //   werk 3d (ma 06-01→do 06-04) | gat 2d | werk 1d (ma 06-08→di 06-09) | gat 2d | rest
-  // Op de oude as werd blok 2 drie dagen breed en schoof blok 3 vier dagen op.
   if (rects.length === 3) {
     const [s1, s2, s3] = rects;
     const pxPerDay = s1.w / 3;
@@ -613,17 +480,15 @@ console.log('-- split-bar-render (print/PDF): dezelfde assertie op de Draw2D-opn
   eq('print: necking-connector — exact 1 moveTo + 1 lineTo', connectorLines.length, 2);
   ok('print: connector eerst moveTo dan lineTo', connectorLines[0]?.kind === 'move' && connectorLines[1]?.kind === 'line');
 
-  // Negatieve controle: zonder splitGaps blijft het één balk, geen connector.
   const { d2d: d2dNo, rects: rectsNo, lines: linesNo } = makeD2D();
   renderReport(() => d2dNo, [printTask('p1', '2026-06-01', '2026-06-10', undefined)], [], PRINT_CAL, 'P', printOptions);
   eq('print: geen splitGaps ⇒ exact 1 roundRect', rectsNo.length, 1);
   eq('print: geen splitGaps ⇒ geen connector', linesNo.filter(isConnectorLine).length, 0);
 }
 
-// ── Print voortgangscontinuïteit (zelfde tweepas-opzet als de Gantt-canvas-case hierboven) ──────
 console.log('-- split-bar-render (print/PDF): voortgangsvulling globaal, niet per segment --');
 {
-  const oneGap: TaskSplitGap[] = [{ afterMinutes: 1440, gapMinutes: 5760 }]; // 3 dagen, gat van 12 dagen
+  const oneGap: TaskSplitGap[] = [{ afterMinutes: 1440, gapMinutes: 5760 }];
   const passA = makeD2D();
   renderReport(() => passA.d2d, [printTask('p2', '2026-06-01', '2026-07-20', oneGap, 0)], [], PRINT_CAL, 'P', printOptions);
   eq('print opzet pass A: 1 gat ⇒ 2 achtergrondsegmenten', passA.rects.length, 2);
@@ -634,7 +499,6 @@ console.log('-- split-bar-render (print/PDF): voortgangsvulling globaal, niet pe
     const completion = ((seg1.x + seg1.w * 0.5) - overallX1) / overallWidth;
     const passB = makeD2D();
     renderReport(() => passB.d2d, [printTask('p2', '2026-06-01', '2026-07-20', oneGap, completion)], [], PRINT_CAL, 'P', printOptions);
-    // Het voltooide deel is grijs: `doneBarTones` van de balkkleur uit pass A (afdruk = licht).
     const printGrey = doneBarTones(seg1.fillStyle, false).fill;
     const progressFills = passB.rects.filter(r => r.fillStyle === printGrey);
     ok('print: minstens 1 voortgangsvulling', progressFills.length > 0);
@@ -643,7 +507,6 @@ console.log('-- split-bar-render (print/PDF): voortgangsvulling globaal, niet pe
   }
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  split-bar-render: alle checks groen (${checks})`);
   process.exit(0);

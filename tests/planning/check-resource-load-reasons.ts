@@ -1,16 +1,3 @@
-// check-resource-load-reasons.ts (R1) — `computeResourceLoad` levert sinds deze wijziging naast
-// `overallocatedDays` ook `overallocatedReasons`: per overbezette dag WAAROM die dag rood staat.
-// Twee redenen, gescheiden getoetst zodat de één de ander niet kan maskeren:
-//
-//  - `non-working-day`: de RESOURCEkalender kent die dag geen werkdag (capaciteit 0), terwijl de
-//    taak — op haar EIGEN (project-)kalender — die dag gewoon doorwerkt. Dit is het scenario uit
-//    het docblok-punt 4 in `ResourceLoad.ts`: een taakkalender-/resourcekalender-mismatch, geen
-//    "gewone" overvraag.
-//  - `over-capacity`: de resource werkt die dag wél (kalender staat het toe), maar de gevraagde
-//    inzet overschrijdt zijn capaciteit (>0) — het bestaande, ongewijzigde gedrag.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
@@ -30,13 +17,11 @@ function ok(label: string, cond: boolean): void {
   if (!cond) diffs.push(label);
 }
 
-// Projectkalender: ma-vr, 8u/dag — zelfde vorm als `check-resource-load-splits.ts`s `PROJECT_CAL`.
 const PROJECT_CAL: WorkCalendar = {
   id: 'cal-project', name: 'project', description: '', workDays: [1, 2, 3, 4, 5],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
 };
 
-// Resourcekalender zonder woensdag: ma, di, do, vr (3 = woensdag is GEEN werkdag).
 const NO_WEDNESDAY_CAL: WorkCalendar = {
   id: 'cal-no-wednesday', name: 'Zonder woensdag', description: '', workDays: [1, 2, 4, 5],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
@@ -64,16 +49,9 @@ function assign(id: string, taskId: string, resourceId: string, unitsPerDay: num
   return { id, taskId, resourceId, unitsPerDay, curve: 'UNIFORM' };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (a) non-working-day: resource met een kalender zonder woensdag, taak op de projectkalender
-//     (ma-vr) over die woensdag heen.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- resource-load-reasons: non-working-day (resourcekalender kent de dag geen werkdag) --');
 {
-  // Taak T1: ma 2026-06-01 t/m vr 2026-06-05, 5 werkdagen op de PROJECTkalender (geen calendarId).
   const taskA = task('t-a', '2026-06-01', '2026-06-05', 5);
-  // Resource A op haar eigen kalender (geen woensdag). unitsPerDay == maxUnits, dus op elke
-  // ECHTE werkdag van de resource past de vraag exact — alleen woensdag (capaciteit 0) knapt.
   const resourceA = res('r-a', 1, { calendarId: 'cal-no-wednesday' });
   const assignments = [assign('a-a', 't-a', 'r-a', 1)];
 
@@ -91,14 +69,9 @@ console.log('-- resource-load-reasons: non-working-day (resourcekalender kent de
     (result.load['r-a']?.['2026-06-03'] ?? 0) > 0);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (b) over-capacity: resource op de projectkalender, dubbele inzet t.o.v. maxUnits.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- resource-load-reasons: over-capacity (inzet groter dan capaciteit > 0) --');
 {
   const taskB = task('t-b', '2026-06-01', '2026-06-05', 5);
-  // Resource B op de projectkalender (geen calendarId ⇒ valt terug op de projectkalender), maar de
-  // toewijzing vraagt het dubbele van maxUnits: elke werkdag is dus over-capacity, nooit non-working.
   const resourceB = res('r-b', 1);
   const assignments = [assign('a-b', 't-b', 'r-b', 2)];
 
@@ -113,12 +86,6 @@ console.log('-- resource-load-reasons: over-capacity (inzet groter dan capacitei
     !Object.values(result.overallocatedReasons['r-b'] ?? {}).includes('non-working-day'));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (c) over-capacity: resource op de PROJECTkalender (dus wél een echte werkdag) maar met
-//     `maxUnits: 0` — capaciteit is dan altijd 0, zonder dat er een kalenderoorzaak is. Dit is
-//     géén non-working-day: de resourcekalender kent die dag gewoon een werkdag, alleen de
-//     resource zelf heeft geen capaciteit.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- resource-load-reasons: over-capacity bij maxUnits 0 op een projectkalender-werkdag --');
 {
   const taskC = task('t-c', '2026-06-01', '2026-06-05', 5);
@@ -136,10 +103,6 @@ console.log('-- resource-load-reasons: over-capacity bij maxUnits 0 op een proje
   eq('capaciteit blijft 0 op elke dag', Object.values(result.capacity['r-c'] ?? {}), [0, 0, 0, 0, 0]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (d) over-capacity: resource met `availabilitySteps` die op de betrokken dagen naar 0 zakt —
-//     ook dan is de RESOURCEkalender-dag een werkdag, alleen de effectieve capaciteit is 0.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- resource-load-reasons: over-capacity bij availabilitySteps naar 0 --');
 {
   const taskD = task('t-d', '2026-06-01', '2026-06-05', 5);
@@ -160,16 +123,9 @@ console.log('-- resource-load-reasons: over-capacity bij availabilitySteps naar 
     Object.values(result.capacity['r-d'] ?? {}), [0, 0, 0, 0, 0]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (e) spookresource: assignment verwijst naar een resourceId die niet in `resources` zit (kan via
-//     import binnenkomen, `payloadFromImport` filtert niet). Zonder resource-entry wordt de
-//     resourcekalender nooit opgezocht — de reden mag dan NOOIT `non-working-day` beweren (dat zou
-//     een niet-onderbouwde kalenderclaim zijn); de juiste, kalenderloze verklaring is `over-capacity`.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- resource-load-reasons: spook-resourceId (niet in resources) is over-capacity --');
 {
   const taskE = task('t-e', '2026-06-01', '2026-06-05', 5);
-  // Geen resource met id 'r-ghost' in de resources-array.
   const assignments = [assign('a-e', 't-e', 'r-ghost', 1)];
 
   const result = computeResourceLoad([], assignments, [taskE], PROJECT_CAL, [], effectiveSchedulingOptions({}));
@@ -182,7 +138,6 @@ console.log('-- resource-load-reasons: spook-resourceId (niet in resources) is o
   }
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  resource-load-reasons: alle checks groen (${checks})`);
   process.exit(0);

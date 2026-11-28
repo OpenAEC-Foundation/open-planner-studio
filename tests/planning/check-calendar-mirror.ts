@@ -1,28 +1,3 @@
-// check-calendar-mirror.ts — de SPIEGEL-invariant van de kalender- en duur-primitieven, corpusloos.
-//
-// AANLEIDING (diagnose laag 1, klasse (ii), deeldossier "spiegel", 2026-09-04/05). Het dossier van
-// XER-project 761 (`rehab-2.xer`, kalender 842) meldde dat een terugwaartse duurwandeling over een
-// aaneengesloten niet-werkblok van ±10 dagen 10 werkdagen overbrugt waar de voorwaartse wandeling
-// er 7 telt, en vermoedde daarachter een FORMAATNEUTRAAL defect in
-// `CalendarEngine.subtractWorkMinutes`/`CPMSolver.subDuration`.
-//
-// DIE VERMOEDENS ZIJN HIER GEMETEN EN WEERLEGD, en dat is precies wat deze batterij vastpint:
-//
-//   * Deel A — de kalenderprimitieven zijn WEL exacte spiegels, ook over een blok van 10
-//     aaneengesloten vrije kalenderdagen, in uur-modus met 1, 2 en 3 banden per dag, in dag-modus,
-//     en op een weekpatroon waarin het weekend werkt en een doordeweekse dag vrij is.
-//   * Deel B — hetzelfde geldt op SOLVER-niveau: `ES..EF` en `LS..LF` overspannen altijd evenveel
-//     werktijd, en `ES→LS` is altijd gelijk aan `EF→LF` (float-symmetrie), over FS/SS/FF/SF met
-//     positieve, nul- en negatieve lag, met het late venster dwars door het blok.
-//   * Deel C — de gemeten 7-vs-10 komt UITSLUITEND uit `subtractP6XerProjectedWorkMinutes`, de
-//     P6/XER-resultaatprojectie. Die is per constructie GEEN spiegel (er is geen voorwaartse
-//     tegenhanger) en hangt achter `WorkCalendar.p6Source === 'XER'`. Deel C pint zowel de
-//     afwijking zelf als de bronpoort: zonder `p6Source: 'XER'` is de projectie inert en geldt de
-//     spiegel onverkort. Zo kan die brongebonden asymmetrie nooit stilzwijgend formaatneutraal
-//     worden — dat zou élk IFC-/MSPDI-/MPP-project raken.
-//
-// Draait via run.sh (ook in de tijdzone-matrix). Exit 0 = alles groen.
-
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { formatInstant, parseDate, parseInstant } from '@/utils/dateUtils';
@@ -43,14 +18,10 @@ function ok(label: string, cond: boolean): void {
   if (!cond) diffs.push(label);
 }
 
-// ── Fixtures ────────────────────────────────────────────────────────────────────────────────
-// Eén band (08:00-17:00), twee banden (lunchpauze) en drie banden (ploegendienst met twee pauzes).
-const ONE_BAND = [{ start: 480, end: 1020 }];                                           // 540 min
-const TWO_BANDS = [{ start: 480, end: 720 }, { start: 780, end: 1020 }];                // 480 min
-const THREE_BANDS = [{ start: 360, end: 600 }, { start: 660, end: 840 }, { start: 900, end: 1260 }]; // 780 min
+const ONE_BAND = [{ start: 480, end: 1020 }];
+const TWO_BANDS = [{ start: 480, end: 720 }, { start: 780, end: 1020 }];
+const THREE_BANDS = [{ start: 360, end: 600 }, { start: 660, end: 840 }, { start: 900, end: 1260 }];
 
-// Het aaneengesloten niet-werkblok: 10 kalenderdagen, ma 2026-03-09 t/m wo 2026-03-18, dus met een
-// heel weekend erin. Dat is de vorm waarop het dossier de asymmetrie meende te zien.
 const BLOCK = [{ name: 'Aaneengesloten blok van 10 dagen', startDate: '2026-03-09', endDate: '2026-03-18' }];
 
 function hourCalendar(
@@ -77,7 +48,6 @@ function dayCalendar(id: string, workDays: number[]): WorkCalendar {
 
 const WEEK_PATTERNS: { label: string; workDays: number[] }[] = [
   { label: 'ma-vr', workDays: [1, 2, 3, 4, 5] },
-  // P6-vorm van kalender 842 uit het dossier: het weekend werkt, vrijdag is vrij.
   { label: 'ma-do+za+zo', workDays: [1, 2, 3, 4, 6, 7] },
 ];
 
@@ -87,29 +57,12 @@ const HOUR_SHAPES: { label: string; bands: { start: number; end: number }[] }[] 
   { label: '3 banden', bands: THREE_BANDS },
 ];
 
-// Het meetvenster loopt ruim vóór en ná het blok, zodat élke wandeling van 1..20 werkdagen het blok
-// een keer kruist, erin begint of er net buiten valt.
 const SWEEP_FROM = Date.UTC(2026, 1, 16);
 const SWEEP_TO = Date.UTC(2026, 3, 20);
 const HALF_HOUR_MS = 1_800_000;
 const DAY_MS = 86_400_000;
 const SPANS = [1, 2, 3, 5, 7, 10, 13, 20];
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// Deel A — de kalenderprimitieven
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-//
-// SNAP-REGEL OP NIET-WERK-INSTANTS (het punt waar de spiegel schijnbaar breekt, en waarom niet).
-// `addWorkMinutes` normaliseert zijn startpunt met `nextWorkInstant` (voorwaarts), en
-// `subtractWorkMinutes` normaliseert zijn eindpunt met `prevWorkInstant` (achterwaarts) — elk in de
-// richting van de eigen wandeling. Daardoor geldt de ronde-reis-identiteit
-// `sub(add(t, n), n) === t` EXACT voor elk werk-instant t. Ze geldt NIET letterlijk voor een t die
-// zelf geen werk-instant is: `add` snapt dan vooruit, `sub` snapt achteruit, en de twee snappunten
-// liggen aan weerszijden van hetzelfde gat. Ook een t op een bandGRENS is dubbelzinnig: 17:00 (het
-// eind van vrijdag) en 08:00 (het begin van maandag) zijn hetzelfde punt op de werk-as — er ligt nul
-// werktijd tussen. De juiste gelijkheidstest tussen twee posities op de werk-as is daarom
-// `workMinutesBetween(a, b) === 0`, niet `a.getTime() === b.getTime()`. Deel A toetst beide vormen:
-// de harde ms-identiteit voor werk-instants, en de werk-as-gelijkheid voor de rest.
 for (const shape of HOUR_SHAPES) {
   for (const week of WEEK_PATTERNS) {
     const label = `A uur ${shape.label} ${week.label}`;
@@ -123,7 +76,6 @@ for (const shape of HOUR_SHAPES) {
       sampled++;
       for (const n of SPANS) {
         const minutes = n * unit;
-        // A1 — vooruit en dan terug landt exact terug op t (harde ms-identiteit).
         const forward = eng.addWorkMinutes(t, minutes);
         const backAgain = eng.subtractWorkMinutes(forward, minutes);
         if (backAgain.getTime() !== t.getTime() && eng.workMinutesBetween(backAgain, t) !== 0) {
@@ -133,7 +85,6 @@ for (const shape of HOUR_SHAPES) {
               + `-${n}d=${formatInstant(backAgain, 'hour')}`;
           }
         }
-        // A2 — terug en dan vooruit landt op dezelfde positie op de werk-as (bandgrens-dualiteit).
         const backward = eng.subtractWorkMinutes(t, minutes);
         const forwardAgain = eng.addWorkMinutes(backward, minutes);
         if (eng.workMinutesBetween(forwardAgain, t) !== 0) {
@@ -143,7 +94,6 @@ for (const shape of HOUR_SHAPES) {
               + `+${n}d=${formatInstant(forwardAgain, 'hour')}`;
           }
         }
-        // A3 — de wandeling verbruikt precies het gevraagde aantal werkminuten, beide kanten op.
         if (eng.workMinutesBetween(t, forward) !== minutes) spanFwd++;
         if (eng.workMinutesBetween(backward, t) !== minutes) spanBack++;
       }
@@ -169,8 +119,6 @@ for (const week of WEEK_PATTERNS) {
       if (eng.subtractWorkDays(forward, n).getTime() !== t.getTime()) addSub++;
       const backward = eng.subtractWorkDays(t, n);
       if (eng.addWorkDays(backward, n).getTime() !== t.getTime()) subAdd++;
-      // `addWorkingDaysSigned` is de zuivere offset (de begindag telt NIET als dag 1) en moet in
-      // beide richtingen even ver stappen — juist over het blok heen.
       const shifted = eng.addWorkingDaysSigned(t, n);
       if (eng.addWorkingDaysSigned(shifted, -n).getTime() !== t.getTime()) signed++;
       if (eng.workDaysBetween(t, forward) !== n) span++;
@@ -183,13 +131,10 @@ for (const week of WEEK_PATTERNS) {
   eq(`${label} A5 addWorkDays verbruikt exact n werkdagen`, span, 0);
 }
 
-// Expliciete regel-instantie van het dossier: 7 werkdagen vooruit en 7 werkdagen terug over hetzelfde
-// blok leveren precies dezelfde twee grenzen op. Kalender 842-vorm: vrijdag vrij, weekend werkt.
 {
   const eng = new CalendarEngine(hourCalendar('h-842-vorm', [1, 2, 3, 4, 6, 7], TWO_BANDS));
-  const start = parseInstant('2026-03-05T08:00');           // donderdag vóór het blok
-  const finish = eng.addWorkMinutes(start, 7 * 480);        // 7 werkdagen à 8 uur
-  // 03-05 do, 03-07 za, 03-08 zo, [blok 03-09..03-18], 03-19 do, 03-21 za, 03-22 zo, 03-23 ma.
+  const start = parseInstant('2026-03-05T08:00');
+  const finish = eng.addWorkMinutes(start, 7 * 480);
   eq('A6 vooruit 7 werkdagen over het blok', formatInstant(finish, 'hour'), '2026-03-23T17:00');
   eq('A6 terug 7 werkdagen over het blok landt exact terug',
     formatInstant(eng.subtractWorkMinutes(finish, 7 * 480), 'hour'), '2026-03-05T08:00');
@@ -197,9 +142,6 @@ for (const week of WEEK_PATTERNS) {
     eng.workMinutesBetween(start, finish), 7 * 480);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// Deel B — de spiegel op solver-niveau (`addDuration` ↔ `subDuration`, forward- ↔ backward-pass)
-// ═══════════════════════════════════════════════════════════════════════════════════════════
 function makeTask(
   id: string, anchor: string, amount: number, unit: 'days' | 'hours', minutesPerDay: number,
 ): Task {
@@ -239,8 +181,6 @@ for (const hourMode of [true, false]) {
           for (const lagDays of LAGS) {
             const mk = (id: string, days: number): Task =>
               makeTask(id, anchor, hourMode ? days * mpd : days, unit, mpd);
-            // X → Y → Z is de keten; SPACER duwt het projecteinde ver naar achteren zodat de keten
-            // speling krijgt en haar LATE venster dwars door het blok van 10 dagen valt.
             const tasks = [mk('X', 3), mk('Y', 7), mk('Z', 2), mk('SPACER', 30)];
             const sequences: Sequence[] = [
               { id: 's1', predecessorId: 'X', successorId: 'Y', type: relType, lagDays },
@@ -287,24 +227,11 @@ for (const hourMode of [true, false]) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// Deel C — er is GEEN brongebonden uitzondering meer op de spiegel
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-//
-// Tot etappe 7b-2 droeg `CalendarEngine` een `subtractP6XerProjectedWorkMinutes`-projectie achter
-// `p6Source === 'XER'`: die telde per `p6NonWorkPenaltyDate` in het doorlopen venster een extra
-// niet-werkdag mee, zónder voorwaartse tegenhanger. Dat was precies de "7 vooruit, 10 terug" uit het
-// diagnosedossier. De projectie is verwijderd nadat (a) de XER-decoder de werkelijk bedoelde vrije
-// dagen kon reconstrueren en (b) gemeten was dat de projectie op élk penaltydragend corpusbestand
-// nul cellen verklaarde. Deze sectie pint dat de spiegel nu ONVOORWAARDELIJK geldt: ook een kalender
-// die de volledige XER-bronstempel én een penaltylijst draagt, wandelt vooruit en achteruit exact
-// even ver. Zou iemand de projectie opnieuw invoeren, dan gaat C1 rood.
 {
   const xer = new CalendarEngine(hourCalendar('c-xer', [1, 2, 3, 4, 6, 7], TWO_BANDS, {
     p6Source: 'XER', p6NonWorkPenaltyDates: ['2026-03-13', '2026-03-20'],
   }));
   const neutral = new CalendarEngine(hourCalendar('c-neutraal', [1, 2, 3, 4, 6, 7], TWO_BANDS));
-  // Exact het venster uit A6: 7 werkdagen à 8 uur eindigend op ma 2026-03-23.
   const finish = parseInstant('2026-03-23T17:00');
   const start = parseInstant('2026-03-05T08:00');
   const duration = 7 * 480;

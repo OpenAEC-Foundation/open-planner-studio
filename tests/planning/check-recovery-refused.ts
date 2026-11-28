@@ -1,12 +1,3 @@
-// Geweigerde webopslag voor crashherstel (issue #582). In de SuperCloud-werkplek draait de webbuild in
-// een sandbox-iframe zonder `allow-same-origin`: de origin is opaque en `indexedDB.open` gooit een
-// `SecurityError`. Crashherstel moet dan stil uitgaan voor deze sessie: geen melding, één consoleregel.
-//
-// Deel 1: de weigering bij het openen. Deel 2 (eigen proces, want de sessievlag blijft staan):
-// `check-recovery-refused-transaction.ts`, de weigering bij de eerste transactie.
-// Loopt door de publieke grens van `recoveryStore` en `notifyRecoveryError`.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import {
   clearOwnRecovery, clearRecovery, fullRecoverySave, holdRecoveryForLater, loadRecovery, saveRecovery,
   recoveryStorageUnavailable, RecoveryStorageUnavailableError,
@@ -22,7 +13,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-// ── Omgeving: een opaque origin. IndexedDB, sessionStorage en Web Locks weigeren allemaal ──────────
 const g = globalThis as unknown as Record<string, unknown>;
 g.window = g.window ?? {};
 let opens = 0;
@@ -49,7 +39,6 @@ const doc = { id: 'A', ifc: 'ISO-10303-21; /* A */', filePath: null, isDirty: tr
 
 eq('R1 vóór de eerste poging is de opslag nog niet als geweigerd gemarkeerd', recoveryStorageUnavailable(), false);
 
-// Opstarten: de herstelcontrole vindt niets en gooit niet.
 const loadOutcome = await loadRecovery().then(
   (value) => ({ value, error: null as unknown }), (error: unknown) => ({ value: null, error }));
 const loaded = loadOutcome.value;
@@ -59,11 +48,9 @@ eq('R3 loadRecovery geeft een lege herstelset',
   { activeDocumentId: null, docs: 0, archives: 0 });
 eq('R4 de weigering zet de sessievlag', recoveryStorageUnavailable(), true);
 
-// Schrijfronde: de aanroeper hoort dat er niets bewaard is.
 const saveError: unknown = await saveRecovery(fullRecoverySave('A', [doc])).then(() => null, (error: unknown) => error);
 eq('R5 saveRecovery gooit RecoveryStorageUnavailableError', saveError instanceof RecoveryStorageUnavailableError, true);
 
-// Wissen, uitstellen en de schone desktopexit zijn stil een no-op.
 const settled = async (run: () => Promise<void>) => run().then(() => 'ok', (error: unknown) => `fout: ${String(error)}`);
 eq('R6 clearRecovery is een stille no-op', await settled(() => clearRecovery()), 'ok');
 eq('R7 holdRecoveryForLater is een stille no-op', await settled(() => holdRecoveryForLater()), 'ok');
@@ -75,7 +62,6 @@ eq('R11 na de weigering opent geen enkele actie IndexedDB opnieuw', opens, 1);
 eq('R12 precies één consoleregel voor de hele sessie', infoLines.length, 1);
 eq('R13 geen console.error', errorLines.length, 0);
 
-// ── Meldingenkanaal: de weigering is afgehandeld zonder melding; de upgradeblokkade meldt nog ───────
 const notices: NotifyInput[] = [];
 const notify = (notice: NotifyInput) => { notices.push(notice); };
 eq('N1 RecoveryStorageUnavailableError is afgehandeld', notifyRecoveryError(saveError, notify), true);

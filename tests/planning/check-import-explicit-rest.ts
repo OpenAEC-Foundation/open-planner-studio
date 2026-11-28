@@ -1,28 +1,3 @@
-// Een expliciete restduur uit de bron blijft staan (aanval a07 na #600, BLOKKEERT).
-//
-// `normalizeImportedProgress` leidde de rest van een lopende dagtaak altijd af uit het percentage
-// (`applyRemainingDuration`). Dat percentage is in de bron vaak afgerond (MSP: 33 % bij 4 van 6 d) of
-// staat los van de rest (P6 fysiek %). Sinds de restduur exact is (B3) gaf dat:
-//   - MPP: 6 d, rest 4 d, 33 % ⇒ 4,02 d en een einde op 9 juni 08:10 in plaats van 8 juni 16:00;
-//     na opslaan als IFC en heropenen bleef 4,02 staan;
-//   - XER in dagenmaat (datums zonder kloktijd), fysiek 75 %, 48 u duur, 32 u rest: direct 4 d, na
-//     IFC-heropening 1,5 d (12 u).
-// De regel nu: een lezer houdt de bronrest van een lopende taak; alleen zonder bronrest leidt hij af.
-// Een voltooide taak krijgt rest 0; een taak die volgens de bron nog loopt op 100 %, is niet voltooid en
-// houdt haar rest (secties 9–12, fixronde 2 van #663). Een voortgangsbewerking in de app leidt de rest nog
-// steeds af (B3).
-// Dat geldt ook voor een IFC zonder de markering van het minutenmodel (fixronde 1 van #663): het bestand
-// zegt niet of een rest ingevoerd of afgeleid was, dus de opgeslagen waarde is het feit
-// (check-ifc-legacy-arity 2c). De eenheidsregels van `normalizeImportedProgress` staan in
-// check-remaining-duration.ts (sectie 5).
-//
-// Sinds F5b (#591, alleen uren §3.10, T15) leest `.mpp` en XER duur en rest altijd in de urenmaat, in
-// minuten zonder afronding; de dagenmaat van deze lezers bestaat niet meer. De secties 1, 1b, 2, 3 en 11
-// toetsen daarom dezelfde regel in minuten: 4 d is 1920 min, 2,5 d is 1200 min (8 u per dag). Sectie 6
-// zet haar twee taken zelf in de dagenmaat, zoals de lezer van vóór F5b ze gaf, want B1a en B5 hebben een
-// dagtaak nodig.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { installDOMParser } from './xmldom-shim';
 import { useAppStore } from '@/state/appStore';
@@ -56,12 +31,6 @@ function eq(label: string, got: unknown, want: unknown): void {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: kreeg ${JSON.stringify(got)} ≠ verwacht ${JSON.stringify(want)}`);
 }
 
-// ── Fixture: MPP14-taken op een kalender ma–vr 08:00–16:00 ────────────────────────────────────
-// De standaardtaak heeft dezelfde bytes als de aanvalsprobe (`a07-rest.mpp`): duur 28800 tienden =
-// 2880 min = 6 d, rest 19200 tienden = 1920 min = 4 d, 33 %, werkelijke start ma 1 juni 2026 08:00,
-// statusdatum wo 3 juni 08:00. Geplande start en einde liggen op het kalenderanker 08:00: de kalender
-// blijft een dagkalender (een werkelijk einde op een andere kloktijd maakt hem een uurkalender). De maat
-// van de taak is sinds F5b toch de urenmaat (T15).
 const MPP_EPOCH_DAY = Math.round((Date.UTC(2026, 5, 1) - Date.UTC(1983, 11, 31)) / 86400000);
 const utf16 = (s: string): Uint8Array => {
   const out = new Uint8Array(s.length * 2);
@@ -75,7 +44,6 @@ const int32 = (n: number): Uint8Array => {
   return out;
 };
 
-/** Eén MPP-taak; een moment is [minuten na middernacht, dag na ma 1 juni 2026]. */
 interface MppTask {
   name: string;
   duration: number;
@@ -91,7 +59,7 @@ const RUNNING: MppTask = {
 };
 
 function mpp(tasks: MppTask[]): Uint8Array {
-  const slots = 3 + tasks.length; // drie lege records, dan de taken (zoals de probe)
+  const slots = 3 + tasks.length;
   const meta = new Uint8Array(16 + slots * 47);
   const mv = new DataView(meta.buffer);
   mv.setUint32(0, 0xfadfadba, true);
@@ -104,12 +72,12 @@ function mpp(tasks: MppTask[]): Uint8Array {
     const offset = (3 + j) * 130;
     mv.setInt32(16 + (3 + j) * 47 + 4, offset, true);
     const v = new DataView(fixed.buffer, offset, 130);
-    v.setInt32(0, 10 + j, true); // unique id
-    v.setInt32(4, j + 1, true); // id
+    v.setInt32(0, 10 + j, true);
+    v.setInt32(4, j + 1, true);
     v.setInt16(40, 1, true);
-    v.setInt32(42, task.duration, true); // duur in tienden van een minuut
+    v.setInt32(42, task.duration, true);
     v.setUint16(46, 0, true);
-    v.setInt32(52, task.rest, true); // REMAINING_DURATION
+    v.setInt32(52, task.rest, true);
     for (const n of [8, 12, 16, 20, 64, 68, 72, 76, 80, 106, 110, 122]) {
       v.setUint16(n, 65535, true);
       v.setUint16(n + 2, 65535, true);
@@ -123,7 +91,7 @@ function mpp(tasks: MppTask[]): Uint8Array {
     stamp(68, task.finish);
     stamp(72, task.actualStart);
     stamp(76, task.actualFinish);
-    v.setInt16(90, task.pct, true); // voortgang in hele procenten
+    v.setInt16(90, task.pct, true);
     v.setInt32(118, -1, true);
     const name = utf16(task.name);
     const field = new Uint8Array(4 + name.length);
@@ -148,13 +116,13 @@ function mpp(tasks: MppTask[]): Uint8Array {
   calVar.set(hours, 104);
 
   const props = encodePropsEntries([
-    { key: 37748738, data: mppTimestampBytes(4800, MPP_EPOCH_DAY) }, // projectstart
-    { key: 37748739, data: mppTimestampBytes(4800, MPP_EPOCH_DAY + 30) }, // projecteinde
-    { key: 37748744, data: utf16('A07') }, // titel
-    { key: 37748765, data: int32(480) }, // minuten per dag
-    { key: 37748756, data: int32(0) }, // kritiekgrens
-    { key: 37748750, data: utf16(calName) }, // standaardkalender
-    { key: 37748805, data: mppTimestampBytes(4800, MPP_EPOCH_DAY + 2) }, // statusdatum wo 3 juni 08:00
+    { key: 37748738, data: mppTimestampBytes(4800, MPP_EPOCH_DAY) },
+    { key: 37748739, data: mppTimestampBytes(4800, MPP_EPOCH_DAY + 30) },
+    { key: 37748744, data: utf16('A07') },
+    { key: 37748765, data: int32(480) },
+    { key: 37748756, data: int32(0) },
+    { key: 37748750, data: utf16(calName) },
+    { key: 37748805, data: mppTimestampBytes(4800, MPP_EPOCH_DAY + 2) },
   ]);
   return buildNestedCfb({
     '\x01CompObj': { data: encodeCompObjFileFormat('MSProject.MPP14') },
@@ -182,10 +150,8 @@ function mpp(tasks: MppTask[]): Uint8Array {
     },
   });
 }
-/** De lopende standaardtaak, met desgewenst een andere duur, rest of voortgang. */
 const runningMpp = (over: Partial<MppTask> = {}): Uint8Array => mpp([{ ...RUNNING, ...over }]);
 
-/** Rekent door zoals F5 (de taken dragen daarna het resultaat), met de kalenderlijst van de store. */
 function solved(imported: ImportResult): ImportResult {
   const { project, tasks, sequences, calendar, resourceCalendars } = imported;
   const result = solveProject(solveInputFor(project, tasks, sequences, calendar, resourceCalendars ?? []));
@@ -195,7 +161,6 @@ function solved(imported: ImportResult): ImportResult {
 const reopen = (imported: ImportResult): ImportResult => readIFC(writeIFC(imported));
 const leaf = (r: { tasks: Task[] }): Task => r.tasks.find(t => t.childIds.length === 0)!;
 
-// ── 1. MPP: de bronrest van 4 d blijft staan, ook na opslaan als IFC en heropenen ─────────────────
 {
   const imported = readMPP(runningMpp());
   const t = leaf(imported);
@@ -210,10 +175,6 @@ const leaf = (r: { tasks: Task[] }): Task => r.tasks.find(t => t.childIds.length
   eq('MPP → IFC → heropenen: zelfde einde na F5', leaf(solved(back)).time.earlyFinish, '2026-06-08T16:00');
 }
 
-// ── 1b. MPP: een gebroken dagenrest komt exact binnen ───────────────────────────────────────────
-// De rest is geen signaal voor de uurmodus: een taak op een dagkalender kan een rest van een halve dag
-// dragen. 7 d (33600 tienden), rest 2,5 d (12000 tienden), 64 %: exact 1200 min = 2,5 d; afgeleid zou
-// 1210 min = 2,52 d geven, en een afronding op hele dagen 3 d. Sinds F5b in minuten (vóór F5b: `days`, 2,5).
 {
   const t = leaf(readMPP(runningMpp({ duration: 33600, rest: 12000, pct: 64 })));
   eq('MPP: gebroken bronrest 2,5 d = 1200 min blijft staan (niet 2,52 d, niet 3 d)',
@@ -221,11 +182,6 @@ const leaf = (r: { tasks: Task[] }): Task => r.tasks.find(t => t.childIds.length
     ['hours', 7, 3360, 1200, 2.5]);
 }
 
-// ── 2. XER met datums zonder kloktijd: de rest uit de bron overleeft IFC ─────────────────────────
-// Drie voortgangsfamilies, 48 u duur (6 d van 8 u), 32 u rest. CP_Drtn leidt de rest uit het
-// duurpercentage af (25 % ⇒ 36 u = 4,5 d, ook in de lezer); CP_Phys en CP_Units houden de 32 u.
-// Vóór F5b gaf dit bestand de dagenmaat; sinds F5b is elke XER-taak urenmaat (T15). De XER-lezer roept
-// `normalizeImportedProgress` niet aan, dus direct na lezen staat alleen de rest in minuten.
 function xer(dateOnly: boolean): ImportResult {
   const fields = ['task_id', 'proj_id', 'clndr_id', 'task_code', 'task_name', 'task_type', 'duration_type', 'status_code',
     'complete_pct_type', 'complete_pct', 'phys_complete_pct', 'target_drtn_hr_cnt', 'remain_drtn_hr_cnt',
@@ -268,13 +224,11 @@ function xer(dateOnly: boolean): ImportResult {
     [['hours', 0.25, 2160, 4.5], ['hours', 0.75, 1920, 4], ['hours', 0.5, 1920, 4]]);
 }
 {
-  // Met kloktijden (urenmaat) bleven de bronminuten al staan; dit houdt dat zo.
   const back = reopen(solved(xer(false)));
   eq('XER urenmaat → IFC → heropenen: restminuten 2160 / 1920 / 1920',
     back.tasks.map(t => [t.time.durationUnit, t.time.remainingMinutes]), [['hours', 2160], ['hours', 1920], ['hours', 1920]]);
 }
 
-// ── 3. Een voortgangsbewerking in de app leidt de rest nog steeds af (B3) ────────────────────────
 {
   const S = () => useAppStore.getState();
   S().loadState(readMPP(runningMpp()));
@@ -284,13 +238,10 @@ function xer(dateOnly: boolean): ImportResult {
   S().setTaskProgress(id, 0.5);
   eq('store: 50 % in de app ⇒ rest 6 × 0,5 = 3 d (afgeleid, B3)', [task().time.completion, task().time.remainingTime], [0.5, 3]);
   S().setTaskProgress(id, 0.33);
-  // Urenmaat (F5b): de afgeleide rest staat in hele minuten, zoals de duur (B3, `applyRemainingDuration`):
-  // 2880 × 0,67 = 1929,6 ⇒ 1930 min = 4,0208… d. Vóór F5b (dagenmaat) was dat exact 4,02 d.
   eq('store: terug naar 33 % ⇒ rest 2880 × 0,67 = 1930 min (afgeleid, niet de oude bronrest 1920)',
     [task().time.remainingMinutes, task().time.remainingTime], [1930, 1930 / 480]);
 }
 
-// ── 4. De route van de app: openen, meteen opslaan (zonder F5), heropenen ─────────────────────────
 {
   const S = () => useAppStore.getState();
   const restAfterSave = () => readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly'))).tasks
@@ -301,9 +252,6 @@ function xer(dateOnly: boolean): ImportResult {
   eq('app: XER dagenmaat openen → opslaan → heropenen houdt 4,5 / 4 / 4 d', restAfterSave(), [4.5, 4, 4]);
 }
 
-// ── 5. Een IFC zonder de markering van het minutenmodel houdt zijn expliciete rest ────────────────
-// Review r1 van #663: zonder `TimeModel` las 6 d, 33 %, 4 d rest als 4,02 d; na openen en opslaan stond
-// die waarde vast (nu mét markering) en eindigde de taak di 9 juni 08:10 in plaats van ma 8 juni 16:00.
 {
   const withMarker = writeIFC(solved(readMPP(runningMpp())));
   const legacy = withMarker.replace("IFCPROPERTYSINGLEVALUE('TimeModel'", "IFCPROPERTYSINGLEVALUE('Onbekend'");
@@ -318,12 +266,6 @@ function xer(dateOnly: boolean): ImportResult {
     leaf(readIFC(writeIFC(buildWriteIFCInput(app.getState(), 'planOnly')))).time.remainingTime, 4);
 }
 
-// ── 6. B1a/B5 → Ctrl+Z → opslaan → heropenen houdt de rest ───────────────────────────────────────
-// Review r1 van #663: een minutenbestand met een vastwerktaak in dagen (B1a zet haar om naar uren, B5
-// maakt daar één undo-stap van) en een lopende dagtaak met 4 d rest. Ctrl+Z op de omzetting zet
-// `minuteModelPending` terug op `true`; de writer laat `TimeModel` dan weg. Heropenen gaf 4,02 d.
-// Sinds F5b geeft `readMPP` urentaken; zonder dagtaak heeft B1a niets om te zetten. De sectie zet de twee
-// taken daarom zelf in de dagenmaat, met de waarden die de lezer vóór F5b gaf (3 d en 6 d, rest 3 d en 4 d).
 {
   const q = readMPP(mpp([
     { name: 'Vast werk nog dagen', duration: 14400, rest: 14400, pct: 0, start: [480, 2], finish: [480, 6] },
@@ -332,7 +274,7 @@ function xer(dateOnly: boolean): ImportResult {
   for (const task of q.tasks) {
     const t = task.time;
     t.durationUnit = 'days';
-    if (t.remainingMinutes != null) t.remainingTime = t.remainingMinutes / 480; // 8 u per dag (Props)
+    if (t.remainingMinutes != null) t.remainingTime = t.remainingMinutes / 480;
     delete t.durationMinutes;
     delete t.remainingMinutes;
   }
@@ -354,9 +296,6 @@ function xer(dateOnly: boolean): ImportResult {
   eq('B1a/B5 → Ctrl+Z → opslaan → heropenen houdt 4 d (niet 4,02 d)', rest(readIFC(saved)), 4);
 }
 
-// ── 7. Een voltooide taak krijgt rest 0, ook met een bronrest (VERVOLG uit review r1 van #663) ────
-// Een werkelijk einde om 15:00 maakt de kalender een uurkalender. MPP: 2880 min, 100 %, werkelijk einde,
-// 1920 bronminuten rest. Vroeger bleef de taak `COMPLETED` met 1920 min rest, ook na IFC-heropening.
 {
   const imported = readMPP(runningMpp({ name: 'Voltooid met bronrest', pct: 100, actualFinish: [900, 1] }));
   const state = (t: Task) => [t.status, t.time.durationUnit, t.time.remainingMinutes, t.time.remainingTime];
@@ -364,12 +303,6 @@ function xer(dateOnly: boolean): ImportResult {
   eq('voltooid → IFC → heropenen: rest 0', state(leaf(reopen(solved(imported)))), ['COMPLETED', 'hours', 0, 0]);
 }
 
-// ── 8. Knownbug 357 (gesloten): de IFC-lezer zet de rest niet opnieuw uit het percentage ─────────
-// Kalender ma–do 07:00–14:45 (465 min), vr 07:00–12:00. Lopende taak C: dagenmaat, 3 d, rest 5/6 d,
-// 13/18. De lezer zet de rest uit het dagenrecord; `normalizeImportedProgress` maakte daar 3 × 5/18 =
-// 0,833333333333333 van, en een tweede export schreef 387 in plaats van 388 min. Nu blijft de waarde uit
-// het record staan, en het record verklaart zelf de 388 min (`recordDayValue`, #658). Drie keer exporteren
-// en heropenen na elkaar geeft daarom elke keer 388 min.
 {
   const LONG = [{ start: 420, end: 885 }];
   const SHORT = [{ start: 420, end: 720 }];
@@ -389,9 +322,7 @@ function xer(dateOnly: boolean): ImportResult {
       completion: 13 / 18, remainingTime: 5 / 6,
     },
   }];
-  /** Het `RemainingTime`-record van het bestand: [dagen, minuten]. */
   const record = (ifc: string) => ifc.match(/"RemainingTime":\[([^,\]]+),(\d+)\]/)?.slice(1, 3).map(Number);
-  /** De restduur van C als IFC-duur (de enige duur van 6 uur en iets in dit bestand). */
   const restDurations = (ifc: string) => ifc.match(/'PT6H\d+M0S'/g) ?? [];
   let ifc = writeIFC(buildWriteIFCInput(prepareLoadedPayload(p, { recompute: true }), 'planOnly'));
   for (const round of [1, 2, 3]) {
@@ -404,15 +335,8 @@ function xer(dateOnly: boolean): ImportResult {
   }
 }
 
-// ── 9–11. Lopend op 100 % zonder werkelijk einde houdt zijn bronrest (review r2 van #663) ─────────
-// Sectie 7 zet de rest van een voltooide taak op 0. Een taak die volgens de bron nog loopt op 100 %, is niet
-// voltooid: P6 "Physical 100 %" plant de rest nog in (knownbugs 114). De lezer geeft zo'n taak door aan
-// `runningAtFullIds` van `normalizeImportedProgress`: status STARTED, geen afgeleid werkelijk einde, de
-// rest uit het bestand. Gemeten op drie punten: direct na lezen, na openen als document, en na opslaan als
-// IFC en heropenen. Een echt voltooide taak (status Completed, of een werkelijk einde) houdt rest 0.
 installDOMParser();
 type Point = [string, number | undefined, number | undefined, string | null];
-/** [status, restminuten, restdagen, werkelijk einde] na lezen, na openen en na IFC opslaan + heropenen. */
 function threePoints(imported: ImportResult, name: string): Point[] {
   const state = (t: Task): Point => [t.status, t.time.remainingMinutes, t.time.remainingTime, t.time.actualFinish ?? null];
   const read = state(leaf(imported));
@@ -422,12 +346,8 @@ function threePoints(imported: ImportResult, name: string): Point[] {
   const back = state(leaf(readIFC(writeIFC(buildWriteIFCInput(app.getState(), 'planOnly')))));
   return [read, opened, back];
 }
-/** Dezelfde verwachting op alle drie de meetpunten. */
 const thrice = <T,>(want: T): T[] => [want, want, want];
 
-// ── 9. P6 XML: `In Progress`, fysiek 100 %, 48 u duur, 32 u rest, geen werkelijk einde ──────────
-// De invoer van de reviewer (r2). Vóór de fix: 1920 → 0 restminuten, status COMPLETED en een afgeleid
-// werkelijk einde op de statusdatum, op alle drie de meetpunten.
 function p6xml(over: { status?: string; actualFinish?: string; restHours?: number } = {}): ImportResult {
   const finish = over.actualFinish ? `<ActualFinishDate>${over.actualFinish}</ActualFinishDate>` : '';
   return readP6XML(`<?xml version="1.0"?><APIBusinessObjects><Project><ObjectId>1</ObjectId><Name>P</Name>`
@@ -451,11 +371,6 @@ function p6xml(over: { status?: string; actualFinish?: string; restHours?: numbe
     threePoints(p6xml({ actualFinish: '2026-06-02T15:00:00' }), 'p6-af.xml').map(p => [p[0], p[1]]), thrice(['COMPLETED', 0]));
 }
 
-// ── 10. MSPDI: 100 %, geen werkelijk einde, 32 u rest ───────────────────────────────────────────
-// MSPDI kent geen statusveld. MS Project zet een werkelijk einde zodra een taak klaar is; zonder dat einde
-// en met een rest groter dan 0 loopt de taak nog. Het percentage is een heel getal: de MSPDI-writer van OPS
-// schrijft `Math.round` (99,6 % ⇒ 100) en een lopende taak op 100 % ook als 100, steeds met de rest en
-// zonder werkelijk einde. Een export van P6 naar MSPDI geeft "Physical 100 %" zo door.
 function mspdi(over: { actualFinish?: string; rest?: string } = {}): ImportResult {
   const day = (d: number) => `<WeekDay><DayType>${d}</DayType><DayWorking>1</DayWorking><WorkingTimes><WorkingTime>`
     + '<FromTime>08:00:00</FromTime><ToTime>16:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>';
@@ -480,10 +395,6 @@ function mspdi(over: { actualFinish?: string; rest?: string } = {}): ImportResul
     threePoints(mspdi({ rest: 'PT0H0M0S' }), 'rest0.xml').map(p => [p[0], p[1]]), thrice(['COMPLETED', 0]));
 }
 
-// ── 11. MPP: 100 %, geen werkelijk einde, 4 d rest ──────────────────────────────────────────────
-// Dezelfde regel als MSPDI, op een dagkalender (sectie 1) en op een uurkalender (een werkelijke start om
-// 09:15). Sinds F5b zijn beide taken urenmaat; de rest staat dan in minuten. Een lopende taak op 100 % slaat
-// de afleiding over (`runningAtFullIds`), dus de werkdagfractie is er pas na IFC opslaan en heropenen.
 {
   eq('MPP op een dagkalender 100 % zonder werkelijk einde met 4 d rest: STARTED, 1920 min (lezen, openen, IFC heropenen)',
     threePoints(readMPP(runningMpp({ name: 'Lopend 100', pct: 100 })), 'lopend100.mpp').map(p => [p[0], p[1], p[3]]),
@@ -496,7 +407,6 @@ function mspdi(over: { actualFinish?: string; rest?: string } = {}): ImportResul
     thrice(['COMPLETED', 0]));
 }
 
-// 387: dezelfde bronrest ook zichtbaar na openen, Bereken en twee IFC-rondgangen.
 for (const [name, imported] of [
   ['P6 XML', p6xml()], ['MSPDI', mspdi()],
   ['MPP', readMPP(runningMpp({ name: 'Restweergave', pct: 100, actualStart: [555, 0] }))],
@@ -519,17 +429,11 @@ for (const [name, imported] of [
   }
 }
 
-// ── 12. Export door OPS naar P6 XML of MSPDI en terug: lopend op 100 % blijft lopend ─────────────
-// Oude P6-XML-exports schreven `Completed` op 100 %; positieve rest zonder werkelijk einde blijft daar
-// het compatibiliteitsteken. Nieuwe exports schrijven expliciet `In Progress`, ook bij rest 0.
-// Een werkelijk einde blijft doorslaggevend voor voltooid.
 {
   const viaP6 = (q: ImportResult) => readP6XML(writeP6XML(q.project, q.calendar, q.tasks, q.sequences, [], [], q.resourceCalendars ?? []));
   const viaMs = (q: ImportResult) => readMSPDI(writeMSPDI(q.project, q.calendar, q.tasks, q.sequences, [], [], q.resourceCalendars ?? []));
   const state = (r: ImportResult) => [leaf(r).status, leaf(r).time.remainingMinutes, leaf(r).time.actualFinish ?? null];
   eq('OPS → P6 XML → OPS: lopend op 100 % houdt 1920 min en geen werkelijk einde', state(viaP6(p6xml())), ['STARTED', 1920, null]);
-  // Bijvondst bij review r2 van #663: de writer schreef `Completed` voor een taak die nog loopt op 100 %; P6 zag haar
-  // dan als klaar. Nu `In Progress`. Een voltooide taak blijft `Completed`.
   const p6Status = (q: ImportResult) => writeP6XML(q.project, q.calendar, q.tasks, q.sequences, [], [], q.resourceCalendars ?? [])
     .match(/<Status>([^<]*)<\/Status>/g)?.filter(x => x !== '<Status>Active</Status>' && x !== '<Status>Planned</Status>');
   eq('P6-XML-export: lopend op 100 % ⇒ In Progress, voltooid ⇒ Completed',

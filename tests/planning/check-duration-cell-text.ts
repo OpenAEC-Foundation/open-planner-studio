@@ -1,15 +1,3 @@
-// Eén duur-celtekst voor taakraster, Gantt-afdruk/PDF en tooltip (audit weergaven, bevinding 7).
-//
-// AANLEIDING. Drie formatters voor dezelfde "Duur":
-//  - tooltip en balklabels: `formatTaskDurationDisplay` — eigen taakeenheid + instelling Duurweergave;
-//  - taakraster: een eigen tekst in de eigen eenheid, ZONDER Duurweergave (met "Altijd uren" bleef
-//    een dagtaak "2d" terwijl de tooltip "18h(2d)" zei);
-//  - Gantt-afdruk: altijd `scheduleDuration` in dagen — een urentaak van 5h stond op de PDF als "0,56d".
-// De gids belooft: "In Automatisch zie je altijd de gekozen taakeenheid". Nu lezen alle drie
-// `formatTaskDurationText` (via `formatTaskDurationDisplay` voor tooltip en afdruk), met het
-// decimaalteken van de app-taal. De afdrukkolom wordt gemeten op exact de tekst die getekend wordt.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
@@ -38,7 +26,6 @@ function eq(label: string, actual: unknown, expected: unknown): void {
 const LOCALE = 'nl';
 const SUFFIXES: DurationSuffixes = { day: 'd', hour: 'h', minute: 'm' };
 
-// ── Project: 9-uurskalender, een urentaak van 5h, een dagtaak van 2d en een mijlpaal ──
 S().newProject();
 const band = [{ start: 8 * 60, end: 17 * 60 }];
 S().setCalendar({
@@ -51,7 +38,6 @@ const D = S().addTask({ name: 'D dagtaak', time: { scheduleDuration: 2 } as Task
 const M = S().addTask({ name: 'M oplevering', isMilestone: true });
 S().runCPM();
 
-/** De rastercel zoals FullTaskGrid hem bouwt (zelfde domeininput). */
 function gridCell(taskId: string, display: DurationDisplay): string | undefined {
   const s = S();
   const adapter = createTaskGridAdapter({
@@ -70,15 +56,12 @@ function gridCell(taskId: string, display: DurationDisplay): string | undefined 
   return adapter.getCell(row.rowKey, taskColumnId('task.time.scheduleDuration'))?.text;
 }
 
-/** De tooltiptekst: dezelfde aanroep als `TaskTooltipContent`. */
 function tooltip(taskId: string, display: DurationDisplay): string {
   const s = S();
   const task = s.tasks.find(t => t.id === taskId)!;
   return formatTaskDurationDisplay(task, effectiveCalendarOf(task, s.calendar, s.calendars), display, SUFFIXES, LOCALE);
 }
 
-/** De Duur-cel per taak in de Gantt-afdruk, plus wat het paneel voor die kolom meet. Zoals in
- *  `ReportPanel`: eerst meten, dan de gemeten breedtes aan de render geven. */
 function print(display: DurationDisplay): { drawn: Map<string, string>; measured: Set<string> } {
   const s = S();
   const measured = new Set<string>();
@@ -115,7 +98,6 @@ function print(display: DurationDisplay): { drawn: Map<string, string>; measured
   for (const task of s.tasks) {
     const nameCell = texts.filter(t => t.text === task.name && t.x < result.tableWidth).sort((a, b) => a.x - b.x)[0];
     if (!nameCell) continue;
-    // Tabelrij zonder Volt.-kolom: WBS | naam | duur | start | einde.
     const row = texts.filter(t => Math.abs(t.y - nameCell.y) < 0.5 && t.x < result.tableWidth).sort((a, b) => a.x - b.x);
     drawn.set(task.id, row[2]?.text ?? '<geen duurcel>');
   }
@@ -123,11 +105,8 @@ function print(display: DurationDisplay): { drawn: Map<string, string>; measured
 }
 
 const expected: Record<DurationDisplay, Record<string, string>> = {
-  // Automatisch: altijd de gekozen taakeenheid.
   auto: { [A]: '5h', [D]: '2d', [M]: '0d' },
-  // Altijd uren: de dagtaak als uren, met de bron erachter (zoals de tooltip al deed).
   hours: { [A]: '5h', [D]: '18h(2d)', [M]: '0d' },
-  // Altijd dagen: de urentaak als dagen met het decimaalteken van de taal.
   days: { [A]: '0,56d(5h)', [D]: '2d', [M]: '0d' },
 };
 const names: Record<string, string> = { [A]: 'urentaak 5h', [D]: 'dagtaak 2d', [M]: 'mijlpaal' };

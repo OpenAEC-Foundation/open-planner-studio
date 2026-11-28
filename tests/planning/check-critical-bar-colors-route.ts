@@ -119,8 +119,6 @@ for (const color of ['#000000', '#333333', '#777777', '#aaaaaa', '#0000ff', '#ff
     for (const surface of ['#0a0a0a', bg]) check(contrastRatio(rgb(drawn), rgb(surface)) >= 7, `hoog contrast: ${color} als ${drawn} op ${surface} haalt 7:1`);
   }
 }
-// Review #952: ook een kleur per categorie (werksoort, eigen werksoort, resource) haalt in hoog contrast
-// 7:1. Eerst kreeg alleen de kritiek-padroute die correctie; een werksoort tekende 1,44:1 op zwart.
 {
   const rgb = (hex: string): [number, number, number] => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)) as [number, number, number];
   const byType = { mode: 'category', field: { src: 'builtin', key: 'taskType' } } as const;

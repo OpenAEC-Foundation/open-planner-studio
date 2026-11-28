@@ -1,24 +1,3 @@
-// Startvolgorde van de platformbouw met een host (#818, review van #828): de assistent van de site
-// (`window.__OPDS_APP__`) komt pas ná de instellingen van de host.
-//
-// Waarom: de eerste aanroep van `__OPDS_APP__` laadt de MCP-laag (`server.ts`), en die maakt de app-store.
-// De store leest bij het maken al instellingen, bijvoorbeeld de bouwmodus voor de startkalender. Stond het
-// koppelvlak er al tijdens de hostlezing, dan kon een vroege `definitions()` de store maken met de
-// standaardwaarden: bouwmodus aan, "Bouwkalender NL" met NL-feestdagen, ook al zegt de host
-// `ops-constructionMode = 'false'`.
-//
-// Hoe: deze check bundelt het ECHTE `src/main.tsx` als platformbouw (`VITE_OPS_PLATFORM = '1'`) en draait
-// het in een nep-venster. Alleen `./App` en `react-dom/client` zijn vervangen: de nep-App geeft de store
-// van dezelfde bundel door, de nep-`createRoot` tekent niets. De host houdt `settings.get` vast.
-//   1. Tijdens de hostlezing bestaat `window.__OPDS_APP__` nog niet en is er nog geen store. Bestaat het
-//      koppelvlak toch (de fout), dan doet de check wat een vroege assistent doet: `definitions()`.
-//   2. Na het antwoord: het koppelvlak staat er vóór de app, `definitions()` werkt, en de startkalender
-//      volgt de host: "Standaardkalender" met 0 feestdagen.
-//
-// Mutatiebewijs: `if (PLATFORM_BUILD) installSiteAppTools();` weer vóór `hydrateSiteHostSettings()` in
-// main.tsx ⇒ 1 en de kalender in 2 worden rood.
-//
-// Draait via run.sh (esbuild-bundel), één keer, buiten de tijdzone-matrix. Exit 0 = alles groen.
 import fs from 'node:fs';
 import path from 'node:path';
 import { createRequire } from 'node:module';
@@ -43,7 +22,6 @@ async function waitFor(cond: () => boolean, ms: number): Promise<boolean> {
   return cond();
 }
 
-// ── 1. De bundel: het echte main.tsx, met een nep-App en een nep-react-dom ─────────────────────────────
 const root = process.cwd();
 const work = path.join(root, 'node_modules', '.cache', 'ops-check-site-start-order');
 fs.mkdirSync(work, { recursive: true });
@@ -86,7 +64,6 @@ await esbuild.build({
   }],
 });
 
-// ── 2. Het venster, de opslag en de host met een vastgehouden `settings.get` ───────────────────────────
 class MemoryStorage {
   private map = new Map<string, string>();
   get length() { return this.map.size; }
@@ -146,16 +123,14 @@ type SiteApp = { definitions(): Promise<{ name: string }[]> };
 const siteApp = () => win.__OPDS_APP__ as SiteApp | undefined;
 const store = () => g.__startOrderStore as { getState(): { calendar: { name: string; holidays: unknown[] } } } | undefined;
 
-// ── 3. Start ───────────────────────────────────────────────────────────────────────────────────────────
 await import(pathToFileURL(outfile).href);
 check('1a de start vraagt de instellingen bij de host op', await waitFor(() => held.length > 0, 2_000));
 for (let i = 0; i < 20; i++) await tick();
 check('1b tijdens de hostlezing staat window.__OPDS_APP__ er nog niet', siteApp() === undefined);
 check('1c tijdens de hostlezing is de app er nog niet', store() === undefined && g.__startOrderRendered === undefined);
-// De fout uit de review: een assistent die het koppelvlak al vroeg ziet, roept het aan.
 const early = siteApp();
 if (early) {
-  try { await early.definitions(); } catch { /* de uitkomst telt niet; het gaat om de store die nu ontstaat */ }
+  try { await early.definitions(); } catch { }
 }
 
 for (const release of held.splice(0)) release();

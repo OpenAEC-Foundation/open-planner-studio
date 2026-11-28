@@ -1,12 +1,4 @@
-// Adapter-uur-precisie-checks (fase 2.8b golf 4, ontwerpdoc §7). Permanent bewaakt via
-// `bash tests/planning/run.sh`. Twee bewijzen:
-//   1. UUR-ROUND-TRIP per formaat (IFC/P6/MSPDI): een uur-project (H8-band-projectkalender +
-//      nachtploeg (wrap) + split-shift + taak 20u + lag 4u + taak-kalender-toewijzing) → schrijven →
-//      lezen → `durationMinutes`/banden/echte-tijden/`lagMinutes` moeten exact terugkomen.
-//   2. DAG-BESTAND-DISCRIMINATOR: een echt dag-example (IFC) → export naar P6/MSPDI → import: geen
-//      `workTime`/`durationMinutes`-lek en identieke leaf-schedule (bewijst dat de discriminator een
-//      dag-bestand dag houdt).
-// De P6/MSPDI-readers gebruiken de browser-`DOMParser`; in Node leveren we die via een minimale shim.
+// Bron: MPXJ `MSPDIWriter` en `ConstraintTypeHelper` als referentie voor de MSPDI-fixtures en de P6-constraintlabels (LGPL-2.1, github.com/joniles/mpxj).
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -35,12 +27,6 @@ import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/regis
 
 installDOMParser();
 
-// `import.meta.url`-relatief i.p.v. `process.cwd()` (review-bevinding): dit bestand draait via
-// `bash tests/planning/run.sh`, dat NOOIT naar de repo-root `cd`'t — de child-`node`'s cwd is dus
-// gewoon die van de AANROEPER. Vanaf een andere cwd (of tijdens twee gelijktijdige runs waarvan
-// er één elders zit) las de oude `join(process.cwd(), 'examples', ...)` een niet-bestaand pad:
-// een kale `ENOENT`-stacktrace zonder `XX`-regel, precies het soort onverklaarde "flake" dat
-// eerder in deze suite is gerapporteerd. `HERE` is het bestandspad zelf, tijdzone/cwd-onafhankelijk.
 const HERE = fileURLToPath(new URL('.', import.meta.url));
 
 let checks = 0;
@@ -53,7 +39,6 @@ function eq(name: string, got: unknown, want: unknown): void {
   assert(JSON.stringify(got) === JSON.stringify(want), `${name}: kreeg ${JSON.stringify(got)} ≠ verwacht ${JSON.stringify(want)}`);
 }
 
-// ── Uur-model ────────────────────────────────────────────────────────────
 const weekBands = (list: [number, number][]): WorkTimeBands['byWeekday'] => {
   const bw = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } as WorkTimeBands['byWeekday'];
   for (let d = 1; d <= 5; d++) bw[d as 1] = list.map(([s, e]) => ({ start: s, end: e }));
@@ -116,10 +101,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq(`${label} C.durationMinutes`, byName.get('Afbouw')?.time.durationMinutes, 600);
   const s1 = seq.find(s => tk.find(t => t.id === s.predecessorId)?.name === 'Metselen');
   eq(`${label} lag A→B lagMinutes`, s1?.lagMinutes, 240);
-  // Bugfix B1 (gebruikstest 2026-08): een minuut-precieze lag (240 min = 4u, geen heel aantal
-  // werkdagen) mag NOOIT via een uur→dag-afronding in `lagDays` lekken — dat gaf voorheen bij IFC
-  // `lagDays: 1` (ceil(4/8)) náást de correcte `lagMinutes: 240`, zichtbaar in de UI als misleidend
-  // "+1d" terwijl de CPM-datums (die lagMinutes gebruiken) gewoon klopten.
   eq(`${label} lag A→B lagDays (geen uur→dag-afronding)`, s1?.lagDays, 0);
 }
 
@@ -130,11 +111,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
 {
   const p = readP6XML(writeP6XML(project, H8, tasks, sequences, resources, assignments, lib));
   roundTrip('P6', p.tasks, p.sequences, p.calendar, p.resourceCalendars ?? [], false);
-  // `task.resourceIds` is een projectie van de toewijzingen; elke lezer met toewijzingen moet hem
-  // vullen (de P6- en MSPDI-lezer lieten hem leeg, de IFC- en MPP-lezer niet).
   eq('P6 resourceIds uit de toewijzingen', p.tasks.find(t => t.name === 'Metselen')?.resourceIds, p.assignments.map(a => a.resourceId));
-  // Sinds #775 schrijft P6 XML <ScheduleOptions> en leest hij ze zoals een XER: het profiel is P6, en de
-  // lagkalender is wat de schrijver schreef (de standaard, voorganger).
   eq('P6XML opent met het P6-profiel en de geschreven lagkalender (#775)',
     [p.project.schedulingProfile?.baseId, p.project.schedulingOptions?.lagCalendar], ['p6', 'predecessor']);
 }
@@ -148,8 +125,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     [p.project.schedulingProfile, p.calendar.p6Source], [undefined, undefined]);
 }
 
-// Een uurkalender kan dag- en urentaken mengen. De expliciete adaptermarkering moet die keuze
-// bewaren; alleen naar de kalender kijken zou de 2d-taak na export/import stil als 16h lezen.
 {
   const daySeed = mk('t-day-on-bands', 'Twee werkdagen', '4', '2026-07-06T08:00', '2026-07-07T16:00', 960);
   const dayOnBands: Task = {
@@ -170,8 +145,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('MSPDI mixed: urentaak naast dagtaak bewaart hours', hourBack?.time.durationUnit, 'hours');
   eq('MSPDI mixed: urentaak bewaart exacte minuten', hourBack?.time.durationMinutes, 1200);
 
-  // DurationFormat is bij vreemde MSPDI alleen presentatie. Zonder de expliciete OPS-definitie
-  // moet dezelfde uurkalender daarom de oude, backward-compatible minutenregel blijven volgen.
   const foreign = writeMSPDI(project, H8, [dayOnBands], [], [], [])
     .replace(/\s*<ExtendedAttributes>[\s\S]*?<\/ExtendedAttributes>/, '');
   const foreignBack = readMSPDI(foreign).tasks.find((task) => task.name === 'Twee werkdagen');
@@ -194,9 +167,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('P6 legacy: uurkalender behoudt de oude minutenbron', foreignP6Back?.time.durationMinutes, 960);
 }
 
-// Pre-T1-runtimedata (tests, extensies) draagt soms nog geen `durationUnit`; de legacy-regel
-// (`durationMinutes` aanwezig ⇒ uren) moet in élke writer gelden. De P6-writer las het veld rauw en
-// schreef `<Text>undefined</Text>` plus een dagtaak-duur voor zo'n urentaak.
 {
   const legacyHour = { ...tasks[0], time: { ...tasks[0].time } };
   delete (legacyHour.time as { durationUnit?: string }).durationUnit;
@@ -210,8 +180,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('MSPDI legacy-eenheid: exacte minuten blijven', mspBack?.time.durationMinutes, 1200);
 }
 
-// Een project zonder einddatum (een leeg veld is geldig: de gebruiker vult het zelf in) mag na
-// export/import geen einddatum "vandaag" krijgen; de writers laten het element dan weg.
 {
   const open = { ...project, endDate: '' };
   eq('MSPDI project zonder einddatum blijft leeg', readMSPDI(writeMSPDI(open, H8, tasks, [], [], [])).project.endDate, '');
@@ -220,8 +188,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('P6 project mét einddatum blijft', readP6XML(writeP6XML(project, H8, tasks, [], [], [])).project.endDate, '2026-07-31');
 }
 
-// Een dagkalender met een halve-uursdag (7,5 u): 3 dagen = 22,5 uur. De writer schreef
-// `PT22.5H0M0S`, de reader kende geen decimalen en las 0 dagen terug.
 {
   const shortDay: WorkCalendar = {
     id: 'cal-75', name: 'Korte dag', description: '', workDays: [1, 2, 3, 4, 5],
@@ -242,13 +208,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('MSPDI 7,5u-dag: decimale uren (oude export) lezen als drie dagen', readMSPDI(legacyXml).tasks.find((task) => task.name === 'Drie dagen')?.time.scheduleDuration, 3);
 }
 
-// ── Review-follow-up (2026-08, op bugfix B1): GEMENGDE ISO-duur uit een VREEMD bestand ─────────────
-// Onze eigen schrijver emitteert nooit een dag-component vóór de `T` (`minutesToIsoDuration` schrijft
-// altijd kaal `PT{h}H{m}M0S`); `P1DT2H0M0S` is de vorm die een ANDER tool zou kunnen schrijven. Vóór
-// deze follow-up verdween bij zo'n gemengde vorm stilzwijgend óf het dag-deel (nieuwe B1-volgorde:
-// lagMinutes eerst) óf het uur-deel (oude volgorde: parseDurationDays zag alleen de D). De keuze nu:
-// dag- én uurdeel samen in `lagMinutes`, met werkdagen bij WORKTIME en 1440 minuten bij ELAPSEDTIME.
-// De bestaande pure vormen (kaal-uur en kaal-dag) blijven gelijk.
 {
   const dayCalMix: WorkCalendar = {
     id: 'cal-mix', name: 'Mix', description: 'ma-vr', workDays: [1, 2, 3, 4, 5],
@@ -275,23 +234,18 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const needle = "IFCDURATION('PT0H30M0S')";
   assert(ifc.includes(needle), 'setup: eigen schrijver emitteert PT0H30M0S voor lagMinutes 30');
 
-  // (a) Hand-getampeerde GEMENGDE vorm: dag- én uurdeel moeten SAMEN landen, geen stil verlies.
   const mixedBack = readIFC(ifc.replace(needle, "IFCDURATION('P1DT2H0M0S')")).sequences[0];
   eq('gemengd P1DT2H0M0S: lagMinutes = 1 werkdag(480)+2H(120)', mixedBack?.lagMinutes, 600);
   eq('gemengd P1DT2H0M0S: lagDays blijft 0 (geen dubbeltelling)', mixedBack?.lagDays, 0);
 
-  // (b) Bestaande vorm 1 (ongewijzigd): kaal uur, geen dag-component.
   const pureHourBack = readIFC(ifc).sequences[0];
   eq('bestaande vorm ongewijzigd: PT0H30M0S ⇒ lagMinutes 30', pureHourBack?.lagMinutes, 30);
   eq('bestaande vorm ongewijzigd: PT0H30M0S ⇒ lagDays 0', pureHourBack?.lagDays, 0);
 
-  // (c) Bestaande vorm 2 (ongewijzigd): kaal dag, geen `T` — puur het oude `parseDurationDays`-pad.
   const pureDayBack = readIFC(ifc.replace(needle, "IFCDURATION('P3D')")).sequences[0];
   eq('bestaande vorm ongewijzigd: P3D ⇒ lagDays 3', pureDayBack?.lagDays, 3);
   eq('bestaande vorm ongewijzigd: P3D ⇒ lagMinutes undefined', pureDayBack?.lagMinutes, undefined);
 
-  // (d) Gemengde werktijd, kalendertijd en teken. Een fractie vóór een volgend deel wordt
-  // geweigerd in plaats van stil geïnterpreteerd (knownbug 1030).
   for (const [iso, want] of [['P2DT2H0M0S', 1080], ['-P1DT2H0M0S', -600], ['P1DT30M', 510]] as const) {
     const back = readIFC(ifc.replace(needle, `IFCDURATION('${iso}')`)).sequences[0];
     eq(`gemengd ${iso}: werktijdminuten`, back?.lagMinutes, want);
@@ -309,19 +263,12 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   }
 }
 
-// ── Knownbug 1027: een TAAKduur met dagen vóór de `T` (`P2DT12H`) uit een vreemd bestand ────────────────
-// `isoDurationToMinutes` leest alleen het deel na `T`: `P2DT12H` werd 720 minuten, de twee dagen verdwenen. Nu tellen de
-// dagen mee met de minuten per dag van de taak (`applyTaskTimeRecords`): de werktijd per dag van haar kalender bij
-// `WORKTIME`, 1440 bij `ELAPSEDTIME`. Zo is `P2D` even lang als `P2DT0H`. Review van #871 (Sol en Terra, ronde 1): 1440 voor
-// elke dag maakte van `P2DT0H` zes werkdagen, en de som veranderde het sub-dag-signaal van de kalender, en daarmee de
-// tijden van een buurtaak. Het signaal blijft het deel na `T`, zoals vóór de fix.
 {
   const own = readFileSync('public/examples/showcase-appartementencomplex.ifc', 'utf8');
   const cpt = (text: string) => readIFC(text).tasks.find(t => t.name === 'CPT soundings & soil investigation')!.time;
   const slot = "IFCTASKTIME('CPT soundings & soil investigation Time',.PREDICTED.,$,.WORKTIME.,'P0Y0M3D',";
   assert(own.includes(slot), 'setup: de taak heeft de duur P0Y0M3D');
   const withDuration = (iso: string) => own.replace(slot, slot.replace("'P0Y0M3D'", `'${iso}'`));
-  // De kalender van het voorbeeld: 8 uur per dag.
   const mixed = cpt(withDuration('P2DT12H'));
   eq('1027, 8 u/dag: P2DT12H is 2 werkdagen + 12 uur = 1680 minuten (3,5 werkdag), niet 720',
     [mixed.durationUnit, mixed.durationMinutes, mixed.scheduleDuration], ['hours', 1680, 3.5]);
@@ -333,7 +280,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('1027: eigen bestand ongewijzigd (P0Y0M3D blijft een dagtaak van 3 dagen)',
     [cpt(own).durationUnit, cpt(own).scheduleDuration, cpt(own).durationMinutes], ['days', 3, undefined]);
 
-  // Een blokkenkalender van 10 uur (07–17), werktijd en kalendertijd, en de rest van een lopende urentaak.
   const H10: WorkCalendar = { ...H8, id: 'cal-h10', name: 'H10', workStartHour: 7, workEndHour: 17, hoursPerDay: 10,
     workTime: { byWeekday: weekBands([[420, 1020]]) } };
   const projectH10: Project = { ...project, calendarId: 'cal-h10' };
@@ -361,8 +307,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   assert(restText !== h10Ifc, 'setup: de rest van Lopend staat als PT3H0M0S');
   eq('1027, 10 u/dag: rest P1DT2H is 600 + 120 = 720 minuten, niet 120', h10(restText, 'Lopend').remainingMinutes, 720);
 
-  // Sol: een scalaire kalender van 10 uur zonder `IsHourCalendar`-markering, alleen ankerdatums om 07:00. Of A's duur
-  // `P1DT6H` of `PT6H0M0S` is, mag de tijden van de buurtaak B niet veranderen: het sub-dag-signaal is het deel na `T`.
   const D10: WorkCalendar = { id: 'cal-d10', name: 'D10', description: 'ma-vr 07-17', workDays: [1, 2, 3, 4, 5],
     workStartHour: 7, workEndHour: 17, hoursPerDay: 10, holidays: [] };
   const dayTask = (id: string, name: string, wbs: string, start: string, finish: string): Task => ({
@@ -383,12 +327,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   }
 }
 
-// ── Statusdatum MÉT tijd (uur-modus, `Project.statusDate`) round-trippt door IFC ─────────────────
-// Bijvondst: de writer zette `2026-07-06T10:00` als `IFCDATE('2026-07-06T10:00')` in
-// OPS_ProjectSettings en de reader kapte de waarde af op tien tekens. Na opslaan + openen stond de
-// statusdatum dus op middernacht en verschoof het einde van een lopende urentaak (resterende duur
-// telt vanaf de statusdatum): hier EF 13:00 ⇒ 11:00. Een datum zonder tijd blijft byte-identiek
-// `IFCDATE(...)` en date-only; een bestand van vóór de fix (tijd ín `IFCDATE`) krijgt zijn tijd terug.
 {
   const projS: Project = { ...project, statusDate: '2026-07-06T10:00' };
   const running = mk('t-run', 'Lopend', '1', '2026-07-06T08:00', '2026-07-06T14:00', 360);
@@ -408,20 +346,13 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('statusdatum-tijd: komt mét tijd terug', back.project.statusDate, '2026-07-06T10:00');
   eq('statusdatum-tijd: EF lopende urentaak na opslaan + openen', efAfterSolve(back.tasks, back.calendar, back.project.statusDate), efBefore);
 
-  // Bestand van vóór deze fix: de tijd stond al in het bestand, alleen onder het type IFCDATE.
   const legacy = ifc.replace("IFCDATETIME('2026-07-06T10:00:00')", "IFCDATE('2026-07-06T10:00')");
   eq('statusdatum-tijd: oud bestand (tijd in IFCDATE) houdt zijn tijd', readIFC(legacy).project.statusDate, '2026-07-06T10:00');
 
-  // Datum zonder tijd: ongewijzigd (byte-identiek geschreven, date-only terug).
   const ifcDay = writeIFC({ project: { ...project, statusDate: '2026-07-06' }, calendar: H8, tasks: [running], sequences: [], resources: [], assignments: [] });
   assert(ifcDay.includes("IFCPROPERTYSINGLEVALUE('StatusDate',$,IFCDATE('2026-07-06'),$)"), 'statusdatum zonder tijd: blijft IFCDATE');
   eq('statusdatum zonder tijd: blijft date-only', readIFC(ifcDay).project.statusDate, '2026-07-06');
 
-  // ── Zelfde regel voor MSPDI (<StatusDate>) en P6 (<DataDate>) — bijvondst G4 ──
-  // De schrijvers zetten de tijd al in het bestand (`toXmlDateTime`: `…T10:00:00`), maar beide lezers
-  // kapten op de datum af: na opslaan + openen hetzelfde EF-verschil als bij IFC. Een datum zonder tijd
-  // schrijven ze als het dag-anker `T08:00:00`; die moet exact `YYYY-MM-DD` terugkomen. De schrijvers
-  // zijn niet gewijzigd, dus dit zijn ook de vormen van bestaande bestanden.
   const xmlFormats: [string, string, (p: Project) => string, (xml: string) => { project: Project; tasks: Task[]; calendar: WorkCalendar }][] = [
     ['MSPDI', 'StatusDate', p => writeMSPDI(p, H8, [structuredClone(running)], [], [], []), readMSPDI],
     ['P6', 'DataDate', p => writeP6XML(p, H8, [structuredClone(running)], [], [], []), readP6XML],
@@ -437,14 +368,9 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(xmlDay.includes(`<${tag}>2026-07-06T08:00:00</${tag}>`), `${fmt} statusdatum zonder tijd: dag-anker in het bestand`);
     eq(`${fmt} statusdatum zonder tijd: blijft date-only`, read(xmlDay).project.statusDate, '2026-07-06');
 
-    // Een echte tijd uit een ander programma blijft ook staan (MS Project bewaart de statusdatum op 17:00).
     eq(`${fmt} statusdatum-tijd van buiten: 17:00 blijft`, read(xml.replace('2026-07-06T10:00:00', '2026-07-06T17:00:00')).project.statusDate, '2026-07-06T17:00');
-    // Onleesbare tijd ⇒ de datum, geen crash (vijandige invoer).
     eq(`${fmt} statusdatum met onleesbare tijd: datum`, read(xml.replace('2026-07-06T10:00:00', '2026-07-06T99:00:00')).project.statusDate, '2026-07-06');
 
-    // Grens van het formaat: een statusdatum op PRECIES 08:00 is in het bestand niet te onderscheiden
-    // van het dag-anker en komt date-only terug. Op een kalender waarvan de werktijd om 08:00 begint
-    // (H8) rekent dat identiek: middernacht snapt naar dezelfde eerste werkminuut.
     const xml0800 = write({ ...project, statusDate: '2026-07-06T08:00' });
     const back0800 = read(xml0800);
     eq(`${fmt} statusdatum 08:00: komt als dag-anker date-only terug`, back0800.project.statusDate, '2026-07-06');
@@ -454,18 +380,8 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   }
 }
 
-// ── Restduur van een urentaak round-trippt in minuten (G4) ───────────────────────────────────
-// Vóór de fix rondde de store de restduur van een urentaak op hele dagen, zonder minuten: 5 u op
-// 40 % ⇒ 0. MSPDI en P6 exporteerden `RemainingDuration` 0 en na openen plande de solver de taak af
-// op de statusdatum (EF 08:00 i.p.v. 11:00); IFC schreef `P0Y0M0D`. Nu schrijven alle drie 3 u en
-// komt dezelfde restduur (minuten + werkdagfractie) terug. Een taak die weer op 0 % staat houdt haar
-// volle duur als restduur (IFC las die als `ceil(5 u / 8)` = 1 dag). Een oud IFC-bestand (`P0Y0M0D`)
-// blijft leesbaar en krijgt de restduur uit de voortgang. Dagtaken houden hele werkdagen.
-// Statusdatum zonder tijd: de MSPDI- en P6-lezer houden alleen de datum van een statusdatum (los
-// punt, niet dit onderwerp), en de EF-vergelijking moet over de restduur gaan.
 {
   const projS: Project = { ...project, statusDate: '2026-07-06' };
-  // Voortgang zoals de schuif hem zet: % plus werkelijke start, daarna de gedeelde invarianten.
   const withProgress = (t: Task, completion: number): Task => {
     t.time.completion = completion;
     t.time.actualStart = completion > 0 ? t.time.scheduleStart : undefined;
@@ -480,10 +396,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   const rest = (t: Task | undefined) => [t?.time.remainingMinutes, t?.time.remainingTime];
   eq('restduur: voorwaarde urentaak 5 u op 40 %', rest(lopend), [180, 0.375]);
   eq('restduur: voorwaarde teruggezette urentaak', rest(terug), [300, 0.625]);
-  // B1 (spec "alleen uren" §3.5, besluit B3): de rest van een dagtaak is exact, 5 d op 30 % = 3,5 d (was
-  // round = 4 d). De adapters schrijven die breuk: MSPDI en P6 28 u, IFC ook 28 u als `PT…` met het record
-  // [3,5, 1680] (§3.10, T21: nooit een gebroken P…D, want v2026.9.0 leest die verkeerd, I10). De dagen komen
-  // terug uit het record (hieronder: dagtaak terug 3,5).
   eq('restduur: voorwaarde dagtaak 5 d op 30 %', rest(dag), [undefined, 3.5]);
   const efOf = (tk: Task[], cal: WorkCalendar, statusDate: string | undefined): string | undefined => {
     solveProject(opsSolveInput({ tasks: tk, sequences: [], calendar: cal, calendars: [], dataDate: statusDate, projectStartDate: projS.startDate }));
@@ -519,11 +431,9 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq(`restduur ${label}: EF lopende urentaak na opslaan + openen`, efOf(back.tasks, back.calendar, back.project.statusDate), efBefore);
   }
   eq('restduur IFC: teruggezette urentaak terug (werkdagfractie)', readIFC(ifc).tasks.find(t => t.name === 'Teruggezet')?.time.remainingTime, 0.625);
-  // Tweede ronde: opnieuw schrijven levert hetzelfde bestand (geen drift).
   const again = readIFC(ifc);
   eq('restduur IFC: tweede keer opslaan identiek slot', restSlot(writeIFC({ ...input, tasks: again.tasks, calendar: again.calendar }), 'Lopend'), "'PT3H0M0S'");
 
-  // Oud bestand: onze eigen export van vóór de fix schreef de afgeronde dag-restduur.
   const legacy = ifc.replace(/(IFCTASKTIME\('Lopend Time'.*,)'PT3H0M0S'(,[0-9.]+\);)/, "$1'P0Y0M0D'$2");
   assert(legacy !== ifc, 'restduur: oud-bestand-fixture bevat de oude restduurvorm');
   const old = readIFC(legacy);
@@ -531,11 +441,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   eq('restduur IFC oud bestand: EF ongewijzigd', efOf(old.tasks, old.calendar, old.project.statusDate), efBefore);
 }
 
-// ── Dag-bestand-discriminator (geen uur-lek + identieke leaf-schedule) ──────
 {
-  // Een ECHT dagbestand: het voorbeeld van vóór het minutenmodel, als vaste fixture. Het opnieuw
-  // gegenereerde `examples/03-…` is geen dagbestand meer in de zin van de discriminator: elke datum is
-  // daar een moment (07:00, 16:00), en dat is tijdsignaal (c) in `subdayIo.ts`.
   const src = readFileSync(join(HERE, 'fixtures', 'minute-model-examples-f0', '03-kantoorgebouw-zuidas.ifc'), 'utf8');
   const M = readIFC(src);
   const startOf = (t: Task) => (t.time.earlyStart || t.time.scheduleStart).substring(0, 10);
@@ -560,10 +466,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   assert(msp.tasks.every(t => t.time.durationMinutes == null), 'MSPDI-example: geen durationMinutes-lek');
 }
 
-// ══ Fase 2.9 golf 6 — constraint-round-trip + hard/secundair + custom psets ═════════════════════
-// Permanent bewaakt: mapping-tabellen béíde richtingen (writer emitteert de juiste code, reader
-// leest 'm terug), de soft↔hard-val (soft MSO→SNET op MSPDI), hard-round-trip, en de pset-round-trips
-// (OPS_Hammock/OPS_SchedulingOptions/secundaire constraint). Los van de uur-checks hierboven.
 {
   const dayCal: WorkCalendar = {
     id: 'cal-d', name: 'Dag', description: 'ma-vr', workDays: [1, 2, 3, 4, 5],
@@ -595,8 +497,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     try { return { out: fn(), warns }; } finally { console.warn = orig; }
   };
 
-  // (a) P6 mapping-tabel béíde richtingen: writer emitteert het PMXML-label (MPXJ
-  //     `ConstraintTypeHelper.XML_TYPE_MAP`), reader leest 'm terug.
   const P6_MAP: [ConstraintType, string, boolean][] = [
     ['ALAP', 'As Late As Possible', false], ['SNET', 'Start On or After', false], ['SNLT', 'Start On or Before', false],
     ['FNET', 'Finish On or After', false], ['FNLT', 'Finish On or Before', false], ['MSO', 'Start On', false],
@@ -611,7 +511,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq(`P6 rt ${type}${hard ? '(hard)' : ''} hard`, back?.hard ?? false, hard);
   }
 
-  // (b) MSPDI mapping-tabel béíde richtingen (soft SNET/SNLT/FNET/FNLT + hard MSO/MFO).
   const MSP_MAP: [ConstraintType, number, boolean][] = [
     ['ALAP', 1, false], ['SNET', 4, false], ['SNLT', 5, false], ['FNET', 6, false],
     ['FNLT', 7, false], ['MSO', 2, true], ['MFO', 3, true],
@@ -625,8 +524,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq(`MSPDI rt ${type}${hard ? '(hard)' : ''} hard`, back?.hard ?? false, hard);
   }
 
-  // (c) De soft↔hard-VAL: soft MSO/MFO mag op MSPDI NIET naar code 2/3 (hard) — degradeert naar
-  //     SNET(4)/FNET(6) mét warn; op P6 blijft soft MSO/MFO exact (`Start On`/`Finish On`).
   for (const [type, mspCode, p6Code] of [['MSO', 4, 'Start On'], ['MFO', 6, 'Finish On']] as const) {
     const tk = mkT({ constraint: { type, date: D } });
     const { out: mspXml, warns } = withWarns(() => writeMSPDI(dayProj, dayCal, tk, [], [], []));
@@ -634,10 +531,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(!mspXml.includes('<ConstraintType>2</ConstraintType>') && !mspXml.includes('<ConstraintType>3</ConstraintType>'), `MSPDI soft ${type} niet naar 2/3`);
     assert(warns.some(w => w.includes('gedegradeerd')), `MSPDI soft ${type} → semantiek-verlies-warn`);
     eq(`MSPDI soft ${type} leest terug als soft ${type === 'MSO' ? 'SNET' : 'FNET'}`, withWarns(() => readT('MSPDI', tk)).out.constraint?.type, type === 'MSO' ? 'SNET' : 'FNET');
-    // P6: soft MSO/MFO behoudt semantiek (geen degradatie) — zowel in de GESCHREVEN code als
-    // teruggelezen. De code-assertie ontbrak: `p6Code` stond wel in de tabel maar werd nooit
-    // gebruikt, dus een writer die stil naar `Mandatory Start`/`Mandatory Finish` (hard) zou zakken bleef
-    // ongezien zolang de reader het type maar terugvond.
     const p6Xml = writeP6XML(dayProj, dayCal, tk, [], [], []);
     assert(p6Xml.includes(`<PrimaryConstraintType>${p6Code}</PrimaryConstraintType>`), `P6 soft ${type} → ${p6Code}`);
     const p6Back = readT('P6', tk).constraint;
@@ -645,9 +538,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq(`P6 soft ${type} blijft soft`, p6Back?.hard ?? false, false);
   }
 
-  // (d) Hard-round-trip incl. datum, alle drie de formaten (IFC/P6/MSPDI). Sinds F5b (I8) geven de
-  //     XML-schrijvers een datum zonder tijd zijn moment (D1–D7, zoals de laadgrens): MSO is startachtig,
-  //     dus het begin van de werkdag (07:00). IFC houdt het daganker.
   for (const fmt of ['IFC', 'P6', 'MSPDI'] as const) {
     const tk = mkT({ constraint: { type: 'MSO', date: D, hard: true } });
     const back = readT(fmt, tk).constraint;
@@ -656,13 +546,11 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq(`${fmt} hard MSO date`, back?.date, fmt === 'IFC' ? D : `${D}T07:00`);
   }
 
-  // (e) Secundaire constraint: IFC + P6 round-trippen 'm (native); MSPDI laat 'm vallen + warn.
   {
     const tk = mkT({ constraint: { type: 'SNET', date: '2026-06-03' }, constraint2: { type: 'FNLT', date: D } });
     for (const fmt of ['IFC', 'P6'] as const) {
       const c2 = readT(fmt, tk).constraint2;
       eq(`${fmt} secundair type`, c2?.type, 'FNLT');
-      // FNLT is eindachtig: in P6 XML het einde van de werkdag (15:00) sinds F5b (I8); IFC houdt het daganker.
       eq(`${fmt} secundair date`, c2?.date, fmt === 'IFC' ? D : `${D}T15:00`);
       eq(`${fmt} secundair niet-hard`, c2?.hard ?? false, false);
     }
@@ -672,8 +560,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(warns.some(w => w.includes('secundaire constraint')), 'MSPDI secundair → weggelaten-warn');
   }
 
-  // (f) OPS_Hammock-pset: IFC round-trippt isHammock, P6 XML als Level of Effort (#775); MSPDI laat 'm vallen
-  //     (gewone taak) + warn.
   {
     const tk = mkT({ isHammock: true });
     eq('IFC hammock round-trip', readT('IFC', tk).isHammock, true);
@@ -685,10 +571,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(mw.some(w => w.includes('hammock')), 'MSPDI hammock → warn');
   }
 
-  // (g) OPS_SchedulingOptions-pset: IFC round-trippt het VOLLE blok; MSPDI criticalDefinition.threshold via
-  //     CriticalSlackLimit en de lagkalender via `OPS_LagCalendar` (F5a-2, review #585 r1 punt 1; rest
-  //     weggelaten + warn); P6 XML de opties die P6 kent via <ScheduleOptions> (#775); wat P6 niet kent,
-  //     meldt de exportmelding (`p6SchedulingRulesDiffer`).
   {
     const so = {
       criticalDefinition: { mode: 'totalFloat' as const, threshold: 2 },
@@ -703,8 +585,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq('MSPDI CriticalSlackLimit → threshold', mspBack?.criticalDefinition, { mode: 'totalFloat', threshold: 2 });
     eq('MSPDI lagCalendar terug (OPS_LagCalendar), floatPaths weg', [mspBack?.lagCalendar, mspBack?.floatPaths], ['successor', undefined]);
     assert(mw.some(w => w.includes('lagCalendar')), 'MSPDI schedulingOptions-verlies-warn');
-    // Speling-modus: MSPDI heeft er geen veld voor en heropent als *Automatisch* (afwezig). Ook
-    // 'smallest' (de P6-modus) is dus verlies en moet gemeld worden; afwezig is verliesvrij.
     const tfOnly = (totalFloatMode?: 'smallest' | 'finish') => withWarns(() => readMSPDI(writeMSPDI(
       { ...dayProj, schedulingOptions: totalFloatMode ? { totalFloatMode } : undefined }, dayCal, tk, [], [], [],
     )).project.schedulingOptions?.totalFloatMode);
@@ -715,7 +595,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     }
     assert(!tfOnly().warns.some(w => w.includes('totalFloatMode')), 'MSPDI zonder totalFloatMode (automatisch) → geen warn');
     const { out: p6Back, warns: pw } = withWarns(() => readP6XML(writeP6XML(proj2, dayCal, tk, [], [], [])).project.schedulingOptions);
-    // 2 d drempel × 8 u per dag = 16 u (P6 rekent de drempel in uren).
     eq('P6 schedulingOptions: lagkalender, drempel en float paths via <ScheduleOptions> (#775)',
       [p6Back?.lagCalendar, p6Back?.criticalDefinition, p6Back?.floatPaths],
       ['successor', { mode: 'totalFloat', thresholdHours: 16 }, so.floatPaths]);
@@ -725,20 +604,9 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   }
 }
 
-// ══ T4 (fase 3.8, MSP-pariteit, baan K) — MSPDI-uitzonderingssemantiek ═══════════════════════════
-// mspdiReader.ts leest sinds T4 dezelfde uitzonderingssemantiek uit <Exception> als mppCalendars.ts
-// (T3) uit het 92-byte MPP-blok: DayWorking=1 + <WorkingTimes> → WorkingException met banden;
-// <Type> (recurrent) wordt geëxpandeerd via T3's `expandRecurrence`/`resolveContributions`
-// (rechtstreeks hergebruikt, geen tweede expansie). writeMSPDI schreef dit tot en met T12 niet
-// (alleen de READER, buiten T4's scope) — T13 (§T2-afwijking, LAAG-7-afnemer) haalt dat in, zie
-// sectie (h) hieronder. Fixtures (a)-(g) zijn hand-gebouwde MSPDI-XML-strings (lazen dus altijd al
-// via de echte lezer, maar niet via writeMSPDI geproduceerd) — wél binnen het schema zoals
-// MSPDIWriter.java het daadwerkelijk emitteert (geverifieerd tegen de MPXJ-bron, zie mspdiReader.ts's
-// importtoelichting); (h) draait wél de ECHTE writeMSPDI+readMSPDI-round-trip.
 {
   const weekdayXml = (dayType: number): string => `<WeekDay><DayType>${dayType}</DayType><DayWorking>1</DayWorking>` +
     `<WorkingTimes><WorkingTime><FromTime>08:00:00</FromTime><ToTime>17:00:00</ToTime></WorkingTime></WorkingTimes></WeekDay>`;
-  // MSP-dagtype: 1=zo..7=za — 2..6 = ma..vr (spiegelt de bestaande DayType-conversie in applyCalendarBody).
   const monVriWeekDays = [2, 3, 4, 5, 6].map(weekdayXml).join('');
   const mkDoc = (exceptionsXml: string, tasksXml = ''): string => `<?xml version="1.0"?>
 <Project>
@@ -755,9 +623,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   ${tasksXml}
 </Project>`;
 
-  // (a) DayWorking=1 + <WorkingTimes> (niet-recurrent) → WorkingException met banden, GEEN holiday.
-  //     Plan-§T4-acceptatie 1. 2026-01-10 is een zaterdag (niet-werk-weekdag) — de uitzondering maakt
-  //     'm werkend met eigen 06:00-12:00-banden i.p.v. de standaard 08:00-17:00.
   {
     const xml = mkDoc(
       '<Exception><Name>Werkende zaterdag</Name><DayWorking>1</DayWorking>' +
@@ -772,12 +637,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq('T4 DayWorking=1: banden 06:00-12:00', w?.bands, [{ start: 360, end: 720 }]);
   }
 
-  // (b) Recurrente uitzondering (<Type>) wordt geëxpandeerd — plan-§T4-acceptatie "recurrente
-  //     exceptie wordt geëxpandeerd". Type=2 = YEARLY-absoluut (RECURRENCE_TYPES, hergebruikt van
-  //     mppCalendars.ts); MonthDay=1/Month=0 (→ monthNumber=1) = "elk jaar 1 januari". Venster
-  //     2020-01-01..2022-12-31 — zelfde fixture-wiskunde als T3's directe expandRecurrence-test in
-  //     check-mpp-calendars.ts (3 datums: 2020/2021/2022, telkens 1 januari), hier via de MSPDI-
-  //     leeskant bewezen i.p.v. rechtstreeks op expandRecurrence.
   {
     const xml = mkDoc(
       '<Exception><Name>Nieuwjaar</Name><DayWorking>0</DayWorking>' +
@@ -790,11 +649,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq('T4 YEARLY-recurrentie: exacte datums', dates, ['2020-01-01', '2021-01-01', '2022-01-01']);
   }
 
-  // (c) Precedentie: recurrente WERKENDE uitzondering (elk jaar 1 januari) + niet-recurrente
-  //     FEESTDAG op dezelfde datum, LATER in het document → de niet-recurrente laag wint over de
-  //     recurrente, ONGEACHT working/holiday-richting (T3's precedentie is symmetrisch: niet-
-  //     recurrent > elke recurrente groep). Spiegelt check-mpp-calendars.ts's "MET niet-recurrente
-  //     laag"-precedentietest, hier met omgekeerde working/holiday-rollen voor variatie.
   {
     const xml = mkDoc(
       '<Exception><Name>Jaarlijkse werkdag</Name><DayWorking>1</DayWorking>' +
@@ -811,12 +665,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(holidayHit && !workingHit, 'T4 precedentie: niet-recurrent (feestdag) wint over recurrent (werkend)');
   }
 
-  // (d) T11-spiegel: MSPDI-kant van milestoneKind (§9/O6-vervolg) — een UUR-modus-mijlpaal krijgt
-  //     'FINISH' wanneer het anker op een bandeinde landt, 'START' op een bandbegin; een gewone taak
-  //     blijft ongemoeid. 2026-01-06 = dinsdag, 2026-01-07 = woensdag (beide ma-vr-werkdagen op de
-  //     08:00-17:00-kalender hierboven). Task 1's 17:00-anker triggert het (c)-uurmodus-signaal voor
-  //     de HELE kalender (MSP_TIME_ANCHOR='08:00:00' — 17:00 is geen anker-tijd), dus task 2 en 3
-  //     (op dezelfde kalender) draaien automatisch ook in uurmodus.
   {
     const tasksXml = `<Tasks>
       <Task><UID>1</UID><Name>MijlpaalFinish</Name><OutlineLevel>1</OutlineLevel><Milestone>1</Milestone>
@@ -834,11 +682,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq('T4 milestoneKind: gewone taak blijft ongezet', byName.get('GewoneTaak')?.milestoneKind, undefined);
   }
 
-  // (d2) H2 (Opus-review T15-iteratie-2) — MSPDI-spiegel van de mppReader.ts-guard: een taak met
-  //      `Milestone=1` ÉN een reële duur (MSP-legitiem, "mijlpaal-met-duur", zie
-  //      `CPMSolver.isZeroDurationMilestone`) krijgt GEEN `milestoneKind`, ook al landt haar anker
-  //      exact op een bandgrens — anders zou een latere opvolger via `snapSuccessorEarlyStart` de
-  //      FINISH-mijlpaal-landing toepassen op een taak die voor de planning geen mijlpaal is.
   {
     const tasksXml = `<Tasks>
       <Task><UID>1</UID><Name>MijlpaalMetDuur</Name><OutlineLevel>1</OutlineLevel><Milestone>1</Milestone>
@@ -850,13 +693,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     eq('H2 MSPDI: mijlpaal-met-duur krijgt GEEN milestoneKind ondanks bandeinde-anker (17:00)', task?.milestoneKind, undefined);
   }
 
-  // (e) SPEC-REVIEW-FIX (should-fix): Fixture-F-analogon (mppReader.ts/check-mpp-import.ts, T11-
-  //     reviewfix c0c2cd27) — een band die EXACT om middernacht eindigt (20:00-24:00, geen theoretisch
-  //     randgeval: `applyCalendarBody` bouwt zo'n band zonder clamp). Maandag draagt twee banden
-  //     (08:00-16:00 + 20:00-24:00 — discriminator (a) garandeert uurmodus via het niet-anker-anker
-  //     00:00 zelf), mijlpaal-anker op dinsdag 00:00 ⇒ moet 'FINISH' zijn (de wrap-staart van maandags
-  //     tweede band). Vóór de fix gaf de MSPDI-kant hier `undefined` (strikte `b.end > 1440` i.p.v.
-  //     mppReader.ts's `>= 1440`) — een pariteitsregressie tussen de twee MS-Project-lezers.
   {
     const xml = `<?xml version="1.0"?>
 <Project>
@@ -879,35 +715,13 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
       <Duration>PT0H0M0S</Duration><Start>2026-01-06T00:00:00</Start><Finish>2026-01-06T00:00:00</Finish></Task>
   </Tasks>
 </Project>`;
-    // 2026-01-06 is een dinsdag; de wrap-staart van maandag (2026-01-05) 20:00-24:00 landt daar op 00:00.
     const task = readMSPDI(xml).tasks.find((t) => t.name === 'WrapMijlpaal');
     eq('T4 wrap-middernacht: anker di 00:00 na een ma 20:00-24:00-band ⇒ milestoneKind === FINISH', task?.milestoneKind, 'FINISH');
   }
 
-  // (f) SPEC-REVIEW-FIX (blokkerend): budget-klem TIJDENS de opbouw (niet pas in resolveContributions
-  //     erna) — verkleinde versie van de reviewer-DoS-repro (445 KB XML → 5192 ms/478 MB vóór de fix).
-  //     `MAX_CALENDAR_EXCEPTIONS` (2000, de ECHTE per-kalender-bovengrens) NIET-OVERLAPPENDE WEEKLY-
-  //     alle-dagen-uitzonderingen, elk over een 11-jaars-venster (> MAX_RECURRENCE_DATES dagen) — elke
-  //     record expandeert dus tot PRECIES MAX_RECURRENCE_DATES (3660) datums, gegarandeerd door
-  //     `expandRecurrence`'s eigen per-record-klem. Met het gedeelde budget (`MAX_TOTAL_HOLIDAY_
-  //     SLOTS`, 100.000) passen daar `Math.floor(100000/3660)=27` VOLLE records in (98.820 dagen) + 1
-  //     gedeeltelijke record (100.000-98.820=1.180 dagen) = 28 records met output; de overige 1972
-  //     dragen NIETS bij. Niet-overlappend (elk venster staat ver genoeg uit elkaar) ⇒ EXACTE,
-  //     voorspelbare tellingen (spiegelt check-mpp-calendars.ts se precieze-telling-stijl), losstaand
-  //     van de latere precedentie-/overlap-mechaniek.
-  //
-  //     GROOTTE-KEUZE (gemeten, niet aangenomen): een eerdere, kleinere fixture (200 records) bleek
-  //     GEEN betrouwbare regressiewacht — `resolveContributions`'s EIGEN vaste basiskosten (~260ms
-  //     Date/string-werk voor de 100.000 (record,datum)-paren, ONAFHANKELIJK van hoeveel EXTRA records
-  //     `buildContributions` zou moeten negeren) domineerden bij 200 records zozeer dat de MUTATIE
-  //     hieronder (budget-klem-tijdens-opbouw genegeerd) 830ms gaf — nog steeds < 1000ms, dus GEEN rode
-  //     regel. Bij `MAX_CALENDAR_EXCEPTIONS` (2000, de werkelijke bestandsgrens — geen willekeurige
-  //     keuze) is het verschil overtuigend: FIXED 311ms, GEMUTEERD (budget genegeerd in
-  //     `buildContributions`, ongewijzigde `resolveContributions`) 2408ms — exact het "safe-maar-traag"
-  //     patroon van de reviewer-bevinding, ruim aan weerszijden van de 1s-grens.
   {
     const recordCount = MAX_CALENDAR_EXCEPTIONS;
-    const spacingYears = 11; // > 3660/365.25 ≈ 10,02 jaar — garandeert de MAX_RECURRENCE_DATES-klem per record
+    const spacingYears = 11;
     const excXml = Array.from({ length: recordCount }, (_, i) => {
       const fromYear = 2000 + i * spacingYears;
       const toYear = fromYear + spacingYears;
@@ -950,27 +764,16 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
       totalDays === MAX_TOTAL_HOLIDAY_SLOTS,
       `T4 budget-klem-tijdens-opbouw: totaal ${MAX_TOTAL_HOLIDAY_SLOTS} dagen gematerialiseerd (kreeg ${totalDays}) — het gedeelde HolidayBudget is exact opgebruikt, geen dag meer`,
     );
-    // MARGE-HERZIENING (her-check-slotpuntje, geen nieuwe review nodig): 1000ms had ASYMMETRISCHE
-    // marge — op een ~3× tragere CI-runner komt het CORRECTE pad (~313ms lokaal × 3 ≈ 940ms) vlak
-    // tegen de grens aan, terwijl het GEMUTEERDE pad (~2400ms lokaal × 3 ≈ 7200ms) er ruim boven
-    // blijft. Bij 1000ms was het risico dus VALS-ROOD op correcte code op een trage runner, niet
-    // gemiste mutatiedetectie. 2000ms herstelt de marge aan de CORRECTE kant (313ms × 3 ≈ 940ms blijft
-    // ruim onder 2000ms) zonder de mutatiedetectie te verzwakken (2400ms × 3 ≈ 7200ms blijft ver
-    // erboven) — de her-check bevestigde de fix opnieuw op 389ms (was 5192ms zonder de klem).
     assert(
       elapsedMs < 2000,
       `T4 budget-klem-tijdens-opbouw: readMSPDI(${recordCount} WEEKLY-records) < 2000ms (kreeg ${elapsedMs}ms) — de budget-klem moet TIJDENS de opbouw ingrijpen, niet pas erna (reviewer-DoS-repro: 445 KB XML → 5192 ms zonder deze klem)`,
     );
   }
 
-  // (g) SPEC-REVIEW-FIX (blokkerend, multiplier): bovengrens op het AANTAL `<Calendar>`-elementen
-  //     (`MAX_MSPDI_CALENDARS`) — spiegelt check-mpp-calendars.ts se stijl van exacte tellingen tegen
-  //     een hostile fixture. 1200 resource-kalenders (> MAX_MSPDI_CALENDARS=1024) → precies 1024
-  //     gematerialiseerd, de rest genegeerd, binnen een royale tijdslimiet.
   {
     const calCount = 1200;
     const calsXml = Array.from({ length: calCount }, (_, i) =>
-      `<Calendar><UID>${i + 2}</UID><Name>Res${i}</Name></Calendar>`, // UID 1 = projectkalender, dus +2
+      `<Calendar><UID>${i + 2}</UID><Name>Res${i}</Name></Calendar>`,
     ).join('');
     const xml = `<?xml version="1.0"?>
 <Project>
@@ -991,11 +794,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(elapsedMs < 1000, `T4 kalender-aantal-klem: readMSPDI(${calCount} <Calendar>-elementen) < 1000ms (kreeg ${elapsedMs}ms)`);
   }
 
-  // (h) T13 (§T2-afwijking, LAAG-7-afnemer): writeMSPDI schreef workingExceptions vóór deze taak
-  //     STIL NIET mee (alleen `cal.holidays` ging naar `<Exceptions>`) — de "writeMSPDI schrijft dit
-  //     nog niet"-opmerking in de moduleheader hierboven gold dus tot T13. Round-trip via de ECHTE
-  //     schrijver+lezer (i.p.v. hand-gebouwde XML zoals (a)-(g)): workingExceptions met eigen banden
-  //     én een band-loze workingException moeten allebei exact terugkomen; holidays blijven intact.
   {
     const calWithExc: WorkCalendar = {
       ...H8,
@@ -1012,18 +810,9 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     const byDate = new Map((cal.workingExceptions ?? []).map((w) => [w.startDate, w]));
     assert(byDate.size === 2, `T13 MSPDI-workingExceptions-roundtrip: 2 workingExceptions terug (kreeg ${byDate.size})`);
     eq('T13 MSPDI-workingExceptions-roundtrip: banden van de werkende zaterdag', byDate.get('2026-07-11')?.bands, [{ start: 360, end: 720 }]);
-    // Band-loze uitzondering: de schrijver laat <WorkingTimes> weg (geen banden om te schrijven); de
-    // lezer se fallback-keten (types/calendar.ts's WorkingException.bands-doc) levert dan `undefined`
-    // of een lege array terug — beide zijn "geen eigen banden", dus vergelijk op falsy/leeg i.p.v. op
-    // een specifieke vorm (dat zou een implementatiedetail van de lezer vastpinnen, niet het contract).
     const sundayBands = byDate.get('2026-07-12')?.bands;
     assert(!sundayBands || sundayBands.length === 0, `T13 MSPDI-workingExceptions-roundtrip: band-loze uitzondering blijft band-loos (kreeg ${JSON.stringify(sundayBands)})`);
 
-    // (i) T13 P6-XML (sinds 2026-10): P6 drukt een werkende uitzondering uit als <HolidayOrException>
-    //     MÉT <WorkTime>-blokken (Oracle-schema; zonder blokken = vrije dag). writeP6XML schrijft ze
-    //     zo, en de reader leest ze terug als werkende uitzondering. P6 kent geen band-loze
-    //     uitzondering: de writer vult dan de banden van die weekdag in, anders die van de eerste
-    //     werkdag (de fallback-keten van WorkingException.bands, nu expliciet). Geen naam (P6 kent er geen).
     const warns: string[] = [];
     const origWarn = console.warn;
     console.warn = (...a: unknown[]) => { warns.push(a.join(' ')); };
@@ -1040,16 +829,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   }
 }
 
-// ── H5 (eindreview T16c): ELAPSEDTIME-taakduur-export — round-trip-bewijs voor de weggelaten-met-
-// warn-fallback op MSPDI/P6/CSV. Geen van de drie lezers begrijpt task-level "24/7"-duur (alleen
-// relatie-LAG kent al een elapsed-notatie), dus native schrijven zonder dat de lezer het teruglas
-// zou een `.mpp → export → herimport`-cyclus de 24/7-semantiek stil laten omklappen naar
-// werktijd-duur — de conservatieve keuze is dan ook weggelaten-met-warn i.p.v. een halve
-// round-trip die zich als vol voordoet. Deze case bewijst BEIDE kanten: (a) de warn vuurt met het
-// juiste aantal wanneer er een ELAPSEDTIME-taak in zit, en NIET wanneer alle taken WORKTIME zijn;
-// (b) de herimport: MSPDI draagt ELAPSEDTIME native (DurationFormat). P6 krijgt de taak als gewone
-// werktijd-duur (de warn-tekst), maar OPS leest de kalendertijd terug uit het OPS-record met de eenheid
-// `eu` (F5a-2, review #585 r1 punt 3).
 {
   const projE: Project = {
     id: 'p-elapsed', name: 'Elapsed', description: '', startDate: '2026-07-06', endDate: '2026-07-31',
@@ -1071,7 +850,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     id: 'e-elapsed', name: 'Storttijd beton (24/7)', description: '', wbsCode: '2', taskType: 'CONSTRUCTION',
     status: 'NOT_STARTED', isMilestone: false, priority: 500, parentId: null, childIds: [],
     time: {
-      // 3 elapsed dagen = 3×1440 klok-minuten (T8-conventie, mppReader.ts's isElapsedDuration-tak).
       durationType: 'ELAPSEDTIME', durationUnit: 'hours', scheduleDuration: 3, durationMinutes: 4320,
       scheduleStart: '2026-07-08T08:00', scheduleFinish: '2026-07-11T08:00',
       earlyStart: '2026-07-08T08:00', earlyFinish: '2026-07-11T08:00',
@@ -1088,7 +866,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     try { return { out: fn(), warns }; } finally { console.warn = orig; }
   }
 
-  // (a) Contrast: alleen WORKTIME-taken ⇒ geen enkele ELAPSEDTIME-warn op de drie exporters.
   {
     const { warns: wM } = withWarnings(() => writeMSPDI(projE, H8, [worktimeTask], [], [], []));
     const { warns: wP } = withWarnings(() => writeP6XML(projE, H8, [worktimeTask], [], [], [], []));
@@ -1098,8 +875,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(!wC.some(w => w.includes('ELAPSEDTIME')), `H5-contrast CSV: geen ELAPSEDTIME-warn zonder elapsed-taak, kreeg [${wC.join(' | ')}]`);
   }
 
-  // (b) MSPDI draagt ELAPSEDTIME inmiddels native via DurationFormat en waarschuwt dus niet;
-  //     P6/CSV blijven eerlijk waarschuwen over hun lossy export.
   const mixedTasks = [worktimeTask, elapsedTask];
   {
     const { out: mspdiXml, warns: wM } = withWarnings(() => writeMSPDI(projE, H8, mixedTasks, [], [], []));
@@ -1133,16 +908,7 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
   }
 }
 
-// ── Z14 (etappe "nul afwijkingen") — de vier nieuwe exportrand-warns (manuallyScheduled,
-// levelingDelayMinutes, splits+timephased-venster, resume/stop) op MSPDI/P6, exact het H5-
-// ELAPSEDTIME-patroon hierboven: (a) contrast — geen enkele van de vier warns zonder de
-// bijbehorende data; (b) precies het juiste aantal wanneer de data er wél is. CSV kent geen warn
-// (vaste 16-koloms `headers`, zie csvWriter.ts; inclusief het expliciete OPS custom-type-id ÉN de
-// sinds issue #27 etappe 2 vooraan toegevoegde `OPS Task ID`) — hier bewezen: de header blijft
-// ONGEWIJZIGD, ook met een taak die alle nieuwe velden draagt.
 {
-  // Lokale herhaling van de `withWarnings`-helper hierboven (blok-scoped `function`-declaratie in
-  // het H5-blok, hier niet zichtbaar) — zelfde vorm, geen gedeelde toestand nodig.
   function withWarnings<T>(fn: () => T): { out: T; warns: string[] } {
     const warns: string[] = [];
     const orig = console.warn;
@@ -1186,7 +952,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     { id: 'z-a1', taskId: 'z-rich', resourceId: 'r-none', unitsPerDay: 1, workWindowStart: '2026-07-08', workWindowFinish: '2026-07-08' },
   ];
 
-  // (a) Contrast: alleen de gewone taak, geen assignments ⇒ geen van de vier nieuwe warns.
   {
     const { warns: wM } = withWarnings(() => writeMSPDI(projZ, H8, [plainTask], [], [], []));
     const { warns: wP } = withWarnings(() => writeP6XML(projZ, H8, [plainTask], [], [], [], []));
@@ -1198,14 +963,11 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     }
   }
 
-  // (b) De rijke taak + gecontoureerde toewijzing ⇒ alle vier warns vuren met het juiste aantal.
   {
     const zTasks = [plainTask, richTask];
     const { warns: wM } = withWarnings(() => writeMSPDI(projZ, H8, zTasks, [], [], zAssignments));
     assert(wM.some(w => w.includes('MSPDI-export: 1 handmatig geplande taak/taken')), `Z14 MSPDI manuallyScheduled-warn: kreeg [${wM.join(' | ')}]`);
     assert(wM.some(w => w.includes('MSPDI-export: 1 taak/taken met sub-dag-nivelleervertraging')), `Z14 MSPDI levelingDelayMinutes-warn: kreeg [${wM.join(' | ')}]`);
-    // Contour-engine (2026-09): contouren gaan native mee als <TimephasedData>; alleen een gesplitste
-    // taak ZONDER contourdata warnt nog (de rijke taak hier draagt splits maar geen contour).
     assert(wM.some(w => w.includes('MSPDI-export: 1 onderbroken taak/taken zonder urenverdeling')), `Z14 MSPDI splits/timephased-warn: kreeg [${wM.join(' | ')}]`);
     assert(wM.some(w => w.includes('MSPDI-export: 1 taak/taken met resume/stop')), `Z14 MSPDI resume/stop-warn: kreeg [${wM.join(' | ')}]`);
 
@@ -1215,8 +977,6 @@ function roundTrip(label: string, tk: Task[], seq: Sequence[], cal: WorkCalendar
     assert(wP.some(w => w.includes('P6-export: 1 onderbroken taak/taken zonder urenverdeling')), `Z14 P6 splits/timephased-warn: kreeg [${wP.join(' | ')}]`);
     assert(wP.some(w => w.includes('P6-export: 1 taak/taken met resume/stop')), `Z14 P6 resume/stop-warn: kreeg [${wP.join(' | ')}]`);
 
-    // CSV: vaste 17 kolommen (16 + 'Outline Level', issue #159), geen warn — de rijke taak mag de
-    // kolomstructuur niet veranderen.
     const { out: csvText, warns: wC } = withWarnings(() => writeCSV(projZ, H8, zTasks, [], [], zAssignments));
     assert(wC.length === 0, `Z14 CSV: geen enkele warn voor de nieuwe velden, kreeg [${wC.join(' | ')}]`);
     const header = csvText.replace(/^﻿/, '').split('\r\n')[0];
