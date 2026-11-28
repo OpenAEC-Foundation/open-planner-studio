@@ -1,16 +1,3 @@
-// Selectie + klembord.
-//
-// Deze twee horen bij elkaar en niet bij `taskSlice`: het klembord werkt op de selectie, en beide
-// zijn iets anders dan de taken zelf. Het onderscheid dat ze deelt is de UNDO-regel — selectie is
-// GEEN documentdata en pusht dus nooit een undo-snapshot, terwijl plakken dat juist wél doet omdat
-// het taken aanmaakt. Die regel stond eerder verspreid in commentaar tussen 1100 regels
-// taakmutaties; hier is hij de reden dat het bestand bestaat.
-//
-// Documentcontract: `selectedTaskIds` en `activeTaskId` zijn PER DOCUMENT (ze reizen mee bij een documentwissel,
-// `snapshot: 'none'` — je selectie hoort niet in een undo-stap), `taskClipboard` is APP-GLOBAAL,
-// zodat kopiëren en plakken tussen documenten werkt. Beide velden blijven op het top-level van
-// `AppState` staan, dus `documentContract.ts` verandert niet mee: die leest `s.selectedTaskIds`,
-// niet `s.selection.selectedTaskIds`.
 import type { AppSliceFactory, SelectionAnchor, StoredSelectionAnchor } from './types';
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
@@ -31,11 +18,6 @@ import {
   type ViewRow,
 } from '@/engine/view/visibleRows';
 
-/**
- * Productiegrens tussen een occurrence-cursor en de domeinselectie. Alleen wanneer reconciliatie
- * werkelijk op een andere taak uitkomt, wordt de enkelvoudige taakselectie meegeschoven. Een
- * identieke occurrence met alleen een nieuwe absolute rijindex laat de selectie ongemoeid.
- */
 export function reconcileTaskCursorSelection(
   rows: readonly ViewRow[],
   cursor: TaskRowCursor | null,
@@ -50,39 +32,19 @@ export interface TaskClipboard {
   tasks: Task[];
   sequences: Sequence[];
   assignments: ResourceAssignment[];
-  /** Per resource van `assignments` de soort in het brondocument (issue #815). Het klembord is
-   *  app-globaal: in het doel kan dezelfde id een ander type hebben. Plakken toetst de soort hiertegen,
-   *  niet aan `costAmount` of `curve` (een kostentoewijzing kan zonder bedrag). Een resource die in de
-   *  bron ontbrak, staat er niet in: die soort is onbekend en de toewijzing wordt niet geplakt. */
   resourceKinds: Record<string, TaskAssignmentResourceKind>;
-  /** Kopieerde het raster (de kolommen) deze taken, dan de celtekst die het op het systeemklembord zette
-   *  en de planning waaruit (issue #900). Zie `pastesGridTaskCopy`. */
   fromGrid?: { text: string; documentId: string };
 }
 
 const sameClipboardText = (text: string) => text.replace(/\r\n/g, '\n');
 
-/**
- * Plakt het raster de taken in plaats van celwaarden? Alleen als de tekst op het systeemklembord nog
- * die van de laatste rasterkopie is EN het doel een andere planning is (issue #900). Binnen dezelfde
- * planning, en met tekst van buiten (Excel), blijft het raster celwaarden plakken.
- */
 export function pastesGridTaskCopy(clip: TaskClipboard | null, text: string, documentId: string): boolean {
   return !!clip?.fromGrid && clip.fromGrid.documentId !== documentId
     && clip.fromGrid.text === sameClipboardText(text);
 }
 
-/** Wat er in de tijdlijn is aangeklikt (review #1004): de rij, en bij een groepsruitje (#868) zijn
- *  leden. Zonder `taskIds` alleen de taak zelf. */
 export interface SelectedRow { rowKey?: string; taskIds?: readonly string[] }
 
-/**
- * Shift-klik in de tijdlijn: de taken van het anker (`ui.selectionAnchor`) tot de aangeklikte rij,
- * over de rijen OP HET SCHERM (filter, sortering, groepering, ingeklapte fasen), net als Shift in de
- * takenlijst. Van de eindrijen tellen alleen de gekozen taken (anker, aangeklikt); liggen ze op één rij
- * (een mijlpalenreeks), dan alle ruitjes daartussen zoals ze getekend staan. `null` als een van beide rijen
- * niet (meer) op het scherm staat.
- */
 function shiftRange(
   rows: readonly ViewRow[],
   anchor: SelectionAnchor,
@@ -91,14 +53,12 @@ function shiftRange(
   clickedRowKey: string | undefined,
 ): string[] | null {
   const idsAt = (index: number) => uniqueTaskIds([rows[index]]);
-  // Binnen één mijlpalenrij telt wat er getekend staat, van links naar rechts (review #1004, ronde 11).
   const drawnIdsAt = (index: number) => {
     const row = rows[index];
     return row.kind === 'milestones' ? milestonesInDrawnOrder(row.tasks).map(task => task.id) : idsAt(index);
   };
   const toIdx = rows.findIndex((row, index) => (clickedRowKey === undefined || row.rowKey === clickedRowKey)
     && idsAt(index).includes(clickedId));
-  // Dat de ankerrij nog een taak van het anker draagt, heeft `shiftAnchor` al getoetst.
   const fromIdx = rows.findIndex(row => row.rowKey === anchor.rowKey);
   if (toIdx < 0 || fromIdx < 0) return null;
   if (fromIdx === toIdx) {
@@ -117,17 +77,11 @@ interface AnchorState {
   ui: { selectionAnchor: StoredSelectionAnchor | null };
 }
 
-/** Het Shift-anker, als het nog bij de huidige selectie hoort: dezelfde lijst, niet alleen dezelfde
- *  inhoud. Een schrijver die het anker niet kent (plakken, inklappen, Ctrl+A, MCP) zet een nieuwe
- *  lijst neer; dan geldt het anker niet meer, ook niet als later dezelfde taken weer gekozen zijn
- *  (review #1004, rondes 7 en 8). */
 export function liveSelectionAnchor(s: AnchorState): StoredSelectionAnchor | null {
   const anchor = s.ui.selectionAnchor;
   return anchor && baseList(anchor.selection) === baseList(s.selectedTaskIds) ? anchor : null;
 }
 
-/** Leg het anker vast bij `selection`: de lijst die de aanroeper net als selectie neerzette (of de
- *  ongewijzigde basis). Zo wijzen anker en selectie na de producer naar dezelfde lijst. */
 function rememberAnchor(s: AnchorState, anchor: SelectionAnchor | null, selection: readonly string[]): void {
   s.ui.selectionAnchor = anchor
     ? { rowKey: anchor.rowKey, taskIds: [...anchor.taskIds], selection }
@@ -138,9 +92,6 @@ type ShiftState = AnchorState & {
   viewRows: readonly ViewRow[]; activeTaskId: string | null; ui: { gridActiveRowKey: string | null };
 };
 
-/** Waar Shift begint, in de tijdlijn én de takenlijst: het geldende anker als die rij nog op het
- *  scherm staat, anders de actieve taak (of de laatst gekozen) op de cursorrij als die haar draagt,
- *  anders op haar eerste rij. `null` zonder selectie. */
 export function shiftAnchor(s: ShiftState): SelectionAnchor | null {
   const anchor = liveSelectionAnchor(s);
   if (anchor && s.viewRows.some(row => row.rowKey === anchor.rowKey
@@ -157,33 +108,15 @@ export function shiftAnchor(s: ShiftState): SelectionAnchor | null {
 
 export interface SelectionSlice {
   selectedTaskIds: string[];
-  /** Taak van de actieve cel/klik. Kan bewust buiten de meervoudige selectie vallen wanneer de
-   * gebruiker die taak met Ctrl/Cmd uit de set togglet; het eigenschappenpaneel blijft hem volgen. */
   activeTaskId: string | null;
   taskClipboard: TaskClipboard | null;
 
-  /** Selecteer een taak. `multi` (Ctrl/Cmd) togglet, `range` (Shift) kiest precies het bereik vanaf het
-   *  anker (`shiftRange`), ook met `multi` erbij, zoals de takenlijst. `row` is wat er in de tijdlijn is aangeklikt: dezelfde taak kan in meer rijen
-   *  staan (groeperen op resource), en een groepsruitje (#868) kiest al zijn leden (`row.taskIds`).
-   *  Met `row.rowKey` wordt die rij de cursorrij (`ui.gridActiveRowKey`) en, zonder Shift, het anker.
-   *  Geen undo: selectie is geen documentdata. */
   selectTask: (id: string, multi?: boolean, range?: boolean, row?: SelectedRow) => void;
   deselectAll: () => void;
-  /** Ctrl/Cmd+A: selecteer alle ZICHTBARE taken — leest `viewRows` (dezelfde
-   *  zichtbaarheids-afleiding als de tabel/Gantt, respecteert dus ingeklapte groepen/summaries).
-   *  Geen undo: selectie is geen documentdata. */
   selectAllTasks: () => void;
-  /** Box-selectie: zet de selectie op precies `ids` (vervangen), of voeg ze
-   *  toe aan de bestaande selectie (`additive`, Ctrl/Cmd tijdens het slepen). `anchor` is het nieuwe
-   *  beginpunt van Shift (het kader in de tijdlijn: zijn bovenste taakrij; de takenlijst: haar anker);
-   *  zonder `anchor` is het beginpunt onbekend. Geen undo. */
   selectTasks: (ids: string[], additive: boolean, activeTaskId?: string | null, anchor?: SelectionAnchor) => void;
 
-  /** Kopieer de opgegeven takken (default: de huidige selectie) incl. subtaken naar het klembord.
-   *  `gridText`: de celtekst als het raster kopieert (zie `TaskClipboard.fromGrid`). */
   copyTasks: (ids?: string[], gridText?: string) => void;
-  /** Plak het klembord als nieuwe takken; geeft de nieuwe root-ids terug (leeg als er niets te
-   *  plakken viel). Dit pusht WEL een undo-snapshot — er ontstaan taken. */
   pasteTasks: () => string[];
 }
 
@@ -200,25 +133,16 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       s.activeTaskId = id;
       if (row?.rowKey !== undefined) s.ui.gridActiveRowKey = row.rowKey;
       if (anchor && rangeIds) {
-        // Shift kiest precies het bereik, ook met Ctrl erbij, zoals in de takenlijst (`'extend'` in
-        // `updateGridSelection`) en een bestandsverkenner. Een vereniging met de vorige selectie (zo
-        // op main) hield bij een verkleind bereik de oude taken vast, en Ctrl+F2 koppelde ze mee
-        // (review #1004, rondes 13 en 14). Het bereik staat in de volgorde van het scherm, ook naar
-        // boven; het anker blijft staan.
         const next = [...rangeIds];
         s.selectedTaskIds = next;
         rememberAnchor(s, anchor, next);
         return;
       }
-      // Een groepsruitje gaat met Ctrl samen aan of uit. Altijd een nieuwe lijst: het anker wijst
-      // ernaar (`liveSelectionAnchor`).
       const next = !(multi && !range) ? [...clicked]
         : clicked.every(taskId => s.selectedTaskIds.includes(taskId))
           ? s.selectedTaskIds.filter(taskId => !clicked.includes(taskId))
           : [...s.selectedTaskIds, ...clicked.filter(taskId => !s.selectedTaskIds.includes(taskId))];
       s.selectedTaskIds = next;
-      // Een klik zonder (bruikbaar) Shift is het nieuwe anker, ook bij uitvinken met Ctrl. Zonder rij
-      // valt Shift terug op de actieve taak (`shiftAnchor`).
       rememberAnchor(s, row?.rowKey !== undefined ? { rowKey: row.rowKey, taskIds: clicked } : null, next);
     }),
 
@@ -260,14 +184,12 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       const sourceIds = ids ?? s.selectedTaskIds;
       if (sourceIds.length === 0) return;
 
-      // Selectie uitbreiden met alle (klein)kinderen, net als bij verwijderen.
-      const collect = subtreeCollector(s.tasks); // één index voor alle bronnen
+      const collect = subtreeCollector(s.tasks);
       const idSet = new Set<string>(sourceIds.flatMap(sid => collect(sid)));
 
       const tasks = s.tasks.filter(t => idSet.has(t.id));
       if (tasks.length === 0) return;
 
-      // Alleen relaties waarvan beide uiteinden mee gekopieerd worden.
       const sequences = s.sequences.filter(
         seq => idSet.has(seq.predecessorId) && idSet.has(seq.successorId),
       );
@@ -276,7 +198,6 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       const resourceKinds: Record<string, TaskAssignmentResourceKind> = {};
       for (const r of s.resources) if (usedResourceIds.has(r.id)) resourceKinds[r.id] = isCostResource(r) ? 'cost' : 'work';
 
-      // Deep-clone: het klembord blijft geldig na latere edits/undo van de bron.
       s.taskClipboard = JSON.parse(JSON.stringify({ tasks, sequences, assignments, resourceKinds }));
       if (gridText !== undefined) {
         s.taskClipboard!.fromGrid = { text: sameClipboardText(gridText), documentId: s.activeDocumentId };
@@ -297,12 +218,7 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
       const copiedIds = new Set(clip.tasks.map(t => t.id));
       const targetById = new Map(s.resources.map(r => [r.id, r] as const));
       const taskById = new Map(clip.tasks.map(t => [t.id, t] as const));
-      // Een toewijzing past alleen als de soort (kosten of werk) van de bronresource bekend is en gelijk
-      // aan die van de doelresource, en een mijlpaal draagt alleen kosten (issue #815). Anders overslaan
-      // en melden, zoals een verwijzing die in het doel niet bestaat. Een resource die in het doel niet
-      // bestaat, valt stil weg (het oude gedrag).
       const fitting: ResourceAssignment[] = [];
-      // Per bron-taak de resources van een overgeslagen toewijzing: die gaan ook uit `resourceIds`.
       const skippedResourceIds = new Map<string, Set<string>>();
       for (const a of clip.assignments) {
         const target = targetById.get(a.resourceId);
@@ -319,14 +235,11 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
         skippedResourceIds.set(a.taskId, ids);
       }
 
-      // Geplakte roots komen als sibling van de (eerst) geselecteerde taak;
-      // zonder selectie op rootniveau.
       const anchor = s.selectedTaskIds.length > 0
         ? s.tasks.find(t => t.id === s.selectedTaskIds[0])
         : undefined;
       const targetParentId = anchor ? anchor.parentId : null;
 
-      // Verse id voor elke gekopieerde taak.
       const idMap = new Map<string, string>();
       for (const t of clip.tasks) idMap.set(t.id, generateId('task'));
 
@@ -340,25 +253,18 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
           id: newId,
           parentId: parentInClip ? idMap.get(src.parentId!)! : targetParentId,
           childIds: src.childIds.filter(c => copiedIds.has(c)).map(c => idMap.get(c)!),
-          // Verweesde resourceverwijzingen overslaan, en de resources van overgeslagen toewijzingen.
           resourceIds: src.resourceIds.filter(r => targetById.has(r) && !skippedResourceIds.get(src.id)?.has(r)),
         };
         s.tasks.push(task);
       }
 
-      // Nieuwe roots aan de doelouder hangen.
       if (targetParentId) {
         const parent = s.tasks.find(t => t.id === targetParentId);
         if (parent) parent.childIds.push(...newRootIds);
       }
 
-      // Interne relaties opnieuw aanmaken met de nieuwe ids, getoetst aan de relatieregels —
-      // zonder die toets zou plakken een spookrelatie (bv. uit een IFC-import) eeuwig laten
-      // voortleven. Zie `insertRemappedRelations`.
       skippedRelations = insertRemappedRelations(s, clip.sequences, idMap);
 
-      // Resource-toewijzingen opnieuw aanmaken (resources die niet meer bestaan of niet passen overslaan).
-      // Spread behoudt óók het optionele curve-veld — net als bij sequences hierboven.
       for (const a of fitting) {
         s.assignments.push({
           ...a,
@@ -367,19 +273,15 @@ export const createSelectionSlice: AppSliceFactory<SelectionSlice> = (runtime) =
         });
       }
 
-      // Het klembord is app-globaal: kalenders, eigen taaktypes, activiteitscodes en eigen velden
-      // uit een ander document bestaan hier misschien niet — die verwijzingen leegmaken en melden.
       clearedReferences = normalizeInsertedBranch(s, idMap.values());
 
-      // WBS: geplakte takken zouden anders de codes van hun bron letterlijk dupliceren.
       assignInsertedWbsCodes(s, idMap.values());
 
       s.selectedTaskIds = newRootIds;
       s.activeTaskId = newRootIds[0] ?? null;
-      runtime.finishMutation(s, { stale: true }); // geplakte taken: planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true });
     });
     get().recomputeViewRows();
-    // Ná `set()`: `get().notify(...)` binnen een actieve producer aanroepen kan niet.
     notifyRelationsSkipped(get().notify, skippedRelations, 'relations-skipped-on-paste');
     notifyReferencesCleared(get().notify, clearedReferences);
     notifyAssignmentsSkipped(get().notify, skippedAssignments);

@@ -1,35 +1,13 @@
-/**
- * De backend voor bestanden op de site (issue #309). Het contract zelf staat in `siteHost.ts`.
- *
- * Afspraken die de rest van de app aangaan:
- *  - Deze module houdt GEEN toestand bij. Welke versie een document als basis heeft, staat op het
- *    document zelf (`DocumentPayload.siteFileVersion`); de aanroeper geeft hem mee en krijgt de nieuwe
- *    versie terug. Zo hebben twee tabbladen op hetzelfde bestand elk hun eigen basis.
- *  - Een FOUT van de site (ook een conflict) gooit hier gewoon door. De aanroeper meldt hem; er is
- *    geen stille terugval naar een andere opslagplek, want dan belandt werk ongemerkt ergens anders.
- *  - Een antwoord dat het contract niet volgt (geen versie, een ander id) is ook een fout: anders valt
- *    de conflictcontrole stil uit.
- *  - Schrijven loopt alleen via `saveSiteFileVersion`/`saveNewSiteFile`, vanuit de opslaanroute van de
- *    store. De algemene `FileRef`-functies in `fileAccess/index.ts` schrijven nooit naar de site.
- */
 import type { FileData, OpenDialogOpts, OpenedFile } from './index';
 import { getSiteStorage, type SiteFileInfo, type SiteStorage, type SiteVersionInfo } from './siteHost';
 import { isConflictCopyAnswer } from './superCloudHost';
 import { extensionOf } from '@/utils/filePath';
 import { bytesBlob, ByteWriteError } from './byteWrite';
 
-/** MIME-type van een opgeslagen IFC-bestand (de tool schrijft altijd IFC). */
 export const SITE_SAVE_MIME = 'application/x-step';
-
-// ── Inhoud omzetten ────────────────────────────────────────────────────────────────────────────
 
 type SiteData = Blob | ArrayBuffer | Uint8Array | string;
 
-/**
- * Inhoud van de site als bytes. Bewust zonder `instanceof`: een host op `window.parent` maakt zijn
- * `Uint8Array`/`ArrayBuffer`/`Blob` in een ANDER venster, en `instanceof` geeft dan `false`.
- * `ArrayBuffer.isView` en `Object.prototype.toString` werken wel over vensters heen.
- */
 export async function siteDataToBytes(data: SiteData): Promise<Uint8Array> {
   if (typeof data === 'string') return new TextEncoder().encode(data);
   if (ArrayBuffer.isView(data)) return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
@@ -38,7 +16,6 @@ export async function siteDataToBytes(data: SiteData): Promise<Uint8Array> {
   throw new Error('De site leverde inhoud in een onbekende vorm.');
 }
 
-/** Inhoud van de site als tekst: UTF-8, zoals `File.text()` (een BOM aan het begin valt weg). */
 export async function siteDataToText(data: SiteData): Promise<string> {
   if (typeof data === 'string') return data;
   return new TextDecoder('utf-8').decode(await siteDataToBytes(data));
@@ -50,31 +27,16 @@ function requireStorage(): SiteStorage {
   return storage;
 }
 
-/** Een niet-lege tekst uit een antwoord van de site, of `null`. */
 function nonEmpty(value: unknown): string | null {
   return typeof value === 'string' && value.length > 0 ? value : null;
 }
 
-// ── Openen ─────────────────────────────────────────────────────────────────────────────────────
-
-/** Een geopend site-bestand: de gewone `OpenedFile` plus de info en de versie van de site. */
 export interface OpenedSiteFile extends OpenedFile {
   file: SiteFileInfo;
-  /** De gelezen versie als het de NIEUWSTE was en het bestand schrijfbaar is (de basis voor de
-   *  volgende opslag), anders `null`. */
   version: string | null;
-  /** De site gaf de nieuwste versie als alleen-lezen (`readOnly: true`, #818): geen ref en geen basis. */
   readOnly: boolean;
 }
 
-/**
- * Open een bestand van de site. Zonder `version`: de nieuwste versie, met een site-ref als opslagdoel
- * en de gelezen versie als basis (het contract eist die versie; zonder versie gooit dit). Met
- * `version`: die (oudere) versie, ZONDER ref en zonder basis — een oudere versie mag nooit het
- * opslagdoel worden. Geeft de site de nieuwste versie als alleen-lezen (`readOnly: true`, #818), dan
- * ook geen ref en geen basis (`readOnly` in het antwoord). Gooit bij een fout van de site of zonder
- * opslag.
- */
 export async function openSiteFile(id: string, opts?: OpenDialogOpts & { version?: string }): Promise<OpenedSiteFile> {
   const requested = opts?.version;
   const answer = await requireStorage().open(id, requested);
@@ -92,9 +54,6 @@ export async function openSiteFile(id: string, opts?: OpenDialogOpts & { version
   return { name: file.name, content: await siteDataToText(answer.data), ref, file, version, readOnly };
 }
 
-/** De lijst van bestanden die de tool kan openen. De site MAG op `extensions` filteren; doet ze dat
- *  niet, dan filtert de tool zelf, zodat de lijst nooit bestanden toont die niet te openen zijn.
- *  Gooit bij een fout of zonder opslag. */
 export async function listSiteFiles(extensions: string[]): Promise<SiteFileInfo[]> {
   const files = await requireStorage().list({ extensions });
   if (!Array.isArray(files)) return [];
@@ -103,27 +62,19 @@ export async function listSiteFiles(extensions: string[]): Promise<SiteFileInfo[
     && (wanted.size === 0 || wanted.has(extensionOf(f.name))));
 }
 
-/** De versies van één bestand, in de volgorde van de site. Gooit bij een fout of zonder opslag. */
 export async function listSiteVersions(id: string): Promise<SiteVersionInfo[]> {
   const versions = await requireStorage().versions(id);
   return Array.isArray(versions) ? versions.filter((v) => v && typeof v.version === 'string') : [];
 }
 
-// ── Een bron van een externe relatie (stap 1.9) ─────────────────────────────────────────────────
-
-/** Een bestand op de site als bron van een externe relatie: alleen-lezen, nooit een opslagdoel. */
 export interface SiteSourceFile {
   id: string;
   name: string;
-  /** De gelezen versie (`file.version`); afwezig als de site er geen gaf. */
   version?: string;
   text(): Promise<string>;
   bytes(): Promise<Uint8Array>;
 }
 
-/** Leest de nieuwste versie van een bestand op de site als bron (`open(id)`). Anders dan `openSiteFile` mag
- *  het antwoord alleen-lezen zijn of zonder versie: de bron wordt nooit opgeslagen. Gooit bij een fout van de
- *  site (ook `not-found`) of zonder opslag. */
 export async function readSiteSourceFile(id: string): Promise<SiteSourceFile> {
   const answer = await requireStorage().open(id);
   const name = nonEmpty(answer?.file?.name) ?? id;
@@ -136,31 +87,18 @@ export async function readSiteSourceFile(id: string): Promise<SiteSourceFile> {
   };
 }
 
-/** De nieuwste versie van een bestand op de site (`versions(id)`, nieuwste eerst), of `null` als de site
- *  geen versie gaf. Gooit bij een fout of zonder opslag. */
 export async function latestSiteVersion(id: string): Promise<SiteVersionInfo | null> {
   const [latest] = await listSiteVersions(id);
   return latest ?? null;
 }
 
-// ── Opslaan ────────────────────────────────────────────────────────────────────────────────────
-
-/** Wat een geslaagde opslag oplevert: het bestand en de net geschreven versie (de nieuwe basis). */
 export interface SavedSiteFile {
   id: string;
   name: string;
   version: string;
-  /** De SuperCloud-vorm bewaarde het werk na een conflict in een KOPIE (#818): `id` en `name` zijn
-   *  die van de kopie. Alleen bij een nieuwe versie (`saveSiteFileVersion`); anders afwezig. */
   conflictCopy?: true;
 }
 
-/**
- * Controleer het antwoord van `save`: een `id` (bij een nieuwe versie hetzelfde `id`) en een `version`.
- * Ontbreekt er iets, dan is dat een fout — de opslag telt dan niet als geslaagd. Een ander `id` mag
- * alleen als de SuperCloud-adapter het antwoord als conflictkopie markeerde; bij de `storage`-vorm
- * blijft het een fout.
- */
 function checkedSaveAnswer(answer: SiteFileInfo | null | undefined, name: string, expectedId?: string): SavedSiteFile {
   const id = nonEmpty(answer?.id);
   if (!id) throw new Error('De site gaf na het opslaan geen bestand-id terug.');
@@ -173,21 +111,16 @@ function checkedSaveAnswer(answer: SiteFileInfo | null | undefined, name: string
   return { id, name: nonEmpty(answer?.name) ?? name, version, ...(conflictCopy ? { conflictCopy: true as const } : {}) };
 }
 
-/** Sla een NIEUW bestand op de site op (geen `id`), als tekst of als de bytes van de opslagworker (#804 stap 6; de
- *  `Blob` heeft dezelfde bytes). Gooit bij een fout of een onvolledig antwoord. */
 export async function saveNewSiteFile(name: string, data: FileData): Promise<SavedSiteFile> {
   const answer = await requireStorage().save({ name, data: new Blob([data as BlobPart], { type: SITE_SAVE_MIME }) });
   return checkedSaveAnswer(answer, name);
 }
 
-/** T1: de bytes als Blob naar een nieuw sitebestand, zonder tekstomzetting. */
 export async function saveNewSiteFileBytes(name: string, bytes: Uint8Array): Promise<SavedSiteFile> {
   const answer = await requireStorage().save({ name, data: bytesBlob(bytes, SITE_SAVE_MIME) });
   return checkedSaveAnswer(answer, name);
 }
 
-/** T1: een bestaande site-id nooit zonder basisversie schrijven. Het antwoord bewaart de
- * versie en eventuele conflictkopie van de host, zoals de bestaande tekstingang. */
 export async function saveSiteFileVersionBytes(
   id: string, name: string, bytes: Uint8Array, baseVersion: string | null,
 ): Promise<SavedSiteFile> {
@@ -198,13 +131,6 @@ export async function saveSiteFileVersionBytes(
   return checkedSaveAnswer(answer, name, id);
 }
 
-/**
- * Schrijf een nieuwe versie van een bestaand site-bestand. `baseVersion` is de basis van het DOCUMENT
- * dat opslaat (`DocumentPayload.siteFileVersion`); `null` stuurt geen basis mee. Geeft de net
- * geschreven versie terug: die wordt de nieuwe basis van dat document. Een fout van de site (ook
- * `code === 'conflict'`) of een onvolledig antwoord gooit. Bij de SuperCloud-vorm kan het antwoord
- * een conflictkopie zijn (`conflictCopy`, met het id en de naam van de kopie).
- */
 export async function saveSiteFileVersion(
   id: string,
   name: string,

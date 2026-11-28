@@ -9,16 +9,6 @@ import type {
 } from '@/extensions/types';
 import type { AppSlice, RibbonTab } from './types';
 
-/**
- * Een door een extensie geregistreerde lintknop, zoals de STORE hem bewaart.
- *
- * `tab` wordt hier bewust versmald naar het INTERNE `RibbonTab`: de registratie komt binnen als
- * `ExtRibbonTab` (het publieke contract) en wordt op de API-grens vertaald door
- * `extMappers.fromExtRibbonTab`. Zou de store het ext-type bewaren, dan zou het publieke contract
- * alsnog tot in de renderlaag doorlopen en was de vertaallaag decoratief. Vandaag zijn de twee
- * unies identiek, dus dit compileert zonder ceremonie — het punt is dat een toekomstige divergentie
- * hier stukloopt en niet stilzwijgend doorschiet.
- */
 export interface ExtensionRibbonButton extends Omit<RibbonButtonRegistration, 'tab'> {
   tab: RibbonTab;
   extensionId: string;
@@ -29,7 +19,6 @@ export interface ExtensionImporter extends ImporterDefinition {
 }
 
 export interface ExtensionSlice {
-  // State
   installedExtensions: Record<string, ReadyExtension>;
   quarantinedExtensions: Record<string, QuarantinedExtension>;
   extensionRibbonButtons: ExtensionRibbonButton[];
@@ -40,7 +29,6 @@ export interface ExtensionSlice {
   catalogError: string | null;
   catalogLastFetched: number | null;
 
-  // Extensie-CRUD
   registerReadyExtension: (ext: ReadyExtension) => void;
   registerQuarantinedExtension: (ext: QuarantinedExtension) => void;
   removeQuarantinedExtension: (quarantineId: string) => void;
@@ -48,18 +36,14 @@ export interface ExtensionSlice {
   setExtensionStatus: (id: string, status: ExtensionStatus, error?: string) => void;
   setExtensionPersistenceError: (id: string, error: string) => void;
 
-  // Ribbon-knoppen
   addExtensionRibbonButton: (btn: ExtensionRibbonButton) => void;
   removeExtensionRibbonButton: (extensionId: string, label: string) => void;
 
-  // Importers
   addExtensionImporter: (imp: ExtensionImporter) => void;
   removeExtensionImporter: (extensionId: string, importerId: string) => void;
 
-  // Alle UI van een extensie opruimen
   removeAllExtensionUI: (extensionId: string) => void;
 
-  // Catalogus
   setCatalog: (entries: CatalogEntry[], issues: CatalogIssue[], fetchedAt: number) => void;
   setCatalogLoading: (loading: boolean) => void;
   setCatalogError: (error: string | null) => void;
@@ -79,11 +63,6 @@ export const createExtensionSlice: AppSlice<ExtensionSlice> = (set) => ({
   registerReadyExtension: (ext) =>
     set((s) => {
       s.installedExtensions[ext.id] = ext;
-      // Een valide opgeslagen extensie heeft door `parseStoredExtension` altijd exact dezelfde
-      // string als record-id, manifest-id en IndexedDB-sleutel. Ready en quarantaine zijn voor die
-      // ene fysieke sleutel wederzijds uitsluitend: laat een oude quarantainekaart staan en haar
-      // verwijderactie wist na reparatie juist het nieuwe geldige record. Doe beide wijzigingen in
-      // één store-update, zodat de UI nooit een tussenstaat met twee kaarten kan observeren.
       for (const [quarantineId, quarantined] of Object.entries(s.quarantinedExtensions)) {
         if (quarantined.storageKey === ext.id) delete s.quarantinedExtensions[quarantineId];
       }
@@ -102,7 +81,6 @@ export const createExtensionSlice: AppSlice<ExtensionSlice> = (set) => ({
   unregisterExtension: (id) =>
     set((s) => {
       delete s.installedExtensions[id];
-      // Ruim ook alle UI-registraties van deze extensie op (voorkomt orphans).
       s.extensionRibbonButtons = s.extensionRibbonButtons.filter(
         b => b.extensionId !== id
       );

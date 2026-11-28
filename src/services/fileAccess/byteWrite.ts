@@ -1,4 +1,3 @@
-/** Fouten van de strikte byte-ingang; de aanroeper verzorgt de vertaalde melding. */
 export class ByteWriteError extends Error {
   readonly code = 'BYTE_WRITE_FAILED';
   constructor(
@@ -10,7 +9,6 @@ export class ByteWriteError extends Error {
   }
 }
 
-/** Blob neemt de buffer rechtstreeks aan: geen tekstomzetting of extra kopie. */
 export function bytesBlob(bytes: Uint8Array, mime: string): Blob {
   return new Blob([bytes as BlobPart], { type: mime });
 }

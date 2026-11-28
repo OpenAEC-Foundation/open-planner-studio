@@ -1845,6 +1845,12 @@ en noem het in je rapport of PR-tekst.
       dezelfde tint als `GANTT_TRACE_COLORS.successorDriving` en als `DOC_PALETTE[3]` (`src/utils/documents.ts`). Bij
       een op de acht documenten is de identiteitskleur van het document dus de kleur van een mijlpaal. Uit het
       weggehaalde commentaar, de hexwaarden in de code nagekeken. — S
+2770. **Na een afgewezen taakgridvoorkeur overschrijft verticaal scrollen haar met de standaardvoorkeuren.**
+     `hydrateTaskGridPreferences` met `autoWrite: false` (`src/state/slices/taskGridSlice.ts`) houdt alleen de
+     automatische kolombreedtemeting tegen. De scrollhandler van `DataGridCore.tsx` geeft bij elke scroll ook de
+     horizontale positie door, ook als die gelijk bleef, en de opslagactie schrijft dan de getoonde standaardvoorkeuren
+     over de afgewezen ruwe waarde. Gezien in de review van #1361 (Sol), in Node nagespeeld vanaf de store-aanroep, niet
+     in de browser. — B
 
 ## Kalenders
 
@@ -5244,6 +5250,13 @@ en noem het in je rapport of PR-tekst.
       programma in plaats van de bestandsbeheerder of browser. Geldt voor álle open-aanroepen van de app, niet
       alleen de backupmap. Als bekende grens besloten bij de review van #1315 (ronde 2): op Linux kiest main
       het openprogramma al op deze manier. — B
+
+2780. **Opslaan op de desktop is na stroomuitval niet gegarandeerd heel.** De route via een tijdelijk bestand in `replaceUserFile` en
+      `writeTextFileAtomic`/`writeBytesFileAtomic` (`src/services/fileAccess/atomicWrite.ts`) schrijft een tijdelijk
+      bestand en hernoemen het over het doel, zonder `fsync` (plugin-fs heeft er geen). Tegen een crash van de app helpt
+      dat; bij stroomuitval of een kernel-panic kan de hernoeming op sommige bestandssystemen vóór de data op schijf
+      staan. Voor de herstelopslag van een gebouwmodel staat hetzelfde in 1765. Overgenomen uit het weggehaalde
+      commentaar van `atomicWrite.ts`, niet nagespeeld. — S
 
 ## Rondleiding, Help en extensie-gidsen
 

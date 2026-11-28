@@ -39,8 +39,6 @@ import type { XerArchiveIssue, XerImportMetadata } from '@/services/importTypes'
 import type { XerSourceArchive } from '@/services/xerSourceArchive';
 import type { IfcSource } from '@/services/ifc/foreign/ifcSource';
 import type { ForeignSourceMark } from '@/services/ifc/foreign/foreignSourceMark';
-// De fabriek woont in de bladmodule `../defaults` (breekt de import-cyclus met
-// documentContract/snapshot). Hier alleen doorgegeven voor bestaande importers.
 import { createDefaultProject } from '../defaults';
 import { newTaskTimeUnit, settleNewTaskMeasure } from '../newTaskMeasure';
 import { removeSessionHistoryForDocumentFromState } from '../sessionHistory';
@@ -48,7 +46,6 @@ import { replaceDocumentContent } from '../documentSaveState';
 import { copyProfile, normalizeOptions, normalizeProfile } from '../schedulingProfileDraft';
 export { createDefaultProject };
 
-/** Opties voor de nieuw-project-wizard. */
 export interface NewProjectOptions {
   name: string;
   description?: string;
@@ -59,42 +56,27 @@ export interface NewProjectOptions {
   calendar: WorkCalendar;
   phaseNames: string[];
   defaultTaskDurationUnit?: 'days' | 'hours';
-  /** Rekenprofiel uit de wizard-keuzelijst. Hoort bij de aanmaak zelf,
-   *  niet bij een losse undo-stap erna: het nieuwe project begint zonder historie, dus Ctrl+Z kan niet
-   *  terugvallen naar OPS. Afwezig of standaardprofiel ⇒ afwezig (≡ ops). */
   schedulingProfile?: SchedulingProfile;
-  /** De reken-opties uit de wizard (`withDefaultOptions`: de standaard van het profiel, zonder
-   *  bronsignalen); leeg ⇒ afwezig. */
   schedulingOptions?: ProjectSchedulingOptions;
 }
 
-/** Uitkomst van een `moveProject`-commit. */
 export interface MoveProjectResult {
-  /** false bij Δ=0 of een ongeldige huidige/nieuwe startdatum — er is dan NIETS gemuteerd. */
   moved: boolean;
   deltaDays: number;
   taskCount: number;
 }
 
-/** Droogrun-uitkomst van `previewMoveProject`. Muteert per definitie niets. */
 export interface MoveProjectPreview {
-  /** `NaN` als de huidige of nieuwe startdatum onbruikbaar is. */
   deltaDays: number;
   startBefore: string;
   startAfter: string;
-  /** `''` als er geen taken zijn. */
   endBefore: string;
   endAfter: string;
-  /** Projectduur in werkdagen (uit `CPMResult.projectDuration`). */
   durationBefore: number;
   durationAfter: number;
-  /** Kalenderdagen die het EINDE opschuift. ≠ `deltaDays` ⇒ de kalender heeft ingegrepen
-   *  (feestdagen/bouwvak schuiven NIET mee) — dat is het hele bestaansrecht van de preview. */
   endDeltaDays: number;
   impact: MoveImpact;
-  /** Kalenders waarvan de GEGENEREERDE feestdagen de nieuwe periode niet dekken. */
   holidayGapCalendars: HolidayGapCalendar[];
-  /** Solver-fout in de droogrun (cyclus e.d.) — de UI toont hem en blokkeert Verplaatsen. */
   error?: string;
 }
 
@@ -103,82 +85,34 @@ export interface ProjectSlice {
   calendar: WorkCalendar;
   isDirty: boolean;
   filePath: string | null;
-  /** Web-opslaan-doel. ALLEEN het FSA-opslaan-doel — nooit voor identiteit/titel;
-   *  die blijven bij `filePath` (echt pad in Tauri, bestandsnaam in web). `null` in Tauri/fallback-web. */
   fileHandle: FileSystemFileHandle | null;
-  /** Opslaan-doel op de site (issue #309): id van het bestand op de site, of `null`. Zie
-   *  `DocumentPayload.siteFileId`. */
   siteFileId: string | null;
-  /** De site-versie waarop dit document rust (de `baseVersion` van de volgende opslag), of `null`.
-   *  Zie `DocumentPayload.siteFileVersion`. */
   siteFileVersion: string | null;
   knownTargetFingerprint: TargetFingerprint | null;
   fileFormat: DocumentFileFormat;
-  /** Persoonlijke sessiekeuze voor echte bestands-AutoSave; per document via DOCUMENT_FIELDS. */
   autoSaveToFile: boolean;
-  /** XER-herkomst van het actieve document; externe relaties blijven solverloze brondata. */
   xerImportMetadata: XerImportMetadata | null;
   xerSourceArchive: XerSourceArchive | null;
   xerSourceProjectId: string | null;
-  /** Zie `DocumentPayload.ifcSource` (#804 fase 1a). */
   ifcSource: IfcSource | null;
-  /** Zie `DocumentPayload.foreignSourceMark` (#804 fase 1a, fixronde 1). */
   foreignSourceMark: ForeignSourceMark | null;
   ifcxReferences: import('../documentContract').DocumentPayload['ifcxReferences'];
-  /** Werkregel-UI ontsloten voor dit document; zie DOCUMENT_FIELDS. */
   taskTypesVisible: boolean;
-  /** Zie `DocumentPayload.importPristine`. */
   importPristine: boolean;
-  /** Sessie-only: waarom het XER-bronarchief bij het openen onbruikbaar was (per document via
-   *  DOCUMENT_FIELDS; nooit IFC). `null` = er was geen archief óf het was bruikbaar. */
   xerArchiveIssue: XerArchiveIssue | null;
-  /** Zie `DocumentPayload.ifcGlobalIds`. */
   ifcGlobalIds: Readonly<Record<string, string>> | null;
-  /** Zie `DocumentPayload.ifcLiteralCalendarIds` (knownbug 1026). */
   ifcLiteralCalendarIds: string[] | null;
-  /** Metadata van het project, als één undo-stap. Een `ifcSchema` in de patch gaat eerst via
-   *  `setIfcSchema` (geen undo-stap, zie `state/ifcSchemaChoice.ts`). */
   setProject: (project: Partial<Project>) => void;
-  /** Het IFC-schema van het bestand kiezen (Projectinfo). Wist de open schemavraag. Geen undo-stap:
-   *  het schema hoort bij het bestand, niet bij de bewerkingsgeschiedenis (review #336). Het document
-   *  staat daarna op gewijzigd ("Niet opgeslagen"); "ongewijzigd sinds import" blijft, want de
-   *  planning verandert niet. `false` als er niets verandert. */
   setIfcSchema: (schema: IfcSchemaId) => boolean;
-  /** Zet WBS-autonummering aan/uit; bij aanzetten wordt de hele boom direct hernummerd. */
   setWbsAutoNumber: (on: boolean) => void;
   setCalendar: (calendar: WorkCalendar) => void;
-  /** Kies een bestaande bibliotheek-kalender (`s.calendars`) als projectdefault.
-   *  setCalendar-precedent: undo-snapshot + isDirty + scheduleStale. No-op (en dus géén
-   *  undo-stap) op een onbekende id of als hij al de projectdefault is. */
   setProjectCalendar: (id: string) => void;
-  /** Promoveer de huidige gedenormaliseerde projectkalender (`s.calendar`) tot een zichtbare
-   *  bibliotheek-entry als die er nog niet in staat (migratie, lazy variant voor de
-   *  kalenderdialoog). Puur additief/niet-destructief — geen undo-snapshot nodig. */
   ensureProjectCalendarInLibrary: () => void;
-  /** Statusdatum (P6 data date). undefined = wissen. setCalendar-patroon: undo-snapshot +
-   *  isDirty + scheduleStale; dezelfde waarde opnieuw zetten is een no-op. */
   setStatusDate: (date: string | undefined) => void;
-  /** Voortgangsmodus. setCalendar-patroon (undo-snapshot + isDirty + scheduleStale). */
   setProgressMode: (mode: ProgressMode) => void;
-  /**
-   * Verschuif de HELE planning zodat het project op `newStartDate` begint.
-   *
-   * Δ = kalenderdagen tussen de huidige en de nieuwe projectstart. De KALENDERS schuiven bewust
-   * NIET mee (feestdagen/bouwvak/winterstop liggen op absolute datums), dus einddatums kunnen met
-   * een ánder aantal dagen verspringen dan Δ — `previewMoveProject` maakt dat vooraf zichtbaar.
-   *
-   * Eén undo-stap (óók in "datums zoals opgeslagen": die modus wordt in dezelfde producer verlaten,
-   * niet pas door de aansluitende `runCPM`); draait aansluitend `runCPM` + `requestFitToProject`.
-   * Δ=0 of een onbruikbare startdatum ⇒ volledige no-op (géén snapshot, géén isDirty).
-   */
   moveProject: (newStartDate: string, opts?: MoveProjectOptions) => MoveProjectResult;
-  /** Droogrun van `moveProject`: rekent de verschoven planning volledig door met een verse
-   *  `CPMSolver` en geeft het resultaat terug ZONDER de store te muteren (levelResources-precedent). */
   previewMoveProject: (newStartDate: string, opts?: MoveProjectOptions) => MoveProjectPreview;
   newProject: () => void;
-  /** Nieuw-project-wizard: maak een project met metadata, kalender en een
-   *  fasering-skelet in een eigen tabblad (hergebruikt het actieve tabblad als
-   *  dat nog leeg en ongewijzigd is). */
   createNewProject: (opts: NewProjectOptions) => void;
   setFilePath: (path: string | null) => void;
   loadState: (state: {
@@ -197,14 +131,6 @@ export interface ProjectSlice {
   }, opts?: { viewStartDate?: string }) => void;
 }
 
-/**
- * Verandert `updates` iets BETEKENISVOLS aan het project? `modifiedAt` telt bewust NIET mee: elke
- * mutator ververst dat veld, dus zonder deze uitzondering zou élke "opslaan" uit de Backstage/
- * projectdialoog — óók met volledig ongewijzigde waarden — een (lege) undo-stap pushen. Zie de kop
- * van `snapshot.ts`: het volledige project staat in de snapshot, dus deze guard is
- * de tegenhanger die de undo-stack schoon houdt. Gelijkheid is structureel (`sameValue`, dezelfde
- * definitie als de no-op-guard van `taskSlice.updateTask`).
- */
 function projectChanges(current: Project, updates: Partial<Project>): boolean {
   return (Object.keys(updates) as (keyof Project)[])
     .some((k) => k !== 'modifiedAt' && !sameValue(current[k], updates[k]));
@@ -244,30 +170,16 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   },
 
   setProject: (patch) => {
-    // Het schema gaat buiten de undo-stap (zie `setIfcSchema`); de rest is gewone metadata.
     const { schema, rest: updates } = splitIfcSchemaPatch(patch, get().project);
     if (schema) get().setIfcSchema(schema);
-    // Telt de wortel-ankers die deze aanroep klemt, buiten de
-    // Immer-`set()`-producer om — zelfde precedent als `moveProject` hieronder (een `let out`/
-    // teller die de producer vult, waarna de aanroeper ná `set()` op de VOLTOOIDE state reageert;
-    // `get().notify(...)`/`get().runCPM()` binnen een actieve producer aanroepen kan niet).
     let clampedAnchors = 0;
     let measureChanged = false;
     set((s) => {
-      // No-op-guard vóór de snapshot: een opslag met identieke waarden verandert niets —
-      // geen undo-stap, geen `modifiedAt`-bump, geen isDirty.
       if (!projectChanges(s.project, updates)) return;
       runtime.beginUndoable(s);
-      // Merge + `modifiedAt` + de projectstart-vloer op het bewerkmoment (verouderde wortel-
-      // ankers klemmen) + de taken die een nieuwe projectstandaard voor het taaktype erven —
-      // gedeeld met `draft.setProject`, zie `applyProjectPatch` (projectPatch.ts) voor het waarom.
-      // Wie de hele planning wil opschuiven gebruikt `moveProject` hieronder.
       const outcome = applyProjectPatch(s, updates);
       clampedAnchors = outcome.clampedAnchors;
       measureChanged = outcome.measureChangedTaskIds.length > 0;
-      // De projectstart raakt de planning (anker van de forward pass); naam/auteur niet. Een nieuwe
-      // standaard *Vast werk* die taken urenmaat maakt, is ook planning (geval 11c): de modus gaat
-      // uit en de planning wordt verouderd, in deze ene undo-stap.
       runtime.finishMutation(s, { stale: 'startDate' in updates || measureChanged });
     });
     if (measureChanged) {
@@ -275,11 +187,6 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       get().recomputeViewRows();
     }
     if (clampedAnchors > 0) {
-      // Ná een DAADWERKELIJKE klem meteen herberekenen — anders is de melding ("meegeschoven")
-      // op het moment dat hij verschijnt nog niet waar (de taken staan dan wel op hun nieuwe anker,
-      // maar early/late-datums en het kritieke pad zijn nog niet bijgewerkt). Buiten `setProject`'s
-      // gebruikelijke "scheduling is handmatig"-regel (AGENTS.md) — bewust smal: alleen wanneer er
-      // écht iets geklemd is, niet bij elke `setProject`-aanroep.
       get().runCPM({ withinEvent: true });
       get().notify({
         severity: 'info',
@@ -297,42 +204,36 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       runtime.beginUndoable(s);
       s.project.wbsAutoNumber = on;
       if (on) applyWbsNumbering(s.tasks);
-      runtime.finishMutation(s); // WBS-nummering raakt geen datums: géén scheduleStale (bewuste asymmetrie).
+      runtime.finishMutation(s);
     }),
 
   setCalendar: (calendar) =>
     set((s) => {
-      // Houd de bibliotheek-entry (indien aanwezig) in sync met de gedenormaliseerde cache.
       const idx = s.calendars.findIndex((c) => c.id === calendar.id);
-      // No-op-guard vóór de snapshot: identieke kalender (cache én bibliotheek-entry) ⇒
-      // niets te doen. Anders zou een dialoog-commit zonder wijziging een lege undo-stap pushen.
       if (sameValue(s.calendar, calendar) && (idx < 0 || sameValue(s.calendars[idx], calendar))) return;
       runtime.beginUndoable(s);
       s.calendar = calendar;
       if (idx >= 0) s.calendars[idx] = calendar;
-      runtime.finishMutation(s, { stale: true }); // projectkalender-wijziging: planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true });
     }),
 
   setProjectCalendar: (id) => {
     let changed = 0;
     let lost = 0;
     set((s) => {
-      if (!s.calendars.some((c) => c.id === id)) return; // alleen bestaande bibliotheek-entries
-      if (s.project.calendarId === id) return; // no-op-guard: al de projectdefault (geen lege undo-stap).
+      if (!s.calendars.some((c) => c.id === id)) return;
+      if (s.project.calendarId === id) return;
       runtime.beginUndoable(s);
-      // Alle taken die de projectkalender VOLGEN (geen eigen kalender, of een bungelende
-      // verwijzing) gaan mee; momentopnamen vóór
-      // de wissel, daarna beslist de werkregel per taak.
-      const byTask = assignmentsByTask(s.assignments); // O(taken + toewijzingen), zie de helper
+      const byTask = assignmentsByTask(s.assignments);
       const affected = tasksFollowingProjectCalendar(s).map((task) => ({ task, before: captureCalendarChange(task, byTask.get(task.id) ?? [], s) }));
       s.project.calendarId = id;
-      syncProjectCalendar(s); // Cache gelijkzetten (vóór de settle: die leest `s.calendar`).
+      syncProjectCalendar(s);
       for (const { task, before } of affected) {
         const settled = settleCalendarChange(task, byTask.get(task.id) ?? [], before, s);
         if (settled.durationChanged) changed++;
         if (settled.timephasedLost) lost++;
       }
-      runtime.finishMutation(s, { stale: true }); // projectdefault-wissel is datum-beïnvloedend.
+      runtime.finishMutation(s, { stale: true });
     });
     if (changed > 0) notifyWorkRuleDurationsChanged(get().notify, changed);
     if (lost > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lost);
@@ -340,28 +241,23 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
 
   ensureProjectCalendarInLibrary: () =>
     set((s) => {
-      promoteProjectCalendarToLibrary(s); // Migratie, lazy variant (idempotent, geen undo nodig).
+      promoteProjectCalendarToLibrary(s);
     }),
 
   setStatusDate: (date) =>
     set((s) => {
-      const next = date || undefined; // '' telt als wissen — zelfde effect als undefined
-      if (s.project.statusDate === next) return; // no-op-guard vóór de snapshot
-      // Coalescing: het statusdatumveld in het lint is een `DateTextInput`. Die commit standaard pas
-      // bij het AFRONDEN (blur/Enter), dus één ingetypte datum = één commit; deze key is het vangnet
-      // voor reeksen die tóch snel achter elkaar committen (plakken, corrigeren, pijltjes).
-      // Zonder key zou elke commit een eigen undo-stap met onzin-tussenwaarde zijn (zie
-      // `beginUndoable` en `tests/planning/check-date-input-commit.ts`).
+      const next = date || undefined;
+      if (s.project.statusDate === next) return;
       runtime.beginUndoable(s, { coalesceKey: 'project.statusDate' });
       if (next) s.project.statusDate = next;
       else delete s.project.statusDate;
       s.project.modifiedAt = new Date().toISOString();
-      runtime.finishMutation(s, { stale: true }); // datum-beïnvloedend: planning verouderd tot F5.
+      runtime.finishMutation(s, { stale: true });
     }),
 
   setProgressMode: (mode) =>
     set((s) => {
-      if (s.project.progressMode === mode) return; // no-op-guard vóór de snapshot
+      if (s.project.progressMode === mode) return;
       runtime.beginUndoable(s);
       s.project.progressMode = mode;
       s.project.modifiedAt = new Date().toISOString();
@@ -372,39 +268,19 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     let out: MoveProjectResult = { moved: false, deltaDays: 0, taskCount: 0 };
     set((s) => {
       const delta = computeMoveDelta(s.project.startDate, newStartDate);
-      // Guard vóór `beginUndoable`, zodat een no-op de undo-stack niet vervuilt.
       if (!Number.isFinite(delta) || delta === 0) return;
       runtime.beginUndoable(s);
       s.project = shiftProjectDates(s.project, delta);
-      // Exact de gekozen datum, niet via Δ: voorkomt drift als `project.startDate` een datetime was.
       s.project.startDate = newStartDate;
       s.project.modifiedAt = new Date().toISOString();
-      // Élk taakanker moet mee: `project.startDate` is GEEN ondergrens voor een wortel-taak-eigen ES
-      // in de solver (`CPMSolver.ownAnchor` is ongeklemd — de vloer geldt uitsluitend als ondergrens
-      // tegen relatie-leads voor taken MET voorganger). De bewerkbescherming in `setProject`
-      // hierboven (`clampProjectStartAnchors`) grijpt hier niet in — `moveProject` roept
-      // `setProject` niet aan. Een Δ-verschuiving die ALLEEN `project.startDate` verzet zou dus
-      // GEEN ENKEL taakanker meeschuiven, vooruit noch terug. Een "project verplaatsen" moet het
-      // HELE project Δ dagen opschuiven; alle ankers (taken, resources, evt. baselines) moeten dus
-      // expliciet mee.
       s.tasks = s.tasks.map((t) => shiftTask(t, delta));
       s.resources = s.resources.map((r) => shiftResource(r, delta));
-      // Default UIT: een baseline bestaat om afwijking te meten; meeschuiven wist het signaal.
       if (opts?.shiftBaselines) s.baselines = s.baselines.map((b) => shiftBaseline(b, delta));
-      // WÉL { stale: true }. Dit is een datum-rakende mutatie — daar hoort de vlag bij, en `stale` is
-      // precies het signaal waarop `finishMutation` de modus "datums zoals opgeslagen" verlaat.
-      // Anders doet de `runCPM` hieronder dat, in een EIGEN producer met een EIGEN snapshot: twee
-      // undo-stappen voor één verschuiving, met daartussen een tussentoestand die de gebruiker nooit
-      // gezien heeft. Zo verlaat de modus in dezelfde producer die de snapshot al nam ⇒ één
-      // undo-stap. De vlag zelf is een non-issue: de `runCPM` hieronder wist hem meteen weer (het
-      // is de eerste regel van die actie), dus de "verouderd"-hint knippert niet.
       runtime.finishMutation(s, { stale: true });
       out = { moved: true, deltaDays: delta, taskCount: s.tasks.length };
     });
     if (out.moved) {
       get().runCPM({ withinEvent: true });
-      // "Toon het verplaatste project" — één definitie van in-beeld (computeFitToProject),
-      // niet een tweede die view.viewStartDate met Δ zou schuiven (fout zodra het einde verspringt).
       get().requestFitToProject();
     }
     return out;
@@ -415,8 +291,6 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     const delta = computeMoveDelta(s.project.startDate, newStartDate);
     const impact = computeMoveImpact(
       s.tasks, s.resources,
-      // `baselineCount` telt wat er MEE gaat schuiven, niet hoeveel baselines er zijn: staat de
-      // checkbox uit (de default), dan blijven ze staan en is het er nul.
       opts?.shiftBaselines ? s.baselines : [],
       s.customFieldDefs,
     );
@@ -429,14 +303,6 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     };
     if (!Number.isFinite(delta)) return empty;
 
-    // Droogrun met een VERSE solver: een goedkope schatting kan per definitie alleen
-    // "oude einddatum + Δ" opleveren, en dát is precies het antwoord dat fout is.
-    // LET OP: `CPMSolver` schrijft in de hammock-tak op de meegegeven task-objecten terug. Beide
-    // takken hieronder krijgen daarom KOPIEËN uit `shiftTask` (dat `time` altijd kloont) — nooit de
-    // store-objecten zelf. Zonder die kopie zou een "preview" de store muteren.
-    // Samenvattingsrelatie-propagatie (zie `scheduleSlice.runCPM`): de WBS-boom (parentId/childIds)
-    // wijzigt niet tussen de "voor"- en "na"-solve hieronder (alleen datums schuiven), dus één
-    // expansie op `s.tasks` volstaat voor beide takken.
     const { sequences: expandedSequences } = expandSummaryRelations(s.tasks, s.sequences);
     const solve = (
       tasks: Task[], dataDate: string | undefined, projectStartDate: string, projectEndDate: string,
@@ -445,25 +311,11 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       return new CPMSolver(leaf, expandedSequences, s.calendar, s.calendars, {
         ...solveOptionsFor(s.project),
         dataDate,
-        // Zie `scheduleSlice.runCPM`: de "voor"-solve rekent tegen
-        // de HUIDIGE projectstart, de "na"-solve tegen de NIEUWE — anders zou deze preview een
-        // wortel-taak vóór zijn eigen projectbegin kunnen tonen.
         projectStartDate,
         projectEndDate,
       }).solve();
     };
 
-    // "Voor" uit de bestaande run als die vers is; anders een tweede solve op de ONGEWIJZIGDE taken,
-    // zodat voor en na gegarandeerd met dezelfde motor en opties gemeten zijn.
-    // Een project ZONDER taken heeft geen projecteinde. Dat wordt bij de BRON gegarandeerd
-    // (`scheduleAnalysis`: nul early-resultaten ⇒ `projectEnd: ''`, `projectDuration: 0`), en
-    // `previewMoveProject` kent geen andere bron voor `projectEnd` dan `solve()` — ook de
-    // `fresh`-tak leest een eerder solve-resultaat. Deze afkorting bestaat om twee redenen:
-    //   1) hij slaat twee zinloze solves over op een lege takenlijst;
-    //   2) hij pint `endDeltaDays` op 0 i.p.v. de Δ die de algemene tak zou invullen — er ís geen
-    //      einddatum, dus "het einde schuift Δ dagen op" is een uitspraak over niets.
-    // Verder is hij resultaat-identiek aan de algemene tak (leeg einde, duur 0, dezelfde
-    // feestdagenspanne). Zie tests/planning move-07 en edge-empty-project-01.
     if (s.tasks.length === 0) {
       return {
         ...empty,
@@ -490,7 +342,6 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
 
     const endBefore = before.error ? '' : before.projectEnd;
     const endAfter = after.projectEnd;
-    // Wijkt dit af van `deltaDays`, dan heeft de kalender ingegrepen.
     const endDeltaDays = endBefore && endAfter ? diffDays(endBefore, endAfter) : delta;
 
     return {
@@ -499,8 +350,6 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       durationBefore: before.error ? 0 : before.projectDuration,
       durationAfter: after.projectDuration,
       endDeltaDays: Number.isFinite(endDeltaDays) ? endDeltaDays : delta,
-      // Dekt de gematerialiseerde feestdagenspanne de NIEUWE projectperiode nog? De
-      // projectkalender-cache én de hele bibliotheek meenemen (dedupe op id gebeurt in de helper).
       holidayGapCalendars: computeHolidayGaps(
         [s.calendar, ...s.calendars],
         newStartDate,
@@ -510,35 +359,19 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
   },
 
   newProject: () => {
-    // Reset-pad: één verse payload via het documentcontract i.p.v. een handmatig
-    // veld-voor-veld-blok — capture/hydrate/fresh delen dezelfde `DOCUMENT_FIELDS`-lijst, dus een
-    // nieuw per-document veld wordt hier automatisch mee-gereset (geen stille lek van het vorige
-    // project). hydratePayload promoveert + synct de projectkalender.
     set((s) => {
       removeSessionHistoryForDocumentFromState(s, s.activeDocumentId);
       replaceDocumentContent(s, s.activeDocumentId);
       hydratePayload(s, freshPayload());
-      // Zelfde reset als newDocument()/closeDocument() in documentSlice.ts:
-      // showLibraryLinkDialog/libraryRefreshNotice zijn APP-globaal en worden door hydratePayload
-      // NIET aangeraakt (het zijn geen DOCUMENT_FIELDS). Zonder deze reset kan een openstaande vlag
-      // van het vorige project blijven staan, en LibraryLinkDialog rendert onvoorwaardelijk zodra
-      // hij waar is — op een net gestart, ongebonden project levert dat een leeg koppel-/
-      // afwijkingenscherm op dat nergens bij hoort.
       s.ui.showLibraryLinkDialog = false;
       s.ui.libraryRefreshNotice = null;
-      // `newProject()` hergebruikt het actieve docId voor een
-      // compleet vers document; zonder deze reset erft dat verse document de "al gemeld"-registratie
-      // van het VORIGE project en zou dus nooit meer melden. Zie `timephasedLossNotice.ts`'s
-      // `clearTimephasedLossNoticeForDoc` voor de volledige toelichting (incl. waarom dit NIET ook
-      // vanuit `newDocument()`/een echte bestandsopen hoort te gebeuren).
       clearTimephasedLossNoticeForDoc(s.activeDocumentId);
-      clearTaskTypesNoticeForDoc(s.activeDocumentId); // zelfde reden, voor de taaktypes-melding
+      clearTaskTypesNoticeForDoc(s.activeDocumentId);
     });
     runtime.emitHostEvent(HOST_EVENTS.projectNew);
   },
 
   createNewProject: (opts) => {
-    // Hergebruik het actieve tabblad als dat nog leeg/ongewijzigd is, anders nieuw tabblad.
     const st = get();
     const pristine =
       st.tasks.length === 0 && st.sequences.length === 0 && st.resources.length === 0 &&
@@ -561,15 +394,11 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
       proj.schedulingProfile = profile ? copyProfile(profile) : undefined;
       proj.schedulingOptions = normalizeOptions(opts.schedulingOptions);
 
-      // Reset-pad: start van een verse payload en override alleen de wizard-velden.
-      // hydratePayload vult de bibliotheek met de wizard-kalender (promote) en synct de cache.
       const payload = freshPayload();
       payload.project = proj;
       payload.calendar = opts.calendar;
       const phaseHoursPerDay = effHoursPerDay(opts.calendar);
       payload.tasks = opts.phaseNames.map((name, i): Task => {
-        // Standaardmaat voor nieuwe taken (B1a, `newTaskMeasure.ts`): de tijd ontstaat in de gekozen
-        // maat, en wordt urenmaat onder een profiel dat geen dagenmaat telt. Uur-einde op de echte kalender.
         const time = createDefaultTaskTime(proj.startDate, 5, newTaskTimeUnit(proj), opts.calendar);
         deriveScheduleDurationFromMinutes(time, phaseHoursPerDay);
         const task: Task = {
@@ -577,8 +406,6 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
           name,
           description: '',
           wbsCode: String(i + 1),
-          // Bouwmodus: wizard-fasen krijgen in bouw-agnostische modus een neutraal
-          // taaktype (USERDEFINED) i.p.v. CONSTRUCTION.
           taskType: s.ui.constructionMode ? 'CONSTRUCTION' : 'USERDEFINED',
           status: 'NOT_STARTED' as const,
           isMilestone: false,
@@ -591,31 +418,15 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
         if (settleNewTaskMeasure(task, proj, false, phaseHoursPerDay)) seedNewHourTaskFinish(task, undefined, opts.calendar);
         return task;
       });
-      // Ook de wizard is een invoergrens: hydratePayload verwacht al D1/D2-momenten.
       payload.tasks = payload.tasks.map(task => normalizeTaskDates(task, { calendar: opts.calendar, calendars: [opts.calendar] }));
-      // Een leeg project (template 'Leeg') is nog niet 'dirty'; met fasen wél.
       payload.isDirty = opts.phaseNames.length > 0;
-      // De tijdlijn begint bij de projectstart (de verse view staat op vandaag). Ook bij een
-      // sjabloon: zijn fasen starten op de projectstart, dus bij een latere start lagen ze anders
-      // buiten beeld. Zoom en scroll blijven de verse waarden.
       payload.view.viewStartDate = proj.startDate;
       hydratePayload(s, payload);
-      // Zelfde reset als newProject()/newDocument() hierboven: bij het PRISTINE-hergebruikpad
-      // (geen newDocument()-aanroep, dus geen reset onderweg) kan een openstaande
-      // showLibraryLinkDialog/libraryRefreshNotice van vóór deze wizard blijven hangen. Onvoorwaardelijk
-      // hier zetten is een no-op op het niet-pristine pad (newDocument() heeft al gereset).
       s.ui.showLibraryLinkDialog = false;
       s.ui.libraryRefreshNotice = null;
-      // Zelfde reden als newProject() hierboven: op het PRISTINE-
-      // hergebruikpad blijft het docId hetzelfde, dus zonder deze reset erft de wizard-uitkomst de
-      // "al gemeld"-registratie van het vorige (lege) tabblad-verleden. Onvoorwaardelijk zetten is
-      // een no-op op het niet-pristine pad (newDocument() gaf daar al een vers, ongeregistreerd docId).
       clearTimephasedLossNoticeForDoc(s.activeDocumentId);
-      clearTaskTypesNoticeForDoc(s.activeDocumentId); // zelfde reden, voor de taaktypes-melding
+      clearTaskTypesNoticeForDoc(s.activeDocumentId);
     });
-    // `viewRows` is afgeleid en zit niet in de payload. Zonder deze stap houdt een sjabloon met
-    // fasen de rijen van het vorige (lege) document: taken zonder rijen, dus een leeg raster en
-    // geen balken.
     get().recomputeViewRows();
     runtime.emitHostEvent(HOST_EVENTS.projectNew);
   },
@@ -627,9 +438,6 @@ export const createProjectSlice: AppSliceFactory<ProjectSlice> = (runtime) => (s
     }),
 
   loadState: (loaded, opts) => {
-    // Dunne wrapper over de gedeelde load-implementatie: `applyLoadedProject` in
-    // fileSlice. loadState-semantiek = in-place vervangen — GEEN nieuw tabblad/fit, `filePath`
-    // ongemoeid (opt weggelaten). De berekening gebeurt vóór dezelfde ene publicatie.
     get().applyLoadedProject(loaded, {
       recompute: true,
       fit: false,
