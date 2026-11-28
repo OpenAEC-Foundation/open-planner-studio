@@ -105,13 +105,6 @@ const enumMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   onCancel: () => undefined,
   onFocusCell: () => undefined,
 }));
-// Browserreview, observatie 5: geen kaal native <select> meer (dat toonde bij het starten van
-// bewerken geen uitgeklapte lijst — pijltjes cyclen alleen de waarde). `Select`
-// (src/components/common/Select.tsx) met `autoOpen` vervangt 'm; `aria-expanded="true"` op de
-// trigger bewijst dat de editor meteen UITGEKLAPT start i.p.v. pas na een tweede interactie. De
-// eigenlijke optielijst rendert via een portal naar `document.body`, dat in deze Node-testomgeving
-// (geen jsdom) niet bestaat — `Select` slaat de portal dan bewust over (zie de SSR-guard in
-// Select.tsx), dus die lijst is hier niet los te controleren; dat gebeurt live in de browser.
 ok('Enumdescriptor rendert Select (geen kaal native <select> meer), al uitgeklapt',
   !enumMarkup.includes('<select')
     && enumMarkup.includes('data-task-editor-kind="enum"')
@@ -153,8 +146,6 @@ const codeColumnMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   onCancel: () => undefined,
   onFocusCell: () => undefined,
 }));
-// Issue #970: een codekolom opent dezelfde keuzelijst als de ja/nee-kolommen, geen tekstveld met
-// een native suggestielijst (die was op macOS smal en toonde de interne id acv-… boven elke code).
 ok('Activity-codekolom opent de keuzelijst, geen tekstveld met suggestielijst',
   codeColumnMarkup.includes('data-task-editor-kind="enum"')
     && codeColumnMarkup.includes('ops-select__trigger')
@@ -192,7 +183,6 @@ ok('Activity-codekolom opent de keuzelijst, geen tekstveld met suggestielijst',
     adapter: codeAdapter, cell: codeCell, label: 'PCM', messageForError,
     onCancel: () => undefined, onFocusCell: () => undefined,
   }));
-  // Zichtbare tekst en toegankelijke namen; `data-value` op de trigger draagt de id bewust (niet zichtbaar).
   const visibleCodeText = codeMarkup.replace(/<[^>]*>/g, ' ');
   ok('Codekolom: de trigger toont de code, niet de id',
     visibleCodeText.includes('RFQ Issued') && !visibleCodeText.includes('acv-')
@@ -214,9 +204,6 @@ const dateMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   onCancel: () => undefined,
   onFocusCell: () => undefined,
 }));
-// Sinds F4b (spec "alleen uren" §3.6) is de deadline een eindachtig taakveld met een moment: de editor is
-// datum-met-tijd, met dezelfde combinatie van tekstinvoer en kalenderkiezer. Sinds #904 is dat de eigen
-// kiezer van de app achter een knop, niet die van de browser.
 ok('Datumeditor combineert persoonlijke tekstinvoer met de eigen kalenderkiezer',
   dateMarkup.includes('data-task-editor-kind="datetime"')
     && /<button[^>]*data-task-editor-picker="datetime"/.test(dateMarkup)
@@ -332,9 +319,6 @@ const relationMarkup = renderToStaticMarkup(createElement(TaskCellEditor, {
   onCancel: () => undefined,
   onFocusCell: () => undefined,
 }));
-// De interactieve editor staat sinds de clipping-fix in een document.body-portal. Een statische
-// serverrender heeft geen layout-effect en rendert daarom bewust alleen het celanker; de concrete
-// WBS/type/lag/externe besturing wordt structureel in check-relation-cell-editor gecontroleerd.
 ok('Relatiecel routeert naar de eigen portal-tokeneditor zonder de relationele waarde te verliezen',
   relationMarkup.includes('task-grid-relation-editor-anchor')
     && relationAdapter.descriptorsById.get(relationCell.columnId)?.editorKind === 'relations'

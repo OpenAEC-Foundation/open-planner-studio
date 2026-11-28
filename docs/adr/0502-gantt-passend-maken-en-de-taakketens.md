@@ -6,9 +6,7 @@ late einde, en als laatste terugval `resolveTaskStart`. De eerste schakel is dez
 (`GanttRenderer` tekent met `shownStart` en `shownFinish`), zodat de fit en de scrollbreedte elke getekende balk
 omvatten. De laatste terugval van het einde zorgt dat een taak met alleen een start meetelt voor de fit en ook voor de
 scrollbare breedte (`computeContentSpanDays` in `ganttRenderOptions.ts` gebruikt dezelfde `resolveTaskFinish`).
-Zonder die terugval kon de fit naar een positie buiten `maxScrollX` zoomen. Volgens het weggehaalde commentaar heeft
-met de huidige importers elke taak een niet-lege eindketen en dekt de terugval alleen kapotte documentdata of een
-payload die buiten `createDefaultTaskTime` en `mergeTaskTime` om schrijft; dat is niet nagegaan.
+Zonder die terugval kon de fit naar een positie buiten `maxScrollX` zoomen.
 `check-gantt-render-options.ts` toetst de schakels van beide ketens (01b, 01d, 05c, 05e), de terugval op de start
 (06b) en dat de startketen buiten dit bestand nergens in `src/` staat (39).
 

@@ -25,8 +25,7 @@ alleen onder A15; zie knownbug 2306.
   `cases-msp-pariteit.json` rood. Bij FS geldt de regel ook als de voorganger `predEndsBeginOfDay` heeft, omdat een
   voorganger zonder duur op de statusdatumvloer op een blokeinde van zijn eigen kalender kan staan; geen geval in
   `cases-msp-pariteit.json` of `cases-hours-relations.json` wordt rood als die voorganger wordt uitgesloten, ook
-  `msp-06b` niet. Het weggehaalde commentaar noemde dit pariteit met MS Project; een bestand van MS Project dat het
-  laat zien, is niet nagegaan.
+  `msp-06b` niet.
 - FS met een echte lag in werktijd naar een eindmijlpaal (`finishStartLaggedStart`): de grens is het eindmoment op of vóór het
   moment na de lag (`snapOnOrBefore` op de opvolgerkalender) als dat het moment zelf is, of als het volgende werkmoment
   van de opvolgerkalender na dat eindmoment het moment na de lag is en de lagkalender ertussen geen werkminuut heeft;

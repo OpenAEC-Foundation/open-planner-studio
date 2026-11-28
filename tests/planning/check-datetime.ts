@@ -1,11 +1,3 @@
-// Datetime-substraat + duur-parser + duur-helper-checks (fase 2.8b, golf 0).
-// Onafhankelijk narekenen (elke verwachting met de hand uitgerekend) van:
-//  - parseInstant/formatInstant round-trips (dag-modus strip, uur-modus behoud, T00:00);
-//  - parseDuration-matrix (hele eenheden geldig; decimalen/rest/leeg/negatief afgewezen);
-//  - formatDuration (dagen/uren/auto);
-//  - durationMinutesOf/durationDaysOf-invariant (expliciete taakeenheid, kalender alleen als factor).
-//
-// Draait via run.sh (esbuild-bundel, zoals check-holidays.ts). Exit 0 = alles groen.
 import { parseInstant, formatInstant, parseDate } from '@/utils/dateUtils';
 import { parseDuration, formatDuration } from '@/utils/durationFormat';
 import { durationMinutesOf, durationDaysOf } from '@/engine/scheduler/duration';
@@ -19,7 +11,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (got !== want) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-// Minimale taak: de helpers lezen alleen task.time.scheduleDuration + durationMinutes.
 function task(scheduleDuration: number, durationMinutes?: number): Task {
   return { time: { durationUnit: durationMinutes == null ? 'days' : 'hours', scheduleDuration, durationMinutes } } as unknown as Task;
 }
@@ -27,29 +18,17 @@ const HOUR8 = { isHourMode: true, hoursPerDay: 8 };
 const DAY8 = { isHourMode: false, hoursPerDay: 8 };
 const HOUR10 = { isHourMode: true, hoursPerDay: 10 };
 
-// ── 1) parseInstant/formatInstant ───────────────────────────────────────────
-// Dag-modus strip: date-only blijft date-only.
 eq('1  date-only, dag-modus', formatInstant(parseInstant('2026-07-06'), 'day'), '2026-07-06');
-// Date-only in uur-modus ⇒ expliciete T00:00 (geen middernacht-uitzondering).
 eq('2  date-only, uur-modus ⇒ T00:00', formatInstant(parseInstant('2026-07-06'), 'hour'), '2026-07-06T00:00');
-// Datetime behouden in uur-modus.
 eq('3  datetime behoud (uur)', formatInstant(parseInstant('2026-07-06T08:30'), 'hour'), '2026-07-06T08:30');
-// Middernacht-uur-taak behoudt T00:00 (24/7-taak die op T00:00 landt).
 eq('4  middernacht-uur-taak T00:00', formatInstant(parseInstant('2026-07-07T00:00'), 'hour'), '2026-07-07T00:00');
-// Expliciete Z gerespecteerd (UTC).
 eq('5  datetime met Z (uur)', formatInstant(parseInstant('2026-07-06T22:00Z'), 'hour'), '2026-07-06T22:00');
-// Wrap-eind 06:00 volgende dag.
 eq('6  wrap-eind 06:00 (uur)', formatInstant(parseInstant('2026-07-07T06:00'), 'hour'), '2026-07-07T06:00');
-// Datetime in DAG-modus valt terug op date-only (strip-uur).
 eq('7  datetime, dag-modus strip', formatInstant(parseInstant('2026-07-06T08:30'), 'day'), '2026-07-06');
-// parseInstant == parseDate voor date-only (zelfde instant).
 eq('8  parseInstant==parseDate (date-only)', parseInstant('2026-03-02').getTime(), parseDate('2026-03-02').getTime());
-// Seconden worden op minuut afgekapt.
 eq('9  seconden ⇒ minuut-truncatie', formatInstant(parseInstant('2026-07-06T08:30:45'), 'hour'), '2026-07-06T08:30');
-// Idempotent round-trip.
 eq('10 idempotente round-trip', formatInstant(parseInstant(formatInstant(parseInstant('2026-07-06T14:15'), 'hour')), 'hour'), '2026-07-06T14:15');
 
-// ── 2) parseDuration — geldig (hele eenheden) ─────────────────────────────────
 eq('11 "3d" @H8 = 3*8*60', parseDuration('3d', 8), 1440);
 eq('12 "20u" @H8 = 20*60', parseDuration('20u', 8), 1200);
 eq('13 "20h" @H8 = 20*60', parseDuration('20h', 8), 1200);
@@ -61,8 +40,6 @@ eq('18 naakt "5" @H10 = 5*10*60', parseDuration('5', 10), 3000);
 eq('19 "2d 4u" @H10 = 1200+240', parseDuration('2d 4u', 10), 1440);
 eq('20 "1d 2u 30m" @H8 = 480+120+30', parseDuration('1d 2u 30m', 8), 630);
 
-// ── 3) parseDuration — ongeldig (⇒ null) ─────────────────────────────────────
-// Alleen uren §3.12 (B2): breuken zijn voor iedereen te typen, met punt of komma.
 eq('21 "2.5d" ⇒ 2,5 werkdag', parseDuration('2.5d', 8), 1200);
 eq('22 "1,5u" (komma) ⇒ 90 min', parseDuration('1,5u', 8), 90);
 eq('23 "4h30" ⇒ null (rest zonder suffix)', parseDuration('4h30', 8), null);
@@ -72,7 +49,6 @@ eq('26 "-3d" ⇒ null (negatief)', parseDuration('-3d', 8), null);
 eq('27 "   " ⇒ null (witruimte)', parseDuration('   ', 8), null);
 eq('28 "2.5" (decimaal naakt) ⇒ 2,5 werkdag', parseDuration('2.5', 8), 1200);
 
-// ── 4) formatDuration ────────────────────────────────────────────────────────
 eq('29 fmt 1440 @H8 auto ⇒ "3d"', formatDuration(1440, 8, 'auto'), '3d');
 eq('30 fmt 1200 @H8 hours ⇒ "20h"', formatDuration(1200, 8, 'hours'), '20h');
 eq('31 fmt 1200 @H8 auto ⇒ "20h"', formatDuration(1200, 8, 'auto'), '20h');
@@ -81,8 +57,6 @@ eq('33 fmt 45 @H8 hours ⇒ "45m"', formatDuration(45, 8, 'hours'), '45m');
 eq('34 fmt 480 @H10 days ⇒ "0.8d"', formatDuration(480, 10, 'days'), '0.8d');
 eq('35 fmt 480 @H8 days ⇒ "1d"', formatDuration(480, 8, 'days'), '1d');
 eq('36 fmt 240 @H8 auto ⇒ "4h"', formatDuration(240, 8, 'auto'), '4h');
-// 411: 500 minuten wordt na uren × 60 een fractie groter; alleen floating-point-ruis
-// mag verdwijnen. Een echte minuut of zelfs een kleine echte fractie blijft urenweergave.
 for (const [minutes, expected] of [[0, '0d'], [500, '1d'], [1000, '2d'],
   [499, '8h 19m'], [501, '8h 21m'], [999, '16h 39m'], [1001, '16h 41m']] as const) {
   eq(`411 auto ${minutes} bij 500 min/dag`, formatDuration(minutes, 25 / 3, 'auto'), expected);
@@ -96,12 +70,8 @@ eq('411 oneindige dagdeler houdt uren', formatDuration(500, Infinity, 'auto'), '
 eq('411 één minuut wordt nooit nul dagen', formatDuration(1, 1e17, 'auto'), '1m');
 
 
-// ── 5) durationMinutesOf / durationDaysOf — invariant (Bevinding 2) ──────────
-// A: scheduleDuration=2 werkdagen, durationMinutes=1200 (=20u=2.5d op H8).
 const A = task(2, 1200);
-// B: scheduleDuration=3, geen durationMinutes.
 const B = task(3);
-// C: scheduleDuration=1, durationMinutes=600 (=10u=1d op H10).
 const C = task(1, 600);
 
 eq('37 durMin A @uur ⇒ durationMinutes', durationMinutesOf(A, HOUR8), 1200);
@@ -113,17 +83,10 @@ eq('41 durDagen A @uur ⇒ 1200/480 = 2.5', durationDaysOf(A, HOUR8), 2.5);
 eq('42 durDagen A @dag ⇒ 1200/480 = 2.5 (taakunit blijft uren)', durationDaysOf(A, DAY8), 2.5);
 eq('43 durDagen B @uur (geen dm) ⇒ 3', durationDaysOf(B, HOUR8), 3);
 eq('44 durDagen B @dag ⇒ 3', durationDaysOf(B, DAY8), 3);
-// KERN-INVARIANT: de kalender kiest de taakeenheid niet; ook op een dagkalender blijft A uren.
 eq('45 durDagen A @dag behoudt uuridentiteit', durationDaysOf(A, DAY8), 2.5);
-// Andere hoursPerDay: 600 min op H10 = precies 1 dag.
 eq('46 durDagen C @H10-uur ⇒ 600/600 = 1', durationDaysOf(C, HOUR10), 1);
 eq('47 durMin C @H10-uur ⇒ durationMinutes 600', durationMinutesOf(C, HOUR10), 600);
 
-// ── 6) Drie-vakjes sync-rekenregel (§6.4/§8.4) — pure check ────────────────────
-// De taakdialoog synct de vakjes Dagen/Uren/Totaal via de effectieve hoursPerDay; de interne
-// bron blijft MINUTEN. Forward: totaalMinuten = (dagen × effHpd + uren) × 60 ≡ parseDuration("Nd Mu").
-// Reverse (Totaal-invoer): dagen = ⌊totaalUren / effHpd⌋, uren = totaalUren mod effHpd — moet naar
-// dezelfde minuten terugvertalen. Getest op H8 (2d + 4u = 20u) en H10 (20u = 2d 0u).
 eq('48 sync fwd H8: dagen×hpd+uren ⇒ minuten', parseDuration('2d 4u', 8), (2 * 8 + 4) * 60);
 eq('49 sync H8: "2d 4u" ≡ "20u" (20u totaal)', parseDuration('2d 4u', 8), parseDuration('20u', 8));
 eq('50 sync fwd H10: dagen×hpd+uren ⇒ minuten', parseDuration('2d 0u', 10), (2 * 10 + 0) * 60);
@@ -133,7 +96,6 @@ eq('53 sync rev H10: ⌊20/10⌋d + (20 mod 10)u ≡ 20u', parseDuration(`${Math
 eq('54 sync fmt: 1200m @H10 auto ⇒ "2d"', formatDuration(1200, 10, 'auto'), '2d');
 eq('55 sync fmt: 1200m @H8 hours ⇒ "20h"', formatDuration(1200, 8, 'hours'), '20h');
 
-// ── 7) Persoonlijke grid-datumtijd ↔ interne ISO-minuut ──────────────────────
 eq('56 grid datetime dmy → ISO-minuut', parseGridDateTime('31-12-2026 08:45', 'dmy'), '2026-12-31T08:45');
 eq('57 grid datetime mdy → ISO-minuut', parseGridDateTime('12/31/2026 8:05', 'mdy'), '2026-12-31T08:05');
 eq('58 grid datetime ymd met T → ISO-minuut', parseGridDateTime('2026.12.31T23:59', 'ymd'), '2026-12-31T23:59');

@@ -1,8 +1,8 @@
 # MPP lezen: eenheden en afronding van tijdgefaseerd werk volgen MPXJ per formaat
 
 De decoders in `mppTimephased.ts` rekenen de ruwe velden (indeling in ADR 0410) om naar minuten en volgen daarbij per
-formaat letterlijk de stappen die het weggehaalde commentaar aan MPXJ toeschrijft (`getCompleteWork` en
-`getPlannedWork` in `TimephasedDataFactory.java`), ook waar die twee van elkaar verschillen. De gatdetectie van de
+formaat letterlijk de stappen van MPXJ (`getCompleteWork` en `getPlannedWork` in `TimephasedDataFactory.java`, versie
+2b43a48417 van 6 augustus 2026), ook waar die twee van elkaar verschillen. De gatdetectie van de
 splits (ADR 0414) vergelijkt het werk van een periode exact met 0, dus een kleine afwijking in de afronding kan van
 een gat een werkperiode maken of omgekeerd. Een eigen, voor beide formaten gelijke afronding zou daar van MPXJ afwijken.
 
@@ -29,8 +29,7 @@ een gat een werkperiode maken of omgekeerd. Een eigen, voor beide formaten gelij
   waarde boven het plafond geen periode geeft.
 - Formaat B (`decodePlannedRegularTimephasedWork`, N vanaf 1), werk, in deze volgorde: de DOUBLE van elk blok wordt
   eerst gedeeld door 1000, dan wordt de vorige omgerekende waarde ervan afgetrokken. Geen afkapping en geen
-  afronding; volgens het weggehaalde commentaar mist `getPlannedWork` de afkapping en poort de decoder dat
-  letterlijk. De gatdetectie (ADR 0414) vergelijkt dus het verschil van de twee omgerekende waarden met 0: twee ruwe
+  afronding; `getPlannedWork` mist in die versie de afkapping, en de decoder poort dat letterlijk. De gatdetectie (ADR 0414) vergelijkt dus het verschil van de twee omgerekende waarden met 0: twee ruwe
   waarden die na het delen door 1000 hetzelfde getal geven, zoals 1000.0000000000001 en 1000.0000000000002, geven
   werk 0, ook al verschillen ze ruw. Een periode met werk 0 valt uit de gewerkte periodes; een gat ontstaat pas als
   er daarna nog een gewerkte periode volgt (ADR 0414).

@@ -24,8 +24,7 @@ een verkeerd toegewezen relatie de planning stil verandert.
 - Binnen een project weigert `readXerProject` een dubbele `wbs_id`, `task_id` of `task_pred_id` met
   `XER_DUPLICATE_ID` (`assertUniqueId`), en een relatie waarvan een eindpunt dat volgens de rij in dit project
   hoort er niet als activiteit staat met `XER_DANGLING_LOCAL_RELATION`. Een lege `task_pred_id` telt niet als
-  dubbel; zo'n relatie krijgt het id `xer-rel:<regelnummer>`. Dat sommige exports dat veld leeg laten, komt uit het
-  weggehaalde commentaar en is niet nagegaan.
+  dubbel; zo'n relatie krijgt het id `xer-rel:<regelnummer>`.
 - Een project zonder activiteiten wordt geen document en telt in het verslag als overgeslagen
   (`emptyProjectsSkipped`); heeft geen enkel project activiteiten, dan weigert `readXER` met `XER_EMPTY_PROJECT`.
 - Heeft de PROJECT-tabel één rij, dan geeft `readXER` één `ImportResult`; met meer rijen de meervoudige vorm, ook

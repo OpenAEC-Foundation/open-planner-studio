@@ -1,15 +1,4 @@
 import './domStub';
-// Statusdatum met tijd (besluit eigenaar 2026-10-17): de tijd is zichtbaar en wijzigbaar in het lint,
-// en het Gantt-label volgt de datum- en tijdnotatie. Deze check toetst de headless kant.
-//
-//  §1 de regels van het lint: het tijdveld is zichtbaar precies als de solver de tijd gebruikt
-//     (projectkalender in uur-modus, besluit orkestrator 2026-10-19), en hoe een tijd wordt gezet/weggehaald.
-//  §2 het Gantt-label: datum in de Datumnotatie, tijd in de Tijdnotatie, nooit ruwe ISO.
-//  §3 de echte route: de MSPDI-fixture openen (17:00), de tijd naar 12:00 zetten (`setStatusDate`):
-//     één undo-stap, planning verouderd; na doorrekenen schuift het vroegste einde 22-09 ⇒ 21-09.
-//  §4 round-trip: IFC opslaan en heropenen houdt 12:00 en dezelfde datums; MSPDI- en P6-export
-//     schrijven 12:00:00 (niet afgerond naar 08:00/17:00) en lezen het terug als 12:00.
-//  §5 formaatgrens: 08:00 is in MSPDI/P6 het dag-anker en komt date-only terug; in IFC blijft 08:00.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -50,12 +39,10 @@ const quiet = <T>(fn: () => T): T => {
   try { return fn(); } finally { console.warn = warn; }
 };
 
-// ── §1 ──────────────────────────────────────────────────────────────────────
 const dayCal = createDefaultCalendar();
 const hourCal = { ...dayCal, workTime: { byWeekday: { 1: [{ start: 480, end: 1020 }] } } } as WorkCalendar;
 same('§1 dagkalender ⇒ geen tijdveld', isHourModeCalendar(dayCal), false);
 same('§1 uurkalender ⇒ tijdveld', isHourModeCalendar(hourCal), true);
-// Zelfde predicaat als de rekenkern: `CalendarEngine.isHourMode` van de projectkalender.
 same('§1 F2: scalaire bron, engine met effectieve werkblokken', [isHourModeCalendar(dayCal), new CalendarEngine(dayCal).isHourMode], [false, true]);
 same('§1 uurkalender: zelfde uitkomst als de rekenkern', isHourModeCalendar(hourCal), new CalendarEngine(hourCal).isHourMode);
 same('§1 dag-modus: label zonder tijd', statusDateAsUsed('2006-09-20T17:00', false), '2006-09-20');
@@ -67,7 +54,6 @@ same('§1 tijd op een datum zonder tijd', withStatusTime('2006-09-20', 450), '20
 same('§1 tijd weghalen', withStatusTime('2006-09-20T17:00', undefined), '2006-09-20');
 same('§1 tijd zonder datum bestaat niet', withStatusTime(undefined, 720), undefined);
 
-// ── §2 ──────────────────────────────────────────────────────────────────────
 const label = GanttRenderer.statusDateBadgeLabel;
 same('§2 knownbug 57: oorspronkelijk voorbeeld gebruikt standaard dmy', label('2027-06-28', false), '28-06-2027');
 same('§2 knownbug 57: ISO alleen wanneer ymd expliciet gekozen is', label('2027-06-28', false, 'ymd'), '2027-06-28');
@@ -78,7 +64,6 @@ same('§2 ymd', label('2006-09-20T12:00', true, 'ymd', '24h'), '2006-09-20 12:00
 same('§2 standaard (geen notatie meegegeven) = dmy 24 uur', label('2006-09-20T12:00', true), '20-09-2006 12:00');
 same('§2 dag-modus: tijd valt weg', label('2006-09-20T17:00', false, 'dmy', '24h'), '20-09-2006');
 
-// ── §3 ──────────────────────────────────────────────────────────────────────
 const OPEN = { filePath: null, fileHandle: null, recompute: true, fit: false, linkedOpen: true } as const;
 function openStore(parsed: OpenedImport) {
   const ctx = createAppStoreContext();
@@ -102,7 +87,6 @@ store.getState().runCPM();
 same('§3 met 12:00 eindigt het restwerk op 21-09', finishOf(store.getState())?.slice(0, 10), '2006-09-21');
 const payload = store.getState().getOpenDocumentPayloads()[0].payload;
 
-// ── §4 ──────────────────────────────────────────────────────────────────────
 const ifcText = writeIFC(buildWriteIFCInput(payload, 'planOnly'));
 same('§4 IFC schrijft IFCDATETIME met 12:00', /IFCPROPERTYSINGLEVALUE\('StatusDate',\$,(.*?),\$\)/.exec(ifcText)?.[1], "IFCDATETIME('2006-09-20T12:00:00')");
 const fromIfc = openStore(await parseOpenedFile({ name: 'rondgang.ifc', text: ifcText }));
@@ -122,7 +106,6 @@ same('§4 P6 <DataDate> = 12:00:00', /<DataDate>([^<]*)<\/DataDate>/.exec(p6)?.[
 const fromP6 = openStore(await parseOpenedFile({ name: 'rondgang-p6.xml', text: p6 }));
 same('§4 P6 heen en terug: 12:00', fromP6.getState().project.statusDate, '2006-09-20T12:00');
 
-// ── §5 ──────────────────────────────────────────────────────────────────────
 store.getState().setStatusDate('2006-09-20T08:00');
 const anchor = store.getState().getOpenDocumentPayloads()[0].payload;
 const msp8 = quiet(() => writeMSPDI(anchor.project, anchor.calendar, anchor.tasks, anchor.sequences, anchor.resources,

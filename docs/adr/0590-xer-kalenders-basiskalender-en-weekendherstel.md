@@ -2,10 +2,10 @@
 
 `readXerCalendars` (`xerCalendarData.ts`) leest `base_clndr_id` en koppelt de basiskalender (`baseCalendarId`, met
 `linkBaseCalendar` als niet-opsombare eigenschap `baseCalendar`, zodat overdracht en opslag alleen het id dragen),
-maar past haar niet toe: een afgeleide kalender rekent alleen met haar eigen `clndr_data`. Reden uit het weggehaalde
-commentaar, niet nagegaan: P6 schrijft de geërfde werkweek en uitzonderingen al in de `clndr_data` van de afgeleide
-kalender, en een scan over 93 XER-bestanden (8 met `base_clndr_id`, 157 afgeleide kalenders) vond geen geërfde dag die
-daar ontbrak. Toepassen bouwen we pas als een bestand opduikt waarin de afgeleide kalender iets mist.
+maar past haar niet toe: een afgeleide kalender rekent alleen met haar eigen `clndr_data`. De reden: P6 schrijft de
+geërfde werkweek en uitzonderingen al in de `clndr_data` van de afgeleide kalender, en een scan over 93 XER-bestanden
+(8 met `base_clndr_id`, 157 afgeleide kalenders) vond geen geërfde dag die daar ontbrak (commit "docs(xer):
+basiskalender bewust niet toegepast in de kalenderdecoder", uit de review van PR #109). Toepassen bouwen we pas als een bestand opduikt waarin de afgeleide kalender iets mist.
 
 ## Gevolgen
 
@@ -13,8 +13,8 @@ daar ontbrak. Toepassen bouwen we pas als een bestand opduikt waarin de afgeleid
   geklemd: een zaterdag als de vrijdag ervoor, een zondag als de maandag erna, zodat het weekend in het blok
   werkdag zou worden. De decoder maakt zo'n zaterdag of zondag weer vrij en meldt dat met de herstelcode
   `WEEKEND_CLAMP_RECONSTRUCTED`. De meting in dat bestand staat in `docs/superpowers/plans/2026-08-20-plan-xer-p6-lezer.md`
-  (etappe 7b, "n=1-basis"). De regel komt uit één bestand van 93, en MPXJ leest de uitzonderingen letterlijk (uit
-  het weggehaalde commentaar, niet nagegaan). Daarom beslist het bewijs op het record zelf, nooit de kalender als
+  (etappe 7b, "n=1-basis"). De regel komt uit één bestand van 93, en MPXJ leest de uitzonderingen letterlijk
+  (`TableContextReader.processCalendarExceptions`, zelfde plan, "n=1-basis"). Daarom beslist het bewijs op het record zelf, nooit de kalender als
   geheel: één toevallig dubbel record mag geen verre weekenddag vrij maken. `hasWeekendClampEvidence` eist een meerdaags blok en een vervolg van het blok aan de kant van
   het weekend af, plus de sprong over het weekend of een direct aangrenzend duplicaat; `weekendClampTarget` eist een
   zaterdag of zondag die op die kalender werkt en zelf geen uitzondering heeft. Een los dubbel record zonder blok

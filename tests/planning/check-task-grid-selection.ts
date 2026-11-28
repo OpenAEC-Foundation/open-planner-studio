@@ -39,7 +39,6 @@ const columns = [taskColumnId('task.name'), taskColumnId('task.time.scheduleDura
 const cell = (rowKey: string, columnIndex: number) => ({ rowKey, columnId: columns[columnIndex] });
 const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
 
-// Gewone klik: één cel, één actieve taak, één geordende taakselectie.
 {
   const rows = ids.slice(0, 3).map(id => taskRow(id));
   const selected = updateGridSelection(createEmptyGridSelection(), cell(ids[1], 1), indexed(rows), columns, 'replace');
@@ -53,8 +52,6 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
     true);
 }
 
-// De domeinsetter mag een byte-identieke selectie niet opnieuw publiceren. Anders renderen de
-// volledige grid, statusbalk en eigenschappenrail opnieuw terwijl de gebruiker dezelfde cel klikt.
 {
   S().selectTasks([ids[1]], false, ids[1]);
   let publications = 0;
@@ -66,7 +63,6 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   eq('Identieke selectTasks-aanroep behoudt dezelfde storestate', S() === before, true);
 }
 
-// Shift-rechthoek over een groepskop: kop draagt afstand maar levert geen taak/cellen.
 {
   const rows = [taskRow(ids[0]), taskRow(ids[1]), groupRow('groep'), taskRow(ids[2])];
   const rowIndex = indexed(rows);
@@ -79,7 +75,6 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   eq('Groepskop komt niet als rowKey in cellen', gridSelectionCells(extended, rowIndex, columns).some(item => item.rowKey === 'groep'), false);
 }
 
-// Dezelfde taak in twee groepen telt als twee occurrence-rijen maar één domeinselectie.
 {
   const rows = [
     groupRow('g-a'), taskRow(ids[0], 'a/0'), taskRow(ids[1], 'a/1'),
@@ -92,7 +87,6 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   eq('Duplicate occurrence blijft wel aparte cellen leveren', gridSelectionCells(extended, rowIndex, columns).length, 8);
 }
 
-// Ctrl/Cmd togglet alleen de taakset; de kopieerrechthoek wordt de aangeklikte enkelvoudige cel.
 {
   const rows = ids.slice(0, 3).map(id => taskRow(id));
   const rowIndex = indexed(rows);
@@ -106,7 +100,6 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   eq('Ctrl houdt aangeklikte taak actief voor eigenschappen', selected.activeTaskId, ids[0]);
 }
 
-// Twintig taken × alle kolommen: taakacties krijgen alle twintig ids, klembord zestig cellen.
 {
   const rows = ids.map(id => taskRow(id));
   const rowIndex = indexed(rows);
@@ -116,7 +109,6 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   eq('Bereik bevat alle zestig cellen', gridSelectionCells(selected, rowIndex, columns).length, 60);
 }
 
-// Reconciliatie mag de losse Ctrl/Cmd-taakset niet verwarren met de enkelvoudige kopieerrechthoek.
 {
   const rows = ids.slice(0, 3).map(id => taskRow(id));
   const rowIndex = indexed(rows);
@@ -141,7 +133,6 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
     reconciled.activeTaskId, ids[0]);
 }
 
-// Reconciliatie: exact occurrence behouden, anders dichtstbijzijnde absolute taakrij/kolom.
 {
   const previousRows = ids.slice(0, 4).map(id => taskRow(id));
   const previousIndex = indexed(previousRows);
@@ -173,10 +164,6 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
     cell('band-b/taak', 0));
 }
 
-// FIX 8a (eindreview): een ongewijzigde reconciliatie moet dezelfde OBJECTREFERENTIE teruggeven,
-// niet alleen een structureel gelijke kopie — anders kost elke selectieklik een volledige
-// gridrender, ook zonder werkelijke wijziging. Referentiegelijkheid (`===`), niet alleen
-// structurele gelijkheid, is hier de eigenlijke poort.
 {
   const rows = ids.slice(0, 3).map(id => taskRow(id));
   const rowIndex = indexed(rows);
@@ -200,17 +187,10 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
     emptyAgain === empty);
 }
 
-// Browserreview, observatie 1: een gantt-klik (of elke andere selectTask-aanroeper) publiceert
-// alleen state.activeTaskId/state.selectedTaskIds — de bron van de RIJmarkering
-// (data-grid-row-selected). syncActiveCellToPublishedTask moet de CELcursor (selection.active, de
-// bron van data-grid-active) meenemen naar dezelfde taak, anders zien een gantt-klik en
-// pijltjesnavigatie naar dezelfde taak er met twee verschillende stijlen uit.
 {
   const rows = ids.slice(0, 4).map(id => taskRow(id));
   const rowIndex = indexed(rows);
 
-  // 1) De celcursor staat nog op taak 1 (kolom 2); de gepubliceerde actieve taak is taak 3 (een
-  //    gantt-klik daarheen). De cursor moet meespringen naar taak 3, in DEZELFDE kolom.
   const onTask1 = updateGridSelection(createEmptyGridSelection(), cell(ids[0], 2), rowIndex, columns, 'replace');
   const jumped = syncActiveCellToPublishedTask(onTask1, ids[2], [ids[2]], rowIndex, columns);
   eq('De celcursor springt mee naar de gepubliceerde actieve taak', jumped.active, cell(ids[2], 2));
@@ -218,29 +198,20 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   eq('De rijmarkering (selectedTaskIds) volgt de gepubliceerde selectie', jumped.selectedTaskIds, [ids[2]]);
   eq('activeTaskId is de gepubliceerde actieve taak', jumped.activeTaskId, ids[2]);
 
-  // 2) De celcursor staat AL op de juiste rij (de gewone gridklik-route, die zelf al selectTask
-  //    aanriep ná het zetten van `active`) — geen sprong nodig, de cursor blijft op zijn plek.
   const alreadyOnTask3 = updateGridSelection(createEmptyGridSelection(), cell(ids[2], 1), rowIndex, columns, 'replace');
   const noJump = syncActiveCellToPublishedTask(alreadyOnTask3, ids[2], [ids[2]], rowIndex, columns);
   eq('Geen sprong wanneer de celcursor al op de juiste rij staat', noJump.active, cell(ids[2], 1));
 
-  // 3) Meervoudige selectie (Ctrl-klik in de gantt): de VOLLEDIGE gepubliceerde taakset komt mee,
-  //    ook al bepaalt alleen de actieve taak waar de celcursor landt.
   const multiJump = syncActiveCellToPublishedTask(onTask1, ids[2], [ids[0], ids[2]], rowIndex, columns);
   eq('Meervoudige selectie: de celcursor volgt de actieve taak', multiJump.active, cell(ids[2], 2));
   eq('Meervoudige selectie: selectedTaskIds bevat de volledige gepubliceerde set',
     multiJump.selectedTaskIds, [ids[0], ids[2]]);
 
-  // 4) Geen gepubliceerde actieve taak (bv. na deselectAll): geen sprong, alleen de metadata volgt.
   const deselected = syncActiveCellToPublishedTask(onTask1, null, [], rowIndex, columns);
   eq('Zonder gepubliceerde actieve taak blijft de celcursor ongemoeid', deselected.active, cell(ids[0], 2));
   eq('Zonder gepubliceerde actieve taak is activeTaskId null', deselected.activeTaskId, null);
 }
 
-// Review #947: in een groepering staat een taak meer dan eens. Staat de cursor al op een voorkomen
-// van de gepubliceerde taak, dan blijft hij daar; anders gaat hij naar het voorkomen dat het
-// dichtst bij de cursor ligt, niet naar het eerste (na verwijderen in groep 2 bleef hij anders niet
-// in groep 2).
 {
   const rows = [
     groupRow('g1'), taskRow(ids[0], 'g1/0'), taskRow(ids[2], 'g1/2'),
@@ -256,14 +227,12 @@ const indexed = (rows: readonly ViewRow[]) => createTaskGridRowIndex(rows);
   const onG1 = updateGridSelection(createEmptyGridSelection(), cell('g1/0', 1), rowIndex, columns, 'replace');
   eq('Groep: vanuit groep 1 is het voorkomen in groep 1 het dichtst',
     syncActiveCellToPublishedTask(onG1, ids[2], [ids[2]], rowIndex, columns).active, cell('g1/2', 1));
-  // De store gaf een concrete buurrij door: die wint, ook als de cursor al op een ander voorkomen staat.
   eq('Groep: de doorgegeven buurrij wint van een verschoven cursor',
     syncActiveCellToPublishedTask(onSecond, ids[2], [ids[2]], rowIndex, columns, 'g1/2').active, cell('g1/2', 1));
   eq('Groep: een doorgegeven rij van een andere taak telt niet',
     syncActiveCellToPublishedTask(onSecond, ids[2], [ids[2]], rowIndex, columns, 'g2/1').active, cell('g2/2', 1));
 }
 
-// De rij-index wordt buiten het commando gememoized: een gewone klik mag geen 50.000 rijen scannen.
 {
   const rows: ViewRow[] = Array.from({ length: 50_000 }, (_, index) => ({
     kind: 'task', rowKey: `perf-${index}`, task: { id: `perf-task-${index}` } as Task,

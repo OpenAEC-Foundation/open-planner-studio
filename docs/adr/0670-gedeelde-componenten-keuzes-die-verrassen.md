@@ -17,8 +17,7 @@ met 0465; de regel voor een klik naast een dialoog bewaakt `tests/planning/check
   focus uit het paneel (`closeKeepingInput`). Zo rondt een veld in het paneel zijn invoer af, want een verwijderd
   element krijgt geen blur.
 - `Popover` sluit bij het scrollen van een voorouder alleen als de knop sinds het plaatsen van het paneel echt is
-  verschoven. Uit het weggehaalde commentaar, niet nagegaan: de browser kan de knop vóór de openende klik in beeld
-  schuiven en het scrollevent pas daarna bezorgen, en dan sloot het paneel meteen na openen.
+  verschoven.
 - De zwevende panelen hangen via een portal aan `document.body`, maar zijn in React nog een kind van hun veld.
   `DatePickerPanel` stopt daarom pointerdown, mousedown en click op het paneel, anders telt een klik erin ook bij de
   tabelcel of dialoog eromheen.

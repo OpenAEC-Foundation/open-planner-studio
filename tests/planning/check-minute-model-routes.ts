@@ -1,4 +1,3 @@
-// Iedere blijvende berekening hoort bij het B5-protocol. Nieuwe aanroepen vragen een bewuste route.
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { createRequire } from 'node:module';
@@ -15,7 +14,6 @@ function scan(dir: string): void {
       if (ts.isCallExpression(node)) {
         const callee = ts.isIdentifier(node.expression) ? node.expression.text
           : ts.isPropertyAccessExpression(node.expression) ? node.expression.name.text : '';
-        // `recalculate` (F5 en de knoppen, #742) is `runCPM()` plus de uitleg, dus ook route bereken.
         if (['runCPM', 'recalculate', 'solveProject', 'runInScratchDocument'].includes(callee)) {
           const route = callee === 'recalculate' ? 'bereken'
             : callee === 'runCPM' ? node.arguments.some(arg => /withinEvent:\s*true/.test(arg.getText(source))) ? 'bewerking' : 'bereken'
@@ -33,34 +31,34 @@ const expected: Record<string, string[]> = {
   'src/components/dialogs/CalendarDialog.tsx': ['bewerking'],
   'src/components/layout/RecordedDatesNotice.tsx': ['bereken'],
   'src/components/panels/ReportPanel.tsx': ['bereken'],
-  'src/components/panels/reportStudio/GanttReportStudio.tsx': ['bereken', 'bereken'], // PDF exporteren rekent een verouderde planning eerst door, net als de andere rapporten; "Nu doorrekenen" en een gekozen statusdatum = F5 (#817)
-  'src/components/panels/ResourceOccupancyView.tsx': ['bereken'], // openen; slaat opgeslagen datums en pending minutenmigratie over
+  'src/components/panels/reportStudio/GanttReportStudio.tsx': ['bereken', 'bereken'],
+  'src/components/panels/ResourceOccupancyView.tsx': ['bereken'],
   'src/components/panels/TaskPropertiesPanel.tsx': ['bereken'],
   'src/components/panels/WarningsPanel.tsx': ['bereken'],
   'src/components/layout/Ribbon/ribbonConfig.tsx': ['bereken'],
   'src/core/index.ts': ['bereken'],
-  'src/engine/externalRefreshPreview.ts': ['solveProject'], // vluchtig: Bekijken rekent voor en na op een kopie (stap 1.5)
-  'src/engine/reports/dcmaAssessment.ts': ['solveProject'], // vluchtig rapport, nooit terugschrijven
-  'src/engine/scheduler/solveProject.ts': ['solveProject'], // vluchtige kopie zonder statusdatumvloer, voor de geplande start bij voortgang (#998)
+  'src/engine/externalRefreshPreview.ts': ['solveProject'],
+  'src/engine/reports/dcmaAssessment.ts': ['solveProject'],
+  'src/engine/scheduler/solveProject.ts': ['solveProject'],
   'src/extensions/extensionApi.ts': ['bereken'],
-  'src/extensions/retainActiveDocument.ts': ['bereken'], // na de laadgrens
+  'src/extensions/retainActiveDocument.ts': ['bereken'],
   'src/hooks/keyboard/shortcutRegistry.ts': ['bereken'],
-  'src/hooks/keyboard/useKeyboardShortcuts.ts': ['bewerking', 'bereken'], // veldcommit vóór opslaan
+  'src/hooks/keyboard/useKeyboardShortcuts.ts': ['bewerking', 'bereken'],
   'src/hooks/useAutoCalcCPM.ts': ['bereken'],
   'src/hooks/useExitRecordedDates.ts': ['bewerking'],
-  'src/services/library/occupancy.ts': ['solveProject'], // vluchtig op een kloon
-  'src/services/mcp/freshness.ts': ['bereken'], // verhuisd uit staleGuard.ts (#572)
+  'src/services/library/occupancy.ts': ['solveProject'],
+  'src/services/mcp/freshness.ts': ['bereken'],
   'src/services/mcp/tools/batchTool.ts': ['bewerking'],
-  'src/state/documentActivation.ts': ['solveProject', 'solveProject'], // vluchtige teller; laadgrens
-  'src/state/progressPlannedDates.ts': ['solveProject'], // vluchtige berekening van samengestelde voortgangsinvoer (#998)
+  'src/state/documentActivation.ts': ['solveProject', 'solveProject'],
+  'src/state/progressPlannedDates.ts': ['solveProject'],
   'src/state/runtime/createMcpTransactions.ts': ['bewerking'],
-  'src/state/slices/documentSlice.ts': ['solveProject'], // slaat omzetting open over
-  'src/state/slices/fileSlice.ts': ['bewerking', 'bereken', 'bereken'], // `applyRefreshedTasks` (verversen, accepteren); openen
-  'src/state/slices/librarySlice.ts': ['runInScratchDocument'], // applyLeveling bezit het event
+  'src/state/slices/documentSlice.ts': ['solveProject'],
+  'src/state/slices/fileSlice.ts': ['bewerking', 'bereken', 'bereken'],
+  'src/state/slices/librarySlice.ts': ['runInScratchDocument'],
   'src/state/slices/projectSlice.ts': ['bewerking', 'bewerking'],
-  'src/state/slices/scheduleSlice.ts': ['solveProject', 'bereken', 'bereken', 'bewerking', 'bewerking'], // de twee bereken: `recalculate`, met en zonder Automatisch berekenen
+  'src/state/slices/scheduleSlice.ts': ['solveProject', 'bereken', 'bereken', 'bewerking', 'bewerking'],
   'src/state/slices/schedulingProfileSlice.ts': ['bewerking'],
-  'src/utils/qaScenes.ts': ['bereken', 'bereken'], // alleen ontwikkeling (ook het F4b-testproject)
+  'src/utils/qaScenes.ts': ['bereken', 'bereken'],
 };
 const failures: string[] = [];
 for (const path of new Set([...Object.keys(actual), ...Object.keys(expected)])) {
