@@ -1,21 +1,3 @@
-// Streamable-HTTP-transport van de headless MCP-server: hetzelfde HTTP-contract als de bridge in de
-// desktop-app (`src-tauri/src/mcp_bridge.rs`), rond dezelfde TS-requestlaag (`createRequestHandler`
-// in `src/services/mcp/requestHandler.ts`: sessies, drift-anker per sessie, wachtrij-deadline).
-//
-// NAGEBOUWD NAAR `mcp_bridge.rs` (stand 2026-10-22). Wijzigt de Rust-HTTP-laag, pas deze module dan
-// mee aan. `tests/mcp/bridgeMirror.ts` gebruikt deze module als spiegel van de bridge, zodat
-// `tests/mcp/externalClient.ts` beide met dezelfde controles toetst; het Rust-gedrag zelf toetst
-// `.github/workflows/mcp-real-app.yml`.
-//   - alleen loopback; volgorde: Origin (403) → methode (405 + `Allow: POST`) → pad `/mcp` (404) →
-//     Bearer-token (401, scheme hoofdletterongevoelig, vergelijking in constante tijd) → doorgeven
-//   - body > 50 MiB ⇒ 413; onleesbare body (geen UTF-8) ⇒ 400; antwoordtimer 120 s ⇒ 504
-//     als de eventloop kan draaien; geen harde deadline of onderbreking van synchrone I/O (218)
-//   - strikt één request tegelijk; niet-lege antwoordbody ⇒ `200 application/json`, lege ⇒ `202`
-//     zonder body of Content-Type (notificatie)
-//   - elk antwoord met `Connection: close`
-//   - `Mcp-Session-Id` van het request gaat mee als `sessionId`; een `sessionId` in het antwoord wordt de
-//     header `Mcp-Session-Id`; `status: 400` ⇒ 400 met de JSON-body (header ontbreekt); `status: 404` ⇒
-//     404 zonder body (onbekende sessie)
 import http from 'node:http';
 import { timingSafeEqual } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
@@ -31,16 +13,11 @@ export const HTTP_INTERNAL_BODY = '{"jsonrpc":"2.0","error":{"code":-32603,"mess
 
 export interface HttpTransportOptions {
   token: string;
-  /** Loopback-adres (de aanroeper controleert dat). Default `127.0.0.1`. */
   host?: string;
-  /** 0 = een vrije poort. */
   port: number;
   buildContext: () => McpContext;
   handleMessage: (body: string, ctx: McpContext) => Promise<string>;
-  /** Eén regel per request (methode, pad, status, duur); nooit body of token. */
   log?: (line: string) => void;
-  /** Bestaande sessietabel (testhulp van `tests/mcp/bridgeMirror.ts`: Stop/Start van de bridge in de
-   *  app behoudt sessies en ankers). Ontbreekt hij, dan een nieuwe tabel. */
   sessions?: McpSessionTable;
 }
 
@@ -48,11 +25,9 @@ export interface HttpTransport {
   url: string;
   port: number;
   close: () => Promise<void>;
-  /** Een nieuwe request-handler met dezelfde sessietabel, zoals een herstart van de bridge in de app. */
   restart: () => void;
 }
 
-/** Klopt de `Authorization`-header? Zelfde regels als `is_authorized` in `mcp_bridge.rs`. */
 export function isAuthorized(header: string | undefined, token: string): boolean {
   if (header === undefined) return false;
   const space = header.indexOf(' ');
@@ -60,7 +35,6 @@ export function isAuthorized(header: string | undefined, token: string): boolean
   const scheme = header.slice(0, space);
   const value = Buffer.from(header.slice(space + 1));
   const expected = Buffer.from(token);
-  // Rust vouwt een lengteverschil mee in de vergelijking; hier eerst de lengte, dan timingSafeEqual.
   return scheme.toLowerCase() === 'bearer' && value.length === expected.length && timingSafeEqual(value, expected);
 }
 
@@ -75,7 +49,6 @@ function respondJson(res: http.ServerResponse, status: number, body: string): vo
 }
 
 export async function startHttpTransport(opts: HttpTransportOptions): Promise<HttpTransport> {
-  // Het `mcp://response`-kanaal van de app: correlatie op een oplopend id.
   const pending = new Map<number, (reply: McpResponseEvent) => void>();
   let nextId = 1;
   const sessions = opts.sessions ?? createMcpSessionTable();
@@ -91,7 +64,6 @@ export async function startHttpTransport(opts: HttpTransportOptions): Promise<Ht
   });
   let onRequest = makeHandler();
 
-  // Het in-flight-slot van de bridge: één request tegelijk.
   let slot: Promise<void> = Promise.resolve();
 
   async function forward(req: http.IncomingMessage, res: http.ServerResponse): Promise<number> {
@@ -118,8 +90,6 @@ export async function startHttpTransport(opts: HttpTransportOptions): Promise<Ht
     let status = 0;
     const run = slot.then(() => new Promise<void>((resolve) => {
       const id = nextId++;
-      // Alleen antwoordwachten na de HTTP-wachtrij, geen preëmptie: synchrone I/O kan ook deze
-      // timer ophouden. Een 504 annuleert de al gestarte toolbewerking niet (docs/headless-mcp.md).
       const timer = setTimeout(() => {
         pending.delete(id);
         respondJson(res, 504, HTTP_TIMEOUT_BODY);

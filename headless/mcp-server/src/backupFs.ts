@@ -1,14 +1,9 @@
-// MCP-backups van de headless server: de `BackupFs`-naad van `src/services/mcp/backupService.ts` op
-// Node `fs`. De service (uitdunbeleid `BACKUP_RETENTION`, mapindeling per document, bestandsnamen) is
-// dezelfde als in de app; alleen de plek verschilt: `<data-map>/ai-backups/<document>/…` in plaats van
-// `<appDataDir>/ai-backups/…`. De data-map kiest de server zelf (`--data-dir`), nooit de agent.
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import os from 'node:os';
 import type { BackupFs } from '@/services/mcp/backupService';
 import { writeViaTemp } from '@/services/fileAccess/atomicWrite';
 
-/** De standaard data-map per platform (XDG op Linux), met een eigen submap voor deze server. */
 export function defaultDataDir(
   env: NodeJS.ProcessEnv = process.env,
   platform: NodeJS.Platform = process.platform,
@@ -29,7 +24,6 @@ export function createNodeBackupFs(dataDir: string): BackupFs {
     appDataDir: async () => dataDir,
     join: async (...parts) => path.join(...parts),
     mkdir: async (dir) => { await fsp.mkdir(dir, { recursive: true }); },
-    // Eerst een halffabricaat, dan een rename: een backup is nooit half geschreven.
     writeTextFile: (p, content) => writeViaTemp(
       {
         writeTextFile: (file, text) => fsp.writeFile(file, text, { encoding: 'utf8', flag: 'wx' }),
@@ -44,7 +38,7 @@ export function createNodeBackupFs(dataDir: string): BackupFs {
       .map((entry) => ({ name: entry.name, isDirectory: entry.isDirectory() })),
     remove: async (p) => {
       const info = await fsp.lstat(p);
-      if (info.isDirectory()) await fsp.rmdir(p); // alleen een LEGE map, zoals het contract zegt
+      if (info.isDirectory()) await fsp.rmdir(p);
       else await fsp.unlink(p);
     },
   };

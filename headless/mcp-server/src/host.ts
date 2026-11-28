@@ -1,24 +1,3 @@
-// De host van de headless MCP-server: één eigen storecontext plus de host-functies die in de app uit
-// Tauri en de webview komen. Daarboven draait ONGEWIJZIGDE app-code: `handleMcpMessage` (dispatcher),
-// de toolregistry met alle `planner_*`-tools, `runtime.ts` en `createRequestHandler`.
-//
-// Wat deze host invult (en de app anders):
-//   - bestandstoegang      `fileToolDeps.getFs`   → `nodeFs.ts`, opgesloten in de werkmap (`--root`)
-//   - MCP-backups          `createAppBackupService(app, { getFs, autoBackupEnabled })` → `backupFs.ts`
-//   - gids en skills       `guideToolDeps.fetchImpl` → de in de bundel ingebedde teksten
-//   - veiligheidsvlaggen   `ui.aiReadOnly` uit `--read-only`; `ui.aiPaused` blijft uit (geen knop)
-//   - dialogen             bestaan niet: alle dialoogvlaggen in de ui-state blijven `false`
-//   - XML-import           `globalThis.DOMParser` → `xmlDom.ts` (Node heeft er geen)
-//
-// SCHAKELSTUK (later, ontwerp "één plugin, drie situaties" op #570): `handleMessage` is de enige naad
-// tussen de transports (stdio, HTTP) en de toolafhandeling: rauwe JSON-RPC in, rauwe JSON-RPC uit.
-// Een schakelstuk komt daar vóór te staan en kiest per aanvraag tussen doorsturen naar de bridge van
-// de app (als die draait) en deze headless afhandeling. De transports hoeven daarvoor niet te veranderen.
-// Het slot ("schrijf geen bestand dat in de app open staat") zit in de schrijfroute van de bestandstoegang:
-// `appLock.ts`, met het register `open-files*.json` uit de mappen van `discoveryDirs`.
-//
-// EÉN HOST PER PROCES: `fileToolDeps` en `guideToolDeps` zijn module-globals van de tools.
-// Teksten die de agent leest zijn Engels; commentaar Nederlands.
 import { promises as fsp } from 'node:fs';
 import path from 'node:path';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStoreFactory';
@@ -42,40 +21,26 @@ export const BACKUP_WITHHELD = 'No AI backup was made: this document comes from 
   'unchanged version.';
 
 export interface HostOptions {
-  /** Werkmap; moet bestaan. */
   root: string;
-  /** Map voor de MCP-backups (`<dataDir>/ai-backups/…`). */
   dataDir: string;
   backup: boolean;
   readOnly: boolean;
-  /** Ingebedde tekstbestanden, sleutel = pad binnen `public/` (bijv. `agent/planning-guide.md`). */
   assets: Readonly<Record<string, string>>;
-  /** Bestand dat bij de start als document opengaat (pad in de werkmap). Dat is een keuze van wie de
-   *  server start, niet van de agent: het gebeurt vóór `readOnly` ingaat. */
   open?: string | null;
-  /** Mappen met het register van open bestanden van de desktop-app. Standaard de mappen van de app op dit
-   *  platform (`mcpDiscoveryDirs`), of `OPS_MCP_DISCOVERY_DIR`. */
   discoveryDirs?: readonly string[];
-  /** Slot voor schrijfacties; standaard `createAppLock(discoveryDirs)`. Alleen tests vervangen het. */
   isPathOpenInApp?: AppLock;
 }
 
-/** De naad voor een later schakelstuk: één JSON-RPC-bericht (rauw) met zijn context → het rauwe antwoord. */
 export type McpMessageHandler = (body: string, ctx: McpContext) => Promise<string>;
 
 export interface HeadlessHost {
   app: AppStoreContext;
-  /** De `realpath` van de werkmap. */
   root: string;
   dataDir: string;
   buildContext: () => McpContext;
   handleMessage: McpMessageHandler;
 }
 
-/**
- * Extra uitleg in `initialize.instructions`, ná de vaste `MCP_INSTRUCTIONS` van de app. De tools en hun
- * beschrijvingen blijven gelijk aan de app; alleen dit kanaal vertelt de agent wat headless anders is.
- */
 export function headlessInstructions(root: string): string {
   return [
     '',
@@ -86,7 +51,6 @@ export function headlessInstructions(root: string): string {
   ].join('\n');
 }
 
-/** Een `fetch`-vervanger voor `fetchTextAsset` die alleen de ingebedde teksten kent. */
 export function embeddedAssetFetch(assets: Readonly<Record<string, string>>): TextAssetFetch {
   return async (url) => {
     const key = url.replace(/^\/+/, '');
@@ -97,7 +61,6 @@ export function embeddedAssetFetch(assets: Readonly<Record<string, string>>): Te
   };
 }
 
-/** Voeg de headless uitleg toe aan een geslaagd `initialize`-antwoord; al het andere blijft gelijk. */
 function withHeadlessInstructions(rawBody: string, response: string, root: string): string {
   if (response === '') return response;
   try {
@@ -121,10 +84,8 @@ export async function createHeadlessHost(opts: HostOptions): Promise<HeadlessHos
   }
   if (!(await fsp.stat(root)).isDirectory()) throw new Error(`The working folder '${opts.root}' is not a folder`);
 
-  // Node heeft geen DOMParser; de MSPDI- en P6-XML-lezers van de app gebruiken hem (`xmlDom.ts`).
   installXmlDomParser();
 
-  // Eén document zonder opslagdoel, zoals een nieuwe app-start. Geen host-events: extensies bestaan hier niet.
   const app = createAppStoreContext({ emitHostEvents: false });
   app.store.setState((s) => { s.ui.featureFlags = { ifcForeignContent: true }; });
 
@@ -145,12 +106,10 @@ export async function createHeadlessHost(opts: HostOptions): Promise<HeadlessHos
     withheld: () => (ifcFullWriteBlocked(app.store.getState()) ? BACKUP_WITHHELD : null),
   };
 
-  // Zoals `buildMcpContext` in de app voor een eigen storecontext: per request een verse transactiefactory.
   const buildContext = (): McpContext => createMcpContext(app, createMcpTransactions(app), backup);
   const handleMessage: McpMessageHandler = async (body, ctx) =>
     withHeadlessInstructions(body, await handleMcpMessage(body, ctx), root);
 
-  /** Open een bestand als document, via `planner_import_schedule` (dezelfde route als een agent). */
   async function openAtStart(file: string): Promise<void> {
     const target = path.resolve(root, file);
     const body = JSON.stringify({
@@ -168,7 +127,6 @@ export async function createHeadlessHost(opts: HostOptions): Promise<HeadlessHos
   }
 
   if (opts.open) await openAtStart(opts.open);
-  // Pas ná het openen bij de start: alleen-lezen begrenst de agent, niet wie de server start.
   if (opts.readOnly) app.store.getState().setUI({ aiReadOnly: true });
 
   return { app, root, dataDir: opts.dataDir, buildContext, handleMessage };

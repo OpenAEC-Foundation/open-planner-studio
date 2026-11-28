@@ -1,10 +1,7 @@
-// Alleen de byte→tekst-grens voor XML-bestanden; geen decoderwijziging voor IFC, CSV, XER of MPP.
-// XML 1.0 §4.3.3 en Appendix F: https://www.w3.org/TR/xml/#sec-guessing
 import { FileTextDecodingError } from '@/services/mcp/fileTextError';
 
 export function decodeXmlBytes(bytes: Uint8Array): string {
   const starts = (...prefix: number[]) => prefix.every((value, i) => bytes[i] === value);
-  // UTF-32 eerst herkennen: de LE-BOM begint net als UTF-16 met FF FE.
   if (starts(0xff, 0xfe, 0, 0) || starts(0, 0, 0xfe, 0xff)
     || starts(0, 0, 0, 0x3c) || starts(0x3c, 0, 0, 0)) {
     throw new FileTextDecodingError('UTF-32 XML is not supported. Export as UTF-8 or UTF-16.');
@@ -18,7 +15,6 @@ export function decodeXmlBytes(bytes: Uint8Array): string {
 
   let text: string;
   try {
-    // Geen stil ingevoegde vervangtekens bij een afgebroken bytepaar of surrogate.
     text = new TextDecoder(encoding, { fatal: true }).decode(bytes);
   } catch {
     throw new FileTextDecodingError(`Invalid ${encoding.toUpperCase()} XML byte sequence.`);
