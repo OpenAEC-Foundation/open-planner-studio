@@ -15,14 +15,15 @@ Een paar keuzes in de MCP-tests in `tests/mcp/` zien eruit als iets wat je kunt 
   `cross-spawn`, een CommonJS-pakket, en `run.sh` bundelt de cases met esbuild als ESM; de bundel gooit dan bij het
   laden "Dynamic require of "child_process" is not supported".
 - **De batchtoetsen in `cases-schemavalidatie.ts` eisen de vorm van de poortfout.** `expectBatchSchemaReject` eist
-  `step N: invalid arguments for <tool> —` (de tekst van `validateToolArgs` in `batchTool.ts`), niet alleen een
-  mislukte batch. De leestools toetsen hun argumenten ook zelf (0401); een toets op alleen `ok === false` bleef dan
+  `step N: invalid arguments for <tool> —` (de prefix die `executeSteps` in `batchTool.ts` voor het foutdetail van
+  `validateToolArgs` zet), niet alleen een mislukte batch. De leestools toetsen hun argumenten ook zelf (0401); een toets op alleen `ok === false` bleef dan
   groen zonder de schemapoort in `planner_batch`.
 - **Leestools zonder array van objecten.** De schemapoort toetst de binnenkant van array-items alleen voor
   `ATOMIC_ITEM_TOOLS`, in de dispatcher en in `planner_batch` gelijk. De toets "leestools hebben geen
-  object-array-items" in `cases-schemavalidatie.ts` faalt zodra een leesschema zo'n array krijgt: dan moet opnieuw
+  object-array-items" in `cases-schemavalidatie.ts` loopt door `properties` en `items` van elk leesschema en faalt
+  zodra daar zo'n array verschijnt (een array onder `additionalProperties` ziet hij niet): dan moet opnieuw
   gekozen worden tussen diep toetsen en weigeren per item.
-- **Alleen `cases-toolregistry.ts` kent de volledige set tools.** Die toets leest de `name: 'planner_…'`-literals uit
+- **Alleen `cases-toolregistry.ts` vergelijkt de tools in de broncode met de registry.** Die toets leest de `name: 'planner_…'`-literals uit
   `src/services/mcp/tools/*.ts` met een reguliere expressie en vergelijkt ze met de registry; uit de registry zelf
-  is een vergeten registratie niet af te lezen. De andere MCP-tests noemen geen vast aantal tools, zodat een nieuwe
-  tool daar niets breekt; `cases-schemavalidatie.ts` eist alleen dat de lijst niet leeg is.
+  is een vergeten registratie niet af te lezen. `cases-externe-client.ts` en `cases-headless-server.ts` eisen wel het
+  vaste aantal uit AGENTS.md, dus een nieuwe tool vraagt ook daar een aanpassing.
