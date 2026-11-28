@@ -1,22 +1,5 @@
 import type { ConstraintType, TaskConstraint } from '@/types/task';
 
-/**
- * Pure validatie van een PRIMAIR + SECUNDAIR constraint-paar (P6-regels).
- *
- * BELANGRIJK: de SOLVER rekent gewoon met wat er staat (twee bounds stapelen als max/min, een
- * verboden `constraint2.hard` wordt genegeerd/altijd-soft behandeld). Deze helper is puur voor de
- * AUTHORING-laag (eigenschappenpaneel, taakraster, MCP) om nonsensicale paren te weigeren — hij muteert niets en
- * heeft geen effect op de berekening.
- *
- * P6-regels:
- *  - een secundaire constraint mag NOOIT hard zijn (altijd soft);
- *  - géén secundaire constraint als de primaire een "Start On"/"Finish On"/Mandatory is (MSO/MFO of
- *    een harde pin) — die legt zelf al start én finish vast;
- *  - géén secundaire constraint bij ASAP/ALAP (die dragen geen datum-grens);
- *  - het secundaire type moet een pure grens zijn (SNET/FNET/SNLT/FNLT), geen MSO/MFO/ASAP/ALAP;
- *  - het paar moet één FORWARD-grens (SNET/FNET, onder­grens) en één BACKWARD-grens (SNLT/FNLT,
- *    bovengrens) zijn — twee gelijksoortige grenzen zijn niet toegestaan (bv. SNET+FNLT mag wel).
- */
 export type ConstraintPairIssue =
   | 'secondary-hard-forbidden'
   | 'no-secondary-with-mandatory-or-on'
@@ -31,8 +14,6 @@ export interface ConstraintPairValidation {
 
 type BoundSide = 'forward' | 'backward' | 'both' | 'none';
 
-/** Grens-categorie van een constraint-type: forward = start/finish-ONDERgrens (max),
- *  backward = start/finish-BOVENgrens (min), both = MSO/MFO (onder- én bovengrens), none = ASAP/ALAP. */
 export function constraintSide(type: ConstraintType): BoundSide {
   switch (type) {
     case 'SNET':
@@ -45,19 +26,10 @@ export function constraintSide(type: ConstraintType): BoundSide {
     case 'MFO':
       return 'both';
     default:
-      return 'none'; // ASAP / ALAP
+      return 'none';
   }
 }
 
-/**
- * Het constraint-PAAR nadat de gebruiker (of een agent) een nieuw PRIMAIR constraint kiest — één
- * canonicalisatie voor eigenschappenpaneel, taakraster en MCP (`taskFields.ts`):
- *  - geen primair of ASAP ⇒ beide weg (ASAP is de afwezigheid van een constraint);
- *  - ALAP ⇒ `{ type: 'ALAP' }` zonder datum, en de secundaire vervalt (ALAP draagt geen grens);
- *  - een datumconstraint ⇒ precies `next`, de bestaande secundaire blijft staan. Of dat paar mag,
- *    beslist daarna `validateConstraintPair` — de aanroeper weigert een ongeldig paar.
- * Puur: bouwt geen datum of harde pin (dat blijft bij de aanroeper), muteert niets.
- */
 export function withPrimaryConstraint(
   next: TaskConstraint | undefined,
   secondary: TaskConstraint | undefined,

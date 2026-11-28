@@ -223,6 +223,8 @@ zei (0330), het rekenresultaat uit de vastlegging (0331), de vastlegging terug i
 de getoonde datums en de tellers (0333) en de bouwstenen voor de lezers (0334).
 
 **Keuzes in de domeintypen in `src/types/`** (de typen hangen niet van `src/state/` af, kolomkoppen van de gebruiker gaan niet door `t()`, de eigen File System Access-typen): `docs/adr/0730-domeintypen-keuzes-die-verrassen.md`.
+**Het oprollen van verzameltaken** na een solve (`rollupSummaryTasks` in `engine/scheduler/applyCpmResult.ts`, voortgang in
+`summaryProgress.ts`): `docs/adr/0750-verzameltaken-oprollen.md`.
 
 **Datums zoals opgeslagen verlaten rekent altijd door** (`useExitRecordedDates`, ook met Automatisch berekenen uit):
 `docs/adr/0782-datums-zoals-opgeslagen-verlaten-rekent-altijd.md`.

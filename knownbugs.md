@@ -890,6 +890,19 @@ en noem het in je rapport of PR-tekst.
      1,25, geeft geen waarschuwing. Alleen een kenmerk in de baseline zelf dat via IFC heen en terug gaat, lost het op
      (ADR 0550). Gezien in het commentaar van dat bestand (review #363), niet nagespeeld. — S
 
+2720. **De vrije speling van een relatie naar een kalendertijd-opvolger wordt in werktijd gemeten.**
+     `computeScheduleResults` (`src/engine/scheduler/scheduleAnalysis.ts`) rekent de relatie-vrije speling altijd in
+     werktijd op de opvolgerkalender, ook bij een ELAPSEDTIME-opvolger. Gezien in het weggehaalde commentaar; een
+     gevolg is niet nagespeeld. — S
+
+2721. **Een splitgat korter dan een halve werkdag krijgt in dagmodus geen breedte.**
+     `computeSplitSegments` en `splitDayPattern` (`src/engine/scheduler/splitWalk.ts`) ronden in dagmodus elk gat en
+     elk werkstuk af op hele werkdagen (`Math.round(minuten / (hoursPerDay × 60))`). Een gat onder een halve werkdag
+     wordt 0 dagen breed en de segmenten sluiten op elkaar aan; dezelfde afronding geldt voor de belasting op het
+     dagpad. De
+     solver telt het gat wel als breuk (`splitTotalSpanDays` in `duration.ts`). Gezien in de code en het weggehaalde
+     commentaar, niet nagespeeld. — S
+
 ## Tabel, invoer en bediening
 
 13. **Tabelkolom *Kleur*** wordt in IFC bewaard, maar geen balk of rapport gebruikt hem. — B

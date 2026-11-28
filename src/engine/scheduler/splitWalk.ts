@@ -1,73 +1,3 @@
-// splitWalk.ts — de ENE bron voor "welke dagen werkt een gesplitste taak".
-//
-// De as-semantiek: `TaskSplitGap.afterMinutes` ligt op MSP's cumulatieve elapsedWork-as — de
-// as loopt CUMULATIEF door de tijdgefaseerde periodes en telt daarbij ELK gat zelf ook mee in hoe
-// ver de as voor het VOLGENDE gat al is opgeschoven (`task.ts`'s `TaskSplitGap`-docblok,
-// `duration.ts`'s `splitTotalSpanMinutes`-moduleheader). De aspositie ná gat n is dus
-// `afterMinutes + gapMinutes`, niet `afterMinutes` — wie bij het volgende gat `prevAxis =
-// gap.afterMinutes` bijhoudt telt het vorige gat DUBBEL: het segment vóór gat n+1 wordt dan
-// `(n+1).afterMinutes − n.afterMinutes`, wat het net gepasseerde gat nog een keer als "werk"
-// meetelt en een segment zelfs terug in de tijd kan laten lopen (zie `check-split-walk.ts`).
-//
-// DAG- VS UUR-MODUS. `afterMinutes`/`gapMinutes` zijn ALTIJD werkminuten, ongeacht de
-// kalendermodus van de taak (ze komen uit de .mpp-timephased-decoder, die geen dag/uur-onderscheid
-// kent — zie `mppTimephased.ts`). Voor een URENTAAK (`measure=true`) wandelt `computeSplitSegments`
-// daarom met `CalendarEngine.addWorkMinutes` (minuutprecisie). Een DAGENMAAT-taak op een kalender met
-// werkblokken (`measure='workdays'`, alleen uren §3.14) wandelt in werkdagen: minuten ÷ werktijd per dag,
-// met `addMeasuredWorkdays`. De as van zo'n taak telt dus in dagslots (`werktijd per dag × 60` = één
-// werkdag, hoe lang die dag ook is): een pauze van 480 min bij 8 u per dag is één werkdag, ook op een
-// korte vrijdag van 6 u. Dat is dezelfde telling als de motor (`splitTotalSpanDays` in `duration.ts`
-// + `addMeasuredWorkdaysChecked` in `CPMSolver.addDurationChecked`), de belasting (`workPlacement.ts`)
-// en de splitsbewerking (het dagslotcontract). In DAG-modus (`measure=false`) bestaat die precisie
-// niet: `addWorkMinutes` leunt op `calendar.workTime!.byWeekday` en GOOIT op een dag-kalender
-// (`workTime` is daar `undefined`). Op een dag-kalender (of met datums zonder tijd) tekent een taak nooit
-// binnen de dag, dus deze module rondt in dag-modus elke minutenwaarde af op hele werkdagen (`Math.round(minuten /
-// (hoursPerDay*60))`) en wandelt met `addWorkingDaysSigned` — de bestaande "zuivere offset"-
-// primitief (begindag telt NIET als "dag 1"). Een gat kleiner dan een halve werkdag rondt af naar
-// 0 werkdagen en levert dus geen zichtbaar/telbaar segment op in dag-modus — een gedocumenteerde
-// precisiegrens, geen bug. De spiegelkant geldt ook: een gat van een halve werkdag of net erboven
-// rondt OP naar één hele werkdag.
-//
-// EXCLUSIEVE GRENZEN. In `computeSplitSegments` is elke grens (behalve de allereerste `taskStart`
-// en de allerlaatste `taskEnd`) EXCLUSIEF: het startpunt van het volgende segment — net als de
-// bestaande uur-modus-necking (`CalendarEngine.workIntervalsBetween`) al doet.
-//
-// DEFENSIEF (guard-lat bewust GELIJK aan `splitTotalSpanMinutes` in `duration.ts` — zelfde
-// dreigingsmodel: `splitGaps` is afgeleide data die via MCP of een handgemaakte IFC/JSON-import
-// kan binnenkomen, dus niet blind vertrouwd). Beide wandelfuncties hieronder spiegelen die guards
-// letterlijk: een gat met een niet-eindige `afterMinutes`/`gapMinutes` of `gapMinutes <= 0` wordt
-// overgeslagen, en de aspositie wordt geklemd (`gapStartAxis = Math.max(afterMinutes, axisPos)`)
-// zodat een wanordelijk/overlappend gat de as nooit terug de tijd in laat lopen — een gat dat
-// daarna nog steeds ontaardt (`gapEndAxis <= gapStartAxis`) draagt niets bij en wordt ook
-// overgeslagen. Dit voorkomt tegelijk dat een NaN uit een niet-finite gat doorsijpelt naar
-// `Math.round`/`Math.max` verderop (die geven dan stil `NaN` terug in plaats van een fout).
-//
-// OVERLAPPENDE GATEN VALLEN SAMEN TOT ÉÉN WERKONDERBREKING. Doordat `gapStartAxis` op `axisPos`
-// geklemd wordt, kan een tweede gat dat (deels) binnen het vorige valt op de as `workBefore === 0`
-// opleveren (geen zuiver werksegment ertussen). `computeSplitSegments` slaat het pushen van een
-// nieuw (dan NUL-BREED) segment in dat geval over — behalve voor het állereerste gat, dat altijd
-// zijn (mogelijk nul-brede) openingssegment krijgt, zodat `segments[0].start === taskStart` blijft
-// gelden — en verlengt in plaats daarvan gewoon het lopende gat. `splitDayPattern` spiegelt dat:
-// een blok met `work === 0` wordt niet als apart blok gepusht maar bij het gat van het vorige blok
-// opgeteld, zodat het aantal blokken overeenkomt met het aantal zichtbare werkonderbrekingen. Dit
-// verandert `enumerateTaskWorkDays`s uitkomst NIET (nul-werk-blokken verbruikten toch al geen
-// dagen) — het is puur zodat de blokstructuur zelf klopt voor toekomstige lezers ervan.
-//
-// GEEN GRENS VOORBIJ HET TAAKEINDE. `computeSplitSegments` klemt elke gewandelde grens op
-// `taskEnd`: een gat (of som van gaten) dat door corrupte data verder reikt dan de taak duurt mag
-// nooit een segmentgrens ná `taskEnd` opleveren, en al helemaal niet een segment dat achterstevoren
-// loopt (`end < start`) doordat de wandeling het taakeinde voorbij zou schieten. Een taak waarvan
-// `taskEnd <= taskStart` is (eveneens corrupte/hostiele input) levert daarom ook meteen kortsluiting
-// op: één segment `[taskStart, taskEnd]`, zonder de gaten-as ook maar aan te raken. `enumerateTaskWorkDays`
-// hieronder klemt bewust NIET op een taakeinde — die kent er geen: een renderer-balk MOET binnen
-// haar eigen grenzen tekenen, maar een lastlezer (`ResourceLoad`) mapt bewust exact `durationDays`
-// werkdagen vanaf `taskStart`, ook voorbij een (mogelijk verouderde) `earlyFinish` — zie het
-// earlyFinish-besluit in `ResourceLoad.ts`'s `computeResourceLoad`-docblok.
-//
-// Consumenten: `splitBarGeometry` (renderer/print), en op een kalender zonder werkblokken
-// `ResourceLoad` (histogram/bezetting) en via `dayslotLoad` de nivelleerder. Op een kalender met
-// werkblokken lezen die twee de gedeelde plaatsing (`workPlacement.ts`); die loopt de as in dezelfde
-// maat, en `check-split-solver-placement.ts` houdt solver, plaatsing en Gantt gelijk.
 import type { TaskSplitGap } from '@/types/task';
 import type { CalendarEngine } from './CalendarEngine';
 import { parseDate, formatDate, addCalendarDays } from '@/utils/dateUtils';
@@ -77,21 +7,6 @@ export interface SplitSegmentBounds {
   end: Date;
 }
 
-/**
- * Segmentgrenzen (Date-paren) voor een taak met `Task.splitGaps`, gewandeld vanaf `taskStart` met
- * de bestaande `CalendarEngine`-primitieven — zie de moduleuitleg hierboven voor de as-
- * semantiek, de dag/uur-modus-keuze, de overlap-samenvoeging en de taakeinde-klem. `gaps.length
- * === 0` (of `undefined`) ⇒ één segment `[taskStart, taskEnd]` (geen split) — de aanroeper hoeft
- * dus niet zelf te guarden op een lege/afwezige `splitGaps`-array. `gaps` hoeft niet vooraf
- * gesorteerd te zijn (defensief gesorteerd op `afterMinutes`, zelfde conventie als
- * `splitTotalSpanMinutes`). `taskEnd <= taskStart` (corrupte input) kortsluit meteen naar één
- * segment, zonder de gaten-as aan te raken.
- *
- * `measure`: `true` = urenmaat (werkminuten), `'workdays'` = dagenmaat (werkdagen met een breuk, alleen
- * op een kalender met werkblokken; anders als `false`), `false` = hele werkdagen (dag-modus of datums
- * zonder tijd). In de dagenmaat ligt elke tussengrens op het eerstvolgende werkmoment: een stuk of pauze
- * die op een blokeinde eindigt, grenst aan het volgende blokbegin (vr 16:00 ⇒ ma 07:00).
- */
 export function computeSplitSegments(
   gaps: TaskSplitGap[] | undefined,
   taskStart: Date,
@@ -105,9 +20,6 @@ export function computeSplitSegments(
   const minutesPerDay = Math.max(1, eng.hoursPerDay * 60);
   const endMs = taskEnd.getTime();
 
-  // Klemt elke gewandelde grens op `taskEnd` — zie "GEEN GRENS VOORBIJ HET TAAKEINDE" hierboven:
-  // corrupte/hostiele `gaps` (bv. een `afterMinutes` ver voorbij de taakspanne) mogen nooit een
-  // segmentgrens ná het taakeinde opleveren, en al helemaal geen achterstevoren lopend segment.
   const workdays = measure === 'workdays' && eng.isHourMode;
   const walk = (from: Date, minutes: number): Date => {
     if (minutes <= 0) return from;
@@ -121,9 +33,6 @@ export function computeSplitSegments(
           })();
     return to.getTime() > endMs ? taskEnd : to;
   };
-  // Dagenmaat: de wandeling geeft een eindmoment (`(start,end]`); de grens is EXCLUSIEF, dus het
-  // eerstvolgende werkmoment (een stuk dat een hele dag afsluit, eindigt op het begin van de volgende
-  // werkdag, zoals het dagslot van F4a), nooit voorbij het taakeinde.
   const boundary = (at: Date): Date => {
     if (!workdays) return at;
     const next = eng.nextWorkInstant(at);
@@ -134,46 +43,23 @@ export function computeSplitSegments(
   let cursor = taskStart;
   let axisPos = 0;
   for (const gap of sorted) {
-    // Defensief, spiegelt `splitTotalSpanMinutes` (duration.ts) — zie de moduleuitleg hierboven.
     if (!Number.isFinite(gap.afterMinutes) || !Number.isFinite(gap.gapMinutes) || gap.gapMinutes <= 0) continue;
     const gapStartAxis = Math.max(gap.afterMinutes, axisPos);
     const gapEndAxis = gap.afterMinutes + gap.gapMinutes;
-    if (gapEndAxis <= gapStartAxis) continue; // volledig al ingehaald/ontaard — geen segmentgrens
+    if (gapEndAxis <= gapStartAxis) continue;
     const workBefore = gapStartAxis - axisPos;
     if (workBefore > 0 || segments.length === 0) {
       const gapStart = boundary(walk(cursor, workBefore));
       segments.push({ start: cursor, end: gapStart });
       cursor = gapStart;
     }
-    // `workBefore === 0` mét al een segment op de lijst ⇒ dit gat sluit naadloos op het vorige aan
-    // (overlap of aaneensluitend op de as) — geen extra nul-breed segment, het gat wordt verlengd.
-    cursor = boundary(walk(cursor, gapEndAxis - gapStartAxis)); // alleen het niet al ingehaalde deel
-    axisPos = gapEndAxis; // het gat telt zichzelf mee op de as
+    cursor = boundary(walk(cursor, gapEndAxis - gapStartAxis));
+    axisPos = gapEndAxis;
   }
   segments.push({ start: cursor, end: taskEnd });
   return segments;
 }
 
-/**
- * Dag-granulaire werk/gat-blokken voor een DAG-modus-taak van `durationDays` werkdagen — de
- * dag-tegenhanger van `computeSplitSegments`, uitgedrukt in aantallen dagen in plaats van
- * absolute datums (zodat `enumerateTaskWorkDays` hieronder er kalenderneutraal overheen kan
- * lopen). Zelfde as-wandeling en afronding-op-hele-werkdagen als `computeSplitSegments`s
- * dag-tak, inclusief dezelfde overlap-samenvoeging: een blok waarvan `work` op 0 uitkomt (omdat
- * het volgende gat al (deels) binnen het vorige valt — de klem op `axisPos` maakt het mogelijk,
- * niet omdat een écht gat te klein is om als hele werkdag te ronden) wordt niet als apart blok
- * gepusht maar telt op bij het `gap` van het vorige blok — behalve voor het allereerste blok, dat
- * altijd gepusht wordt (zelfde "eerste segment altijd erbij"-uitzondering als
- * `computeSplitSegments`). Dit verandert `enumerateTaskWorkDays`s uitkomst niet (een nul-werk-blok
- * verbruikte toch al geen dagen); het houdt alleen de blokstructuur zelf kloppend voor toekomstige
- * lezers ervan. `durationDays <= 0` ⇒ één leeg blok; geen `gaps` ⇒ één blok van de volle duur.
- *
- * INVARIANT VOOR LEZERS: het SLOTBLOK (altijd het restant `durationDays - used`) wordt, anders dan
- * de tussenliggende blokken, onvoorwaardelijk gepusht — ook als dat `work: 0` oplevert (de laatste
- * gaten consumeren dan exact tot het taakeinde). Een lezer die op "geen enkel blok heeft
- * `work === 0`" leunt, moet dus zowel het eerste als het laatste blok als uitzondering behandelen;
- * elk blok DAARTUSSEN heeft altijd `work > 0`.
- */
 export function splitDayPattern(
   gaps: TaskSplitGap[] | undefined,
   minutesPerDay: number,
@@ -187,48 +73,24 @@ export function splitDayPattern(
   let axisPos = 0;
   let used = 0;
   for (const g of sorted) {
-    // Defensief, spiegelt `splitTotalSpanMinutes` (duration.ts) — zie de moduleuitleg hierboven.
-    // Zonder deze guard sijpelt een niet-finite gat door naar `Math.round`/`Math.max` verderop
-    // (die geven dan stil `NaN` terug in plaats van het gat simpelweg te negeren).
     if (!Number.isFinite(g.afterMinutes) || !Number.isFinite(g.gapMinutes) || g.gapMinutes <= 0) continue;
     const gapStartAxis = Math.max(g.afterMinutes, axisPos);
     const gapEndAxis = g.afterMinutes + g.gapMinutes;
-    if (gapEndAxis <= gapStartAxis) continue; // volledig al ingehaald/ontaard — geen blok
+    if (gapEndAxis <= gapStartAxis) continue;
     const work = Math.min(Math.max(0, Math.round((gapStartAxis - axisPos) / mpd)), durationDays - used);
     const gap = Math.max(0, Math.round((gapEndAxis - gapStartAxis) / mpd));
     if (work > 0 || blocks.length === 0) {
       blocks.push({ work, gap });
     } else {
-      // Sluit naadloos op het vorige blok aan (overlap op de as) — geen apart nul-werk-blok, het
-      // gat van het vorige blok wordt verlengd.
       blocks[blocks.length - 1].gap += gap;
     }
     used += work;
-    axisPos = gapEndAxis; // het gat telt zichzelf mee op de as
+    axisPos = gapEndAxis;
   }
   blocks.push({ work: Math.max(0, durationDays - used), gap: 0 });
   return blocks;
 }
 
-/**
- * De EXACTE INVERSE van `splitDayPattern`: werk/gat-blokken in hele werkdagen → `TaskSplitGap[]` op
- * de cumulatieve as — de ene gedeelde conversieroutine, naast haar heen-richting. De verdeler kiest
- * pauzedagen op de TAAKkalender (dus in hele werkdagen van díé kalender) en schrijft ze hiermee om
- * naar de cumulatieve elapsedWork-as die `duration.ts`, `CPMSolver.ts` en de renderer lezen.
- *
- * De cumulatie is het hele punt: `afterMinutes` van gat n incorporeert alle voorgaande werk- ÉN
- * gat-minuten (`axisPos += work + gap`). Wie hier alleen de werkminuten optelt produceert gaten die
- * de CPM te vroeg laat vallen — de spiegelfout van het dubbeltellen hierboven.
- *
- * Een blok met `gap === 0` levert geen gat op (het slotblok, en elk blok waar de aanroeper geen
- * pauze wil). `source` wordt op elk geproduceerd gat gezet wanneer meegegeven — de verdeler geeft
- * `'leveling'`, zodat "nivellering wissen" zijn eigen gaten later terugvindt
- * (`clearLevelingGaps` in `taskDefaults.ts`).
- *
- * INVARIANT (getest in `check-split-walk.ts`):
- *   `splitDayPattern(splitGapsFromWorkDayBlocks(b, mpd), mpd, Σb.work) === b`
- * voor elk blokpatroon dat eindigt op een blok met `gap: 0`.
- */
 export function splitGapsFromWorkDayBlocks(
   blocks: Array<{ work: number; gap: number }>,
   minutesPerDay: number,
@@ -243,21 +105,12 @@ export function splitGapsFromWorkDayBlocks(
     axisPos += work * mpd;
     if (gap > 0) {
       gaps.push(source ? { afterMinutes: axisPos, gapMinutes: gap * mpd, source } : { afterMinutes: axisPos, gapMinutes: gap * mpd });
-      axisPos += gap * mpd; // het gat telt zichzelf mee voor de positie van het VOLGENDE gat
+      axisPos += gap * mpd;
     }
   }
   return gaps;
 }
 
-/**
- * De ISO-datums van elke werkdag die een gesplitste (of ongesplitste) DAG-modus-taak daadwerkelijk
- * werkt, gegeven de start en de duur in werkdagen — de gedeelde bron voor lastlezers
- * (`ResourceLoad`/`ResourceLeveler`) die willen weten OP WELKE dagen een taak boekt, zonder zelf
- * een kalenderwandeling te herschrijven. Loopt `splitDayPattern`s werk/gat-blokken af en
- * verbruikt daarbij telkens het eerstvolgende aantal werkdagen (via `CalendarEngine.isWorkDay`,
- * niet-werkdagen worden overgeslagen zonder een blok te verbruiken) — gat-blokken tellen mee voor
- * het overslaan van dagen maar leveren geen ISO-datum op.
- */
 export function enumerateTaskWorkDays(
   gaps: TaskSplitGap[] | undefined,
   engine: CalendarEngine,
@@ -268,7 +121,7 @@ export function enumerateTaskWorkDays(
   const isos: string[] = [];
   let current = parseDate(startIso);
   let guard = 0;
-  const MAX_DAYS = 200_000; // zelfde veiligheidsgrens als CalendarEngine/enumerateWorkDays
+  const MAX_DAYS = 200_000;
   const consumeWorkDays = (n: number, collect: boolean) => {
     let taken = 0;
     while (taken < n && guard++ < MAX_DAYS) {
