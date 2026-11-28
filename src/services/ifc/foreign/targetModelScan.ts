@@ -1,113 +1,48 @@
 import { StepStringState, isStepControl, stepString } from '../stepLexical';
-// Bevat een bestaand doel van Opslaan als, een export of AutoSave een gebouwmodel (#804 fase 1a, fixronde 2–4)? Besluit
-// Trias (wrakko, 9 november 2026): de app controleert het gekozen bestaande doel zelf. Is het een IFC met een
-// `IfcProduct` of `IfcTypeProduct` (dezelfde ingecheckte type-inventaris als de modelweigering bij openen,
-// `IFC_BUILDING_MODEL_TYPES`), dan schrijft de app niet. Zo is ook een gewijzigde modelversie, of een modelbestand dat
-// niet open is, beschermd.
-//
-// De regel (besluit Trias, wrakko 10 november 2026, review van #870 ronde 7): de lezer leest het hele bestand met de
-// grammatica van ISO 10303-21 (`stepFileGrammar.ts`, dezelfde code als `readIFC`), als stroom van bytes:
-//  1. de kop: `assertIfcIntegrity` (BOM, witruimte, `ISO-10303-21;`; de kopregel uit `stepDataSection.ts`). Een ander
-//     eerste statement is 'not-ifc';
-//  2. ziet de grammatica een entiteit met een modeltype (ook als deel van een complexe instantie, en ook vóór het
-//     bestand ergens breekt): 'model', meteen;
-//  3. past het hele bestand in de grammatica, met precies één datasectie: de regel van main (stap 5), zodat de lezer
-//     'model' zegt als de grammatica óf `readIFC` een model ziet. Vindt main geen `DATA;`, dan 'no-model' (de grammatica
-//     las het hele bestand zonder model). Zonder datasectie: 'unreadable', zoals `readIFC` weigert. Review van #870,
-//     ronde 10: een wand in `/⏎* … */` is voor de norm commentaar, maar `readIFC` weigert hem als model; main weigerde
-//     het doel dan ook. Niets slechter dan main;
-//  4. breekt het bestand, of heeft het meer dan één datasectie, en is het van een ander programma: 'unreadable'. Bij
-//     twijfel weigeren (de regel van #867). `readIFC` leest zoals main alleen de eerste datasectie; wat erna staat zou
-//     opslaan stil wissen (besluit Trias, wrakko 10 november 2026, review van #870 ronde 10);
-//  5. breekt het bestand, of heeft het meer dan één datasectie, en heeft het precies de gemeten oude eigen kop
-//     (`oldOwnHeader.ts`): de bestaande leeslus, zodat de planner kan blijven opslaan. OPS
-//     v2026.2.0 tot en met v2026.7.12 schreef naam, auteur en bedrijf rauw in FILE_NAME (commit 771db15cb), en oudere
-//     versies schreven ook andere dingen buiten de norm (zoals `IFCREAL(NaN)`). De lezer leest dan zoals `readIFC` zo'n
-//     bestand leest: vanaf DATA na het vaste kopsjabloon (dus niet bij DATA; in een vrij veld), met de lus van
-//     `parseSTEP`. Voor alle andere bestanden blijft `StepDataSectionFinder` de regel van main gebruiken:
-//      a. commentaar weg, zoals `stripStepComments`;
-//      b. op codeniveau een `'…'` overslaan, bij `#` een entiteit proberen (`#id = TYPE (…) ;`, met haakjes op diepte,
-//         strings en commentaar in de argumenten), tot de eerste `ENDSEC;` op codeniveau. Mislukt een
-//         entiteit, dan leest `readIFC` verder vanaf het teken na de `#`; deze lezer spoelt daarvoor terug (uit het
-//         geheugen, of door de bron opnieuw te lezen vanaf die positie).
-//     Dan zegt de lezer 'model' precies als `readIFC` het bestand weigert met `building-model`. Stap a en b zijn een
-//     tweede vorm van de regels in `ifcReader.ts` (`stripStepComments`, `parseSTEP`, `readEntity`): die werken op de hele
-//     tekst, deze als stroom. `check-ifc-target-model-scan.ts` vergelijkt beide. Wijzig je de regels daar, wijzig ze
-//     dan hier ook.
-//
-// De uitkomst en wat hij betekent (fixronde 3: een scan zonder uitkomst is geen vrijbrief):
-//  - 'model': niet schrijven.
-//  - 'no-model': de lezer las het HELE bestand zonder modelentiteit. Schrijven mag.
-//  - 'not-ifc': het bestand begint niet met `ISO-10303-21;` (CSV, XML, JSON, een leeg bestand). Schrijven mag.
-//  - 'unreadable': een STEP-bestand dat de lezer niet betrouwbaar kan lezen. Niet schrijven.
-// Een andere uitkomst bestaat niet. Stopt het lezen vóór het einde (een leesfout), dan is er geen uitkomst; de aanroeper
-// telt dat als "niet leesbaar".
-//
-// Bewust strenger dan `readIFC` (dan weigert de app een write die de lezer zou toestaan, nooit andersom): commentaar
-// vóór de kop (fixronde 3: het eerste statement telt) met een modelentiteit; een modelentiteit vóór het punt waar het
-// bestand breekt; en elk bestand van een ander programma dat breekt.
-//
-// De lezer stopt bij de eerste modelentiteit. Een groot bestand zonder model leest hij helemaal, maar als stroom.
 import { IFC_BUILDING_MODEL_TYPES } from '../ifcBuildingModelTypes';
 import { STEP_HEADER, StepDataSectionFinder, startsWithStepHeader } from '../stepDataSection';
 import { OLD_OWN_HEADER_PREFIX_MAX, recognizeOldOwnHeader } from '../oldOwnHeader';
 import { StepFileGrammar } from '../stepFileGrammar';
 
-/** Uitkomst van de controle; zie de kop van dit bestand voor de betekenis. */
 export type TargetModelScan = 'model' | 'no-model' | 'not-ifc' | 'unreadable';
 
-/** Een bron die de doelcontrole leest, ook opnieuw vanaf een positie (terugspoelen, de tweede lezing). */
 export interface TargetSource {
-  /** Het volgende stuk, of `null` aan het einde. Een fout gaat door naar de aanroeper. */
   next(): Promise<Uint8Array | null>;
-  /** Lees hierna verder vanaf `offset` (bytes vanaf het begin van het bestand). */
   seek(offset: number): Promise<void>;
-  /** Sluit de bron; ook na een fout. */
   close?(): Promise<void> | void;
 }
 
-/** Wat de lezer na een stuk vraagt: de uitkomst, verder lezen vanaf `seek`, of (`null`) het volgende stuk. */
 export type TargetScanStep = { readonly result: TargetModelScan } | { readonly seek: number } | null;
 
-const QUOTE = 0x27; // '
-const SLASH = 0x2f; // /
-const STAR = 0x2a; // *
-const SEMI = 0x3b; // ;
-const OPEN = 0x28; // (
-const CLOSE = 0x29; // )
-const HASH = 0x23; // #
-const EQ = 0x3d; // =
+const QUOTE = 0x27;
+const SLASH = 0x2f;
+const STAR = 0x2a;
+const SEMI = 0x3b;
+const OPEN = 0x28;
+const CLOSE = 0x29;
+const HASH = 0x23;
+const EQ = 0x3d;
 const BOM = [0xef, 0xbb, 0xbf];
 const HEADER = Array.from(STEP_HEADER, c => c.charCodeAt(0));
-/** Zoveel bytes na BOM en witruimte decodeert de kopcontrole; genoeg voor de 13 tekens van de kop. */
 const HEAD_PROBE = 64;
-/** Zoveel bytes van een type houdt de lezer vast; elk modeltype is korter. */
 const TYPE_MAX = 96;
-/** Zoveel houdt de lezer vast voor terugspoelen; daarboven leest hij de bron opnieuw vanaf die positie. */
 const RETAIN_BYTES = 16 << 20;
 const RETAIN_CHUNKS = 4096;
-/** Bytes die in de argumenten van een entiteit niets doen (alleen `'`, `/`, `(` en `)` tellen). */
 const ARG_PLAIN = new Uint8Array(256).fill(1);
 ARG_PLAIN[QUOTE] = 0;
 ARG_PLAIN[SLASH] = 0;
 ARG_PLAIN[OPEN] = 0;
 ARG_PLAIN[CLOSE] = 0;
-/** Bytes die tussen entiteiten niets doen (alleen `'`, `/` en `#` tellen). */
 const CODE_PLAIN = new Uint8Array(256).fill(1);
 CODE_PLAIN[QUOTE] = 0;
 CODE_PLAIN[SLASH] = 0;
 CODE_PLAIN[HASH] = 0;
-CODE_PLAIN[0x45] = 0; // `E`: misschien het begin van `ENDSEC;`
-/** `ENDSEC;`, waar de lus van `parseSTEP` in een kapot bestand stopt (zoals main). */
+CODE_PLAIN[0x45] = 0;
 const ENDSEC = Array.from('ENDSEC;', c => c.charCodeAt(0));
-/** `isWordCode` als tabel. */
 const WORD = new Uint8Array(256);
 for (let b = 0; b < 256; b++) {
   if ((b >= 0x30 && b <= 0x39) || (b >= 0x41 && b <= 0x5a) || (b >= 0x61 && b <= 0x7a) || b === 0x5f) WORD[b] = 1;
 }
-// FNV-1a over het type. Een tabel van de laagste 16 bits van de hash van elk modeltype: alleen bij een treffer maakt de
-// lezer een string van het type en kijkt hij in `IFC_BUILDING_MODEL_TYPES`. Zo kost een gewone entiteit geen string (een
-// groot bestand zonder model heeft er miljoenen).
 const FNV_OFFSET = 0x811c9dc5;
 const FNV_PRIME = 0x01000193;
 const MODEL_HASH = new Uint8Array(1 << 16);
@@ -117,48 +52,36 @@ for (const type of IFC_BUILDING_MODEL_TYPES) {
   MODEL_HASH[h & 0xffff] = 1;
 }
 const EMPTY = new Uint8Array(0);
-/** De lengte van `DATA;`. */
 const DATA_SEMI_LENGTH = 5;
 const upper = (b: number) => (b >= 0x61 && b <= 0x7a ? b - 0x20 : b);
-/** `isWordCode` en `isSpaceCode` van `ifcReader.ts`. */
 const isWord = (b: number) => WORD[b] === 1;
 const isSpace = (b: number) => b === 0x20 || (b >= 0x09 && b <= 0x0d);
 const text = (buf: Uint8Array, length: number) => String.fromCharCode.apply(null, buf.subarray(0, length) as unknown as number[]);
 
-/** Is het type (`length` bytes in `buf`, met hash `hash`) een modeltype? Een te lang type is het nooit. */
 function isModelType(buf: Uint8Array, length: number, hash: number): boolean {
   if (length === 0 || length > TYPE_MAX || MODEL_HASH[hash & 0xffff] === 0) return false;
   return IFC_BUILDING_MODEL_TYPES.has(text(buf, length));
 }
 
 const enum Phase { Find, Data, Wait }
-/** De kop zoals `assertIfcIntegrity`: één U+FEFF, witruimte, dan de eerste `HEAD_PROBE` bytes. */
 const enum Exact { Bom, Space, Collect, Done }
-/** De kop zoals fixronde 3: witruimte en commentaar, dan `ISO-10303-21;` als eerste statement. */
 const enum First { Space, Slash, Comment, CommentStar, Keyword, Done }
-/** Commentaar weghalen (`stripStepComments`). */
 const enum Strip { Code, Slash, Str, Comment, CommentStar }
-/** De lus van `parseSTEP`. */
 const enum Loop { Code, Str, StrQuote, Entity }
-/** `readEntity`. */
 const enum Ent { Id0, Id, SpaceId, Eq, Type, SpaceType, Args, ArgStr, ArgStrQuote, ArgSlash, ArgComment, ArgCommentStar, End }
 
 export class TargetModelScanner {
   private result: TargetModelScan | null = null;
-  // ── Invoer: de stukken vanaf de oudste positie die terugspoelen nog nodig heeft ──
   private chunks: Uint8Array[] = [];
   private bases: number[] = [];
   private first = 0;
   private queueBase = 0;
   private queueEnd = 0;
-  /** Tot hier las de lezer de bron al eens. */
   private maxEnd = 0;
   private pos = 0;
   private eof = false;
   private seekTo = -1;
   private jumped = false;
-  // ── Kop ──
-  /** Waar de tekst begint: na de BOM die de decoder weghaalt (3), anders 0; -1 = nog niet bekend. */
   private contentStart = -1;
   private headOk: boolean | null = null;
   private headPos = 0;
@@ -170,52 +93,36 @@ export class TargetModelScanner {
   private firstState = First.Space;
   private firstLength = 0;
   private firstOk: boolean | null = null;
-  // ── Datasectie zoeken ──
   private phase = Phase.Find;
-  /** De grammatica van het hele bestand (`stepFileGrammar.ts`). */
   private readonly grammar = new StepFileGrammar(true);
-  /** De regels van main voor het begin van de datasectie, voor een eigen bestand dat breekt. */
   private readonly finder = new StepDataSectionFinder(true);
   private readonly literalFinder = new StepDataSectionFinder(true, true);
   private literalEnd = -1;
   private literalStrings = false;
-  /** Direct na het eerste `DATA;` op codeniveau (de `;` plus één), of -1. Dat telt meteen; anders aan het einde het
-   *  eerste `DATA;` aan het begin van een regel (`finder.anchored`). */
   private mainEnd = -1;
-  /** De eerste bytes, voor de herkenning van een eigen bestand. */
   private prefix = new Uint8Array(256);
   private prefixLength = 0;
   private ownDataEnd = -1;
-  /** Schreef OPS dit bestand? `null` = nog niet bekend. Alleen nodig als de grammatica breekt. */
   private ops: boolean | null = null;
   private modelPending = false;
-  /** De grammatica vond geen datasectie, maar de kop is nog niet beslist (een heel kort bestand): wachten. */
   private unreadablePending = false;
-  // ── Datasectie lezen ──
   private strip = Strip.Code;
   private stringState = StepStringState.Text;
   private slashAt = 0;
   private loop = Loop.Code;
-  /** Zoveel tekens van `ENDSEC;` staan er nu op codeniveau achter elkaar. */
   private endsec = 0;
   private ent = Ent.Id0;
   private entAt = 0;
   private entStrip = Strip.Code;
   private depth = 0;
   private complex = false;
-  /** In een complexe instantie: 0 = geen naam, 1 = in een naam, 2 = een naam en daarna witruimte. */
   private name = 0;
   private readonly type = new Uint8Array(TYPE_MAX);
   private typeLength = 0;
   private typeHash = FNV_OFFSET;
 
-  /** De uitkomst zodra die vaststaat (dan kan de lezer stoppen), anders `null`. */
   get done(): TargetModelScan | null { return this.result; }
 
-  /**
-   * Het volgende stuk van de bron. Na `{ seek }` begint het volgende stuk op die positie. Geeft de uitkomst zodra die
-   * vaststaat ('model' of 'not-ifc'; 'no-model' alleen via `end()`).
-   */
   push(chunk: Uint8Array): TargetScanStep {
     if (this.result !== null) return { result: this.result };
     this.seekTo = -1;
@@ -231,11 +138,6 @@ export class TargetModelScanner {
     return this.step();
   }
 
-  /**
-   * Het einde van de bron: alles vanaf de laatste positie is gelezen. Eindigt de bron na terugspoelen vóór wat de lezer
-   * al eens las (een `seek` die niet werkt, of een bestand dat tijdens het lezen korter werd), dan is dat een leesfout:
-   * nooit een eindeloze lus.
-   */
   end(): TargetScanStep {
     if (this.result !== null) return { result: this.result };
     if (this.queueEnd < this.maxEnd) {
@@ -264,7 +166,6 @@ export class TargetModelScanner {
         if (!this.atEnd()) return;
         continue;
       }
-      // Vangnet: `moveTo` vraagt het terugspoelen al aan; hier komt de lus dus niet.
       if (this.pos < this.queueBase) { this.requestSeek(this.pos); return; }
       let k = this.chunks.length - 1;
       while (this.bases[k] > this.pos) k--;
@@ -274,11 +175,7 @@ export class TargetModelScanner {
     }
   }
 
-  /** Houd alleen vast wat terugspoelen nog nodig heeft: vanaf het teken na de `#` van een lopende entiteit. */
   private trim(): void {
-    // Een eigen bestand dat breekt, en een bestand dat (tot nu toe) in de grammatica past: daarna leest de lezer vanaf de
-    // regel van main. Houd dat deel vast, zodat hij niet opnieuw hoeft te lezen. Zolang niet bekend is of het een eigen
-    // bestand is: alles.
     const main = this.mainEnd >= 0 ? this.mainEnd : this.lineEnd;
     const pending = this.phase !== Phase.Find ? -1 : this.ops === null ? 0 : this.ops || !this.grammar.failed ? main : -1;
     const keep = this.phase === Phase.Data && this.loop === Loop.Entity ? this.entAt + 1
@@ -289,7 +186,6 @@ export class TargetModelScanner {
     }
     const live = this.chunks.length - this.first;
     if (this.queueEnd - (live > 0 ? this.bases[this.first] : this.queueEnd) > RETAIN_BYTES || live > RETAIN_CHUNKS) {
-      // Te veel: loslaten. Mislukt de entiteit later, dan leest de lezer de bron opnieuw vanaf die positie.
       this.first = this.chunks.length;
     }
     if (this.first > 0 && this.first * 2 >= this.chunks.length) {
@@ -309,7 +205,6 @@ export class TargetModelScanner {
     this.eof = false;
   }
 
-  /** Verder lezen vanaf `target`: uit het geheugen, of de bron opnieuw vanaf daar. */
   private moveTo(target: number): void {
     this.pos = target;
     this.jumped = true;
@@ -326,12 +221,8 @@ export class TargetModelScanner {
     this.dataPass(chunk, start, base);
   }
 
-  // ── Kop ────────────────────────────────────────────────────────────────────────────────────────────────────────
-
-  /** Eén byte vóór de datasectie: de BOM van de decoder, dan de kop en de vinder van `DATA;`. `true` = streng `DATA;`. */
   private frontByte(b: number, abs: number): boolean {
     if (this.contentStart < 0) {
-      // De decoder (`TextDecoder`, `File.text()`) haalt een UTF-8-BOM vooraan weg: de tekst begint daarna.
       if (abs < 3 && b === BOM[abs]) {
         if (abs === 2) { this.contentStart = 3; this.headPos = 3; }
         return false;
@@ -354,7 +245,6 @@ export class TargetModelScanner {
     return hit;
   }
 
-  /** Direct na het eerste `DATA;` aan het begin van een regel, of -1. */
   private get lineEnd(): number {
     const finder = this.grammar.failed || this.grammar.literalStrings ? this.literalFinder : this.finder;
     return finder.anchored < 0 ? -1 : finder.anchored + DATA_SEMI_LENGTH;
@@ -373,7 +263,6 @@ export class TargetModelScanner {
     this.decideHead();
   }
 
-  /** `assertIfcIntegrity`: één U+FEFF vooraan, witruimte (`isSpaceCode`), dan de kop. */
   private exactByte(b: number): void {
     if (this.exact === Exact.Done) return;
     if (this.exact === Exact.Bom) {
@@ -382,7 +271,6 @@ export class TargetModelScanner {
         return;
       }
       if (this.exactBom > 0) {
-        // Toch geen U+FEFF: die bytes zijn tekst.
         for (let k = 0; k < this.exactBom; k++) this.probe[this.probeLength++] = BOM[k];
         this.exact = Exact.Collect;
       } else {
@@ -398,13 +286,11 @@ export class TargetModelScanner {
   }
 
   private decideExact(): void {
-    // Dezelfde vergelijking als `assertIfcIntegrity` (`toUpperCase`, ook voor niet-ASCII), op de gedecodeerde tekst.
     const head = new TextDecoder('utf-8', { ignoreBOM: true }).decode(this.probe.subarray(0, this.probeLength));
     this.exactOk = startsWithStepHeader(head, 0);
     this.exact = Exact.Done;
   }
 
-  /** Fixronde 3: na witruimte en commentaar moet het eerste statement `ISO-10303-21;` zijn. */
   private firstByte(b: number): void {
     switch (this.firstState) {
       case First.Done:
@@ -447,10 +333,8 @@ export class TargetModelScanner {
     else if (this.unreadablePending) this.result = 'unreadable';
   }
 
-  /** Het einde van het bestand vóór een beslissing over de kop. */
   private finishHead(): void {
     if (this.contentStart < 0) {
-      // Een kort bestand dat met een deel van de BOM begint: dat deel is tekst.
       this.contentStart = 0;
       for (let k = 0; k < this.queueEnd && k < 3; k++) this.headByte(BOM[k]);
     }
@@ -463,8 +347,6 @@ export class TargetModelScanner {
     if (this.firstState !== First.Done) this.firstDone(false);
     this.decideHead();
   }
-
-  // ── Datasectie zoeken ──────────────────────────────────────────────────────────────────────────────────────────
 
   private findPass(chunk: Uint8Array, start: number, base: number): void {
     const n = chunk.length;
@@ -493,28 +375,19 @@ export class TargetModelScanner {
     this.pos = base + n;
   }
 
-  /**
-   * De grammatica brak. Een bestand van een ander programma: 'unreadable'. Een eigen bestand (oude versies schreven de
-   * kop rauw, besluit Trias, wrakko 10 november 2026): de regel van main, zodat de planner kan blijven opslaan. De lezer
-   * leest dan vanaf het begin van de datasectie volgens main (poging 2, anders 3), met de lus van `parseSTEP`; zo zegt
-   * hij 'model' precies als `readIFC` het bestand weigert. `true` als de lezer van plaats verandert of klaar is.
-   */
   private brokenFile(atEof: boolean, next: number): boolean {
     if (this.ops === null && atEof) this.recognizeOwnHead(true);
     if (this.ops === false) { this.unreadable(); this.pos = next; return true; }
-    if (this.ops === null) return false; // de vaste kop tot en met DATA is nog niet compleet
+    if (this.ops === null) return false;
     return this.followMain(atEof, false);
   }
 
-  /** Lees verder vanaf het begin van de datasectie volgens main, met de lus van `parseSTEP`. Vindt main geen `DATA;`:
-   *  'no-model' als de grammatica het hele bestand zonder model las (`valid`), anders 'unreadable'. `true` als de lezer
-   *  van plaats verandert of klaar is. */
   private followMain(atEof: boolean, valid: boolean): boolean {
     this.literalStrings = this.grammar.failed || this.grammar.literalStrings;
     const dataEnd = this.ownDataEnd >= 0 ? this.ownDataEnd : this.literalStrings ? this.literalEnd : this.mainEnd;
     const end = dataEnd >= 0 ? dataEnd : atEof ? this.lineEnd : -1;
     if (end < 0) {
-      if (!atEof) return false; // nog geen `DATA;` op codeniveau: verder lezen (aan het begin van een regel telt pas aan het einde)
+      if (!atEof) return false;
       if (valid) this.result = 'no-model';
       else this.unreadable();
       return true;
@@ -525,7 +398,6 @@ export class TargetModelScanner {
     return true;
   }
 
-  /** Dezelfde exacte kopherkenning als de scan en de lezer, met precies dezelfde 64-KiB-grens als main. Een geweigerd vrij veld behoudt alleen de leeslus van main. */
   private recognizeOwnHead(atEof: boolean): void {
     const own = recognizeOldOwnHeader(this.prefix.subarray(0, this.prefixLength), atEof);
     if (own === undefined) return;
@@ -534,7 +406,6 @@ export class TargetModelScanner {
     this.prefix = EMPTY;
   }
 
-  /** De grammatica vond geen datasectie: 'unreadable', zodra de kop beslist is (een andere kop is 'not-ifc'). */
   private unreadable(): void {
     if (this.headOk === true) { this.result = 'unreadable'; return; }
     this.unreadablePending = true;
@@ -548,7 +419,6 @@ export class TargetModelScanner {
     this.endsec = 0;
   }
 
-  /** Alles gelezen (vanaf de laatste positie). `true` = er is verder te lezen (terugspoelen, de tweede lezing). */
   private atEnd(): boolean {
     if (this.headOk === null) {
       this.finishHead();
@@ -557,10 +427,6 @@ export class TargetModelScanner {
     if (this.modelPending) { this.result = 'model'; return false; }
     if (this.unreadablePending) { this.result = 'unreadable'; return false; }
     if (this.phase === Phase.Find) {
-      // Het hele bestand past in de grammatica, zonder modelentiteit (die had de lezer al gemeld). Zonder datasectie
-      // weigert `readIFC` het bestand: dan ook geen vrijbrief (besluit Trias, review van #870 ronde 6). Met één datasectie
-      // nog de regel van main: weigert `readIFC` het als model, dan ook het doel (ronde 10). Met meer dan één datasectie
-      // leest `readIFC` alleen de eerste (zoals main): dan de regel voor een kapot bestand (besluit Trias, ronde 10).
       if (!this.grammar.failed && this.grammar.end(this.pos) === 'valid' && this.grammar.dataSections <= 1) {
         if (this.grammar.dataSections === 0) { this.result = 'unreadable'; return false; }
         this.followMain(true, true);
@@ -570,14 +436,12 @@ export class TargetModelScanner {
       return this.result === null;
     }
     if (this.strip === Strip.Slash) {
-      // `stripStepComments`: een `/` aan het einde blijft staan.
       this.strip = Strip.Code;
       this.unit(SLASH, this.slashAt);
       if (this.result !== null) return false;
       if (this.jumped) { this.jumped = false; return true; }
     }
     if (this.loop === Loop.Entity) {
-      // `readEntity` mislukt aan het einde van de tekst: `parseSTEP` leest verder vanaf het teken na de `#`.
       this.entityFailed();
       this.jumped = false;
       return true;
@@ -586,19 +450,13 @@ export class TargetModelScanner {
     return false;
   }
 
-  // ── Datasectie lezen ───────────────────────────────────────────────────────────────────────────────────────────
-
   private dataPass(chunk: Uint8Array, start: number, base: number): void {
     const n = chunk.length;
     let i = start;
     while (i < n) {
-      // Snelle paden: dezelfde stappen als `dataByte` en `unit`, zonder functieaanroep per byte (een groot bestand zonder
-      // model leest de lezer helemaal). Elk pad stopt bij een byte die de toestand anders verandert; die gaat hieronder
-      // door `dataByte`.
       if (this.strip === Strip.Code && this.loop === Loop.Entity && !this.complex) {
         const ent = this.ent;
         if (ent === Ent.Args) {
-          // Haakjes op diepte; stop bij `'` of `/`, of bij de sluithaak op diepte 0.
           let depth = this.depth;
           let b = 0;
           for (; i < n; i++) {
@@ -621,7 +479,7 @@ export class TargetModelScanner {
           for (; i < n; i++) {
             const b = chunk[i];
             if (WORD[b] === 0) break;
-            const v = b >= 0x61 ? b - 0x20 : b; // a-z → A-Z (cijfers en `_` liggen lager)
+            const v = b >= 0x61 ? b - 0x20 : b;
             hash = Math.imul(hash ^ v, FNV_PRIME);
             if (length < TYPE_MAX) this.type[length] = v;
             length++;
@@ -634,9 +492,6 @@ export class TargetModelScanner {
         while (i < n && CODE_PLAIN[chunk[i]] === 1) i++;
         if (i === n) break;
       } else if (this.strip === Strip.Str && this.stringState === StepStringState.Text) {
-        // In gewone stringinhoud zijn alleen apostrof en backslash een grens.
-        // Eén doorgang tot de eerste grens. Twee losse indexOf-zoekacties zouden
-        // bij iedere korte string zonder backslash de rest van het blok doorzoeken.
         while (i < n && chunk[i] !== QUOTE && chunk[i] !== 0x5c) i++;
         if (i === n) break;
       } else if (this.strip === Strip.Comment) {
@@ -652,7 +507,6 @@ export class TargetModelScanner {
     this.pos = base + n;
   }
 
-  /** Eén byte door `stripStepComments`: commentaar valt weg, de rest gaat als teken naar de lus. */
   private dataByte(b: number, abs: number): void {
     switch (this.strip) {
       case Strip.Code:
@@ -672,7 +526,6 @@ export class TargetModelScanner {
         this.stringState = stepString(this.stringState, b, this.literalStrings);
         if (this.stringState !== StepStringState.End) return;
         this.strip = Strip.Code;
-        // De lus hoeft de inhoud niet te zien: alleen de twee echte omsluitende quotes.
         this.unit(QUOTE, abs);
         this.dataByte(b, abs);
         return;
@@ -687,7 +540,6 @@ export class TargetModelScanner {
     }
   }
 
-  /** Eén teken (zonder commentaar) in de lus van `parseSTEP`. */
   private unit(u: number, at: number): void {
     switch (this.loop) {
       case Loop.Entity:
@@ -708,8 +560,6 @@ export class TargetModelScanner {
     this.endsecUnit(u);
   }
 
-  /** Review van #870, ronde 8 (Terra): `parseSTEP` stopt in een kapot bestand bij de eerste `ENDSEC;` op codeniveau
-   *  (zoals main); daarna leest hij niets meer. Na `ENDSE` kan de `E` het begin van een nieuwe `ENDSEC;` zijn. */
   private endsecUnit(u: number): void {
     let k = this.endsec;
     for (;;) {
@@ -720,20 +570,18 @@ export class TargetModelScanner {
     if (k < ENDSEC.length) { this.endsec = k; return; }
     this.endsec = 0;
     if (this.headOk === true) { this.result = 'no-model'; return; }
-    this.phase = Phase.Wait; // de kop is nog niet beslist: aan het einde 'no-model'
+    this.phase = Phase.Wait;
   }
 
   private startEntity(at: number): void {
     this.loop = Loop.Entity;
     this.ent = Ent.Id0;
     this.entAt = at;
-    // De toestand van `stripStepComments` ná de `#`: daar gaat terugspoelen verder.
     this.entStrip = this.strip;
     this.complex = false;
     this.resetType();
   }
 
-  /** `readEntity`, teken voor teken. */
   private entityUnit(u: number): void {
     switch (this.ent) {
       case Ent.Id0:
@@ -755,7 +603,6 @@ export class TargetModelScanner {
         if (isSpace(u)) return;
         if (isWord(u)) { this.ent = Ent.Type; this.pushType(u); return; }
         if (u === OPEN) {
-          // `#n=(`: een complexe instantie. `readEntity` mislukt hier; deze lezer kijkt eerst naar de deeltypen.
           this.complex = true;
           this.ent = Ent.Args;
           this.depth = 1;
@@ -806,13 +653,11 @@ export class TargetModelScanner {
     }
   }
 
-  /** Een teken in de argumenten: haakjes op diepte, strings en commentaar overslaan (`skipQuotedOrComment`). */
   private argUnit(u: number): void {
     if (u === QUOTE) { this.ent = Ent.ArgStr; this.name = 0; return; }
     if (u === SLASH) { this.ent = Ent.ArgSlash; this.name = 0; return; }
     if (u === OPEN) {
       if (this.complex && this.depth === 1 && this.name !== 0) {
-        // Een deelrecord `A(`: is A een modeltype? (strenger dan `readIFC`, zie de kop van dit bestand)
         if (isModelType(this.type, this.typeLength, this.typeHash)) { this.found(); return; }
       }
       this.depth++;
@@ -823,7 +668,7 @@ export class TargetModelScanner {
       this.depth--;
       this.name = 0;
       if (this.depth === 0) {
-        if (this.complex) this.entityFailed(); // geen entiteit voor `readIFC`: verder na de `#`
+        if (this.complex) this.entityFailed();
         else this.ent = Ent.End;
       }
       return;
@@ -856,7 +701,6 @@ export class TargetModelScanner {
     this.loop = Loop.Code;
   }
 
-  /** `readEntity` geeft -1: `parseSTEP` gaat verder op het teken na de `#`, in de toestand van toen. */
   private entityFailed(): void {
     this.strip = this.entStrip;
     this.loop = Loop.Code;
@@ -867,23 +711,16 @@ export class TargetModelScanner {
 
   private found(): void {
     if (this.headOk === true) { this.result = 'model'; return; }
-    // De kop is nog niet beslist (een heel kort bestand): wachten.
     this.modelPending = true;
     this.phase = Phase.Wait;
   }
 }
 
-/** Eén nieuwe scanner als functie: het volgende stuk, of `null` aan het einde. */
 export function targetScanPush(): (chunk: Uint8Array | null) => TargetScanStep {
   const scanner = new TargetModelScanner();
   return chunk => (chunk === null ? scanner.end() : scanner.push(chunk));
 }
 
-/**
- * De lus van de stroomscan: lees stukken en spoel terug zoals de scanner vraagt, tot de uitkomst vaststaat; stopt bij
- * de eerste modelentiteit. `push` mag async zijn: de scanner kan in de scanworker staan (knownbug 1758). Een leesfout
- * gaat door; de bron blijft open.
- */
 export async function driveTargetScan(
   source: Pick<TargetSource, 'next' | 'seek'>,
   push: (chunk: Uint8Array | null) => TargetScanStep | Promise<TargetScanStep>,
@@ -896,7 +733,6 @@ export async function driveTargetScan(
   }
 }
 
-/** Lees `source` tot de uitkomst vaststaat; stopt bij de eerste modelentiteit. Een leesfout gaat door; de bron gaat dicht. */
 export async function scanTargetSource(source: TargetSource): Promise<TargetModelScan> {
   try {
     return await driveTargetScan(source, targetScanPush());
@@ -905,10 +741,9 @@ export async function scanTargetSource(source: TargetSource): Promise<TargetMode
   }
 }
 
-/** Een `Blob` (de `File` van een FSA-handle) als stroom; terugspoelen met `slice`. */
 export function scanTargetBlob(blob: Blob): Promise<TargetModelScan> {
   let reader = blob.stream().getReader();
-  const cancel = async () => { try { await reader.cancel(); } catch { /* al dicht */ } };
+  const cancel = async () => { try { await reader.cancel(); } catch { } };
   return scanTargetSource({
     next: async () => { const r = await reader.read(); return r.done ? null : r.value; },
     seek: async (offset) => { await cancel(); reader = blob.slice(offset).stream().getReader(); },
@@ -916,7 +751,6 @@ export function scanTargetBlob(blob: Blob): Promise<TargetModelScan> {
   });
 }
 
-/** Bytes die al in het geheugen staan (bijv. van de site). */
 export function scanTargetBytes(bytes: Uint8Array): TargetModelScan {
   const scanner = new TargetModelScanner();
   let step = scanner.push(bytes);

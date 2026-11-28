@@ -1,7 +1,3 @@
-/** Onafhankelijke controle van de samengestelde bytes, zonder regels of ids uit het schrijfplan.
- * Scanner en verliesbewaking leveren de bestaande STEP- en IfcRoot-kennis; hier staat alleen
- * de vergelijking met de bron (ontwerp §4.10, controles 1 en 2).
- */
 import { classify, type Classification } from './classify';
 import { isRootLine, refsOutsideText } from './lossCheck';
 import { departuresOf, type PlanningChange } from './departures';
@@ -12,7 +8,6 @@ import { scanForeignStep } from './oldOwnHeader';
 import type { ForeignChange, RestoredForeignPiece } from './changeList';
 import { entityValue, losesItsPlace, placeTriggers, serializeStepValue, withoutRemovedMembers } from './stepValue';
 
-/** De eigenaren van een pset via IfcRelDefinesByProperties, als stuknummers. */
 export function psetOwners(index: StepIndex, pset: number): number[] {
   const owners: number[] = [];
   for (let k = index.inStart(pset); k < index.inEnd(pset); k++) {
@@ -24,8 +19,6 @@ export function psetOwners(index: StepIndex, pset: number): number[] {
   return owners;
 }
 
-/** Stuk `i` van `a` en stuk `j` van `b` zijn byte voor byte gelijk. Een gewone lus over beide bereiken: bij een groot model
- *  kostte `subarray` plus `every` met een functie per stuk het meeste van deze controle (#804). */
 function equalChunks(source: StepIndex, a: Uint8Array, i: number, index: StepIndex, b: Uint8Array, j: number): boolean {
   const from = source.start(i), at = index.start(j), length = source.end(i) - from;
   if (index.end(j) - at !== length) return false;
@@ -201,7 +194,6 @@ function changeListProblems(source: StepIndex, sourceClasses: Classification, so
   return problems;
 }
 
-/** Een vreemd lid blijft aan hetzelfde object en dezelfde psetnaam, ook als de pset een nieuw id kreeg. */
 function bindings(index: StepIndex, memberId: string): Map<string, number> {
   const result = new Map<string, number>(), member = index.chunkOf(memberId);
   if (member < 0) return result;
@@ -216,16 +208,12 @@ function bindings(index: StepIndex, memberId: string): Map<string, number> {
   return result;
 }
 
-/** Reeds bestaande gebreken mogen blijven; de uitvoer mag er geen toevoegen. Per kant: de loze verwijzingen
- *  (`#id|argument|doel`), de GlobalIds en de lidmaatschappen. */
 export interface StructuralCounts {
   readonly dangling: Map<string, number>;
   readonly guids: Map<string, number>;
   readonly members: Map<string, number>;
 }
 
-/** De telregel voor één entiteit: haar loze verwijzingen in `dangling` (als die er is), en haar GlobalId als ze een
- *  IfcRoot-regel is. Dezelfde regel voor de volledige telling en die op het verschil. */
 function countEntity(index: StepIndex, i: number, dangling?: Map<string, number>): string | undefined {
   const args = index.argTokens(i);
   if (!args) return undefined;
@@ -234,12 +222,9 @@ function countEntity(index: StepIndex, i: number, dangling?: Map<string, number>
       if (index.chunkOf(String(id)) < 0) add(dangling, `${index.id(i)}|${arg}|${id}`);
     }
   }
-  // Concrete IfcRoot-typen hebben naast hun vier basisslots minstens één eigen slot.
-  // Een IFCPROPERTYSINGLEVALUE met een naam van 22 tekens heeft er vier en draagt geen GlobalId.
   return args.length >= 5 && isRootLine({ args }) ? args[0].trim() : undefined;
 }
 
-/** De lidmaatschappen: alleen de index, geen tekst. */
 function memberCounts(index: StepIndex): Map<string, number> {
   const members = new Map<string, number>();
   for (let i = 0; i < index.count; i++) {
@@ -252,7 +237,6 @@ function memberCounts(index: StepIndex): Map<string, number> {
   return members;
 }
 
-/** De volledige telling: elk stuk van één kant. */
 export function structuralCounts(index: StepIndex): StructuralCounts {
   const dangling = new Map<string, number>(), guids = new Map<string, number>();
   for (let i = 0; i < index.count; i++) {
@@ -265,25 +249,11 @@ export function structuralCounts(index: StepIndex): StructuralCounts {
 
 const SLASH = 0x2f, STAR = 0x2a, QUOTE = 0x27;
 
-/** De plaats van de eerste `/*` in `bytes` vanaf `from`, of -1. */
 function nextCommentOpen(bytes: Uint8Array, from: number): number {
   for (let p = bytes.indexOf(SLASH, from); p >= 0; p = bytes.indexOf(SLASH, p + 1)) if (bytes[p + 1] === STAR) return p;
   return -1;
 }
 
-/**
- * Kan de bijdrage van bewaard stuk `i` aan de loze verwijzingen tussen bron en uitvoer verschillen? Na een geslaagde E2/E3
- * staat elk niet-P-stuk met hetzelfde id in de uitvoer; alleen een verwijzing naar een P-stuk of naar niets kan er dus loos
- * worden of juist niet meer. Daarom `true` als:
- *  - de scanner een verwijzing van het stuk naar een P-stuk of naar niets ziet (`outTarget`);
- *  - er `/*` staat in de bytes van de entiteit, van haar `#` tot en met de `;` (`entityStart` tot `end`), ook in een
- *    string. De tekstregel (`argTokens`, dan `refsOutsideText`) haalt commentaar weg en plakt de delen aan elkaar:
- *    `#/*c*\/53` is daar `#53` en `#5/*c*\/3` ook, voor de scanner geen verwijzing of `#5` (knownbug 1951). Zonder `/*`
- *    in die bytes doet `stripComments` niets (de gedecodeerde tekst heeft dan ook geen `/*`: UTF-8 houdt elk ASCII-byte),
- *    en zien scanner en tekstregel dezelfde `#` met cijfers buiten strings (`check-ifc-foreign-telling-verschil.ts`).
- *    De tekstregel leest alleen tussen de haakjes van de entiteit, binnen deze bytes.
- * Aanroepen met oplopende `i`: de zoektocht naar `/*` loopt één keer door de bytes.
- */
 export function danglingMayChange(index: StepIndex, classes: ArrayLike<number>, bytes: Uint8Array,
   rewritten?: ArrayLike<number>): (i: number) => boolean {
   let comment = nextCommentOpen(bytes, 0);
@@ -298,32 +268,14 @@ export function danglingMayChange(index: StepIndex, classes: ArrayLike<number>, 
   };
 }
 
-/** Hash van de 22 tekens van een GlobalId: dezelfde voor een sleutel `'…'` en voor de bytes erbinnen. */
 function guidHash(at: (k: number) => number): number {
   let h = 0;
   for (let k = 0; k < 22; k++) h = (Math.imul(h, 31) + at(k)) | 0;
   return h;
 }
 
-/** Een eigen string voor een sleutel: `slice` en `trim` geven in V8 een deelstring die de hele gedecodeerde
- *  argumententekst van het stuk vasthoudt, `join` maakt een nieuwe. */
 const detached = (key: string) => Array.from(key).join('');
 
-/**
- * De tellingen van `structuralCounts`, maar alleen over wat tussen bron en uitvoer kan verschillen (knownbug 1936). Alleen
- * geldig als `preserved[j]` (bron) en `actual[j]` (uitvoer) voor elke `j` hetzelfde niet-P-stuk zijn: hetzelfde id en
- * dezelfde bytes, op dezelfde plek (de lus van E2/E3 vond niets). Hun telregel leest alleen die bytes, dus:
- *  - loze verwijzingen: alleen een bewaard stuk waarvan de bijdrage kan verschillen (`danglingMayChange`), plus elk P-stuk
- *    van de bron en elk niet-bewaard stuk van de uitvoer, met de bestaande regel. Voor elke andere sleutel is de telling aan
- *    beide kanten gelijk; een sleutel bevat het id van zijn stuk, dus de volgorde van de uitvoer blijft;
- *  - GlobalIds: een bewaard stuk heeft aan beide kanten dezelfde. Alleen een sleutel die de uitvoer buiten de bewaarde
- *    stukken heeft, kan een nieuwe dubbele worden. Voor die sleutels telt een bewaard stuk mee als de bestaande regel hem
- *    geeft; zo'n sleutel staat letterlijk in zijn bytes (`'` + 22 tekens + `'`: een string bevat geen commentaar), dus
- *    alleen een stuk met een treffer op de hash rekent de regel na. Volgorde: het eerste voorkomen in de uitvoer;
- *  - lidmaatschappen: volledig.
- * Met deze tellingen geeft de vergelijking in `validateMergeOutput` dezelfde meldingen in dezelfde volgorde als met de
- * volledige.
- */
 export function differenceCounts(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array,
   index: StepIndex, bytes: Uint8Array, preserved: ArrayLike<number>, actual: ArrayLike<number>,
   rewritten?: ArrayLike<number>): { before: StructuralCounts; after: StructuralCounts } {
@@ -337,8 +289,6 @@ export function differenceCounts(source: StepIndex, sourceClasses: Classificatio
     kept[actual[j]] = 1;
     if (source.isEntity(s) && mayChange(s)) { recount[actual[j]] = 1; countEntity(source, s, beforeDangling); }
   }
-  /** Per GlobalId buiten de bewaarde stukken van de uitvoer: hoe vaak daar, in de P-stukken van de bron, en in de
-   *  bewaarde stukken (aan beide kanten gelijk); en het eerste stuk van de uitvoer met die sleutel. */
   const tally = new Map<string, { output: number; source: number; shared: number; first: number }>();
   for (let i = 0; i < index.count; i++) {
     if (!index.isEntity(i)) continue;
@@ -361,13 +311,12 @@ export function differenceCounts(source: StepIndex, sourceClasses: Classificatio
     for (let j = 0; j < actual.length; j++) {
       const o = actual[j];
       if (!index.isEntity(o) || kept[o] !== 1) continue;
-      // Alleen binnen de entiteit: haar GlobalId staat tussen haar haakjes.
       for (let p = index.entityStart(o), to = index.end(o); p + 23 < to; p++) {
         if (bytes[p] !== QUOTE || bytes[p + 23] !== QUOTE || !hashes.has(guidHash(k => bytes[p + 1 + k]))) continue;
         const key = countEntity(index, o);
         const t = key === undefined ? undefined : tally.get(key);
         if (t) { t.shared++; if (o < t.first) t.first = o; }
-        break; // de regel geeft per stuk één sleutel
+        break;
       }
     }
   }
@@ -382,16 +331,12 @@ export function differenceCounts(source: StepIndex, sourceClasses: Classificatio
   };
 }
 
-/** `full`: alleen voor proeven, altijd de volledige telling. `counting` zegt welke telling liep. */
 export function validateMergeOutput(source: StepIndex, sourceClasses: Classification, sourceBytes: Uint8Array,
   bytes: Uint8Array, options: { full?: boolean; changes?: readonly ForeignChange[]; planning?: PlanningChange } = {}): { index: StepIndex; classification: Classification; problems: string[];
   counting: 'verschil' | 'volledig' } {
-  // Ook dubbele #ids en ongeldige STEP worden door de bestaande scanner geweigerd.
   const index = scanForeignStep(bytes), classification = classify(index), problems: string[] = [];
   const { listed, restored, added, rewritten } = listedPieces(source, sourceClasses, sourceBytes, options.changes ?? [], problems);
   const gone = goneFromOutput(source, sourceClasses, index);
-  // De stuknummers van de niet-P-stukken van bron en uitvoer, als `Int32Array`: bij een groot model zijn het er miljoenen
-  // (#804).
   const preservedAll = new Int32Array(source.count);
   let preservedCount = 0;
   for (let i = 0; i < source.count; i++) {
@@ -430,7 +375,6 @@ export function validateMergeOutput(source: StepIndex, sourceClasses: Classifica
       problems.push(`niet-P-stuk op plek ${j}: #${source.id(before)} ontbreekt, is gewijzigd of verplaatst`);
     }
   }
-  // Vond de lus hierboven niets, dan staat elk niet-P-stuk byte-gelijk op zijn plek: dan telt alleen het verschil.
   const counting = problems.length === 0 && !options.full ? 'verschil' : 'volledig';
   for (const problem of changeListProblems(source, sourceClasses, sourceBytes, index, classification, bytes, listed, gone, restored,
     checksFor(source, sourceClasses, options.planning))) problems.push(problem);
