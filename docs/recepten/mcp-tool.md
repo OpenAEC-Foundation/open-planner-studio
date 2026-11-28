@@ -52,7 +52,8 @@ document ooit achter, dan heeft de code gelijk.
 4. **Registreer de module** in `toolRegistry.ts`: importeer je array boven, voeg hem toe aan
    `MODULES`. Nieuw bestand? Dan is dit de enige plek die ervan moet weten — de registratie-STAAT zelf
    (`registerToolModules`/`getTool`/`getTools`) leeft bewust in de leaf-module `toolIndex.ts`, niet
-   hier (zie de kopcommentaren van beide bestanden voor de import-cyclus die dat voorkomt).
+   hier: zo krijgt `tools/batchTool.ts`, dat tools opzoekt met `getTool`, geen import-cyclus met `toolRegistry.ts`
+   (`verify:cycles` bewaakt dat).
 5. **Voeg een case toe** in `tests/mcp/` (`cases-<onderwerp>.ts` — het runscript pikt elk
    `cases-*.ts`-bestand vanzelf op, geen aparte registratie nodig). Roep de tool bij voorkeur via de
    ECHTE dispatch-weg aan (`handleMcpMessage`, zie `cases-schemavalidatie.ts`), niet rechtstreeks via

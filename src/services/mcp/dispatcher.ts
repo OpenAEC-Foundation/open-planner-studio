@@ -1,50 +1,12 @@
-// MCP-dispatcher — minimale streamable-HTTP-JSON-RPC-afhandeling zonder SDK-dependency.
-//
-// Ontvangt de RAUWE HTTP-body (JSON-RPC) en geeft de RAUWE respons-body terug; de Rust-shell
-// forwardt alleen bytes ("TS weet niets van HTTP"). Tools-only subset:
-// initialize / notifications/initialized / tools/list / tools/call / ping.
-//
-// Guards (drift, pauze/alleen-lezen, AI-backup, transactie) zitten NIET hier — die draaien in een
-// hogere laag op de dispatch-grens. Deze laag routeert puur.
 import type { McpContext, McpToolResult } from './contracts';
 import { getTools, getTool } from './toolRegistry';
 import { ATOMIC_ITEM_TOOLS, validateToolArgs } from './schemaValidate';
 import { toolListEntry } from './toolListing';
 
-/** serverInfo.name in de initialize-respons. */
 export const MCP_SERVER_NAME = 'open-planner-studio';
-/**
- * `serverInfo.version` in de initialize-respons: de APP-CalVer uit package.json, via de
- * `__APP_VERSION__`-define uit vite.config.ts — dezelfde bron als de titelbalk, de updater en de
- * extensie-SDK. Eén versie voor het hele product dus: een AI-client die logt met welke bridge hij
- * praat, noemt daarmee de echte app-versie.
- *
- * De `typeof`-terugval is het codebase-patroon uit `extensionLoader.ts`: in de headless testrunners
- * draait esbuild zónder die define, en een kale verwijzing zou daar een ReferenceError geven.
- */
 export const MCP_SERVER_VERSION = typeof __APP_VERSION__ === 'string' ? __APP_VERSION__ : '0.0.0';
-/** Onze default MCP-protocolversie wanneer de client er geen bekende meestuurt. */
 export const DEFAULT_PROTOCOL_VERSION = '2025-06-18';
 
-/**
- * `InitializeResult.instructions` — het optionele vrije-tekstveld uit de MCP-spec dat clients
- * (Claude Code e.d.) in hun systeemprompt zetten. Dit is het ENIGE kanaal waarlangs de app een
- * agent ONGEVRAAGD iets kan meegeven: tools/list beschrijft losse tools, maar niet hoe je een
- * planning hoort te bouwen. Zonder dit veld begint elke agent blanco en levert hij het klassieke
- * resultaat op — taken zonder relaties, een vaste datum op alles, een veel te fijne opdeling.
- *
- * ENGELS, en dat is bewust: de dispatcher kent de UI-taal niet (hij draait onder de Rust-bridge,
- * los van i18n) en een MCP-client vertaalt zelf naar de taal van het gesprek — dezelfde afweging
- * als bij `MCP_UNTITLED_TITLE` in `tools/runtime.ts`.
- *
- * KORT HOUDEN: dit gaat in élke systeemprompt mee. Alleen de regels die een agent zonder verdere
- * vraag fout doet; de volledige inhoud staat in de agentgids (`public/agent/planning-guide.md`, niet
- * het Help-artikel voor mensen), bereikbaar via de tool die hieronder genoemd wordt
- * (`planner_get_planning_guide`, `tools/guideTools.ts`). Eén exportconstante zodat
- * `tests/mcp/cases-planning-guide.ts` hem tegen de initialize-respons kan houden.
- */
-// Gaat in elke systeemprompt mee: alleen de kernregels die een agent anders fout doet (#818). Wat een tool doet,
-// staat in zijn eigen beschrijving; de uitleg per principe in de agentgids.
 export const MCP_INSTRUCTIONS = [
   'You edit a real construction schedule people rely on.',
   '- Start with milestones and delivery. Tasks: about a day to two weeks.',
@@ -55,12 +17,9 @@ export const MCP_INSTRUCTIONS = [
   'Before building or restructuring, read `planner_get_planning_guide`.',
 ].join('\n');
 
-/** Protocolversies die we herkennen en dus mogen echoën (nieuwste eerst). */
 const KNOWN_PROTOCOL_VERSIONS = new Set(['2025-06-18', '2025-03-26', '2024-11-05']);
 
 type JsonRpcId = string | number | null;
-
-// --- JSON-RPC-encoders ---------------------------------------------------------------------------
 
 function resultMsg(id: JsonRpcId, result: unknown): string {
   return JSON.stringify({ jsonrpc: '2.0', id, result });
@@ -70,9 +29,6 @@ function errorMsg(id: JsonRpcId, code: number, message: string): string {
   return JSON.stringify({ jsonrpc: '2.0', id, error: { code, message } });
 }
 
-// --- Verpakkers ----------------------------------------------------------------------------------
-
-/** Verpak een `McpToolResult` als MCP-tool-result (content-tekst + structuredContent + isError). */
 function wrapToolResult(result: McpToolResult): object {
   return {
     content: [{ type: 'text', text: JSON.stringify(result) }],
@@ -81,12 +37,6 @@ function wrapToolResult(result: McpToolResult): object {
   };
 }
 
-// --- Dispatch ------------------------------------------------------------------------------------
-
-/**
- * Verwerk één rauwe JSON-RPC-body en geef de rauwe respons-body terug.
- * Notificaties (bericht zonder `id`) leveren een lege string op — geen respons.
- */
 export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promise<string> {
   let msg: any;
   try {
@@ -95,7 +45,6 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
     return errorMsg(null, -32700, 'Parse error');
   }
 
-  // Batch-arrays worden bewust niet ondersteund (tools-only subset).
   if (Array.isArray(msg)) {
     return errorMsg(null, -32600, 'Batch arrays of JSON-RPC messages are not supported');
   }
@@ -111,7 +60,6 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
     return isNotification ? '' : errorMsg(id, -32600, 'Invalid JSON-RPC message: missing method');
   }
 
-  // Notificaties (o.a. notifications/initialized): geen respons.
   if (isNotification) {
     return '';
   }
@@ -127,7 +75,6 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
         protocolVersion,
         capabilities: { tools: {} },
         serverInfo: { name: MCP_SERVER_NAME, version: MCP_SERVER_VERSION },
-        // Optioneel spec-veld; clients zetten het in hun systeemprompt. Zie MCP_INSTRUCTIONS.
         instructions: MCP_INSTRUCTIONS,
       });
     }
@@ -144,20 +91,6 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
       if (!def) {
         return errorMsg(id, -32602, `Unknown tool: ${String(name)}`);
       }
-      // SCHEMA-POORT: valideer de argumenten tegen `def.inputSchema` VÓÓR de handler. Zonder deze
-      // regel is elk `enum`/`type`/`required`/`minimum`/`additionalProperties` puur decoratief — het
-      // gaat mee in tools/list (waar de AI zich erop verlaat) maar wordt nergens afgedwongen.
-      // De schending komt terug als TOOL-resultaat (isError + structuredContent met code VALIDATION),
-      // niet als JSON-RPC-fout: zo ziet de AI-client dezelfde foutvorm als bij elke andere
-      // VALIDATION-weigering. Geen envelop: die hangt aan de store-laag en die raken we hier niet aan.
-      //
-      // DIEPTE — DE BULK-CONVENTIE BLIJFT LEIDEND. Deze poort mag een bulk-call NOOIT in zijn geheel
-      // afwijzen om één rot item: één rotte regel rolt de bulk niet terug, en de handlers maken er
-      // een `itemRejections`-regel van. De poort is daarom STRIKT op het bovenste niveau (onbekende
-      // top-level sleutels, `required`, scalairen, en van arrays de buitenkant: array-zijn,
-      // `minItems`, elementtype) en laat de BINNENKANT van array-items aan de tool. Enige
-      // uitzondering: `ATOMIC_ITEM_TOOLS` (`planner_add_tasks`, `planner_set_task_splits`), wier
-      // contract per definitie alles-of-niets is. Zie de DIEPTE-REGEL in `schemaValidate.ts`.
       const schemaError = validateToolArgs(def.inputSchema, msg.params?.arguments, {
         deepArrayItems: ATOMIC_ITEM_TOOLS.has(def.name),
       });
@@ -169,8 +102,6 @@ export async function handleMcpMessage(rawBody: string, ctx: McpContext): Promis
         };
         return resultMsg(id, wrapToolResult(err));
       }
-      // Crash-barrière: een gooiende/rejectende handler mag de dispatcher niet laten omvallen én
-      // mag geen interne details (message/stack) naar de client lekken — statische -32603-melding.
       let result: McpToolResult;
       try {
         result = await def.handler(msg.params?.arguments, ctx);
