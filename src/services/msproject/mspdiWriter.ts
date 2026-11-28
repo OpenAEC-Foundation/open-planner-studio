@@ -1,3 +1,4 @@
+// Bron: MPXJ `MPPTaskField`, `WorkContour` en `MSPDIWriter` als referentie voor veld-id's, contourcodes en `<TimephasedData>` (LGPL-2.1, github.com/joniles/mpxj).
 import { Task, TaskConstraint } from '@/types/task';
 import { minuteModelWriteView } from '@/services/ifc/minuteModelWrite';
 import { isP6DialogDefaultLeveling } from '@/services/leveling/levelingInput';
