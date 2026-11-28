@@ -1,20 +1,3 @@
-// Verificatie van de gegenereerde voorbeelden — haalt ELK bestand door de ECHTE readIFC en assert:
-//  1. parse zonder fouten;
-//  2. taak/relatie/resource/toewijzing/code/veld-tellingen conform de declaratieve spec;
-//  3. round-trip write→read→write stabiel (data-fixpunt: readIFC → writeIFC → readIFC geeft
-//     identieke inhoud — het schrijfmoment en een eerste id-afleiding verschillen, dus we
-//     vergelijken structureel, niet als string). Fase 2.10: het digest omvat nu ook notes, voortgang/actuals en baselines, zodat de
-//     nieuwe schema-uitbreidingen ook echt round-trip-getoetst worden;
-//  4. per showcase dat de beloofde functies aantoonbaar aanwezig zijn (constraints, START/FINISH-
-//     + verplichte mijlpaal, baseline). Ploeg-hiërarchie geldt voor elke showcase die zelf
-//     resources declareert; curve-variatie en overallocatie zijn per showcase DECLARATIEF ingedeeld
-//     (CURVE_VARIATION_*/OVERALLOC_* hieronder) — KLEIN draagt sinds B1c wél resources, maar
-//     bewust uitsluitend UNIFORM en zonder eigen overallocatie (zie showcases.ts);
-//  5. (golf 2) suite-brede unie incl. de 8 geavanceerde functies (hard pin, constraint2, hammock,
-//     near-critical, float paths, uren-planning, 2 baselines+rebaseline, externe koppeling) +
-//     een aparte bronbestand-consistentiecheck voor de externe koppeling (§4.2).
-//
-//   npm run verify:examples          # exit 0 = alles groen, 1 = minstens één afwijking
 import { readIFC } from '@/services/ifc/ifcReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { useAppStore } from '@/state/appStore';
@@ -30,8 +13,6 @@ const S = () => useAppStore.getState();
 
 type Parsed = ReturnType<typeof readIFC>;
 
-/** Structureel data-fingerprint (ids → namen) zodat de round-trip los van willekeurige GUIDs/ids
- *  vergeleken kan worden. Fase 2.10: ook notes, voortgang/actuals en baselines meegenomen. */
 function digest(p: Parsed): string {
   const taskName = new Map(p.tasks.map(t => [t.id, t.name]));
   const resName = new Map(p.resources.map(r => [r.id, r.name]));
@@ -53,8 +34,6 @@ function digest(p: Parsed): string {
   const asg = [...p.assignments].map(a => ({
     t: taskName.get(a.taskId), r: resName.get(a.resourceId), u: a.unitsPerDay, c: a.curve ?? 'UNIFORM',
   })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
-  // De optionele `ImportResult`-velden (`?? []`): niet elk formaat levert ze, en het IFC-pad kan
-  // ze bij een leeg/onvolledig bestand ook overslaan. Afwezig ⇒ leeg in het digest.
   const codes = [...(p.activityCodeTypes ?? [])].map(c => `${c.name}:${c.values.map(v => v.code).sort().join(',')}`).sort();
   const fields = [...(p.customFieldDefs ?? [])].map(f => `${f.name}:${f.type}`).sort();
   const baselines = [...(p.baselines ?? [])].map(b => ({
@@ -73,24 +52,11 @@ function expect(diffs: string[], ok: boolean, msg: string): Check {
   return { ok, msg };
 }
 
-// ── Overallocatie-classificatie (docs/TODO.md, regel ~32) ───────────────────────────────────
-// `verifyShowcase` eiste al overallocatie voor showcases met resources, maar niets bewaakte het
-// omgekeerde: de acht basisvoorbeeld-resourcesets uit `example-resources.ts` beloven EXPLICIET
-// ("GEEN OVERALLOCATIE — harde eis", zie aldaar) dat ze schoon blijven, en dat werd nergens
-// getoetst. Declaratief opgezet i.p.v. "elk voorbeeld zónder resources is vanzelf schoon": een
-// spec met resources die in GEEN van beide lijsten staat, faalt hard met een duidelijke melding
-// in plaats van stilzwijgend ongetoetst te blijven — zo moet een nieuw voorbeeld met resources
-// altijd expliciet worden ingedeeld.
 const OVERALLOC_REQUIRED = new Set<string>([
-  'showcase-rijwoningen-de-akkers',   // MIDDEL: met nivellering oplosbare overallocatie (stukadoors)
-  'showcase-appartementencomplex',    // GROOT: torenkraan + stukadoors, precies 2 knelpunten (§4.2)
+  'showcase-rijwoningen-de-akkers',
+  'showcase-appartementencomplex',
 ]);
 const OVERALLOC_FORBIDDEN = new Set<string>([
-  // KLEIN is een SHOWCASE, maar hoort hier bewust thuis: sinds B1c draagt hij wél een resourceset
-  // (de demo-bibliotheeknamen, zodat het bezettingsoverzicht iets te tonen heeft), maar zijn belofte
-  // is entry-level — de projectinzet blijft binnen elke bedrijfscapaciteit en er is dus GEEN eigen
-  // overallocatie. Het conflict dat hij demonstreert is bedrijfsbreed (samen met MIDDEL op de
-  // Masonry crew) en leeft in het bezettingsoverzicht, niet in zijn eigen histogram.
   'showcase-verbouwing-eengezinswoning',
   '01-grachtenpand-amsterdam',
   '03-kantoorgebouw-zuidas',
@@ -102,23 +68,14 @@ const OVERALLOC_FORBIDDEN = new Set<string>([
   '20-woonwijk-almere',
 ]);
 
-// ── Curve-variatie-classificatie (B1c) ──────────────────────────────────────────────────────
-// `verifyShowcase` eiste blind ≥3 verschillende toewijzingscurves zodra een showcase resources
-// declareert. Dat was prima zolang alleen MIDDEL en GROOT resources hadden, maar KLEIN draagt er
-// sinds B1c ook — en diens belofte is juist het TEGENDEEL: entry-level, dus uitsluitend UNIFORM
-// (curve-variatie is showcase-materiaal van de twee grotere planningen). Zelfde declaratieve vorm
-// als OVERALLOC_*: een showcase met resources die in geen van beide lijsten staat faalt hard, zodat
-// de keuze expliciet blijft. De KLEIN-kant is bovendien een ECHTE poort: "geen curves" wordt nu
-// getoetst in plaats van alleen beloofd.
 const CURVE_VARIATION_REQUIRED = new Set<string>([
-  'showcase-rijwoningen-de-akkers',   // MIDDEL: FRONT_LOADED/BACK_LOADED op het schilderwerk e.a.
-  'showcase-appartementencomplex',    // GROOT: de volledige zesdelige curve-set
+  'showcase-rijwoningen-de-akkers',
+  'showcase-appartementencomplex',
 ]);
 const CURVE_VARIATION_FORBIDDEN = new Set<string>([
-  'showcase-verbouwing-eengezinswoning', // KLEIN: entry-level, bewust UITSLUITEND UNIFORM
+  'showcase-verbouwing-eengezinswoning',
 ]);
 
-/** Toetst de curve-belofte van een showcase die resources declareert. */
 function verifyCurveClass(spec: ProjectSpec, parsed: Parsed, diffs: string[]) {
   const curves = new Set(parsed.assignments.map(a => a.curve ?? 'UNIFORM'));
   const required = CURVE_VARIATION_REQUIRED.has(spec.slug);
@@ -134,9 +91,6 @@ function verifyCurveClass(spec: ProjectSpec, parsed: Parsed, diffs: string[]) {
   }
 }
 
-/** Toetst de overallocatie-belofte voor een spec die resources declareert, op basis van
- *  `scheduleFacts` (echte CPM + resource-load, dezelfde route als de rest van deze poort).
- *  Faalt hard als de slug in geen van beide declaratieve lijsten hierboven voorkomt. */
 function verifyOverallocClass(spec: ProjectSpec, facts: ReturnType<typeof scheduleFacts>, diffs: string[]) {
   const required = OVERALLOC_REQUIRED.has(spec.slug);
   const forbidden = OVERALLOC_FORBIDDEN.has(spec.slug);
@@ -156,11 +110,8 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
   const content = readFileSync(join(EX_DIR, `${spec.slug}.ifc`), 'utf8');
   const parsed = readIFC(content);
 
-  // 1. parse ok
   expect(diffs, parsed.tasks.length > 0, `parse leeg (0 taken)`);
 
-  // 2. tellingen conform spec — inclusief eventuele rebaseline-mutaties (golf 2, `baselines[].
-  // mutationBefore`), want die worden ook echt in de store opgebouwd (`gen-core.ts:build()`).
   const mutations = (spec.baselines ?? []).map(b => b.mutationBefore).filter((m): m is NonNullable<typeof m> => !!m);
   const allTasks = [...spec.tasks, ...mutations.flatMap(m => m.addTasks ?? [])];
   const allLinks = [...(spec.links ?? []), ...mutations.flatMap(m => m.addLinks ?? [])];
@@ -171,8 +122,6 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
   expect(diffs, parsed.sequences.length === allLinks.length, `relaties: ${parsed.sequences.length} ≠ ${allLinks.length}`);
   expect(diffs, parsed.resources.length === (spec.resources?.length ?? 0), `resources: ${parsed.resources.length} ≠ ${spec.resources?.length ?? 0}`);
   expect(diffs, parsed.assignments.length === expAssign, `toewijzingen: ${parsed.assignments.length} ≠ ${expAssign}`);
-  // De optionele `ImportResult`-velden zijn `T[] | undefined`; afwezig telt hier als 0, wat exact
-  // is wat de spec-vergelijking bedoelt (een bestand zónder codetypes hoort 0 codetypes te geven).
   const gotCodeTypes = parsed.activityCodeTypes ?? [];
   const gotFieldDefs = parsed.customFieldDefs ?? [];
   const gotBaselines = parsed.baselines ?? [];
@@ -184,10 +133,6 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
   const expCompared = spec.comparedBaselineNames ?? [];
   expect(diffs, JSON.stringify(gotCompared) === JSON.stringify(expCompared), `vergeleken baselines: ${JSON.stringify(gotCompared)} ≠ ${JSON.stringify(expCompared)}`);
 
-  // 3. round-trip write→read→write stabiel (structureel data-fixpunt)
-  // `writeIFC` neemt sinds pakket R één invoer-object (`WriteIFCInput`); een readIFC-resultaat
-  // draagt de kalender-bibliotheek al onder de writer-naam `resourceCalendars`, dus hier geen
-  // `buildWriteIFCInput` (die verwacht juist het store-veld `calendars`).
   const s2 = writeIFC({
     project: parsed.project, calendar: parsed.calendar, tasks: parsed.tasks,
     sequences: parsed.sequences, resources: parsed.resources, assignments: parsed.assignments,
@@ -202,12 +147,6 @@ function verifySpec(spec: ProjectSpec): { pass: boolean; diffs: string[]; parsed
   return { pass: diffs.length === 0, diffs, parsed };
 }
 
-/** Herbereken float/overallocatie/kritieke-paden autoritair door het bestand in de echte store
- *  te laden (fase 2.10, golf 2: ook `criticalPaths.length`/`isNearCritical` voor de golf-2-
- *  union-checks). BELANGRIJK: `isNearCritical`/`floatPath` zijn PURE CPM-afgeleide velden die
- *  NIET via `writeIFC`/`readIFC` round-tripen (bevestigd: op de kale eerste `readIFC`-parse staan
- *  ze altijd leeg) — ze bestaan pas ná een verse `runCPM()`-run zoals hier. De union-check moet
- *  dus op déze herberekende `facts`, niet op de kale `parsed.tasks`. */
 function scheduleFacts(parsed: Parsed): {
   negFloat: number; negFloatAll: number; overalloc: string[]; criticalPaths: number; nearCritical: boolean;
   violated: number; outOfSequence: number;
@@ -216,8 +155,6 @@ function scheduleFacts(parsed: Parsed): {
   S().runCPM();
   const st = S();
   const negFloat = st.tasks.filter(t => t.childIds.length === 0 && t.time.totalFloat < 0).length;
-  // Ook de WBS-ouders meetellen (pakket F): een samenvattingstaak erft de speling van zijn
-  // kinderen, dus "geen enkele taak negatief" is strenger dan alleen de leaves.
   const negFloatAll = st.tasks.filter(t => t.time.totalFloat < 0).length;
   const rlr = st.resourceLoadResult;
   const overalloc: string[] = [];
@@ -233,14 +170,6 @@ function scheduleFacts(parsed: Parsed): {
   return { negFloat, negFloatAll, overalloc, criticalPaths, nearCritical, violated, outOfSequence };
 }
 
-/**
- * Fase 2.10 (P1-datafix, golf 4): MIDDEL-specifieke nivelleringsproef. De showcase belooft EXPLICIET
- * "een met nivellering oplosbare overallocatie" (de stukadoors) — deze check bewijst dat headless,
- * via de ECHTE `levelResources`/`applyLeveling` (zelfde route als de Level-knop in de UI): vóór
- * leveling moet er overallocatie zijn (al gedekt door de generieke `hasResources`-check hierboven),
- * ná leveling moet ze VOLLEDIG verdwenen zijn (0 overallocated dagen over alle resources). Moet
- * NA `scheduleFacts` draaien (state staat dan al geladen + CPM vers) — laadt zelf niet opnieuw.
- */
 function verifyLevelingFullyResolves(diffs: string[]) {
   const st = S();
   const before = st.resourceLoadResult;
@@ -256,12 +185,6 @@ function verifyLevelingFullyResolves(diffs: string[]) {
   expect(diffs, afterCount === 0, `nivellerings-proef: ná leveling nog ${afterCount} overallocated resource-dag(en) over`);
 }
 
-/** Per-showcase: de functies die ÉLKE showcase hoort te tonen, ongeacht schaal (structuur,
- *  mijlpalen, baseline). Resource-afhankelijke functies (ploeg-hiërarchie, curve-variatie, een met
- *  nivellering oplosbare overallocatie) zijn alleen verplicht voor showcases die zelf resources
- *  declareren — KLEIN heeft er bewust geen (instapniveau, zie showcases.ts). Union-brede functies
- *  (deadline, prioriteit 1000, negatieve float, alle relatietypes, %-lag/ELAPSEDTIME/lead,
- *  voortgang+statusdatum, notes, vorstverlet) worden op suite-niveau geverifieerd. */
 function verifyShowcase(spec: ProjectSpec, parsed: Parsed, diffs: string[]): ReturnType<typeof scheduleFacts> {
   const T = parsed.tasks;
   const expConstraints = spec.tasks.filter(t => t.constraint).length;
@@ -282,19 +205,6 @@ function verifyShowcase(spec: ProjectSpec, parsed: Parsed, diffs: string[]): Ret
   return facts;
 }
 
-/** Externe-koppeling-consistentiecheck (fase 2.10, golf 2, §4.2): bronbestand moet bestaan +
- *  het bevroren `anchorDate` op GROOT's taak moet overeenkomen met wat een verse `readIFC` van
- *  het bronbestand daadwerkelijk oplevert voor de brontaak (gematcht op NAAM — taak-ids zijn
- *  per leesrun nieuw, dus nooit een stabiel matchveld, ook niet binnen dit script: zie de
- *  bestaande digest()-conventie hierboven).
- *
- *  Minutenmodel: beide bestanden gaan door de laadgrens van de app (`loadState`, elk in een eigen
- *  store), niet alleen door de kale `readIFC`. De kale lezer geeft de schrijfvorm: een datum zonder
- *  tijd die pas op de laadgrens een moment wordt. Het anker in GROOT is al een moment (een
- *  eindachtig anker eindigt op `T16:00`), dus de vergelijking hoort op de momenten van het geopende
- *  bronbestand. Een mijlpaal heeft daar één moment voor al zijn velden (D7); de kale datum kan dat
- *  moment niet dragen.
- *  De toets blijft een exacte gelijkheid. */
 function openedTasks(parsed: Parsed) {
   const ctx = createAppStoreContext();
   ctx.store.getState().loadState(parsed as any);
@@ -321,8 +231,6 @@ function verifyExternalSource(specs: ProjectSpec[], diffs: string[]) {
     for (const link of t.externalLinks ?? []) {
       const srcTask = terrainTasks.find(x => x.name === link.sourceRef.taskName);
       if (!srcTask) { diffs.push(`extern-koppeling: brontaak "${link.sourceRef.taskName}" niet gevonden in bronbestand`); continue; }
-      // De verversing zoekt op id, niet op naam (`refreshExternalAnchors`): de koppeling moet de
-      // id's van het weggeschreven bronbestand dragen (knownbug 509).
       expect(diffs, link.sourceRef.projectId === terrainParsed.project.id,
         `extern-koppeling: project-id ${link.sourceRef.projectId} ≠ bronbestand ${terrainParsed.project.id}`);
       expect(diffs, link.sourceRef.taskId === srcTask.id,
@@ -341,7 +249,6 @@ function main() {
   const specs = allSpecs();
   const showcases = specs.filter(s => s.category === 'showcase');
   let anyFail = false;
-  // Suite-brede (union) aggregatie over ALLE showcases (KLEIN + MIDDEL + GROOT sinds golf 2).
   const scResTypes = new Set<string>();
   const scRelTypes = new Set<string>();
   let scCal = false, scPct = false, scElapsed = false, scLead = false;
@@ -358,36 +265,16 @@ function main() {
     const extra: string[] = [];
     if (spec.category === 'showcase') {
       const facts = verifyShowcase(spec, parsed, extra);
-      // Fase 2.10 (P1-datafix, golf 4) — showcase-specifieke nivellerings-/schendingsproeven.
-      // MIDDEL: "nivellering lost het op" moet aantoonbaar kloppen (headless, echte leveler).
-      // GROOT: de datafix moet 0 constraint-violations en 0 out-of-sequence-meldingen opleveren,
-      // mét overallocatie nog steeds zichtbaar — maar dan wél PRECIES de twee bedoelde knelpunten
-      // (torenkraan + stukadoors), niet meer (zie de boven-/ondergrens hieronder).
       if (spec.slug === 'showcase-rijwoningen-de-akkers') {
         verifyLevelingFullyResolves(extra);
       }
       if (spec.slug === 'showcase-appartementencomplex') {
         expect(extra, facts.violated === 0, `GROOT: ${facts.violated} constraint-violation(s) ná datafix (verwacht 0)`);
         expect(extra, facts.outOfSequence === 0, `GROOT: ${facts.outOfSequence} out-of-sequence-melding(en) ná datafix (verwacht 0)`);
-        // Pakket F (datafix 2): de voltooide fase-1/2-keten liep CONFORM PLAN (`actualsFromPlan`),
-        // dus er is per definitie geen uitloop op voltooid werk — en dus ook geen negatieve
-        // speling. Vangnet tegen terugval naar handgeschreven werkdag-indices, die door de
-        // feestdag-blinde `offset()` systematisch schijn-uitloop (⇒ negatieve TF) opleveren.
         expect(extra, facts.negFloatAll === 0, `GROOT: ${facts.negFloatAll} taak/taken met negatieve totale speling (verwacht 0 — voltooide keten conform plan)`);
         expect(extra, facts.overalloc.length > 0, `GROOT: geen overallocatie zichtbaar (verwacht de bedoelde knelpunten Torenkraan + Stukadoors)`);
-        // BOVENgrens (naast de ondergrens hierboven): de showcase belooft PRECIES TWEE knelpunten
-        // — de torenkraan (ontwerpdoc §fase 3) en de stukadoorsploeg. Alle overige pools zijn in
-        // showcase-groot.ts op drie parallelle torens gedimensioneerd en horen schoon te blijven.
-        // Zonder deze grens is "de bedoelde 2" niet te onderscheiden van "10 kapotte pools" —
-        // precies hoe de eerdere regressie (10 van de 12 resources overgealloceerd) door de poort
-        // glipte. Faalt zodra een maxUnits/unitsPerDay-wijziging een nieuwe pool laat overlopen.
         expect(extra, facts.overalloc.length <= 2,
           `GROOT: ${facts.overalloc.length} overgealloceerde resources (verwacht ≤2 — alleen Torenkraan + Stukadoors): ${facts.overalloc.join(', ')}`);
-        // Meerdere kritieke paden zijn een BELOFTE in GROOTs publicDescription, dus hier expliciet
-        // per showcase geasserteerd i.p.v. alleen suite-breed. De FREE_FLOAT-peel noemt een keten
-        // pas kritiek als élke taak erin kritiek is; voltooide taken zijn dat nooit, dus dit valt
-        // stil zodra de van de torens onafhankelijke garage/terrein-keten (fase 7, eigen wortel ná
-        // de statusdatum) niet meer strak tot het projecteinde doorloopt — zie showcase-groot.ts.
         expect(extra, facts.criticalPaths >= 2, `GROOT: ${facts.criticalPaths} kritiek pad/paden (verwacht ≥2 — torens + onafhankelijke garage/terrein-keten)`);
       }
       parsed.resources.forEach(r => scResTypes.add(r.type));
@@ -405,7 +292,6 @@ function main() {
       if (parsed.project.statusDate && parsed.tasks.some(t => t.time.completion > 0)) scProgress = true;
       if (parsed.calendar.holidays.some(h => /frost/i.test(h.name))) scVorstverlet = true;
       parsed.tasks.forEach(t => { for (const n of t.notes ?? []) allNotes.push(n); });
-      // Golf 2 — geavanceerde functies.
       if (parsed.tasks.some(t => t.constraint?.hard === true)) scHardPin = true;
       if (parsed.tasks.some(t => !!t.constraint2)) scConstraint2 = true;
       if (parsed.tasks.some(t => t.isHammock === true)) scHammock = true;
@@ -419,10 +305,6 @@ function main() {
         if (b) scActiveBaselineName = b.name;
       }
     } else if ((spec.resources?.length ?? 0) > 0) {
-      // Niet-showcase (basisvoorbeeld) met een resourceset — o.a. de acht sets uit
-      // `example-resources.ts` (docs/TODO.md, regel ~32): die beloven expliciet "GEEN
-      // OVERALLOCATIE", maar niets bewaakte dat tot nu toe. Zelfde route als de showcase-poort
-      // (`scheduleFacts` = echte CPM + resource-load), omgekeerde eis.
       verifyOverallocClass(spec, scheduleFacts(parsed), extra);
     }
     const all = [...diffs, ...extra];
@@ -432,7 +314,6 @@ function main() {
     for (const d of all) console.log(`     - ${d}`);
   }
 
-  // Union-checks over ALLE showcases samen (golf 2: volledige dekkingsmatrix-unie, §3.3/§5.2).
   const suite: [boolean, string][] = [
     [['LABOR', 'CREW', 'MATERIAL', 'EQUIPMENT', 'SUBCONTRACTOR'].every(t => scResTypes.has(t)), `alle 5 resourcetypes (heeft: ${[...scResTypes].sort().join(',')})`],
     [['FINISH_START', 'START_START', 'FINISH_FINISH', 'START_FINISH'].every(t => scRelTypes.has(t)), `alle 4 relatietypes (heeft: ${[...scRelTypes].sort().join(',')})`],

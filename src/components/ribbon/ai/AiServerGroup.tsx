@@ -7,22 +7,6 @@ import { RibbonButton } from '@/components/layout/Ribbon/ribbonPrimitives';
 import { useRibbonDensity } from '@/components/layout/Ribbon/ribbonDensity';
 import type { McpServerStatus } from '@/services/mcp/contracts';
 
-/**
- * AI-ribbontab — groep **Server**. Start/stop-knop + statusindicator, gevoed door
- * `ui.aiServerStatus` (uit / live op poort / poort-bezet mét melding / error). De bridge is
- * Tauri-only: in de web-build is de start-knop uitgeschakeld met een "alleen desktop"-tooltip
- * (`isTauri()`-gate). De statuskleur wordt ook als klein dotje in de statusbalk getoond (StatusBar).
- *
- * Compacte dichtheid: de statuskolom (circel + tot 3 tekstregels, elk met eigen
- * `.ribbon-info`-padding) is samen makkelijk 30-45 px hoog — te veel voor de 40px-strip zodra de
- * start/stop-knop zelf al 28px inneemt. De toggle-knop zelf collapt al via de
- * `.ribbon-container.compact .ribbon-btn`-regels (net als elke gewone RibbonButton), dus alleen de
- * secundaire statuskolom valt weg — net zoals de afgeleide zoom-tekst in `TimeScaleGroupContent`.
- * De volledige statusinformatie blijft beschikbaar als tooltip op de knop.
- */
-
-/** Statuskleur per bridge-toestand — gedeeld met het statusbalk-dotje (zelfde semantiek). */
-/** Vorm per serverstatus, zodat de status ook zonder kleur te lezen is. */
 export const AI_STATUS_ICON: Record<McpServerStatus['state'], IconId> = {
   off: 'status.bridge-off',
   live: 'status.bridge-live',
@@ -53,8 +37,6 @@ export function AiServerGroup() {
     }
   })();
 
-  // Alle statusregels samen — dient als tooltip in compacte modus, waar de aparte statuskolom
-  // wegvalt (zie klasse-uitleg boven).
   const statusHint = [
     statusText,
     !tauri ? t('ai.desktopOnly') : null,
@@ -80,15 +62,12 @@ export function AiServerGroup() {
 
   if (compact) {
     return (
-      // Wrapper-span draagt de native tooltip met de volledige status (zie statusHint hierboven).
       <span title={statusHint}>{toggleButton}</span>
     );
   }
 
   return (
     <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-      {/* Wrapper-span draagt de native tooltip: RibbonButton kent zelf geen title-prop, en op een
-          disabled knop vuurt onClick sowieso niet — de tooltip legt uit waaróm (alleen desktop). */}
       <span title={!tauri ? t('ai.desktopOnly') : undefined}>{toggleButton}</span>
       <div style={{ display: 'flex', flexDirection: 'column', gap: 2, minWidth: 130 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

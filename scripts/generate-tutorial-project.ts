@@ -1,15 +1,3 @@
-// Generator van het tutorialproject *Aanbouw woning* / *House extension* (schrijfkant). De opbouw
-// staat in `tutorial-project.ts`; hier schrijven we per taal en per stand één .ifc weg.
-//
-//   npm run gen:tutorial-project                       # → build/tutorial-project/<lang>/<stand>.ifc
-//   npm run gen:tutorial-project -- --out <map>        # andere uitvoermap
-//
-// De uitvoer is een BUILD-artefact (niet gecommit, niet in `public/`): de tutorials en hun
-// projectbestanden worden een installeerbare extensie in `open-planner-studio-extensions`, en die
-// build draait deze generator tegen een app-checkout, omdat hij de echte store en motor van de app
-// nodig heeft. De beoogde effecten per stand worden tijdens het bouwen geasserteerd (de generator
-// schrijft niets als één ervan uitblijft); de exacte getallen pint
-// `tests/planning/check-tutorial-project.ts`.
 import { mkdirSync, writeFileSync, statSync, rmSync, existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import { buildTutorialProject, TASKS, TUTORIAL_LANGS, type TaskKey, type TutorialBuild } from './tutorial-project';
@@ -31,8 +19,6 @@ function parseOut(argv: string[]): string {
 
 function main() {
   const out = parseOut(process.argv.slice(2));
-  // Eerst alles bouwen (en asserteren), pas daarna schrijven: een mislukte stand laat geen halve
-  // uitvoermap achter.
   let builds: TutorialBuild[];
   try {
     builds = TUTORIAL_LANGS.map(lang => buildTutorialProject(lang));
@@ -64,7 +50,6 @@ function main() {
   if (process.argv.includes('--report')) printReport(builds[0]);
 }
 
-/** `--report`: de getallen per stand voor de tutorialtekst (taaknamen in de taal van de build). */
 function printReport(build: TutorialBuild) {
   const name = (k: TaskKey) => TASKS.find(t => t.key === k)!.name[build.lang];
   console.log(`\n── Rapport (${build.lang}) ──`);

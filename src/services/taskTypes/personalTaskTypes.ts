@@ -24,7 +24,6 @@ function normalize(raw: unknown): CustomTaskType[] {
     ids.add(id);
     result.push({ id, name, ...(isTaskTypeColor(candidate.color) ? { color: candidate.color } : {}) });
   }
-  // Een werksoort van vóór de kleur (#856) krijgt hier de eerste vrije, op volgorde van id; `save` bewaart haar.
   return withTaskTypeColors(result).sort((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -32,8 +31,6 @@ function load(): CustomTaskType[] {
   if (cached) return cached;
   try {
     const raw: unknown = JSON.parse(localStorage.getItem(KEY) ?? '[]');
-    // Lezen schrijft niets: ingebed zou dat de lijst naar de host sturen voordat die geantwoord heeft (#818). De
-    // toegekende kleur hangt alleen af van de inhoud, dus elk lezen geeft dezelfde; de eerste wijziging bewaart haar.
     cached = normalize(raw);
   } catch { cached = []; }
   return cached;
@@ -42,8 +39,8 @@ function load(): CustomTaskType[] {
 function persist(types: CustomTaskType[]): void {
   try {
     localStorage.setItem(KEY, JSON.stringify(types));
-    noteSiteHostSettingChanged(KEY); // ingebed ook bij de host bewaren (#818)
-  } catch { /* opslag kan geblokkeerd zijn */ }
+    noteSiteHostSettingChanged(KEY);
+  } catch { }
 }
 
 function save(next: CustomTaskTypeDraft[]): void {
@@ -52,8 +49,6 @@ function save(next: CustomTaskTypeDraft[]): void {
   for (const listener of listeners) listener();
 }
 
-// Een tweede venster of een oudere tab kan localStorage wijzigen. Herlees dan defensief in plaats
-// van op de modulecache te blijven hangen; corruptie normaliseert naar een lege, bruikbare lijst.
 if (typeof window !== 'undefined') {
   window.addEventListener('storage', (event) => {
     if (event.key !== KEY) return;
@@ -68,9 +63,6 @@ export function subscribePersonalTaskTypes(listener: () => void): () => void {
   listeners.add(listener);
   return () => listeners.delete(listener);
 }
-/** Voegt een werksoort toe. Een gegeven geldige kleur (bijvoorbeeld van de projectkopie) blijft; anders
- *  krijgt ze de eerste kleur die vrij is in de bibliotheek én in `inUse` (de werksoorten van het geopende
- *  document, #856). */
 export function addPersonalTaskType(
   name: string, preferredId?: string, color?: string, inUse: readonly CustomTaskType[] = [],
 ): CustomTaskType | null {

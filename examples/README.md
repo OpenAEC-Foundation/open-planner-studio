@@ -15,6 +15,9 @@ structureel onmogelijk. `npm run verify:examples` haalt elk bestand daarna door 
 
 > **Jaar-onafhankelijk:** projecten ankeren relatief ("eerste maandag van maart, volgend
 > jaar"); NL-feestdagen (incl. Pasen-afgeleiden) en de bouwvak worden per jaar berekend.
+> Dat doet de generator met een eigen set (`nlHolidays` en `bouwvak` in `scripts/gen-core.ts`), niet met
+> `generateHolidays` van de app: Bevrijdingsdag is daar elk jaar vrij en de bouwvak volgt een vaste regel, zodat de
+> bestaande voorbeelden bij regenereren gelijk blijven.
 > Elke regeneratie levert dus actuele, plausibele datums — de voorbeelden verouderen niet.
 
 ## Showcase-planningen — schaalvarianten binnen woningbouw
@@ -83,9 +86,11 @@ zijn er de showcases hierboven.
 Een selectie staat rechtstreeks in de app onder **Bestand → Voorbeelden** (Backstage),
 data-gedreven via `public/examples/manifest.json`: de showcases bovenaan (met badge
 "Alle functies" + tags `klein`/`middel`/`groot`), daaronder een representatieve set eenvoudige
-voorbeelden. De publieke selectie blijft samen onder ~600 kB (huidig: ~547 kB voor 8 bestanden —
-GROOT alleen al ~300 kB; bij een volgende toevoeging eerst de basisselectie inkrimpen vóór het
-budget wordt opgetrokken). Voeg een voorbeeld toe door het in de generator op te nemen; de
+voorbeelden. De publieke selectie blijft samen onder `PUBLIC_BUDGET_KB` (1050 KiB, `scripts/generate-examples.ts`; anders
+stopt de generator). Dat is een vangnet tegen opzwellen, geen streefwaarde. De grens ging omhoog met wat de writer per
+taak schrijft, het laatst toen de voorbeelden in het minutenmodel kwamen en de writer de exacte speling
+(`OPS_Analysis.ExactFloat`) ging opslaan; bij een volgende toevoeging eerst de basisselectie inkrimpen vóór het
+budget wordt opgetrokken. Voeg een voorbeeld toe door het in de generator op te nemen; de
 `PUBLIC`-set in `scripts/generate-examples.ts` leidt de showcase-slugs automatisch af uit
 `category === 'showcase'` (het externe-koppeling-bronbestand, `category: 'external-source'`,
 komt hier bewust nooit in terecht).

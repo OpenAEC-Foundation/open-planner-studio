@@ -1,3 +1,4 @@
+// Bron: MPXJ als referentie voor de cumulatieve `elapsedWorkMinutes`-as van splitsingen en contourperiodes (LGPL-2.1, github.com/joniles/mpxj).
 import type { CustomFieldValue } from '@/types/structure';
 export type { CustomTaskType } from '@/types/taskType';
 
