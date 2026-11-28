@@ -8,32 +8,14 @@ import { AI_CONNECTION_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { PromptBlock } from '@/components/common/PromptBlock';
 import { loadHelpArticlePrompt } from '@/utils/helpArticlePrompt';
 
-/**
- * Verbindingsgegevens-dialoog voor de MCP-bridge (AI-ribbontab → groep Verbinding).
- *
- * De ribbon is te ondiep voor een volledige koppelregel — die werd daar afgekapt. Alles wat een
- * client nodig heeft staat daarom hier: endpoint, auth-header en een kant-en-klaar
- * configuratiefragment. Bewust **provider-neutraal**: dit is een gewone MCP-server over
- * streamable HTTP, dus de UI noemt geen enkel product en toont geen CLI-commando van één client.
- *
- * Het token wordt standaard gemaskeerd getoond (toon/verberg-knop); de kopieerknoppen kopiëren
- * altijd de ECHTE waarde, ook wanneer het scherm maskeert — anders plakt de gebruiker bolletjes.
- *
- * Bovenaan staat de setup-prompt voor Claude Desktop en Claude Code (de extensie, zonder token). Die
- * tekst komt uit het promptblok van het Help-artikel en niet uit een eigen vertaalsleutel: zo zijn
- * Help en dit venster altijd gelijk, in elke taal (`loadHelpArticlePrompt`).
- */
-
 export interface AiConnectionDetailsDialogProps {
   port: number;
   token: string;
   onClose: () => void;
 }
 
-/** Maskering voor het token in de weergave (kopiëren gebruikt altijd de echte waarde). */
 const MASK = '••••••••••••••••';
 
-/** Servernaam in het configuratiefragment — technische sleutel, geen zichtbare productnaam. */
 const SERVER_KEY = 'open-planner-studio';
 
 function buildSnippet(endpoint: string, token: string): string {
@@ -72,9 +54,6 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
   const snippetReal = buildSnippet(endpoint, token);
   const snippetShown = showToken ? snippetReal : buildSnippet(endpoint, MASK);
 
-  // Koppelprompt: één alinea die de gebruiker in zijn AI-agent plakt, zodat die zichzelf koppelt.
-  // Het toolaantal komt uit de LEVENDE registry (`getTools()`, zelf-registrerend bij module-load),
-  // niet uit een hardgecodeerd getal — voegt een baan een tool toe, dan klopt de prompt vanzelf.
   const promptFor = (tok: string) => t('ai.connectPromptText', {
     name: SERVER_KEY,
     url: endpoint,
@@ -133,7 +112,6 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
       <DialogHeader title={t('ai.connectionDetailsTitle')} onClose={onClose} help={{ articleId: AI_CONNECTION_HELP_ARTICLE_ID }} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
-        {/* Setup-prompt: dezelfde knop en tekst als bovenaan het Help-artikel (één bron). */}
         {setupPrompt !== null && (
           <div className="flex flex-col gap-1" data-ops-ai-setup-prompt="">
             <span className="text-small leading-4 font-semibold text-text-primary">{t('ai.setupPrompt')}</span>
@@ -142,7 +120,6 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
           </div>
         )}
 
-        {/* Endpoint */}
         {section(
           t('ai.endpoint'),
           t('ai.endpointHint'),
@@ -152,7 +129,6 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
           </div>,
         )}
 
-        {/* Authenticatie — header-naam + waarde; maskering alleen in de weergave. */}
         {section(
           t('ai.auth'),
           t('ai.authHint'),
@@ -163,7 +139,6 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
           </div>,
         )}
 
-        {/* Configuratiefragment — de de-facto standaardvorm die MCP-clients accepteren. */}
         {section(
           t('ai.configSnippet'),
           t('ai.configSnippetHint'),
@@ -175,7 +150,6 @@ export function AiConnectionDetailsDialog({ port, token, onClose }: AiConnection
           </div>,
         )}
 
-        {/* Kant-en-klare koppelprompt — plakbaar als platte tekst, dus geen markdown-opmaak. */}
         {section(
           t('ai.connectPrompt'),
           t('ai.connectPromptHint'),

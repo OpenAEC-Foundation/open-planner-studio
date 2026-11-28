@@ -12,28 +12,6 @@ import { calendarHasHolidayIssue, withCanonicalHolidayEnds } from '@/utils/holid
 import { withTransaction } from '@/state/batchTransaction';
 import { RESOURCE_CALENDAR_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
-/**
- * Resource-kalender-editor — hergebruikt `CalendarForm`, net als de
- * projectkalender-`CalendarDialog`, maar schrijft naar `s.calendars` via `addCalendar`/
- * `updateCalendar` i.p.v. `s.calendar`/`setCalendar`.
- *
- * Bewust GEEN `runCPM()`-aanroep na Apply ("plannen is handmatig"). In zijn rol als resource-
- * kalender raakt een kalender de CPM-datums niet — alleen belasting/nivellering lezen hem.
- * Maar de bibliotheek is gedeeld: de keuzelijst in de resourcerij biedt ook de
- * projectkalender en taakkalenders aan. Bewerk je zo'n gedeelde kalender hier, dan verandert de
- * planning wél; `updateCalendar` markeert hem dan als verouderd (stale) en F5 rekent hem door.
- *
- * `poolCompanyId` (Bibliotheekweergave-editor): aanwezig ⇒ POOL-modus — lees/schrijf
- * `pools[poolCompanyId].calendars` via `addPoolCalendar`/`updatePoolCalendar` in plaats van de
- * projectkalender-bibliotheek. Zelfde `CalendarForm`, alleen de opslagbestemming wisselt.
- *
- * `calendarId`: id van een bestaande kalender-entry (project- of poolbibliotheek, afhankelijk van
- * `poolCompanyId`) om te bewerken, of `undefined` om een nieuwe resource-kalender aan te maken
- * (AANMAAKMODUS: de draft komt uit `createNewCalendar`, dezelfde fabriek als "+" in de
- * kalenderdialoog). In aanmaakmodus bestaat de kalender pas na Toepassen; `onCreated` krijgt dan
- * het nieuwe id — "+ Resourcekalender" koppelt er de resource mee. In de projectbibliotheek zijn
- * aanmaken en koppelen samen één undo-stap; Annuleren laat niets achter.
- */
 export function ResourceCalendarDialog({
   calendarId,
   poolCompanyId,
@@ -42,7 +20,6 @@ export function ResourceCalendarDialog({
 }: {
   calendarId?: string;
   poolCompanyId?: string;
-  /** Alleen in aanmaakmodus: na Toepassen aangeroepen met het id van de nieuwe kalender. */
   onCreated?: (calendarId: string) => void;
   onClose: () => void;
 }) {
@@ -60,31 +37,23 @@ export function ResourceCalendarDialog({
   const sourceCalendars = poolCompanyId ? (pools[poolCompanyId]?.calendars ?? []) : resourceCalendars;
   const existing = calendarId ? sourceCalendars.find(c => c.id === calendarId) : undefined;
 
-  // Local working copy — only committed on Apply.
   const [draft, setDraft] = useState<WorkCalendar>(() =>
     existing
       ? structuredClone(existing)
       : { ...createNewCalendar(tCommon('resource.calendarDialog.title')), id: generateId('rescal') },
   );
   const [scalarTimeTextInvalid, setScalarTimeTextInvalid] = useState(false);
-  // De kopie bij het openen: de ?-knop vraagt alleen iets als de gebruiker hem heeft veranderd.
   const [initialDraft] = useState(() => JSON.stringify(draft));
 
-  // Dezelfde poort als de kalenderdialoog: ongeldige pauze of een ongeldige feestdagregel
-  // (`holidayIssue`, gedeeld met MCP) blokkeert Toepassen.
   const invalid = scalarTimeTextInvalid || calendarScalarBreakIssue(draft) !== undefined
     || calendarHasHolidayIssue(draft);
 
   const handleApply = () => {
     if (invalid) return;
-    // Zelfde opslagvorm als de kalenderdialoog: een lege einddatum wordt een eendaagse feestdag.
     const saved = withCanonicalHolidayEnds(draft);
-    // Een nieuwe kalender gaat zonder id de bibliotheek in; die kent zelf een id toe.
     const { id: _unused, ...rest } = saved;
     void _unused;
     if (poolCompanyId) {
-      // De poolbibliotheek is niet undo-baar (app-globaal); aanmaken en koppelen blijven twee
-      // pool-mutaties, maar pas ná Toepassen.
       if (existing) updatePoolCalendar(poolCompanyId, existing.id, saved);
       else {
         const newId = addPoolCalendar(poolCompanyId, rest);
@@ -93,7 +62,6 @@ export function ResourceCalendarDialog({
     } else if (existing) {
       updateCalendar(existing.id, saved);
     } else {
-      // Aanmaken + (via onCreated) koppelen = één gebruikershandeling ⇒ één undo-stap.
       withTransaction(() => {
         const newId = addCalendar(rest);
         onCreated?.(newId);
@@ -103,7 +71,6 @@ export function ResourceCalendarDialog({
   };
 
   return (
-    // Esc sluit dialog — via de standaard-toetsafhandeling van `Dialog`.
     <Dialog
       onCancel={onClose}
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[600px] max-h-[90vh] flex flex-col overflow-hidden"

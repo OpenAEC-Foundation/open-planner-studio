@@ -5,34 +5,12 @@ import { Dialog } from '@/components/common/Dialog';
 import type { ExtensionConsentRequest } from '@/extensions';
 import { resolveExtensionConsent } from '@/extensions/consentBridge';
 
-/**
- * De vertrouwensvraag bij het INSTALLEREN van een extensie.
- *
- * WAT HIER BEWUST NIET STAAT: een afvinklijst van permissies. Extensie-code draait in dezelfde
- * realm als de app, dus `ribbon`/`events`/`backstage`/`pdf-fonts` zijn poorten op de ONDERSTEUNDE
- * API en geen grens om wat de code kán. Een Android-achtige permissielijst zou lezen als "de
- * extensie is hiertoe beperkt" en daarmee een garantie suggereren die er niet is — erger dan geen
- * dialoog. De declaratie staat er wél, expliciet gelabeld als *voorgenomen* gebruik.
- *
- * Eén nuance: `importSource` is de enige permissie met
- * een echte privacybetekenis — hij geeft de rauwe bronbytes van elk geïmporteerd bestand vrij en is
- * op de ondersteunde API wél hard afgedwongen (default-deny, `permissions.ts`). Dat maakt hem geen
- * sandbox-grens (dezelfde realm blijft), maar het is wel het enige chipje dat een gebruiker moet
- * kunnen lezen zonder de broncode te kennen; daarom krijgt het een vertaalde toelichting (net als
- * `help`, zie onder).
- *
- * De vraag gaat over één ding: dit is code van iemand anders, met dezelfde rechten als de app.
- * Daarom staan er drie dingen die je nodig hebt om te beslissen — wie het schreef, waar het vandaan
- * komt (en of die download geverifieerd is), en wat dat concreet betekent op dit platform.
- */
 export function ExtensionConsentDialog() {
   const { t } = useTranslation('common');
   const pending = useAppStore((s) => s.ui.pendingExtensionConsent) as ExtensionConsentRequest | null;
 
   if (!pending) return null;
 
-  // De resolver leeft in `extensions/consentBridge.ts` (module-state); de store draagt alleen de
-  // vraag. Sluiten zonder antwoord bestaat niet: backdrop-klik en Escape zijn beide een WEIGERING.
   const answer = resolveExtensionConsent;
 
   const bronLabel =
@@ -60,7 +38,6 @@ export function ExtensionConsentDialog() {
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
-        {/* Wie en wat */}
         <div className="bg-surface-hover rounded-[8px] p-3 flex flex-col gap-1">
           <div className="flex items-baseline gap-2">
             <span className="text-body leading-5 font-semibold">{pending.name}</span>
@@ -77,7 +54,6 @@ export function ExtensionConsentDialog() {
           )}
         </div>
 
-        {/* Herkomst + verificatie — dit is de informatie waarop je de beslissing baseert. */}
         <div className="flex flex-col gap-1">
           <div className="font-semibold">{t('extConsent.originHeading')}</div>
           <div className="text-text-secondary">{bronLabel}</div>
@@ -86,7 +62,6 @@ export function ExtensionConsentDialog() {
           </div>
         </div>
 
-        {/* De kern van de vraag. */}
         <div className="flex flex-col gap-2">
           <div className="font-semibold flex items-center gap-1.5">
             <Icon id="status.warning" size={13} className="text-critical" />
@@ -99,7 +74,6 @@ export function ExtensionConsentDialog() {
           </p>
         </div>
 
-        {/* De declaratie — expliciet als intentie, niet als grens. */}
         <div className="flex flex-col gap-1">
           <div className="font-semibold">{t('extConsent.declaredHeading')}</div>
           <p className="text-text-secondary">{t('extConsent.declaredNote')}</p>
@@ -118,8 +92,6 @@ export function ExtensionConsentDialog() {
               {t('extConsent.permImportSource')}
             </p>
           )}
-          {/* `help` (contract 1.4.0) grijpt zichtbaar in de app in — een nieuw document, een paneel
-              dat knoppen aanwijst — dus ook die krijgt een leesbare toelichting. */}
           {pending.declared.includes('help') && (
             <p className="text-text-secondary mt-1" data-ops-ext-consent-help>
               {t('extConsent.permHelp')}

@@ -12,7 +12,6 @@ import { formatDisplayDate } from '@/i18n/dateFormat';
 import { extensionOf } from '@/utils/filePath';
 import { isTauri } from '@/utils/platform';
 import { ProgressImportLinkPicker } from './ProgressImportLinkPicker';
-// Rechtstreeks uit het eigen bestand — NIET via de barrel (`index.ts`).
 import { detectDateOrder, finalizeProgressRows } from '@/services/progressImport/sheetValues';
 import type {
   DateOrder,
@@ -30,19 +29,12 @@ import type {
 
 type Stage = 'pick' | 'dateOrder' | 'preview' | 'result';
 
-/** Signatuur van de store-acties (`taskSlice`): `previewProgressImport` muteert niets,
- *  `applyProgressImport` herberekent hetzelfde plan tegen de live taken en past het in één
- *  undo-stap toe. */
 type ProgressImportPlanFn = (
   rows: readonly ProgressRow[],
   overrides?: ProgressOverrides,
   opts?: { today?: string; conflictChoices?: ProgressConflictChoices },
 ) => ProgressImportPlan;
 
-/** Een blad van een ANDER project maakt alle rijen unmatched — tot
- *  `PROGRESS_IMPORT_LIMITS.maxRows` (50.000). Zonder grens rendert elke sectie evenveel DOM-knopen
- *  (en "wacht op koppeling"/"betwijfeld" evenveel `ProgressImportLinkPicker`s), wat de dialoog
- *  bevriest. Cap per sectie, met een tellerregel voor de rest (sleutel `moreRows`). */
 const MAX_RENDERED_ROWS = 200;
 
 function capRows<T>(rows: readonly T[]): { shown: readonly T[]; hiddenCount: number } {
@@ -50,10 +42,6 @@ function capRows<T>(rows: readonly T[]): { shown: readonly T[]; hiddenCount: num
   return { shown: rows.slice(0, MAX_RENDERED_ROWS), hiddenCount: rows.length - MAX_RENDERED_ROWS };
 }
 
-/** Datumveld → weergavewaarde: ALTIJD voluit via `formatDisplayDate`, nooit de rauwe ISO-string
- *  als enige weergave. Draagt de waarde een tijddeel, dan komt dat erachter. Ook gebruikt voor de
- *  datumvolgorde-vraag: `DateOrderDetection.sampleAlternatives` draagt twee
- *  ISO-datums, geen kant-en-klare weergavetekst — die formatteren we hier locale-bewust. */
 function formatIsoForDisplay(iso: string, locale: string, timeNotation: TimeNotation): string {
   const datePart = iso.slice(0, 10);
   const timePart = displayIsoTime(iso, timeNotation);
@@ -61,16 +49,12 @@ function formatIsoForDisplay(iso: string, locale: string, timeNotation: TimeNota
   return timePart ? `${dateLabel} ${timePart}` : dateLabel;
 }
 
-/** Exportmoment (ISO in UTC) → lokale datum en tijd, in de vorm die `formatIsoForDisplay` leest. */
 function localMinuteIso(iso: string): string {
   const date = new Date(iso);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${localTodayIso(date)}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
-/** Hele procenten blijven "33%", maar een significant verschil (33,4% vs 33%)
- *  mag niet tot dezelfde tekst afronden — één decimaal, met het decimaalteken van de locale
- *  (`Intl.NumberFormat` laat een overbodige ",0"/".0" vanzelf weg via het `0`-minimum). */
 function formatPercent(value: number, locale: string): string {
   return `${new Intl.NumberFormat(locale, { maximumFractionDigits: 1 }).format(value * 100)}%`;
 }
@@ -87,32 +71,16 @@ function formatChangeValue(
   return formatIsoForDisplay(value as string, locale, timeNotation);
 }
 
-/** Rijnummer → sheetrij, voor de secties die de RUWE bladwaarden tonen (rijen die nog op koppeling
- *  wachten hebben immers geen `taskLabel` — die komt van de gematchte taak). */
 function findSheetRow(rows: readonly ProgressRow[] | null, rowNumber: number): ProgressRow | undefined {
   return rows?.find(r => r.rowNumber === rowNumber);
 }
 
-/**
- * De voortgangsimportdialoog. Naar het model van `PoolImportDialog` — kies
- * bestand → (indien nodig) datumvolgorde-vraag → verplichte preview met handmatige koppelkiezer
- * → expliciete bevestiging → resultaatweergave. Vier toestanden, strikt na elkaar; geen
- * sneltoets eromheen, de preview is niet overslaanbaar.
- *
- * De dialoog draagt zijn eigen resultaat — geen `NotificationMessageKey`, geen `notify()`.
- * Bewaart het sheet, de gekozen datumvolgorde en de overrides, NIET het plan — `applyProgressImport`
- * herberekent tegen de live taken binnen dezelfde `set()` (drift-bestendig).
- * `showProgressImportDialog` blokkeert een documentwissel volledig (zie shortcutRegistry.ts,
- * useKeyboardShortcuts.ts, runtime.ts, documentSlice.ts) — dit scherm hoeft dus geen state over een
- * documentwissel heen te bewaren; die wissel kan simpelweg niet gebeuren zolang hij openstaat.
- */
 export function ProgressImportDialog() {
   const { t, i18n } = useTranslation();
   const open = useAppStore(s => s.ui.showProgressImportDialog);
   const setUI = useAppStore(s => s.setUI);
   const tasks = useAppStore(s => s.tasks);
   const timeNotation = useAppStore(s => s.ui.timeNotation);
-  // Store-acties — zie `ProgressImportPlanFn` hierboven.
   const previewProgressImport = useAppStore(s => s.previewProgressImport) as ProgressImportPlanFn;
   const applyProgressImport = useAppStore(s => s.applyProgressImport) as ProgressImportPlanFn;
 
@@ -124,24 +92,9 @@ export function ProgressImportDialog() {
   const [overrides, setOverrides] = useState<Map<number, string>>(new Map());
   const [conflictChoices, setConflictChoices] = useState<Map<number, ProgressConflictChoice>>(new Map());
   const [result, setResult] = useState<ProgressImportPlan | null>(null);
-  // Puur UI-comfort (niet in de kern, niet in de store): welke "Koppeling betwijfeld"-rijen de
-  // kiezer opengeklapt tonen na een klik op "Wijzigen". Los van `overrides` — "Wijzigen" mag de
-  // bestaande koppeling nog niet wissen, alleen de kiezer tonen zodat een andere taak gekozen kan worden.
   const [editingRows, setEditingRows] = useState<Set<number>>(new Set());
 
-  // Gememoïseerd, NIET in de render-body: `previewProgressImport` (tot 50.000 rijen) hoort niet bij
-  // elke render opnieuw te lopen (typen in een koppelkiezer is child-state van
-  // `ProgressImportLinkPicker` en kost zo geen herberekening).
-  //
-  // `tasks` staat WEL in de deps: `edit.undo`/`edit.redo` zijn onder deze dialoog dicht
-  // (`isEditShortcutBlocked` in shortcutRegistry.ts), maar elke andere route die `s.tasks` muteert
-  // terwijl de dialoog openstaat (bv. een MCP-tool of een toekomstige sneltoets zonder poort) moet het
-  // plan meenemen. Zonder `tasks` blijft het plan dan op de oude taken staan. `tasks` wordt niet TEKSTUEEL gebruikt in de
-  // closure hieronder (dat gebeurt binnen `previewProgressImport` zelf, via de store); de linter
-  // kan die indirecte afhankelijkheid niet zien, vandaar de gerichte suppressie hieronder.
   const plan = useMemo(
-    // UI-route: `today` zet dezelfde voortgangsregels aan als paneel en
-    // raster — zonder statusdatum op vandaag, geen verzonnen werkelijke start (`ProgressImportEntryOptions`).
     () => (stage === 'preview' && rows
       ? previewProgressImport(rows, overrides, { today: localTodayIso(), conflictChoices })
       : null),
@@ -175,9 +128,7 @@ export function ProgressImportDialog() {
   const loadSheet = async (res: { name: string; content: string; bytes?: Uint8Array }) => {
     const extension = extensionOf(res.name);
     if (extension === 'csv') { setFileIssue('csvNotSupported'); return; }
-    // Geen `.xlsx` of geen bytes ⇒ onleesbaar, nooit een gok.
     if (extension !== 'xlsx' || !res.bytes) { setFileIssue('unreadable'); return; }
-    // De xlsx-lezer laadt dynamisch: de ZIP/XLSX-code hoort niet in de hoofdbundel.
     const { parseProgressXlsx } = await import('@/services/progressImport/parseProgressXlsx');
     const parsed: ProgressSheet = await parseProgressXlsx(res.bytes);
     if (parsed.fileIssue) {
@@ -195,8 +146,6 @@ export function ProgressImportDialog() {
     }
   };
 
-  // Alleen op de dev-server: `?progressSheet=` (docs/dev-link.md) legt een blad klaar, zodat een check
-  // niet langs de bestandskiezer hoeft. De import valt uit elke productiebouw.
   useEffect(() => {
     if (!import.meta.env.DEV || isTauri()) return;
     void import('@/utils/devOpenLink').then(({ takeDevProgressSheet }) => {
@@ -214,12 +163,7 @@ export function ProgressImportDialog() {
 
   const pick = async () => {
     setFileIssue(null);
-    // Geen stil rood pad — een throw uit `openFileDialog`/de lezer (bv.
-    // een geweigerde bestandspermissie, of onverwachte inhoud die de parser zelf niet als `fileIssue`
-    // afvangt) zou anders een onafgehandelde promise-rejection zijn, zonder enige melding.
     try {
-      // `.csv` staat bewust in de filter: wie nog een CSV-blad heeft, ziet dat bestand en krijgt
-      // de uitleg dat het `.xlsx` moet zijn, in plaats van een lege map.
       const res = await openFileDialog(
         [{ name: 'Progress sheet', extensions: ['xlsx', 'csv'] }],
         { binaryExtensions: ['xlsx'] },
@@ -277,15 +221,11 @@ export function ProgressImportDialog() {
   const confirm = () => {
     if (!rows) return;
     const applied = applyProgressImport(rows, overrides, { today: localTodayIso(), conflictChoices });
-    // Een botsing die pas bij het herberekenen tegen de live taken opdook: er is niets geschreven, en
-    // de preview toont de rij nu met haar keuzeknoppen.
     if (applied.unresolvedConflictCount > 0) return;
     setResult(applied);
     setStage('result');
   };
 
-  /** Opslaan vanuit de ?-knop: dezelfde toepassing als Toepassen, maar daarna sluiten in plaats van
-   *  de resultaatstap tonen (Help opent erna). `false` = niets om toe te passen, venster blijft open. */
   const applyAndClose = (): boolean => {
     if (stage !== 'preview' || !rows || !plan || plan.appliedCount === 0 || plan.unresolvedConflictCount > 0) return false;
     applyProgressImport(rows, overrides, { today: localTodayIso(), conflictChoices });
@@ -293,9 +233,6 @@ export function ProgressImportDialog() {
     return true;
   };
 
-  // Per sectie hooguit `MAX_RENDERED_ROWS` DOM-rijen (en bij "wacht op
-  // koppeling"/"betwijfeld" evenveel `ProgressImportLinkPicker`s) — plain data-afleidingen, geen
-  // hooks nodig; `needsLinkRows`/`doubtfulRows`/`generalRows` zijn zelf al gememoïseerd hierboven.
   const cappedNeedsLink = capRows(needsLinkRows);
   const cappedDoubtful = capRows(doubtfulRows);
   const cappedConflicts = capRows(conflictRows);
@@ -322,7 +259,6 @@ export function ProgressImportDialog() {
   const showFieldValue = (field: ProgressFieldChange['field'], value: string | number | undefined) =>
     formatChangeValue(field, value, i18n.language, emptyLabel, timeNotation);
 
-  /** Wat sinds de export veranderde en de import niet verandert. */
   const renderSinceExport = (row: ProgressPlanRow) => {
     if (!row.keptApp && !row.plannedShifts) return null;
     return (
@@ -340,7 +276,6 @@ export function ProgressImportDialog() {
           <li key={shift.field}>
             {t('progressImport.sinceExport.shiftedField', {
               field: t(`progressImport.sinceExport.plannedField.${shift.field}`),
-              // Op dagen: de vergelijking kijkt ook alleen naar de dag.
               exported: formatDisplayDate(parseDate(shift.exported.slice(0, 10)), i18n.language),
               current: formatDisplayDate(parseDate(shift.current.slice(0, 10)), i18n.language),
             })}
@@ -374,8 +309,6 @@ export function ProgressImportDialog() {
     if (row.outcome === 'refused' && row.reason) {
       return <span style={{ color: 'var(--error)' }}>{t(`progressImport.reason.${row.reason}`)}</span>;
     }
-    // outcome === 'noop': een gekoppelde/betwijfelde rij zonder daadwerkelijke wijziging — niets
-    // te tonen, de taakregel zelf (WBS + naam) staat er al boven.
     return null;
   };
 
@@ -388,8 +321,6 @@ export function ProgressImportDialog() {
       <DialogHeader
         title={t('progressImport.title')}
         onClose={close}
-        // Vragen zolang er een ingelezen blad klaarstaat (datumvolgorde of voorbeeld); in de stap
-        // Bestand kiezen en na het resultaat staat er niets open, dan opent Help meteen.
         help={{
           articleId: PROGRESS_IMPORT_HELP_ARTICLE_ID,
           confirmLeave: { dirty: stage === 'dateOrder' || stage === 'preview', onSave: applyAndClose },
@@ -501,11 +432,6 @@ export function ProgressImportDialog() {
               </div>
             )}
 
-            {/* `detectDateOrder` levert `evidence: 'contradictoryNoSample'` wanneer het
-                bestand tegenstrijdig datumbewijs bevat maar er geen enkele cel is om de gebruiker
-                over te vragen — de app neemt dan dag-maand aan en informeert hier
-                achteraf; afwijkende datums zijn hieronder al als onleesbaar geweigerd. Alleen
-                aanwezig op de niet-ambiguous tak van `DateOrderDetection`, vandaar de guard. */}
             {detection && detection.order !== 'ambiguous' && detection.evidence === 'contradictoryNoSample' && (
               <div className="alert alert--warning flex items-center gap-2">
                 <Icon id="status.warning" size={16} />
@@ -537,8 +463,6 @@ export function ProgressImportDialog() {
                       data-ops-progress-row={row.rowNumber}
                       className="flex flex-col gap-1.5 border border-border rounded-[10px] p-2.5"
                     >
-                      {/* Zonder WBS/naam is het bron-ID de rijkop; ook zonder ID blijft het
-                          bladrijnummer een aanknopingspunt. De reden staat al vóór het koppelen. */}
                       <span className="font-medium text-text-primary break-words">
                         {sheetLabel || sheetTaskId || t('progressImport.sheetRowHint', { row: row.rowNumber })}
                       </span>
@@ -675,8 +599,6 @@ export function ProgressImportDialog() {
                 data-ops-progress-row={row.rowNumber}
                 className="flex flex-col gap-1 border border-border rounded-[10px] p-2.5"
               >
-                {/* Een geweigerde rij ZONDER koppeling heeft geen taaklabel — dan is het
-                    bladrijnummer het enige dat de gebruiker terug naar het bestand wijst. */}
                 <span className="font-medium text-text-primary">
                   {row.taskLabel ?? t('progressImport.sheetRowHint', { row: row.rowNumber })}
                 </span>

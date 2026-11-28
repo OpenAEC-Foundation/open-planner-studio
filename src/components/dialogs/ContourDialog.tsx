@@ -25,12 +25,9 @@ import { ContourPhaseStrip } from './ContourPhaseStrip';
 import { useEscapeCapture } from '@/hooks/useEscapeCapture';
 import { CONTOUR_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
-/** Kolomsleutels van de fasentabel in weergavevolgorde — de bewerkbare cellen voor de rasternavigatie. */
 const PHASE_GRID_FIELDS = ['days', 'units'] as const;
 type PhaseGridField = typeof PHASE_GRID_FIELDS[number];
 
-/** ContourShape → i18n-key in de common-namespace (`resource.curve.*`, dezelfde familie als
- *  `task-sections/shared.tsx`'s `CURVE_KEY`; FLAT deelt het label "Uniform"). */
 const SHAPE_KEY = {
   FLAT: 'resource.curve.uniform',
   FRONT_LOADED: 'resource.curve.frontLoaded',
@@ -44,37 +41,8 @@ const SHAPE_KEY = {
 
 const round2 = (n: number) => Math.round(n * 100) / 100;
 
-/**
- * Fasen-editor — het venster waarmee de gebruiker de urenverdeling van ÉÉN toewijzing
- * bewerkt, in FASEN: aaneengesloten reeksen werkdagen met één vaste inzet (`contourPhases.ts`).
- * Boven een sleepbare strook (`ContourPhaseStrip`), eronder dezelfde fasen als tabel (van/tot,
- * dagen, inzet, uren) met splitsen en samenvoegen; beide bewerken dezelfde `phases`-state.
- * Gestapeld bóven het eigenschappenpaneel óf de taakdialoog (`z-[60]` + `stopBackdropPropagation`,
- * hetzelfde patroon als `ConfirmDialog`), want de Toewijzingen-sectie leeft op beide plekken.
- *
- * Model (spec "alleen uren" §3.11): de werkdagen en het deel van elke dag komen uit dezelfde plaatsing
- * als het histogram en de nivelleerder (`contourDayModel` → `taskLoadPlacement`,
- * `assignmentLoadOnPlacement`). Een fase is een INZET per werkdag; het werk van een dag is inzet × deel
- * van de dag × werktijd per dag, dus een taak die wo 11:00 begint, telt wo half mee. Het VERRICHTE werk
- * (actual-periodes) staat alleen-lezen onder de blokken, het RESTERENDE werk is wat de fasen beschrijven.
- * Zonder opgeslagen contour is het vertrekpunt precies wat het histogram boekt (curve, exacte P6-/MSPDI-
- * curve of opgeslagen werk), zodat "Toepassen" zonder wijziging de huidige verdeling als data vastlegt en
- * niets anders. Opslaan schrijft één periode per stuk van de plaatsing (`contourPeriodsFromRates`), op de
- * split-as in de maat van de taak; de fasen zijn een weergavelaag. Toepassen ⇒
- * `setAssignmentContour(periodes)`; Loslaten ⇒ `null`. Geen enkele knop raakt een taakdatum of
- * een onderbreking (zie `contourEdit.ts`).
- *
- * De fasentabel is een LIVE raster (elke cel is een echt invoerveld) en volgt daarom dezelfde
- * toetsenbordregels als de resourcetabel (`useLiveGridNav` + `@/utils/gridNavigation`):
- * Enter/Shift+Enter omlaag/omhoog op elke cel, ↑/↓ alleen in een tekstveld (de dagen-spinner houdt
- * zijn native stappen), cellen zonder bruikbaar element (de afgeleide dagen van de laatste fase)
- * worden overgeslagen, en wie met het toetsenbord op een tekstcel landt, vervangt de waarde bij het
- * typen. Geen "Enter op de laatste rij maakt een rij": de laatste fase loopt tot het taakeinde.
- */
 export function ContourDialog({ assignmentId, onClose }: { assignmentId: string; onClose: () => void }) {
   const { t, i18n } = useTranslation('task');
-  // Inzet en uren in de getalnotatie van de taal (zelfde als de duurkolom: nl "1,71"); de
-  // invoervelden lezen komma én punt terug.
   const fmtNum = (n: number) => formatReportNumber(n, i18n.language);
   const fmtHours = (minutes: number) => fmtNum(minutes / 60);
   const { t: tCommon } = useTranslation('common');
@@ -91,13 +59,9 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
   const task = assignment ? tasks.find(x => x.id === assignment.taskId) : undefined;
   const resource = assignment ? resources.find(r => r.id === assignment.resourceId) : undefined;
 
-  // Vertrekpunt — één keer berekend bij het openen (lazy `useState`-initialisatie: de dialoog is
-  // modaal en de store wijzigt intussen niet door deze dialoog zelf).
   const [model] = useState(() => {
     if (!assignment || !task) return null;
     const engine = new CalendarEngine(calendarForEngine(resolveCalendar(task.calendarId, calendars, calendar)));
-    // Dezelfde contour als het histogram: gekoppeld over alle toewijzingen van de taak (knownbugs 233),
-    // zonder kostentoewijzingen (`contourSiblings`, #815).
     const siblings = contourSiblings(assignments.filter(a => a.taskId === task.id), costResourceIds(resources));
     const contour = contourLookup(siblings)(task, assignment);
     const days = contourDayModel(task, assignment, contour, engine, effectiveSchedulingOptions({ schedulingProfile, schedulingOptions }));
@@ -110,7 +74,6 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
       isos: days.isos,
       shares: days.shares,
       actual: days.actualMinutes,
-      // De strook tekent inzet: het verrichte werk van een deeldag als inzet over de hele dag.
       actualRate: days.actualMinutes.map((m, i) => (days.shares[i] > 0 ? m / days.shares[i] : 0)),
       hasActual: days.actualMinutes.some(m => m > 0),
       hasPartialDay: days.shares.some(sh => Math.abs(sh - 1) > 1e-6),
@@ -118,10 +81,8 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
   });
 
   const [phases, setPhasesState] = useState<ContourPhase[]>(() => model?.phases ?? []);
-  // Tekstdrafts voor de inzet-invoer (vrij typen; ongeldig ⇒ rode rand, geen commit).
   const [unitsText, setUnitsText] = useState<string[]>(() => (model?.phases ?? []).map(p => fmtNum(p.unitsPerDay)));
   const [selected, setSelected] = useState<number | null>(null);
-  // De fasen bij het openen: de ?-knop vraagt alleen iets als de verdeling is veranderd.
   const [initialPhases] = useState(() => JSON.stringify(model?.phases ?? []));
 
   const setPhases = (next: ContourPhase[]) => {
@@ -129,9 +90,6 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
     setUnitsText(next.map(p => fmtNum(p.unitsPerDay)));
   };
 
-  // Escape sluit ALLEEN dit venster: de globale Escape-sneltoets zou anders — met de focus op een
-  // knop i.p.v. een invoerveld — de taak deselecteren en daarmee het eigenschappenpaneel (en dit
-  // venster) onder de gebruiker wegtrekken.
   useEscapeCapture(onClose);
 
   const grid = useLiveGridNav<PhaseGridField>({
@@ -148,7 +106,6 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
   });
   const anyInvalid = invalidRows.some(Boolean);
   const totalDays = phasesTotalDays(phases);
-  // Inzet per werkdag (`slotsFromPhases` met 1 minuut per slot = de inzet zelf).
   const rates = slotsFromPhases(phases, 1);
   const remainingMinutes = remainingMinutesOfRates(rates, model.shares, model.mpd);
   const actualMinutes = model.actual.reduce((a, b) => a + b, 0);
@@ -167,7 +124,6 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
     for (let d = start; d < start + phases[index].days; d++) sum += model.actual[d] ?? 0;
     return sum;
   };
-  /** Het resterende werk van fase `index` in werkminuten: inzet × deel van elke dag × werktijd per dag. */
   const remainingMinutesOfPhase = (index: number) => {
     const start = phaseStartDay(phases, index);
     const days = phases[index].days;
@@ -194,7 +150,6 @@ export function ContourDialog({ assignmentId, onClose }: { assignmentId: string;
   const split = (index: number, afterDays: number) => { setPhases(splitPhase(phases, index, afterDays)); setSelected(index); };
   const merge = (index: number) => { setPhases(mergePhaseWithNext(phases, index)); setSelected(index); };
 
-  /** Toepassen; `false` = niets toegepast (ongeldige invoer), de dialoog blijft open. */
   const apply = (): boolean => {
     if (anyInvalid || totalDays === 0) return false;
     const periods = contourPeriodsFromRates(model.contour?.periods, rates, model.placement, model.mpd);
