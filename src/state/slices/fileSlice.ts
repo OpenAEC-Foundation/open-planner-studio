@@ -454,7 +454,7 @@ export interface FileSlice {
   refreshExternalAnchorsFrom: (filePath: string, labels?: ImportLabels) => Promise<{ refreshed: number; missing: number } | null>;
   refreshAllExternalAnchors: (labels?: ImportLabels) => Promise<ExternalRefreshAllResult>;
   readExternalSourceUpdate: (
-    update: Pick<ExternalSourceUpdate, 'locator' | 'openDocumentId'>, labels?: ImportLabels,
+    update: Pick<ExternalSourceUpdate, 'locator' | 'openDocumentId' | 'version'>, labels?: ImportLabels,
   ) => Promise<ExternalSourceRead | null>;
   openExampleFromString: (content: string, name: string, labels?: ImportLabels) => Promise<boolean>;
   applyLoadedProject: (parsed: ReadImportResult, opts: ApplyLoadedProjectOpts) => MinuteModelTransition | null;
@@ -906,13 +906,14 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
       if (get().activeDocumentId !== documentId) return;
       if (!src) continue;
       if (stale(key)) { discarded = true; continue; }
+      if (locator.kind === 'site' && src.version !== undefined && src.version !== version) continue;
       const tasks = get().tasks;
       const result = refreshExternalAnchors(tasks, src, externalSourceScopeOf(locator));
       const changes = externalAnchorChanges(tasks, result.tasks);
       const changedLinks = changes.length;
-      const readVersion = locator.kind === 'site' ? version : src.version ?? version;
+      const readVersion = src.version ?? version;
       if (changedLinks === 0) {
-        settledSourceVersions.set(sourceKey(documentId, key), src.version ?? version);
+        settledSourceVersions.set(sourceKey(documentId, key), readVersion);
         settled.add(key);
         continue;
       }
@@ -2752,7 +2753,11 @@ export const createFileSlice: AppSliceFactory<FileSlice> = (runtime) => (set, ge
     },
 
     readExternalSourceUpdate: async (update, labels) => {
-      if (update.openDocumentId === undefined) return get().readExternalSourceAt(update.locator, labels);
+      if (update.openDocumentId === undefined) {
+        const src = await get().readExternalSourceAt(update.locator, labels);
+        if (update.locator.kind === 'site' && src?.version !== undefined && src.version !== update.version) return null;
+        return src;
+      }
       const open = openDirtySource(update.locator);
       return open?.id === update.openDocumentId ? readOpenSource(open, update.locator, labels) : null;
     },
