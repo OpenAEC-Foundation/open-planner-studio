@@ -15,16 +15,15 @@ werkend.
 - **`ZipCompressionUnsupportedError` is een subklasse van `ZipValidationError`.** `parseZipEntries` valt bij een
   andere fout uit de central-directory-route terug op de local-header-scan; die zou in een omgeving zonder
   `DecompressionStream` dezelfde fout opnieuw geven, met een misleidende `console.warn` ertussen. Een eigen klasse,
-  zodat `decompressEntry` haar niet als budgetweigering herschrijft en de gebruiker niet "geen ZIP" ziet bij een
-  bestand dat niets mankeert.
+  zodat `decompressEntry` haar niet als budgetweigering herschrijft.
 - **`inflateRawBounded` en `deflateViaCompressionStream` wachten niet op `writer.write`.** Bij een grote buffer
   blokkeert `write` op backpressure zolang niemand de leeskant leest; fouten van de schrijfkant komen via
   `reader.read()` terug (uit het weggehaalde commentaar, niet nagegaan).
 - **Een bit-3-entry zonder vindbare data descriptor krijgt geen CRC-toets** (`crcKnown` in `parseViaLocalHeaders`).
-  Het local header draagt dan een nul in plaats van de CRC; die als waarheid nemen keurt elke zulke entry vals af.
-- **`writeZip` is deterministisch**: een vaste DOS-datum (1980-01-01 00:00), geen klok en geen locale, zodat twee
-  exports van hetzelfde project byte-gelijk zijn. De wijzigingsdatum draagt het bestandssysteem al.
-- **`writeZip` valt terug op methode 0 (store)** als `CompressionStream('deflate-raw')` ontbreekt; oudere
+  Het local header draagt dan een nul in plaats van de CRC; die als waarheid nemen kan zo'n entry vals afkeuren.
+- **`writeZip` is deterministisch**: een vaste DOS-datum (1980-01-01 00:00), geen klok en geen locale, zodat gelijke
+  invoer met dezelfde compressor byte-gelijke uitvoer geeft. De wijzigingsdatum draagt het bestandssysteem al.
+- **`writeZip` valt terug op methode 0 (store)** als `CompressionStream` ontbreekt; oudere
   WebKitGTK-webviews waren de reële twijfel (uit het weggehaalde commentaar, niet nagegaan). Een geldige ZIP met
   store opent in Excel en LibreOffice; het blad wordt alleen groter.
 - **`[Content_Types].xml` komt als eerste entry**: geen eis van de specificatie, maar wat gangbare OOXML-schrijvers
