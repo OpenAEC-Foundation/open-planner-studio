@@ -1,20 +1,4 @@
 #!/usr/bin/env node
-// Headless HTTP-API van Open Planner Studio op `node:http`, boven het gebouwde pakket
-// `@openaec/open-planner-core`. Contract: openapi.yaml; uitleg: docs/headless-api.md.
-//
-//   GET  /healthz                       zonder auth: status, versie en grenzen
-//   POST /v1/schedule?output=summary    IFC-tekst in, JSON-samenvatting uit (standaard)
-//   POST /v1/schedule?output=ifc        IFC-tekst in, herberekende IFC-tekst uit
-//
-// Configuratie alleen via omgevingsvariabelen (zie `loadConfig`). Zonder token start de server niet.
-//
-// Capaciteit (geen wachtrij): één berekening tegelijk, in een worker-thread met een harde deadline.
-// Is die bezig, of lopen er al `maxUploads` uploads, dan krijgt een nieuw verzoek METEEN 503 `BUSY`,
-// vóór de body gelezen wordt. Zo is het geheugen voor bodies begrensd op maxUploads × maxBodyBytes,
-// en duurt een geaccepteerd verzoek hooguit uploadtijd + rekentijd (onder de ALB-idle-timeout).
-//
-// Logging: één JSON-regel per verzoek naar stdout. Nooit IFC-inhoud, querystring of token. De
-// console-uitvoer van de worker (de rekenkern kan taak- of relatie-id's loggen) wordt weggegooid.
 import { createServer } from 'node:http';
 import { randomUUID, timingSafeEqual } from 'node:crypto';
 import { readFileSync } from 'node:fs';
@@ -23,12 +7,9 @@ import { fileURLToPath } from 'node:url';
 import { VERSION as CORE_VERSION } from '@openaec/open-planner-core';
 
 const MIB = 1024 * 1024;
-/** Bovengrenzen: uploadtijd (30 s) + rekentijd (85 s) = 115 s, onder de idle-timeout van de ALB
- *  (120 s, deploy/aws/ecs-fargate.yaml). Een geaccepteerd verzoek krijgt dus altijd zelf antwoord. */
 export const MAX_UPLOAD_MS = 30_000;
 export const MAX_CALCULATION_MS = 85_000;
 
-/** Lees de configuratie. Gooit bij een fout; de aanroeper stopt dan het proces. */
 export function loadConfig(env = process.env) {
   const intVar = (name, fallback, min, max) => {
     const raw = env[name];
@@ -57,26 +38,19 @@ export function loadConfig(env = process.env) {
   };
 }
 
-// ── Logging ────────────────────────────────────────────────────────────────────────────────────
 function log(level, msg, fields = {}) {
   try {
     process.stdout.write(`${JSON.stringify({ time: new Date().toISOString(), level, msg, ...fields })}\n`);
   } catch {
-    // Loggen mag het proces nooit stoppen.
   }
 }
 
-// ── Auth ───────────────────────────────────────────────────────────────────────────────────────
-/** Tokens zijn hooguit zo lang; beide kanten worden tot precies deze lengte aangevuld. */
 export const MAX_TOKEN_BYTES = 512;
 const padded = (value) => {
   const buf = Buffer.alloc(MAX_TOKEN_BYTES);
   buf.write(value, 'utf8');
   return buf;
 };
-/** Vergelijk in constante tijd: beide kanten aangevuld tot MAX_TOKEN_BYTES, dan `timingSafeEqual`.
- *  De duur hangt dus niet af van de inhoud of de lengte van het token. (Geen hash: dan meldt CodeQL
- *  een te zwakke wachtwoordhash, terwijl hier niets wordt opgeslagen.) */
 function tokenMatches(header, expected) {
   if (typeof header !== 'string') return false;
   const m = /^Bearer ([^\s]+)$/.exec(header);
@@ -85,7 +59,6 @@ function tokenMatches(header, expected) {
   return same && Buffer.byteLength(m[1]) === expected.length;
 }
 
-// ── Rekenen: één worker, één berekening tegelijk, geen wachtrij ────────────────────────────────
 class Calculator {
   constructor(timeoutMs) {
     this.timeoutMs = timeoutMs;
@@ -94,8 +67,6 @@ class Calculator {
   }
 
   #spawn() {
-    // stdout/stderr van de worker NIET naar het proces doorgeven: de kern logt soms id's uit het
-    // bestand (bijv. een relatie-id). Lezen en weggooien, anders loopt de buffer vol.
     const w = new Worker(fileURLToPath(new URL('./worker.mjs', import.meta.url)), { stdout: true, stderr: true });
     w.stdout.resume();
     w.stderr.resume();
@@ -103,7 +74,6 @@ class Calculator {
     return w;
   }
 
-  /** Alleen aanroepen als `busy` false is. */
   run(job) {
     this.busy = true;
     if (!this.worker) this.worker = this.#spawn();
@@ -148,7 +118,6 @@ class Calculator {
   }
 }
 
-// ── HTTP ───────────────────────────────────────────────────────────────────────────────────────
 const STATUS_OF = {
   INVALID_INPUT: 400,
   BAD_REQUEST: 400,
@@ -184,11 +153,6 @@ export function createApiServer(config) {
       ctx.errorCode = code;
       sendJson(STATUS_OF[code] ?? 500, { error: { code, message, ...extra } }, headers);
     };
-    // Antwoord vóór de body gelezen is: de rest weggooien (niet bewaren), zodat de client het
-    // antwoord kan lezen. Na 4× de body-grens of de uploadtijd verbreekt de server de verbinding.
-    // Bewust GEEN `Connection: close`: dan sluit Node de socket direct na het antwoord terwijl de
-    // client nog uploadt, en de TCP-reset kan het antwoord wegvagen (gezien in de containerjob: 413
-    // kwam als "fetch failed" aan).
     const failEarly = (code, message, headers = {}) => {
       fail(code, message, {}, headers);
       let discarded = 0;
@@ -242,7 +206,6 @@ export function createApiServer(config) {
     if (Number.isFinite(declared) && declared > config.maxBodyBytes) {
       return failEarly('PAYLOAD_TOO_LARGE', `The body is larger than ${config.maxBodyBytes} bytes`);
     }
-    // Capaciteit VÓÓR de body: een lopende berekening of te veel uploads ⇒ meteen 503.
     if (calculator.busy || uploads >= config.maxUploads) {
       return failEarly('BUSY', 'The server is busy; try again later', { 'Retry-After': '5' });
     }
@@ -282,7 +245,6 @@ export function createApiServer(config) {
       fail('UPLOAD_TIMEOUT', `The body did not arrive within ${config.uploadTimeoutMs} ms`, {}, { Connection: 'close' });
       return res.once('finish', () => req.destroy());
     }
-    // Intussen kan een andere upload de berekening hebben gekregen.
     if (calculator.busy) return fail('BUSY', 'The server is busy; try again later', {}, { 'Retry-After': '5' });
 
     const result = await calculator.run({ text: body.text, output });
@@ -304,8 +266,6 @@ export function createApiServer(config) {
   }
 
   const server = createServer({
-    // Node controleert requestTimeout/headersTimeout standaard maar elke 30 s; dan zou een trage
-    // upload tot een minuut te lang open kunnen blijven.
     connectionsCheckingInterval: 1_000,
   }, (req, res) => {
     const started = process.hrtime.bigint();
@@ -316,7 +276,6 @@ export function createApiServer(config) {
       bytesIn: 0,
       errorCode: undefined,
     };
-    // Een stream-fout zonder listener zou het proces stoppen.
     req.on('error', () => {});
     res.on('error', () => {});
     res.on('close', () => {
@@ -335,7 +294,7 @@ export function createApiServer(config) {
       res.setHeader('X-Request-Id', ctx.requestId);
       res.setHeader('Cache-Control', 'no-store');
       res.setHeader('X-Content-Type-Options', 'nosniff');
-    } catch { /* headers al verstuurd: niets te doen */ }
+    } catch { }
     handle(req, res, ctx).catch((err) => {
       log('error', 'unhandled', { requestId: ctx.requestId, error: err instanceof Error ? err.name : 'error' });
       try {
@@ -353,14 +312,10 @@ export function createApiServer(config) {
     });
   });
 
-  // headersTimeout ≤ requestTimeout (anders draait Node 22 ze om). requestTimeout is een vangnet
-  // boven de eigen uploaddeadline. keepAliveTimeout ligt boven de ALB-idle-timeout (120 s), anders
-  // sluit Node een verbinding die de ALB nog hergebruikt (502).
   server.requestTimeout = config.uploadTimeoutMs + 5_000;
   server.headersTimeout = Math.min(10_000, server.requestTimeout);
   server.keepAliveTimeout = 125_000;
   server.on('clientError', (_err, socket) => {
-    // Onleesbaar HTTP: kort 400 en sluiten. Nooit gooien.
     try {
       if (socket.writable) socket.end('HTTP/1.1 400 Bad Request\r\nConnection: close\r\nContent-Length: 0\r\n\r\n');
       else socket.destroy();
@@ -369,14 +324,13 @@ export function createApiServer(config) {
   return { server, calculator };
 }
 
-// ── Start als los proces ───────────────────────────────────────────────────────────────────────
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
   let config;
   try {
     config = loadConfig();
   } catch (err) {
     log('error', 'config', { error: err.message });
-    process.exit(78); // EX_CONFIG
+    process.exit(78);
   }
   const { server, calculator } = createApiServer(config);
   server.listen(config.port, config.host, () => {
@@ -386,8 +340,6 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
       maxBodyBytes: config.maxBodyBytes, timeoutMs: config.timeoutMs, uploadTimeoutMs: config.uploadTimeoutMs, maxUploads: config.maxUploads,
     });
   });
-  // Laatste vangnet: een fout buiten de verzoekafhandeling wordt gelogd (zonder inhoud), het proces
-  // blijft draaien. Een fout in de afhandeling zelf vangt `handle(...).catch` al.
   process.on('uncaughtException', (err) => log('error', 'uncaught', { error: err?.name ?? 'error' }));
   process.on('unhandledRejection', (err) => log('error', 'unhandled-rejection', { error: err?.name ?? 'error' }));
 
@@ -397,9 +349,7 @@ if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) {
     if (stopping) return;
     stopping = true;
     log('info', 'shutdown', { signal });
-    // Geen nieuwe verbindingen; lopende verzoeken (upload + berekening) mogen afmaken.
     const closed = new Promise((resolve) => server.close(() => resolve(true)));
-    // Een keep-alive-verbinding wordt pas na haar laatste antwoord idle: blijf die sluiten.
     const idle = setInterval(() => server.closeIdleConnections(), 100);
     idle.unref();
     server.closeIdleConnections();

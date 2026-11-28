@@ -1,31 +1,19 @@
 import { LOCALES, type Locale } from '@/i18n/locales';
 import { isRecord } from '@/utils/guards';
 
-/** Lokale, versiegebonden gegevens voor de visuele update-dialoog.
- *
- * Dit is nadrukkelijk geen tweede changelog. Elke release krijgt één nieuw blok
- * met precies vijf onderwerpen en alle locale copy; een volgende release raakt
- * het blok van een uitgebrachte versie dus niet.
- */
 export const HIGHLIGHT_ICONS = ['import', 'library', 'relations', 'tasks', 'examples'] as const;
 export type HighlightIcon = (typeof HIGHLIGHT_ICONS)[number];
 
-// Besluit eigenaar 2026-10-19: vanaf v2026.10.0 krijgt elk versieblok copy in alle UI-talen
-// (de lijst `LOCALES`, geen tweede lijst). Blokken van vóór 2026.10.0 zijn uitgebracht met de
-// veertien oorspronkelijke talen en blijven zo; die eisen we ook niet achteraf in 28 talen.
-// Een ontbrekende locale valt bij het tonen terug op `en` (zie getReleaseHighlightsFromCatalog).
 export const RELEASE_HIGHLIGHT_LOCALES = LOCALES;
 export type ReleaseHighlightLocale = Locale;
 export const LEGACY_RELEASE_HIGHLIGHT_LOCALES = ['nl', 'en', 'fr', 'de', 'es', 'zh', 'it', 'pt', 'pl', 'tr', 'ar', 'ja', 'ko', 'fa'] as const;
 export type LegacyReleaseHighlightLocale = (typeof LEGACY_RELEASE_HIGHLIGHT_LOCALES)[number];
-/** Eerste versie waarvoor alle UI-talen verplicht zijn. */
 export const ALL_LOCALES_FROM_VERSION = '2026.10.0';
 
 function versionParts(version: string): number[] {
   return version.replace(/^v/i, '').split('.').map(part => Number.parseInt(part, 10) || 0);
 }
 
-/** Locales die het versieblok van `version` verplicht moet bevatten. */
 export function requiredHighlightLocales(version: string): readonly ReleaseHighlightLocale[] {
   const a = versionParts(version);
   const b = versionParts(ALL_LOCALES_FROM_VERSION);
@@ -42,7 +30,6 @@ export interface LocalizedReleaseHighlight {
   readonly description: string;
 }
 
-/** Eén primary en exact vier secondary-kaarten: de vaste U4-layout. */
 export type LocalizedReleaseCopy = readonly [
   LocalizedReleaseHighlight,
   LocalizedReleaseHighlight,
@@ -51,13 +38,11 @@ export type LocalizedReleaseCopy = readonly [
   LocalizedReleaseHighlight,
 ];
 
-/** Alleen de prominente kaart mag naar een in-app gids verwijzen. */
 export interface PrimaryHighlightDefinition {
   readonly icon: HighlightIcon;
   readonly docsId?: string;
 }
 
-/** Compacte kaarten kennen bewust geen docsId en dus geen gidsknop. */
 export interface SecondaryHighlightDefinition {
   readonly icon: HighlightIcon;
 }
@@ -75,26 +60,19 @@ export interface ReleaseStats {
   readonly addedCodeLines: number;
 }
 
-/** De enige gegevens die een volgende release toevoegt: één volledig versieblok. */
 export interface VersionedReleaseHighlights {
   readonly primary: PrimaryHighlightDefinition;
   readonly secondary: FourSecondaryHighlightDefinitions;
   readonly stats: ReleaseStats;
-  /** De oorspronkelijke veertien talen zijn altijd verplicht; de rest vanaf 2026.10.0 (runtime-validatie). */
   readonly copy: Readonly<Record<LegacyReleaseHighlightLocale, LocalizedReleaseCopy>> & Partial<Record<ReleaseHighlightLocale, LocalizedReleaseCopy>>;
 }
 
 export type ReleaseHighlightCatalog = Readonly<Record<string, VersionedReleaseHighlights>>;
 
-/** Contextueel getypeerde ingang: ontbrekende locales, een vijfde kaart of een secondary docsId falen bij typecheck. */
 export function defineReleaseHighlightCatalog(catalog: Record<string, VersionedReleaseHighlights>): ReleaseHighlightCatalog {
   return catalog;
 }
 
-/**
- * Leesvorm voor de bestaande, onveranderde U4-component. De catalogus en de
- * specifiekere varianten hieronder begrenzen waar een docsId terecht mag komen.
- */
 export interface ReleaseHighlight extends LocalizedReleaseHighlight {
   readonly icon: HighlightIcon;
   readonly docsId?: string;
@@ -118,8 +96,6 @@ export interface ReleaseHighlights {
   readonly stats: ReleaseStats;
 }
 
-// Cijfers zijn bij v2026.8.1 uit v2026.8.0..v2026.8.1 bepaald: git rev-list
-// --count en git diff --numstat met docs, i18n, lock- en gegenereerde bestanden uitgesloten.
 export const RELEASE_HIGHLIGHT_CATALOG = defineReleaseHighlightCatalog({
   '2026.48.0': {
     primary: { icon: 'relations', docsId: 'howto-relaties-leggen' },
@@ -379,7 +355,7 @@ export function getReleaseHighlightsFromCatalog(catalog: ReleaseHighlightCatalog
   const normalizedVersion = version.replace(/^v/i, '');
   const release = catalog[normalizedVersion];
   if (!release) return null;
-  const copy = release.copy[locale.split('-')[0] as ReleaseHighlightLocale] ?? release.copy.en; // terugval op en voor een ontbrekende locale
+  const copy = release.copy[locale.split('-')[0] as ReleaseHighlightLocale] ?? release.copy.en;
   const [primaryCopy, secondaryOne, secondaryTwo, secondaryThree, secondaryFour] = copy;
   return {
     version: normalizedVersion,
@@ -402,7 +378,6 @@ export function isSafeHighlightIcon(icon: string): icon is HighlightIcon {
   return (HIGHLIGHT_ICONS as readonly string[]).includes(icon);
 }
 
-/** Alleen volledige CalVer-tags tellen mee als voorganger van een stabiele release. */
 export function isStableReleaseTag(tag: string): boolean {
   return /^v\d+\.\d+\.\d+$/.test(tag);
 }
@@ -411,7 +386,6 @@ function unexpectedFields(value: unknown, allowed: readonly string[]): string[] 
   return isRecord(value) ? Object.keys(value).filter(key => !allowed.includes(key)) : ['(geen object)'];
 }
 
-/** Runtime-tegenhanger van het TypeScript-contract voor de taggebonden releasepoort. */
 export function validateReleaseHighlightCatalog(catalog: ReleaseHighlightCatalog, version: string): string[] {
   const normalizedVersion = version.replace(/^v/i, '');
   const release = catalog[normalizedVersion] as unknown;
@@ -473,7 +447,6 @@ export function validateReleaseHighlightCatalog(catalog: ReleaseHighlightCatalog
   return errors;
 }
 
-/** Vergelijk de bewaarde releasecijfers met de reproduceerbare Git-meting van de releasepoort. */
 export function validateReleaseHighlightStats(catalog: ReleaseHighlightCatalog, version: string, measured: ReleaseStats): string[] {
   const normalizedVersion = version.replace(/^v/i, '');
   const configured = catalog[normalizedVersion];

@@ -3,19 +3,12 @@ import type { AppQuitDependencies } from './appQuitController';
 import { closeProjectFileWrites } from '@/services/fileAccess/writeCoordinator';
 import { claimShutdown } from './shutdownPhase';
 
-/**
- * De randen van `createAppQuitController` voor één storecontext. Los van `useAppCloseGuard`, zodat
- * de echte route (open invoer afronden → dirty-controle → sluitvraag) headless te toetsen is
- * (`tests/planning/check-app-quit.ts`); de hook voegt alleen het Tauri-venster toe.
- */
 export function appQuitDependencies(
   context: AppStoreContext,
   edges: Pick<AppQuitDependencies, 'stopRecovery' | 'clearRecovery' | 'destroyWindow'>,
 ): AppQuitDependencies {
   const { store, runtime } = context;
   return {
-    // Open veldinvoer zonder blur eerst afronden (review #401): anders ziet de dirty-controle hem
-    // niet en gaat hij zonder sluitvraag verloren.
     finishPendingInput: () => runtime.finishPendingTextEdits(),
     listDocuments: () => store.getState().getOpenDocumentPayloads()
       .map(({ id, payload }) => ({ id, isDirty: payload.isDirty })),
@@ -24,7 +17,6 @@ export function appQuitDependencies(
     setQuitPending: (pending) => store.getState().setUI({ appQuitPending: pending }),
     waitForSaves: () => store.getState().waitForSavesBeforeClose(),
     claimShutdown: () => claimShutdown('quit'),
-    // #804 stap 3, fixronde 1: dicht tot en met `destroyWindow`; daarna (of als die mislukt) weer open.
     closeWrites: async () => {
       store.getState().setUI({ appClosing: true });
       const reopen = await closeProjectFileWrites();
@@ -33,8 +25,6 @@ export function appQuitDependencies(
         store.getState().setUI({ appClosing: false });
       };
     },
-    // Elke mislukte of geweigerde opslag meldt zich rood. Een nieuwe melding is een nieuw object, en een samengevouwen
-    // herhaling ("×2") vervangt het object van de bestaande (Immer); beide tellen dus als nieuw.
     watchFailures: () => {
       const errors = () => store.getState().ui.notifications.filter((n) => n.severity === 'error');
       const seen = new Set(errors());
