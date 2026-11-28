@@ -13,8 +13,6 @@ import type { CustomTaskTypeDraft } from '@/types/taskType';
 import { withTaskTypeColors } from '@/services/taskTypes/customTaskTypeColors';
 import { buildRecordedTime, type RecordedTime } from '@/engine/scheduler/recordedDates';
 
-/** Een gevulde datumcel die de bestaande CSV-datumparser niet herkent: de hele import weigeren.
- *  `row` telt CSV-records inclusief de kop; lege records tellen niet mee. */
 export class CsvDateImportError extends Error {
   constructor(readonly row: number, readonly column: string, readonly value: string) {
     super(`CSV record ${row}, column ${JSON.stringify(column)}: unrecognised date ${JSON.stringify(value)}. Use YYYY-MM-DD, DD-MM-YYYY or DD/MM/YYYY.`);
@@ -24,14 +22,11 @@ export class CsvDateImportError extends Error {
 
 interface ParsedRow {
   wbs: string;
-  /** 'Outline Level'-kolom (1 = hoofdniveau); undefined als de kolom ontbreekt. */
   outlineLevel?: number;
   name: string;
   duration: number;
   start: string;
   finish: string;
-  /** Lege/ontbrekende Start- of Finish-cel: `start`/`finish` dragen dan de vandaag-plaatshouder, die
-   *  `resolveMissingScheduleDates` vervangt (projectstart / start + duur). */
   startMissing: boolean;
   finishMissing: boolean;
   predecessors: string;
@@ -42,28 +37,17 @@ interface ParsedRow {
   actualFinish?: string;
   critical: boolean;
   totalFloat: number;
-  /** Zie de toelichting bij `rows.push` in `readCSV`. */
   recorded?: RecordedTime;
   description: string;
 }
 
 function detectDelimiter(content: string): string {
-  // Check first line for delimiter
   const firstLine = content.split(/\r?\n/)[0] || '';
   const semicolons = (firstLine.match(/;/g) || []).length;
   const commas = (firstLine.match(/,/g) || []).length;
   return semicolons >= commas ? ';' : ',';
 }
 
-/**
- * Splits de CSV-tekst in RECORDS in plaats van in fysieke regels: een regeleinde BINNEN een
- * aanhalingsteken-veld hoort bij de cel (RFC 4180 — `escapeCSV` in `csvWriter.ts` zet zo'n cel juist
- * tussen aanhalingstekens). Een kale `split(/\r?\n/)` knipte zo'n meerregelige omschrijving in
- * losse "taken" en schoof de rest van de rij over de kolommen. Een `"` opent alleen AAN HET BEGIN
- * van een veld een quote-veld, zodat een losse inch-quote midden in een ongequote cel (`Pijp 5"`) niet
- * de rest van het bestand tot één record maakt; binnen een quote-veld is `""` een letterlijke `"`.
- * Lege records vallen weg, zoals voorheen de lege regels.
- */
 function splitCSVRecords(content: string, delimiter: string): string[] {
   const records: string[] = [];
   let inQuotes = false;
@@ -85,7 +69,6 @@ function splitCSVRecords(content: string, delimiter: string): string[] {
       start = i + 1;
       fieldStart = true;
     } else {
-      // Witruimte na het scheidingsteken (`a, "b,c"`) houdt het veldbegin open (review 2026-09-28).
       fieldStart = ch === delimiter || (fieldStart && (ch === ' ' || ch === '\t'));
     }
   }
@@ -97,8 +80,6 @@ function parseCSVLine(line: string, delimiter: string): string[] {
   const fields: string[] = [];
   let current = '';
   let inQuotes = false;
-  // Zelfde regel als `splitCSVRecords`: alleen een `"` aan het begin van een veld opent een
-  // quote-veld; een losse `"` elders (`Pijp 5"`) is gewone tekst en slokt het scheidingsteken niet op.
   let fieldStart = true;
 
   for (let i = 0; i < line.length; i++) {
@@ -125,7 +106,6 @@ function parseCSVLine(line: string, delimiter: string): string[] {
         fieldStart = true;
       } else {
         current += ch;
-        // Witruimte vóór een openende quote (`a, "b,c"`) houdt het veldbegin open, zoals vroeger.
         if (atFieldStart && (ch === ' ' || ch === '\t')) fieldStart = true;
       }
     }
@@ -135,36 +115,22 @@ function parseCSVLine(line: string, delimiter: string): string[] {
 }
 
 function parseTaskType(s: string): TaskType {
-  // CSV-specifieke normalisatie: hoofdletters + trim (`construction` → `CONSTRUCTION`).
   const upper = s.toUpperCase().trim();
   return TASK_TYPES.includes(upper as TaskType) ? (upper as TaskType) : 'CONSTRUCTION';
 }
 
-/** CSV-datum: ISO of `DD-MM-YYYY`/`DD/MM/YYYY`; gedeeld met de import-datumhelper. */
 function parseDate(s: string, row: number, column: string, preserveTime = false): string {
-  // Werkelijke ISO-momenten behouden hun wandklok, ook bij een dagenmaat-taak (352).
   if (preserveTime && /^\d{4}-\d{2}-\d{2}T/.test(s)) {
     const instant = importDateTimeOrUndefined(s, true);
     if (instant === undefined) throw new CsvDateImportError(row, column, s);
     return instant;
   }
-  // Voor de datumroute alleen onherkende, gevulde cellen weigeren; geen strengere kalendervalidatie.
-  // De bestaande terugval voor lege datums en de drie herkende vormen blijven gelijk.
   if (s.trim() && csvDate(s) === undefined) throw new CsvDateImportError(row, column, s);
   return csvDateOrToday(s);
 }
 
 type ParsedLag = Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinutes'>;
 
-// Pattern: WBS_CODE + TYPE + optional LAG (MS Project-notatie)
-// e.g. "1.1FS+2d" (werkdagen), "1.3SS-1d", "1.2FF+3ed" (kalenderdagen/elapsed), "1.7FS+2u" (werkuren),
-//      "1.8FS+3eu" (elapsed uren), "1.5SS+50%" (procent van voorgangerduur), "1.6FS-25e%", "1.4"
-// De code is VRIJE TEKST (`T107`, `A-01` uit een IFC-/P6-import), niet `[\d.]+` — lazy `.+?` laat
-// het type-achtervoegsel en de lag het einde bepalen. De lag is de korte notatie van de app
-// (`formatLagShort` schrijft hem, `parseLagInput` leest hem): de eenheden komen uit
-// `LAG_UNIT_SUFFIXES`, zodat CSV nooit een eigen, smallere lag-notatie heeft. Het teken is hier
-// verplicht (anders is "1.12" niet van "1.1" + lag 2 te onderscheiden).
-// Nieuwe exports gebruiken een decimale komma in de lag; oude exports een punt.
 const PREDECESSOR_TOKEN = new RegExp(
   `^(.+?)\\s*(FS|FF|SS|SF)?\\s*([+-]\\d+(?:\\.\\d+)?(?:${LAG_UNIT_SUFFIXES})?)?$`, 'i',
 );
@@ -172,8 +138,6 @@ const PREDECESSOR_TOKEN = new RegExp(
 function parsePredecessorString(predStr: string): { wbs: string; type: SequenceType; lag: ParsedLag }[] {
   if (!predStr.trim()) return [];
   const results: { wbs: string; type: SequenceType; lag: ParsedLag }[] = [];
-  // Normaliseer uitsluitend een decimale komma in een expliciete relatie-lag vóór het splitsen.
-  // WBS-codes met punten en oude lijsten zonder spatie blijven zo gelijk.
   const decimalLag = new RegExp(
     `((?:FS|FF|SS|SF)[+-]\\d+),(\\d+(?:${LAG_UNIT_SUFFIXES}))(?=\\s*(?:,|$))`, 'gi',
   );
@@ -204,20 +168,6 @@ function parsePredecessorString(predStr: string): { wbs: string; type: SequenceT
   return results;
 }
 
-/**
- * Het getal vooraan een CSV-cel — zoals `parseFloat` ("5 days" ⇒ 5, "2.5" ⇒ 2.5), maar met een
- * DECIMALE KOMMA waar die eenduidig is ("2,5" mag niet stil 2 worden, "33,4" niet stil 33).
- * - Scheidingsteken ";": een komma in een cel is het decimaalteken. ";" als lijstscheider is precies
- *   wat spreadsheets met een komma-decimale landinstelling (nl/de/fr) schrijven, en hun
- *   duizendtalscheider is "." of een spatie — nooit ",".
- * - Scheidingsteken ",": een komma kan dan alleen in een GEQUOTE cel staan (Google Sheets met een
- *   komma-decimale landinstelling doet dat, `"2,5"`). "2,5", "0,125" en "33,45" zijn ook daar alleen
- *   als decimaal te lezen, maar "1,250" (1–3 cijfers zonder voorloopnul, komma, precies 3 cijfers) is
- *   net zo goed Engelse duizendtalnotatie (1250). Dat scheelt een factor 1000, dus niet gokken: NaN —
- *   de aanroeper valt terug op zijn gewone "onleesbaar"-pad en meldt de cel.
- * Meer groepen ("1,250,000", "1.250,5") vallen buiten de kommaregel en houden het
- * `parseFloat`-gedrag, net als elke cel zonder komma (oude OPS-exports schrijven een decimale punt).
- */
 function readCsvNumber(raw: string, delimiter: string): number {
   const m = /^\s*([+-]?\d+),(\d+)(?![\d.,])/.exec(raw);
   if (!m) return parseFloat(raw);
@@ -225,17 +175,6 @@ function readCsvNumber(raw: string, delimiter: string): number {
   return parseFloat(`${m[1]}.${m[2]}`);
 }
 
-/**
- * Completion-cel → fractie 0..1, of `undefined` als de cel niet leesbaar is (de aanroeper meldt hem
- * en neemt 0 = "geen voortgang", de golden rule van `normalizeImportedProgress`).
- *
- * Een %-markering — in de KOP ("Completion (%)", "% complete") of in de CEL zelf ("33%") — betekent
- * altijd procent, met exact dezelfde parser als "Voortgang importeren" (`parseSheetPercent`): "1" is
- * 1 %, "0,5" is 0,5 %, "150" is buiten bereik. Zo leest Openen onze eigen export (hele procenten) en
- * een teruggestuurd voortgangsblad precies zoals de voortgangsimport. Alleen een kop ZONDER %
- * ("Completion", "Percent", "Voltooiing") draagt geen eenheid; daar geldt de heuristiek "≤ 1 is een
- * fractie, > 1 is procent" voor derde tools die 0..1 schrijven.
- */
 function parseCompletionCell(raw: string, headerIsPercent: boolean, delimiter: string): number | undefined {
   if (!raw.trim()) return 0;
   if (headerIsPercent || raw.includes('%')) {
@@ -257,8 +196,6 @@ function mapColumnIndex(headers: string[]): Record<string, number> {
     start: ['start', 'start date', 'begin', 'startdatum'],
     finish: ['finish', 'finish date', 'end', 'end date', 'eind', 'einddatum'],
     predecessors: ['predecessors', 'predecessor', 'voorgangers', 'depends on', 'links'],
-    // `Task Type` is de exportkop (blijft); in de UI heet dit begrip nu *Werksoort* / *Work category*
-    // (eigenaarsbesluit 2026-10-17), dus die koppen herkent de lezer ook.
     taskType: ['task type', 'type', 'tasktype', 'taaktype', 'werksoort', 'work category'],
     customTaskTypeId: ['ops custom task type id'],
     completion: ['completion', 'completion (%)', '% complete', 'percent', 'voltooiing'],
@@ -282,7 +219,6 @@ function mapColumnIndex(headers: string[]): Record<string, number> {
 }
 
 export function readCSV(content: string): ImportResult {
-  // Strip BOM
   const clean = content.replace(/^\uFEFF/, '');
   const delimiter = detectDelimiter(clean);
   const lines = splitCSVRecords(clean, delimiter);
@@ -295,8 +231,6 @@ export function readCSV(content: string): ImportResult {
   const colMap = mapColumnIndex(headers);
   const completionIsPercent = colMap.completion !== undefined && headers[colMap.completion].includes('%');
 
-  // Cellen met een getal dat we niet (eenduidig) konden lezen: die krijgen de terugval van hun kolom
-  // en worden hieronder gemeld — nooit een stille gok.
   const unreadable: string[] = [];
   const numberOr = (raw: string, fallback: number): number => {
     const n = readCsvNumber(raw, delimiter);
@@ -305,7 +239,6 @@ export function readCSV(content: string): ImportResult {
     return fallback;
   };
 
-  // Parse all rows
   const rows: ParsedRow[] = [];
   for (let i = 1; i < lines.length; i++) {
     const fields = parseCSVLine(lines[i], delimiter);
@@ -319,14 +252,9 @@ export function readCSV(content: string): ImportResult {
       completion = 0;
     }
 
-    // Actuals — leeg ⇒ undefined (invarianten via normalizeImportedProgress).
     const actualStartRaw = get('actualStart').trim();
     const actualFinishRaw = get('actualFinish').trim();
 
-    // "Datums zoals opgeslagen" voor CSV ("vergelijk wat er is"):
-    // alleen kolommen die het bestand ÉCHT heeft en die voor deze rij gevuld zijn tellen als
-    // vastlegging — een ontbrekende kolom is "niet vastgelegd", nooit de `vandaag`-/`0`-terugval
-    // die `task.time` hieronder wél krijgt. Late datums kent een CSV niet.
     const recordedStartRaw = colMap.start !== undefined ? get('start').trim() : '';
     const recordedFinishRaw = colMap.finish !== undefined ? get('finish').trim() : '';
     const recordedFloatRaw = colMap.totalFloat !== undefined ? get('totalFloat').trim() : '';
@@ -346,8 +274,6 @@ export function readCSV(content: string): ImportResult {
       wbs: get('wbs'),
       ...(outlineLevelRaw ? { outlineLevel: parseInt(outlineLevelRaw, 10) } : {}),
       name: get('name', 'Task'),
-      // Duur 0 is een mijlpaal, geen reden voor de default: alleen een ONLEESBARE waarde valt terug
-      // op de default. Een fractionele dag blijft bewust fractioneel (niet afronden).
       duration: numberOr(get('duration', '5'), 5),
       start: parseDate(get('start'), i + 1, headers[colMap.start]),
       finish: parseDate(get('finish'), i + 1, headers[colMap.finish]),
@@ -369,13 +295,9 @@ export function readCSV(content: string): ImportResult {
     console.warn(`CSV-import: ${unreadable.length} cel(len) met een onleesbaar, dubbelzinnig of onmogelijk getal (${unreadable.slice(0, 5).join(', ')}${unreadable.length > 5 ? ', …' : ''}) — standaardwaarde van de kolom gebruikt.`);
   }
 
-  // Create tasks and map WBS -> task id
   const tasks: Task[] = [];
   const wbsToId = new Map<string, string>();
   const recordedTimes: Record<string, RecordedTime> = {};
-  // Een niet-IFC-classificatie uit CSV is geen reden om gegevens naar CONSTRUCTION te degraderen.
-  // Hij wordt uitsluitend in dit geïmporteerde project een USERDEFINED-type, nooit automatisch
-  // onderdeel van de persoonlijke app-brede lijst.
   const customById = new Map<string, CustomTaskTypeDraft>();
   const customIdByName = new Map<string, string>();
   const registerCustomType = (type: CustomTaskTypeDraft): CustomTaskTypeDraft | undefined => {
@@ -407,14 +329,10 @@ export function readCSV(content: string): ImportResult {
     let customTaskTypeId: string | undefined;
     if (row.customTaskTypeId) {
       customTaskTypeId = row.customTaskTypeId;
-      // Een ontbrekende catalogusnaam is beschadigd maar niet fataal: de stabiele id blijft aan
-      // de taak hangen en de UI toont de neutrale USERDEFINED-terugval. Onze eigen CSV schrijft
-      // normaal de leesbare naam in Task Type; USERDEFINED betekent dus expliciet "naam ontbreekt".
       if (rawType && rawType.toUpperCase() !== 'USERDEFINED') {
         registerCustomType({ id: customTaskTypeId, name: rawType });
       }
     } else if (rawType && !isBuiltin) {
-      // OPS schrijft een stabiel id mee. Externe CSV zonder dat veld blijft op de naam gededupliceerd.
       const key = rawType.toLocaleLowerCase();
       const existingId = customIdByName.get(key);
       let custom = existingId ? customById.get(existingId) : undefined;
@@ -431,16 +349,13 @@ export function readCSV(content: string): ImportResult {
       wbsCode: row.wbs,
       taskType: customTaskTypeId ? 'USERDEFINED' : parsedType,
       ...(customTaskTypeId ? { customTaskTypeId } : {}),
-      status: 'NOT_STARTED', // afgeleid door normalizeImportedProgress uit completion/actuals
+      status: 'NOT_STARTED',
       isMilestone: row.duration === 0,
-      // De gedeelde default (500, zoals addTask en de IFC-/MSPDI-/P6-/MPP-lezers) — CSV draagt geen
-      // prioriteit.
       priority: DEFAULT_PRIORITY,
       parentId: null,
       childIds: [],
       time: {
         durationType: 'WORKTIME',
-        // CSV draagt geen per-taak-eenheid: een naakte CSV-duur is deterministisch dagen.
         durationUnit: 'days',
         scheduleDuration: row.duration,
         scheduleStart: row.start,
@@ -460,26 +375,14 @@ export function readCSV(content: string): ImportResult {
     });
   }
 
-  // Ontbrekende Start/Finish (gedeelde regel, vóór de voortgang-invarianten): CSV draagt geen
-  // projectstart, dus het anker is de vroegste aanwezige taakstart; het document krijgt de
-  // standaardkalender, dus start + duur is op díe kalender eenduidig.
   const calendar = createDefaultCalendar();
   const projectStart = resolveMissingScheduleDates(tasks, missing, '', () => calendar);
 
-  // Voortgang-invarianten op de rauw ingelezen actuals. CSV kent geen statusdatum; de kalender zet een
-  // afgeleid einde naast een starttijd op het einde van de werkdag.
   normalizeImportedProgress(tasks, undefined, undefined, calendar);
 
-  // Parent-child-hiërarchie: 'Outline Level'-kolom + rijvolgorde, met de gepunte WBS als
-  // scheidsrechter én terugval — beslisregel bij `rebuildImportedHierarchy` (gedeeld met MSPDI).
   rebuildImportedHierarchy(tasks, rows.map(r => r.outlineLevel));
-  // Een taak mét kinderen is nooit een mijlpaal — de duur-0-gok hierboven kende de
-  // boom nog niet (spiegel van de writer-guard in `mspdiWriter.ts`).
   for (const task of tasks) if (task.childIds.length > 0) task.isMilestone = false;
 
-  // Parse predecessors into sequences. `tasks[i]` ↔ `rows[i]` is per constructie 1-op-1 (één push
-  // per rij hierboven), dus op index — niet `rows.find` op WBS-code, die bij dubbele of lege codes
-  // stil de verkeerde rij pakt.
   const sequences: Sequence[] = [];
   let unresolvedPredecessors = 0;
   let ambiguousPredecessors = 0;
@@ -501,7 +404,6 @@ export function readCSV(content: string): ImportResult {
           type: pred.type,
           lagDays: pred.lag.lagDays,
         };
-        // Alleen gezette velden.
         if (pred.lag.lagUnit) seq.lagUnit = pred.lag.lagUnit;
         if (pred.lag.lagPercent !== undefined) seq.lagPercent = pred.lag.lagPercent;
         if (pred.lag.lagMinutes !== undefined) seq.lagMinutes = pred.lag.lagMinutes;
@@ -509,8 +411,6 @@ export function readCSV(content: string): ImportResult {
       }
     }
   }
-  // Weggelaten-/onzeker-met-warn (zelfde patroon als de exporters): een voorganger die op geen enkele
-  // WBS-code past is weg; een die op een DUBBELE code past is aan de laatste rij met die code gehangen.
   if (unresolvedPredecessors > 0) {
     console.warn(`CSV-import: ${unresolvedPredecessors} voorganger(s) verwijzen naar een WBS-code die in het bestand niet voorkomt — relatie(s) overgeslagen.`);
   }
@@ -518,7 +418,6 @@ export function readCSV(content: string): ImportResult {
     console.warn(`CSV-import: ${ambiguousPredecessors} voorganger(s) verwijzen naar een WBS-code die meer dan één keer voorkomt — gekoppeld aan de laatste rij met die code.`);
   }
 
-  // Build project
   const allFinishes = tasks.map(t => t.time.scheduleFinish).filter(Boolean).sort();
 
   const project: Project = {
@@ -542,7 +441,6 @@ export function readCSV(content: string): ImportResult {
     resources: [],
     assignments: [],
     customTaskTypes: withTaskTypeColors([...customById.values()]),
-    // Rekenprofielen: CSV ⇒ OPS (defaultOptionsFor('ops') is leeg).
     suggestedProfileId: 'ops',
     ...(Object.keys(recordedTimes).length > 0 ? { recordedTimes, recordedTimesOrigin: 'csv' as const } : {}),
   };
