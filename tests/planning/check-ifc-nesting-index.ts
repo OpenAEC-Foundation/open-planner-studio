@@ -11,6 +11,9 @@ const same = (actual: unknown, expected: unknown, label: string) => {
   checks++;
 };
 
+// Meerdere relaties voor dezelfde ouder, herhalingen binnen/over relaties, ongeldige refs
+// en een kind dat later nog aan een andere ouder hangt. De bestaande bestandsvoorrang blijft:
+// eerste verschijning bepaalt de kindvolgorde; laatste ouderrelatie bepaalt child.parentId.
 {
   const input = createIfcNestingFixture(20, 'breed');
   const original = writeIFC(input);
@@ -40,9 +43,11 @@ const same = (actual: unknown, expected: unknown, label: string) => {
   same(task(c.id).parentId, a.id, 'ook een gededupliceerd kind krijgt de laatste ouder');
   same(task(d.id).parentId, a.id, 'onbekende en niet-taakrefs veranderen geen taak');
   same(task(a.id).parentId, null, 'een onbekende ouder wordt overgeslagen');
+  // Een nieuwe import krijgt een nieuwe index; na verwijderen van een relatie blijft niets hangen.
   same(readIFC(original).tasks[0].childIds, input.tasks.slice(1).map(t => t.id), 'geen index over imports heen');
 }
 
+// Schaalregressie zonder instabiele tijdsgrens; de vergelijkende CI-meting staat apart.
 for (const size of [1_000, 5_000, 10_000]) {
   const input = createIfcNestingFixture(size, 'breed');
   const first = readIFC(writeIFC(input));

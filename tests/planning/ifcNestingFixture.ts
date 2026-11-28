@@ -1,3 +1,4 @@
+// Gedeelde deterministische invoer voor regressie en vergelijking van de volledige IFC-lezer.
 import { generateBenchmarkProject } from '@/services/benchmark/generateProject';
 import type { ImportResult } from '@/services/importTypes';
 
@@ -6,6 +7,8 @@ export type NestingShape = 'breed' | 'verdeeld';
 export function createIfcNestingFixture(size: number, shape: NestingShape): ImportResult {
   const input = generateBenchmarkProject(size, { seed: 0x1fc2026, resourceCount: 8 });
   if (shape === 'breed') {
+    // Een geïmporteerde werkpakkettenlijst onder één fase, met hetzelfde relatienetwerk,
+    // dezelfde resources en toewijzingen als de gewone WBS. Exact size taken, geen lege fasen.
     const root = input.tasks[0];
     for (const task of input.tasks) {
       task.childIds = [];

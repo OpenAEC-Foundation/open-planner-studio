@@ -6596,6 +6596,12 @@ en noem het in je rapport of PR-tekst.
       afkeuren. Controle 1 en 2 gedraaid op aia09-mp50; controle 3 alleen in de code gelezen en nagespeeld, nog niet
       gebouwd. — S
 
+2810. **De vergelijking `perf-ifc-nesting.yml` wordt rood op elke PR die alleen haar testbestanden raakt.** De workflow
+     start op een wijziging in `check-ifc-nesting-index.ts`, `ifcNestingFixture.ts` of `measure-ifc-nesting.ts`. Daarna
+     stopt hij met exit 1: `npm run i18n:resolve` verwacht een mergecommit, en `docs/superpowers/evidence/ifc-nesting-index.mjs`
+     eist dat `src/services/ifc/ifcReader.ts` het enige gewijzigde bestand in `src/` is. Zo ging het op #1407; daarom
+     bleven die drie bestanden daar buiten de opruiming. Voorstel: de meting alleen starten als `ifcReader.ts` wijzigt. — B
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.

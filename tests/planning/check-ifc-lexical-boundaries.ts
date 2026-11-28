@@ -9,6 +9,7 @@ import { IfcForeignOpenError, readIfcBytes } from '@/services/ifc/foreign/ifcByt
 import { oudeKop } from './ifcOudeKop';
 import { scanTargetBytes, scanTargetSource } from '@/services/ifc/foreign/targetModelScan';
 
+// Het vaste voorbeeld is een volledig IFC-bestand. Alleen de onderzochte naam/commentaar verandert.
 const source = readFileSync('public/examples/showcase-appartementencomplex.ifc', 'utf8');
 const original = 'CPT soundings & soil investigation';
 const baseline = readIFC(source).tasks.map(t => t.name);
@@ -20,6 +21,7 @@ async function check(label: string, run: () => unknown | Promise<unknown>) {
   checks++;
   try { await run(); } catch (error) { failures++; console.error('XX', label, String(error)); }
 }
+// Fase 1c: deze bestaande gemaakte varianten weigeren bij de scanner; geen vrije keuze tussen openen en weigeren.
 async function scannerRefuses(text: string, reason: 'tekst-zonder-einde' | 'onbekend-statement') {
   await assert.rejects(() => readIfcBytes(enc.encode(text), {}, { createWorker: () => null }),
     (error: unknown) => error instanceof IfcForeignOpenError && error.code === 'IFC_FOREIGN_OPEN_REFUSED'
@@ -42,6 +44,7 @@ await check('doelcontrole zoekt lineair door veel korte strings zonder backslash
     return found;
   };
   assert.equal(scanTargetBytes(bytes), 'no-model');
+  // Meet doorzochte bytes, geen wandkloklimiet die van de runner afhangt.
   assert.ok(searched <= bytes.length * 50, `${searched} doorzochte bytes bij ${bytes.length} bronbytes`);
 });
 for (const [raw, expected, refusal] of [
@@ -64,6 +67,7 @@ for (const [raw, expected, refusal] of [
   });
   await check(`shiftliteral ${raw}: doelcontrole`, () => assert.equal(scanTargetBytes(enc.encode(input)), 'no-model'));
 }
+// De planningparser leest de eerste datasectie: een applicatie in een latere sectie mag haar tekst niet omduiden.
 await check('tekstversie uit latere DATA verandert de eerste planning niet', () => {
   const external = source.replace(",'OPS');", ",'THIRD');").replace(/'OPS_/g, "'EXT_");
   const at = external.lastIndexOf('ENDSEC;');
@@ -75,6 +79,7 @@ await check('tekstversie uit latere DATA verandert de eerste planning niet', () 
   assert.ok(expected.includes('a§'));
   assert.deepEqual(readIFC(withShift).tasks.map(t => t.name), expected);
 });
+// Oude OPS 0.1 schreef backslashes letterlijk. De dialectkeuze moet vóór de quotegrenzen gelden.
 const legacySource = source.replace("'0.2','Open Planner Studio','OPS'", "'0.1','Open Planner Studio','OPS'");
 assert.notEqual(legacySource, source);
 const legacyBaseline = readIFC(legacySource).tasks.map(t => t.name);
@@ -90,6 +95,7 @@ for (const [label, text, want] of [
       const saved = writeIFC(buildWriteIFCInput(payloadFromImport(opened, null), 'planOnly'));
       const reopened = bytesRoute ? await readIfcBytes(enc.encode(saved), {}, { createWorker: () => null }) : readIFC(saved);
       assert.deepEqual(reopened.tasks.map(t => t.name), want);
+      // #916: de huidige kop met gebroken DATA valt buiten het oude sjabloon; geen doelvrijbrief meer.
       assert.equal(scanTargetBytes(enc.encode(text)), label === 'CRLF na backslash' ? 'no-model' : 'unreadable');
       const old = withOldHeader(text);
       assert.deepEqual(readIFC(old).tasks.map(t => t.name), want);
@@ -103,6 +109,7 @@ await check('tolerante quotegrenzen bij expliciete literalStepIds-route', () => 
   assert.deepEqual(opened.tasks.map(t => t.name), baseline.map(n => n === original ? 'Pad C:\\S\\' : n));
   assert.deepEqual(readIFC(writeIFC(buildWriteIFCInput(payloadFromImport(opened, null), 'planOnly'))).tasks.map(t => t.name), opened.tasks.map(t => t.name));
 });
+// De doelcontrole mag een echte wand ná zo'n oude letterlijke padnaam niet missen.
 const legacyModel = source.slice(0, source.indexOf('DATA;') + 5)
   + "\n#1=IFCAPPLICATION($,'0.1','Open Planner Studio','OPS');\n"
   + "#2=IFCTASK('g',$,'Pad C:\\S\\',$,$,'1',$,$,$,.F.,$,$,.CONSTRUCTION.);\n"
@@ -117,12 +124,14 @@ for (const oldHeader of [false, true]) for (const size of [1, 2, 7]) {
       next: async () => { if (at === bytes.length) return null; const b = bytes.subarray(at, at + size); at += b.length; return b; },
       seek: async (offset) => { at = offset; },
     });
+    // De huidige kapotte vorm weigert conservatief; het exacte oude sjabloon ziet de wand via de leeslus.
     assert.equal(got, oldHeader ? 'model' : 'unreadable');
   });
 }
 for (const control of ['\n', '\r', '\t', '\0', '\x1f', '\x7f']) {
   const fragment = `/${control}* ${wall} */`;
   const commented = insert(fragment);
+  // Dezelfde geldige kop met een kleine datasectie: elke bytegrens testen kost zo geen miljoenen microtaken.
   const streamText = source.slice(0, source.indexOf('DATA;') + 5)
     + "\n#1=IFCTASK('g',$,'Taak',$,$,'1',$,$,$,.F.,$,$,.CONSTRUCTION.);\n"
     + fragment + '\nENDSEC;\nEND-ISO-10303-21;';

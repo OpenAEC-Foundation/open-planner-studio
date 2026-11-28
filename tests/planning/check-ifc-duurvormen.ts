@@ -1,3 +1,21 @@
+// #804 fase 1b, fixronde 6: de lijst van duurvormen die de merge laat staan (`src/services/ifc/foreign/durationForms.ts`).
+//
+// Voorwaarde 3 van Trias (bijsturing van 10 november 2026): per vorm een naam en een test die bewijst dat de lezer hem
+// exact leest. Deze check doet vier dingen:
+//  1. Per vorm en per slot een of meer voorbeelden. Elk voorbeeld gaat in een slot van de showcase en de check opent het
+//     met de lezer direct (`openForeignRaw`; via de store rekent openen de speling opnieuw uit, en dat is geen vraag van
+//     de lezer). De waarde na openen moet de waarde zijn die de tekst zegt. Die waarde
+//     staat hieronder met de hand uitgeschreven: geen tweede duurparser. De taak #55 staat op een kalender van 8 uur per
+//     dag (480 minuten), dus `P2DT12H` is 1680 minuten.
+//  2. Elke vorm heeft in elk van zijn slots een voorbeeld, en elk voorbeeld valt in zijn eigen vorm (de eerste die past).
+//  3. De vormen die de lezer anders leest, vallen buiten de lijst, en de lezer leest ze nu nog anders: de waarde na
+//     openen staat erbij (knownbugs 1028 tot en met 1030 en 1033 tot en met 1035, en de oude lagvorm).
+//  4. Elke duur in een eigen bestand van OPS in de repo staat op de lijst (voorwaarde 1: een planning die OPS maakte,
+//     weigert nooit om een duur), en ook elke duur die de writer van nu schrijft. Eén bestand is met de hand gemaakt
+//     en heeft een speling die OPS nooit schreef; die staat apart, met de reden. Ook elke datum en tijd van een eigen
+//     bestand staat op de lijst van datumvormen (knownbug 1031). Een eigen bestand dat de scanner niet leest, slaat de
+//     check over, met de reden van de scanner (`NOT_SCANNED`): de merge raakt het nooit.
+// Exit 0 = alles klopt.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -26,10 +44,12 @@ const withLines = (src: string, lines: readonly string[]) => {
   return `${src.slice(0, at)}${lines.map(l => `${l}\n`).join('')}${src.slice(at)}`;
 };
 
+// ── De bron: de showcase met een vreemd deel, zoals de merge haar ziet ──
 const showcase = text(await settle(latin1(withLines(text(new Uint8Array(readFileSync(join(ROOT, 'public/examples/showcase-appartementencomplex.ifc')))), REVIT_WALL))));
 const L55 = /^#55=IFCTASKTIME\((.*)\);$/m.exec(showcase);
 ok('de taaktijd #55 staat in de showcase', !!L55);
 const NAME = 'CPT soundings & soil investigation';
+/** De showcase met slots van taaktijd #55 vervangen (#55 heeft geen komma binnen een waarde). */
 const slot55 = (set: Record<number, string>) => {
   const a = L55![1].split(',');
   for (const [k, v] of Object.entries(set)) a[Number(k)] = v;
@@ -40,6 +60,7 @@ ok('de lag #631 staat in de showcase', showcase.includes(LAG631));
 const lag631 = (line: string) => showcase.replace(LAG631, () => line);
 const IN_PROGRESS = { 17: '$', 19: '0.5' };
 
+/** Waar een voorbeeld staat. Een slot van de lijst kan meer plekken hebben (de rest van een dagtaak en van een urentaak). */
 type Use = 'duur' | 'werkelijk' | 'rest-dagtaak' | 'rest-urentaak' | 'vrije-speling' | 'totale-speling'
   | 'lag-werktijd' | 'lag-werktijd-ongetypt' | 'lag-kalendertijd' | 'lag-oud';
 const SLOT_OF: Readonly<Record<Use, DurationSlot>> = {
@@ -47,6 +68,7 @@ const SLOT_OF: Readonly<Record<Use, DurationSlot>> = {
   'totale-speling': 'speling', 'lag-werktijd': 'lag-werktijd', 'lag-werktijd-ongetypt': 'lag-werktijd',
   'lag-kalendertijd': 'lag-kalendertijd', 'lag-oud': 'lag-oud',
 };
+/** De bron met de duur op die plek. */
 const sourceWith = (use: Use, v: string): string => {
   switch (use) {
     case 'duur': return slot55({ 4: `'${v}'` });
@@ -62,15 +84,18 @@ const sourceWith = (use: Use, v: string): string => {
   }
 };
 
+/** Een waarde na openen: dagen (`d`) of minuten (`m`). Een lag in kalendertijd heeft ook die eenheid. */
 type Value = { readonly d: number } | { readonly m: number };
 const show = (v: Value | string | undefined) => (v === undefined ? '?' : typeof v === 'string' ? v : 'd' in v ? `${v.d} d` : `${v.m} min`);
 const same = (a: Value | string, b: Value) => typeof a !== 'string' && ('d' in a ? 'd' in b && Object.is(a.d, b.d) : 'm' in b && Object.is(a.m, b.m));
 
+// De lag #631 in het domein: de relatie tussen dezelfde twee taken (een opvallende lag van 7 dagen wijst haar aan).
 const lagKey = (o: Opened) => o.sequences.map(q => `${q.predecessorId}>${q.successorId}`);
 const marked = await openForeignRaw(latin1(lag631("#631=IFCLAGTIME('Lag',.PREDICTED.,$,IFCDURATION('P7D'),.WORKTIME.);")));
 const LAG_SEQ = lagKey(marked)[marked.sequences.findIndex(q => q.lagDays === 7 && q.lagMinutes === undefined)];
 ok(`de lag #631 is te vinden in het domein (${LAG_SEQ})`, LAG_SEQ !== undefined && marked.sequences.filter(q => q.lagDays === 7).length === 1);
 
+/** De waarde op die plek na openen, als tekst als er iets anders mis is. */
 async function readValue(use: Use, v: string): Promise<Value | string> {
   let o: Opened;
   try { o = await openForeignRaw(latin1(sourceWith(use, v))); } catch (e) { return e instanceof IfcParseError && e.reason === 'duration' ? 'duration' : `fout bij openen: ${(e as Error).message.slice(0, 100)}`; }
@@ -94,6 +119,8 @@ async function readValue(use: Use, v: string): Promise<Value | string> {
   }
 }
 
+// ── 1 en 2: de voorbeelden per vorm en per plek ──
+// [vorm, plek, tekst, de waarde die de tekst zegt]
 const d = (n: number): Value => ({ d: n });
 const m = (n: number): Value => ({ m: n });
 const EXAMPLES: readonly (readonly [string, Use, string, Value])[] = [
@@ -171,6 +198,8 @@ for (const form of DURATION_FORMS) {
 }
 ok('elke vorm heeft een unieke naam', new Set(DURATION_FORMS.map(f => f.name)).size === DURATION_FORMS.length);
 
+// ── 3: de merge blijft conservatief; de lezer leest deze vormen exact of weigert ze ──
+// [plek, tekst, de huidige leeswaarde of weigering, historische aanleiding]. `undefined`: alleen buiten de lijst (geen leesfout bekend).
 const OUTSIDE: readonly (readonly [Use, string, Value | 'duration' | undefined, string])[] = [
   ['duur', 'PT-2H', 'duration', 'knownbug 1034: het minteken in het tijddeel valt weg'],
   ['werkelijk', 'PT-12H', 'duration', 'knownbug 1034'],
@@ -211,7 +240,12 @@ for (const [use, v, reads, why] of OUTSIDE) {
   ok(`buiten de lijst · ${use} '${v}': de lezer leest nu ${show(reads)} (kreeg ${show(got)}; ${why})`, typeof reads === 'string' ? got === reads : same(got, reads));
 }
 
+// ── 4: elke duur in een eigen bestand van OPS staat op de lijst ──
+// Elk IFC-bestand in de repo met de applicatie van OPS, ook de oude eigen bestanden (`oude-tags/`, `oud-eigen-0.1-…`).
+// Met dezelfde functie als de merge (`durationTexts`): het slot zoals de lezer het kiest, de tekst na de STEP-decodering.
 const HAND_MADE: Readonly<Record<string, string>> = {
+  // Met de hand gemaakt in `e345c2527` (13 oktober 2026, bewust hernoemde properties): een speling als `PT72H` en `PT16H`.
+  // De writer schreef de speling in elke versie in dagen (`ifcDuration`, sinds `cbde9d4e7` in hele dagen).
   'tests/planning/fixtures/werkdag-einde-tussenwaarde.ifc': "IFCTASKTIME #55: speling 'PT72H'|IFCTASKTIME #55: speling 'PT16H'",
 };
 const files: string[] = [];
@@ -223,10 +257,16 @@ const walk = (dir: string) => {
   }
 };
 walk(ROOT);
+/** Eigen bestanden die de scanner niet leest, met de reden van de scanner. De merge raakt ze nooit: zonder scan opent het
+ *  bestand via de route van main, zonder vreemd deel (`ifcBytesRoute.ts`), en de lijst van vormen geldt dan niet. */
 const NOT_SCANNED: Readonly<Record<string, StepScanReason>> = {
+  // OPS v2026.2.0 tot en met v2026.7.12 schreef de naam rauw in FILE_NAME (`771db15cb`): de apostrof van `O'Hara` opent
+  // een tekst die tot het einde van het bestand niet sluit. Het bestand kwam met #870 (`a026bed0f`); besluit van Trias
+  // (review van #870, ronde 8; knownbug 1052): zo'n bestand opent zoals op main.
   'tests/planning/fixtures/oude-tags/v2026.7.12-ohara-showcase-verbouwing-eengezinswoning.ifc': 'tekst-zonder-einde',
 };
 const notScanned = new Set<string>();
+/** De scan van een eigen bestand; `undefined` als het in `NOT_SCANNED` staat en de scanner om precies die reden weigert. */
 const scanOwn = (rel: string, bytes: Uint8Array) => {
   try {
     return scanStep(bytes);
@@ -266,10 +306,17 @@ for (const file of files.sort()) {
   ok(`${rel}: elke duur staat op de lijst (buiten de lijst: ${found.out.slice(0, 3).join(', ')})`, found.out.length === expected.length && found.out.every(x => expected.includes(x)));
 }
 ok(`de repo heeft eigen bestanden van OPS (${ownFiles} bestanden, ${ownDurations} duren)`, ownFiles > 50 && ownDurations > 10000);
+// Hetzelfde voor de datums, tijden en datum-tijden (`dateTimeTexts`, `partialDateTime`): de lijst van datumvormen van
+// fixronde 5 en 6 (knownbug 1031). OPS schreef tot `32b6222de` (26 september 2026) een werktijd die niet op het hele uur
+// begint als uurbreuk (`'7.5:00:00'`). `clockToMinutes` leest die niet als tijdblok, `scalarHourFromClock` wel, als 7,5 uur:
+// alleen als enige periode van het enige patroon. Daar staat de vorm sinds fixronde 7 op de lijst (`OLD_FRACTIONAL_CLOCK`,
+// BLOKKEERT 3). Hier vastgelegd hoeveel er per bestand zijn, zodat dat pad niet stil wegvalt.
 const OLD_CLOCK: Readonly<Record<string, number>> = {
   'tests/planning/fixtures/h7-tijden-oude-writer.ifc': 4,
   'tests/planning/fixtures/periode-oude-scalarfractie-v2026.8.1.ifc': 1,
 };
+// Werkelijk door oude schrijvers geproduceerd; de conservatieve foreign-lijst
+// blijft deze minuutfracties weigeren (1157). De gewone opslag wordt apart bewezen.
 const OLD_MINUTE_CLOCK: Readonly<Record<string, string>> = {
   'tests/planning/fixtures/kalendertijd-oud/werkende-uitzondering.ifc': "IFCTIMEPERIOD #20: tijd '08:30.5:00'",
   'tests/planning/fixtures/periode-oude-minuutfractie.ifc': "IFCTIMEPERIOD #17: tijd '07:30.5:00'",
@@ -281,7 +328,7 @@ const OLD_MINUTE_CLOCK: Readonly<Record<string, string>> = {
     const bytes = new Uint8Array(readFileSync(file));
     if (!/IFCAPPLICATION\([^;]*'Open Planner Studio'/.test(text(bytes))) continue;
     let index;
-    try { index = scanOwn(relative(ROOT, file), bytes); } catch { continue; }
+    try { index = scanOwn(relative(ROOT, file), bytes); } catch { continue; } // al gemeld bij de duren hierboven
     if (!index) continue;
     const out: string[] = [];
     let oldClocks = 0;
@@ -303,6 +350,8 @@ const OLD_MINUTE_CLOCK: Readonly<Record<string, string>> = {
 for (const rel of Object.keys(HAND_MADE)) ok(`${rel} bestaat nog`, files.some(f => relative(ROOT, f) === rel));
 for (const [rel, reason] of Object.entries(NOT_SCANNED)) ok(`${rel}: de scanner weigert het (${reason}); anders hoort het niet meer in NOT_SCANNED`, notScanned.has(rel));
 
+// De writer van nu: de showcase (dag- en urentaken, lags in dagen en minuten) en de taak met elke vorm van de lijst in de
+// taakduur, opnieuw geschreven.
 {
   const o = await openForeign(latin1(showcase));
   const written = latin1(writeIFC(cloneDomain(o)));
