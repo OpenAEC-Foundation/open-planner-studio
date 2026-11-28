@@ -1,7 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { DEFAULT_CRITICAL_BAR_COLORS, type CriticalBarColors } from '@/types/barColor';
 
-/** De drie kleuren zijn één keuze, zodat een layout ze samen kan bewaren. */
 export function CriticalBarColorsEditor({ colors, onChange }: {
   colors?: CriticalBarColors;
   onChange: (colors: CriticalBarColors | undefined) => void;

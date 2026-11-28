@@ -1,11 +1,3 @@
-// Gedeelde veld-catalogus voor de Beeld-UI: filter-editor,
-// groepeer-/sorteer-popovers. DRY over de drie UI-stukken die allemaal een lijst van
-// beschikbare FieldRefs + labels + (voor filter) waarde-editor-soort nodig hebben.
-// De kolommen-dialoog gebruikt deze builtinlijst alleen voor zijn tijdelijke legacyveldcatalogus.
-//
-// Geen store-/React-afhankelijkheid buiten types; ontvangt i18n-labels en context als argument
-// zodat dit bestand testbaar en herbruikbaar blijft.
-
 import type { ActivityCodeType, CustomFieldDef } from '@/types/structure';
 import type { Resource } from '@/types/resource';
 import type { BuiltinFieldKey, FieldRef, FilterOperator } from '@/state/slices/types';
@@ -15,36 +7,22 @@ export interface FieldCatalogCtx {
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
   resources: Resource[];
-  /** Vertaalde builtin-veldlabels, keyed op BuiltinFieldKey (uit task:table.*). */
   builtinLabels: Record<BuiltinFieldKey, string>;
-  /** Vertaalde taskType-labels (uit task:taskType.*), voor het taskType-select-veld. */
   taskTypeLabels: Record<string, string>;
-  resourceLabel: string; // t('column.resource')
-  /** Label van het groepeer-/sorteerveld Resourcetype (t('column.resourceType')). */
+  resourceLabel: string;
   resourceTypeLabel?: string;
-  /** Suffix voor disambiguatie bij botsende labels uit gebruikersdata, bv. "activiteitcode". */
-  activityCodeSuffix: string; // t('column.activityCodeSuffix')
-  /** Suffix voor disambiguatie bij botsende labels uit gebruikersdata, bv. "eigen veld". */
-  customFieldSuffix: string; // t('column.customFieldSuffix')
+  activityCodeSuffix: string;
+  customFieldSuffix: string;
 }
 
-/** Alle builtin-velden die in filter/sort zinvol zijn. */
 export const FILTER_SORT_BUILTIN_KEYS: BuiltinFieldKey[] = [
   'wbsCode', 'name', 'duration', 'start', 'finish',
   'taskType', 'isCritical', 'totalFloat', 'completion', 'isMilestone',
-  // Analysevelden.
   'freeFloat', 'interferingFloat', 'isNearCritical', 'floatPath',
 ];
 
-/** Groepeerbare builtin-velden: alleen discrete velden, geen continue getallen/datums. */
 export const GROUP_BUILTIN_KEYS: BuiltinFieldKey[] = ['wbsCode', 'taskType'];
 
-/**
- * Filter-only builtin-velden: synthetische velden die alleen als
- * filterregel zin hebben, niet als sorteer- of groepeersleutel — vandaar apart van
- * `FILTER_SORT_BUILTIN_KEYS`, dat `fullFieldList` ook aan de sorteer-popover levert
- * (`ribbonWidgets.tsx`). Gebruik `filterFieldList`, niet `fullFieldList`, in de filter-editor.
- */
 export const FILTER_ONLY_BUILTIN_KEYS: BuiltinFieldKey[] = ['activeDuring'];
 
 function fieldKey(field: FieldRef): string {
@@ -61,7 +39,6 @@ export function fieldsEqual(a: FieldRef, b: FieldRef): boolean {
   return fieldKey(a) === fieldKey(b);
 }
 
-/** Volledige veldenlijst voor filter/sort: alle builtins + elke activity-code-type + elk custom field + resource. */
 export function fullFieldList(ctx: FieldCatalogCtx): FieldRef[] {
   return [
     ...FILTER_SORT_BUILTIN_KEYS.map((key): FieldRef => ({ src: 'builtin', key })),
@@ -71,19 +48,10 @@ export function fullFieldList(ctx: FieldCatalogCtx): FieldRef[] {
   ];
 }
 
-/**
- * Sorteer-veldenlijst: `fullFieldList` plus Resourcetype. Resourcetype staat bewust niet
- * in de filterlijst: het is een afgeleide indeling voor groeperen en sorteren, geen filterwaarde.
- */
 export function sortFieldList(ctx: FieldCatalogCtx): FieldRef[] {
   return [...fullFieldList(ctx), { src: 'resourceType' }];
 }
 
-/**
- * Filter-veldenlijst: `fullFieldList` plus de filter-only synthetische velden. Gebruikt door
- * `FilterDialog` i.p.v. `fullFieldList` zelf, precies om `activeDuring` weg te houden bij de
- * sorteer-popover (die `fullFieldList` rechtstreeks gebruikt).
- */
 export function filterFieldList(ctx: FieldCatalogCtx): FieldRef[] {
   return [
     ...fullFieldList(ctx),
@@ -91,9 +59,6 @@ export function filterFieldList(ctx: FieldCatalogCtx): FieldRef[] {
   ];
 }
 
-/** Groepeerbare veldenlijst: WBS, taskType, activity codes, custom fields, resource en
- *  resourcetype. Twee niveaus Resourcetype → Resource geven de indeling van het rapport
- *  Resourcediagram. */
 export function groupFieldList(
   ctx: {
     activityCodeTypes: ReadonlyArray<ActivityCodeType>;
@@ -109,12 +74,6 @@ export function groupFieldList(
   ];
 }
 
-/**
- * De velden in een filter die dit project niet heeft: een eigen veld of activiteitcode die verwijderd is, of
- * een layout uit een ander project. Zo'n regel vergelijkt met een lege waarde, dus het filter laat dan te
- * weinig of te veel taken door. Elk veld één keer, in de volgorde van het filter. Het filter zelf blijft
- * ongemoeid: de aanroeper meldt het verschil (Rapport-tabblad, review Sol #847, ronde 4).
- */
 export function missingFilterFields(filter: FilterNode | null | undefined, ctx: FieldCatalogCtx): FieldRef[] {
   const known = [...filterFieldList(ctx), ...sortFieldList(ctx)];
   const missing: FieldRef[] = [];
@@ -137,13 +96,6 @@ export function fieldLabel(field: FieldRef, ctx: FieldCatalogCtx): string {
   }
 }
 
-/**
- * Labelt een veldenlijst voor gebruik in een dropdown en disambigueert botsende labels:
- * builtin-velden hebben altijd al unieke label-keys, maar een activity-code-type
- * of custom field kan door de gebruiker een naam krijgen die toevallig samenvalt met een ander
- * veld (builtin of user-defined). Alleen bij een daadwerkelijke botsing krijgt zo'n
- * gebruikersgedefinieerd veld een bron-suffix, bv. "Type (activiteitcode)".
- */
 export function fieldOptions(
   fields: FieldRef[], ctx: FieldCatalogCtx,
 ): { field: FieldRef; label: string }[] {
@@ -163,7 +115,6 @@ export function fieldOptions(
 
 export type FieldKind = 'text' | 'number' | 'date' | 'boolean' | 'select' | 'multiselect' | 'activePeriod';
 
-/** Bepaalt welke waarde-editor + operatorenset een veld krijgt in de filter-editor. */
 export function fieldKind(field: FieldRef, ctx: FieldCatalogCtx): FieldKind {
   if (field.src === 'builtin') {
     switch (field.key) {
@@ -204,11 +155,9 @@ export function fieldKind(field: FieldRef, ctx: FieldCatalogCtx): FieldKind {
       default: return 'text';
     }
   }
-  // resource
   return 'multiselect';
 }
 
-/** Toegestane operatoren per veldsoort. */
 export function operatorsForKind(kind: FieldKind): FilterOperator[] {
   switch (kind) {
     case 'text': return ['eq', 'neq', 'contains', 'startsWith', 'isEmpty'];
@@ -218,13 +167,10 @@ export function operatorsForKind(kind: FieldKind): FilterOperator[] {
     case 'boolean': return ['eq', 'neq'];
     case 'select': return ['eq', 'neq', 'in', 'isEmpty'];
     case 'multiselect': return ['in', 'isEmpty'];
-    // Interval-overlap heeft altijd beide grenzen nodig (`evaluateActiveDuring`) — geen
-    // zinnige eq/lt/gt-variant zonder een tweede datum, dus maar één operator.
     case 'activePeriod': return ['between'];
   }
 }
 
-/** Selecteerbare opties voor select/multiselect-velden (codes, taskType, resources). */
 export function selectOptions(
   field: FieldRef, ctx: FieldCatalogCtx,
 ): { value: string; label: string }[] {
