@@ -5,12 +5,12 @@ van `@tauri-apps/plugin-updater`, maar roept `download()` en `install()` los aan
 af zodra het installatieprogramma gestart is (de documentatie van `install()` in
 `@tauri-apps/plugin-updater/dist-js/index.d.ts`), dus wat na de installatie staat, komt daar niet aan de beurt. Daarom
 gebeurt alles wat vóór het einde moet tussen de twee aanroepen: de afsluitfase nemen, de poort voor projectopslag
-sluiten en één herstelsnapshot schrijven (`flushRecoveryNow`), zodat bewerkingen van de laatste seconden na de update
+sluiten en de herstelronde afwachten (`flushRecoveryNow`; die schrijft niets als er niets te bewaren is), zodat bewerkingen van de laatste seconden na de update
 via het herstel terugkomen.
 
 ## Gevolgen
 
-- Een mislukte herstelsnapshot houdt de installatie tegen: de fout valt in de gewone `catch` en gaat als `error` naar
+- Een mislukte herstelronde houdt de installatie tegen: de fout valt in de gewone `catch` en gaat als `error` naar
   `onStatus`, en opnieuw proberen kan. Doorgaan zonder snapshot zou op Windows de app sluiten zonder de laatste
   bewerkingen in het herstel.
 - `detectJustUpdated` (`releaseInfo.ts`) toont "Net bijgewerkt" niet bij de allereerste start (besluit eigenaar,
