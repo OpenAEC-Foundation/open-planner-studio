@@ -6592,6 +6592,14 @@ en noem het in je rapport of PR-tekst.
       afkeuren. Controle 1 en 2 gedraaid op aia09-mp50; controle 3 alleen in de code gelezen en nagespeeld, nog niet
       gebouwd. — S
 
+2803. **De herpinroutes van de XER-getrouwheid schrijven commentaarregels die `verify:comments` weigert.**
+      `OPS_XER_CELLS_WRITE` herschrijft in `tests/planning/check-fidelity-cells-gate.ts` een gegenereerd blok met
+      `HERPIN …`-regels in commentaar (`fidelityCells.ts`, `xerManifestExclusions.ts`), en de cellenpoort eist die
+      regels letterlijk. `scripts/README.md` vraagt bij stap 3 en 5 van het herpinrecept ook om een `HERPIN`-toelichting
+      als commentaar in de check. Een nieuwe regel die niet op de basiscommit staat, laat `verify:comments` op een PR
+      rood worden (ADR 0001). Voorstel: de herpinregels als gegevens bewaren (een string of een JSON-bestand) in plaats
+      van als commentaar. — S
+
 ## Wensen en open taken (geen bug)
 
 45. **Extensie-API**: extensies kunnen geen relatie of kalender gericht wijzigen.
