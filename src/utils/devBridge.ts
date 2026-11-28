@@ -29,27 +29,6 @@ import { loadMcpPort, loadMcpToken } from '@/utils/settingsStore';
 import { registerHelpArticles, resetRegisteredHelpArticles } from '@/utils/helpArticleRegistry';
 import { dateX, lastSize, paintCount, taskBarPoint, taskSegmentCount } from '@/utils/ganttTestDriver';
 
-/**
- * Dev-only inspectie- en controle-haak voor geautomatiseerd zelf-testen.
- *
- * Tier 1 (browser-dev-build): hangt de Zustand-store en de log-bus op `window.__OPS__`,
- * plus `roundTrip()`/`saveToPath()`/`openFromPath()`. Een browser-automatiseringssessie
- * (Playwright MCP) leest/assert via `browser_evaluate`. De Gantt is een <canvas>, dus
- * state-inspectie — niet pixel-vergelijking — is de betrouwbare manier om te verifiëren.
- *
- * Tier 2 (échte Tauri-runtime): een bestandssysteem-controlekanaal. Een poller kijkt in
- * `<appDataDir>/ops-test/cmd.json`, voert de opdracht uit en schrijft `res.json`. Zo kan
- * een extern proces de draaiende desktop-app écht bestanden laten opslaan/openen op schijf
- * en elke store-actie aanroepen — zonder WebDriver, zonder sudo. De native bestand-picker
- * wordt omzeild door een expliciet pad mee te geven (standaard testpraktijk).
- *
- * Laden: alleen achter `import.meta.env.DEV` óf de benchmarkvlag `VITE_OPS_BENCH_BRIDGE=1` (main.tsx),
- * via dynamische import; een gewone productiebuild bevat dit bestand niet. De benchmarkbuild
- * (`scripts/measure-large-plans.mjs`) gebruikt alleen `window.__OPS__` in de browser. De Tier-2-poller
- * (en daarmee `mcpConnection`, die het MCP-token teruggeeft) start daarom ALLEEN in een dev-build in de
- * Tauri-runtime (`import.meta.env.DEV && isTauri()`), ook als de benchmarkvlag aan staat (review PR #439).
- */
-
 type AppState = ReturnType<typeof useAppStore.getState>;
 
 function counts(s: AppState) {
@@ -65,12 +44,9 @@ function stateSnapshot(s: AppState) {
   return { project: s.project.name, isDirty: s.isDirty, cpm: !!s.cpmResult, ...counts(s) };
 }
 
-/** Niveau 1 — serialiseer de huidige state naar IFC en parse 'm terug; meet dataverlies. Werkt ook in de browser. */
 async function roundTrip() {
   const s = useAppStore.getState();
   const content = writeIFC(buildWriteIFCInput(s, 'planOnly'));
-  // Geen `labels`: dev-only zelftesthaak (`window.__OPS__`), geen productie-UI — `readIFC` valt
-  // terug op de Engelse default voor een bestand zonder IFCPROJECT (zie ImportLabels).
   const parsed = await readIFCWithXerReconstruction(content);
   const before = counts(s);
   const after = {
@@ -87,18 +63,14 @@ async function roundTrip() {
   return { bytes: content.length, before, after, lossless };
 }
 
-/** Niveau 2 — schrijf de huidige state als IFC naar een expliciet pad (dialoog omzeild), met een eigen schrijver. */
 export async function saveToPathWithIO(
   path: string,
   io: { writeTextFile: (path: string, content: string) => Promise<void> },
   targetDeps: WriteTargetDeps = { identityFs: fileIdentityFs, readers: writeTargetReaders },
 ) {
   const s = useAppStore.getState();
-  // #804 fase 1a (§4.12): een document met een vreemd deel schrijft deze dev-route niet; de writer liet het model weg.
   if (ifcSaveBlocked(s)) throw new Error('saveToPath: het document heeft een vreemd deel (gebouwmodel); opslaan is nog niet mogelijk.');
   if (namesFollowFormat(s, s.ui.featureFlags) && isIfcxName(path)) throw new Error('saveToPath: deze route schrijft IFC; kies een pad op .ifc.');
-  // #804 fixronde 2: dezelfde doelcontrole als Opslaan als, vóór de write. Het pad is de bron van een open document met
-  // een vreemd deel, of een bestaande IFC met een gebouwmodel (flag aan): dan schrijft deze route niet.
   if (await refusedWriteTarget(s, { kind: 'path', path }, targetDeps)) {
     throw new Error('saveToPath: dit bestand bevat een gebouwmodel of gegevens van een ander programma; kies een ander pad.');
   }
@@ -107,15 +79,11 @@ export async function saveToPathWithIO(
   return { path, bytes: content.length };
 }
 
-/** Niveau 2 — `saveToPathWithIO` met de schrijver van plugin-fs. Tauri-only. */
 async function saveToPath(path: string) {
   const { writeTextFile } = await import('@tauri-apps/plugin-fs');
   return saveToPathWithIO(path, { writeTextFile });
 }
 
-/** Niveau 2 — lees een bestand van schijf en laad het in de store (route op extensie via de
- *  formatRegistry, dus ook `.xml`). Tauri-only. Binaire formaten worden als bytes gelezen i.p.v.
- *  tekst. */
 export async function openFromPathWithIO(path: string, io: FormatIO) {
   const readOptions = ifcxEnabled(useAppStore.getState().ui.featureFlags) ? { ifcx: true } : undefined;
   const input = await readFormatInput(path, io, readOptions);
@@ -133,8 +101,6 @@ async function openFromPath(path: string) {
   return openFromPathWithIO(path, { readTextFile, readFile });
 }
 
-/** Dev-only: installeer een extensie direct vanuit een code-string (voor zelftests). `assets`
- *  (optioneel) zijn de mee-verpakte bestanden, zoals het ZIP-pad ze zou bewaren (naam → bytes). */
 async function installExtensionFromCode(
   manifest: ExtensionManifest,
   mainCode: string,
@@ -201,7 +167,6 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
       return { ok: true, result: await openFromPath(path) };
     }
     case 'dispatch': {
-      // Roep een willekeurige store-actie aan, bv. { action: 'addTask', args: [{ name: 'X' }] }.
       const action = cmd.args?.action as string | undefined;
       const actionArgs = (cmd.args?.args as unknown[]) ?? [];
       const store = useAppStore.getState() as unknown as Record<string, unknown>;
@@ -211,11 +176,7 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
       return { ok: true, result: { ret, state: stateSnapshot(useAppStore.getState()) } };
     }
     case 'mcpConnection': {
-      // Tweede slot naast de poller-poort: buiten een dev-build geeft dit nooit het token terug.
       if (!import.meta.env.DEV) return { ok: false, error: 'mcpConnection is dev-only' };
-      // Poort, token en status van de app-eigen MCP-bridge, zodat een geautomatiseerde externe client
-      // (`.github/workflows/mcp-real-app.yml`) kan verbinden zoals een gebruiker via "Verbinden" doet.
-      // Het token staat al leesbaar in localStorage en in die dialoog; dit kanaal is dev-only.
       const ui = useAppStore.getState().ui;
       return {
         ok: true,
@@ -223,8 +184,6 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
       };
     }
     case 'mcpRestart': {
-      // Bridge stoppen en starten zoals Stop/Start op het AI-tabblad; voor de externe-clienttest dat een
-      // herstart sessies en documentbindingen behoudt. Dev-only, zoals `mcpConnection`.
       if (!import.meta.env.DEV) return { ok: false, error: 'mcpRestart is dev-only' };
       const { stopMcpServer, startMcpServer } = await import('@/services/mcp/server');
       await stopMcpServer();
@@ -232,27 +191,18 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
       return { ok: true, result: { status: useAppStore.getState().ui.aiServerStatus } };
     }
     case 'mcpStop': {
-      // Bridge stoppen zoals Stop op het AI-tabblad; voor de controle dat `runtime.json` dan verdwijnt
-      // (`tests/mcp/realApp/run-real-app.ts`). Dev-only, zoals `mcpRestart`.
       if (!import.meta.env.DEV) return { ok: false, error: 'mcpStop is dev-only' };
       const { stopMcpServer } = await import('@/services/mcp/server');
       await stopMcpServer();
       return { ok: true, result: { status: useAppStore.getState().ui.aiServerStatus } };
     }
     case 'log': {
-      // De regels van één kanaal uit het app-log, zoals het debugpaneel ze toont; voor de echte-app-proef die wil zien
-      // welke weg een opslag nam (`tests/mcp/realApp/run-real-app.ts`). Dev-only, zoals `mcpStop`.
       if (!import.meta.env.DEV) return { ok: false, error: 'log is dev-only' };
       const channel = cmd.args?.channel as string | undefined;
       if (!channel) return { ok: false, error: 'missing args.channel' };
       return { ok: true, result: appLog.snapshot().filter(e => e.channel === channel).map(e => e.text) };
     }
     case 'feedbackTest': {
-      // Dev-only desktop-verificatie van de feedback-feature: toetst (1) of
-      // modern-screenshot's domToPng het Gantt-<canvas> meepakt in de echte
-      // WebKitGTK-webview, en (2) of de klembord-weg (Image.new → writeImage)
-      // werkt op de desktop. De PNG wordt naar schijf geschreven zodat de
-      // aansturende kant 'm visueel kan inspecteren.
       const { domToPng } = await import('modern-screenshot');
       const root = document.getElementById('root') ?? document.body;
       const dataUrl = await domToPng(root);
@@ -279,35 +229,28 @@ async function runOp(cmd: OpsCommand): Promise<Record<string, unknown>> {
   }
 }
 
-/** Serializeer precies de payload die de Tauri-poller naar res.json schrijft. Geëxporteerd voor de
- * headless contracttest: een Promise in `result` stringifyt naar `{}` en mag nooit onzichtbaar
- * worden achter een browser-only rooktest. */
 export async function serializeOpsTestResponse(cmd: OpsCommand): Promise<string> {
   const res = await runOp(cmd);
   return JSON.stringify({ id: cmd.id, ...res });
 }
 
-/**
- * Tier 2 poller: bestandssysteem-controlekanaal in de échte Tauri-runtime.
- * Leest `<appDataDir>/ops-test/cmd.json`, voert uit, schrijft `res.json`.
- */
 async function startOpsTestPoller(): Promise<void> {
   const { exists, readTextFile, writeTextFile, remove, mkdir } = await import('@tauri-apps/plugin-fs');
   const { appDataDir, join } = await import('@tauri-apps/api/path');
 
   const baseDir = await join(await appDataDir(), 'ops-test');
-  try { await mkdir(baseDir, { recursive: true }); } catch { /* bestaat al of door harness aangemaakt */ }
+  try { await mkdir(baseDir, { recursive: true }); } catch { }
   const cmdPath = await join(baseDir, 'cmd.json');
   const resPath = await join(baseDir, 'res.json');
   const readyPath = await join(baseDir, 'ready.json');
-  try { await writeTextFile(readyPath, JSON.stringify({ ready: true, baseDir })); } catch { /* niet fataal */ }
+  try { await writeTextFile(readyPath, JSON.stringify({ ready: true, baseDir })); } catch { }
   appLog.emit('event', 'opsTest', `poller actief: ${baseDir}`);
 
   const tick = async (): Promise<void> => {
     try {
       if (!(await exists(cmdPath))) return;
       const raw = await readTextFile(cmdPath);
-      await remove(cmdPath); // consumeer meteen, voorkom dubbele verwerking
+      await remove(cmdPath);
       let cmd: OpsCommand;
       try {
         cmd = JSON.parse(raw) as OpsCommand;
@@ -317,7 +260,7 @@ async function startOpsTestPoller(): Promise<void> {
       }
       await writeTextFile(resPath, await serializeOpsTestResponse(cmd));
     } catch (err) {
-      try { await writeTextFile(resPath, JSON.stringify({ ok: false, error: String(err) })); } catch { /* leeg */ }
+      try { await writeTextFile(resPath, JSON.stringify({ ok: false, error: String(err) })); } catch { }
     }
   };
 
@@ -325,11 +268,8 @@ async function startOpsTestPoller(): Promise<void> {
 }
 
 export interface OpsDevBridge {
-  /** Zustand-store: gebruik `.getState()`, `.setState()`, `.subscribe()`. */
   store: typeof useAppStore;
-  /** In-memory log-bus: `.snapshot()` geeft gelogde regels + opgevangen fouten. */
   log: typeof appLog;
-  /** Observer-only Gantt-naad voor echte browserinteractie; bevat bewust geen setter of dragfunctie. */
   gantt: {
     taskBarPoint: typeof taskBarPoint;
     taskSegmentCount: typeof taskSegmentCount;
@@ -337,25 +277,14 @@ export interface OpsDevBridge {
     lastSize: typeof lastSize;
     dateX: typeof dateX;
   };
-  /** Niveau 1: serialiseer→parse round-trip, meet dataverlies (werkt ook in de browser). */
   roundTrip: typeof roundTrip;
-  /** Niveau 2 (Tauri): schrijf de state als IFC naar een expliciet pad. */
   saveToPath: typeof saveToPath;
-  /** Niveau 2 (Tauri): lees een bestand van schijf en laad het in de store. */
   openFromPath: typeof openFromPath;
-  /** Dev-only extensie-haken voor zelftests. */
   extensions: {
     installFromCode: typeof installExtensionFromCode;
-    /** Alleen lezen en valideren; activeert, registreert, verwijdert en herschrijft niets. */
     scanStored: typeof scanStoredExtensions;
-    /** Pure observatienaad voor stabiele, typebewuste quarantaine-identiteiten. */
     quarantineIdForKey: typeof quarantineIdForStorageKey;
-    /** Installeer via het echte ZIP-pad (parse → assets → opslaan → activeren), MET de
-     *  vertrouwensvraag overgeslagen — een zelftest heeft geen mens die een dialoog wegklikt.
-     *  De dialoog zelf test je via `__OPS__.extensions.consent`. */
     installFromZip: (blob: Blob, expected?: ExpectedExtensionIdentity) => Promise<InstallOutcome>;
-    /** Haken op de toestemmingsvraag, zodat een zelftest zowel het toestaan- als het
-     *  weigeren-pad kan aansturen zonder de echte dialoog. */
     consent: {
       set: (fn: (req: unknown) => Promise<boolean>) => void;
       reset: () => void;
@@ -364,7 +293,6 @@ export interface OpsDevBridge {
     disable: typeof disableExtension;
     remove: typeof removeExtension;
   };
-  /** Dev-only bedrijfsbibliotheek-haken voor zelftests. */
   library: {
     state: () => {
       companies: number;
@@ -374,8 +302,6 @@ export interface OpsDevBridge {
     addCompany: (name: string) => string;
     addResource: (companyId: string, poolResourceId: string) => { added: boolean; resourceId: string | null };
   };
-  /** Dev-only Help-haken: fixture-tutorials rechtstreeks in het register zetten (zonder extensie; de
-   *  extensieroute is `api.help.registerArticles`, contract 1.4.0), en het register weer leegmaken. */
   help: {
     registerArticles: typeof registerHelpArticles;
     resetArticles: typeof resetRegisteredHelpArticles;
@@ -429,6 +355,5 @@ export function installDevBridge(): void {
     },
   };
   appLog.emit('event', 'devBridge', 'window.__OPS__ klaar (dev-only self-test haak)');
-  // Alleen dev: ook een benchmarkbuild (VITE_OPS_BENCH_BRIDGE=1) krijgt geen bestandskanaal.
   if (import.meta.env.DEV && isTauri()) void startOpsTestPoller();
 }
