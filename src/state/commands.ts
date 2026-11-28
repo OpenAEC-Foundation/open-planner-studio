@@ -1,23 +1,3 @@
-// Commandoregister — ÉÉN definitie per actie, gedeeld door het lint en de sneltoetsen, zodat de
-// twee oppervlakken niet uit elkaar kunnen lopen (zelfde id, zelfde gedrag, zelfde zoomstap).
-//
-// HET CONTRACT. Eén IMPERATIEVE `isEnabled(store)` levert beide gezichten; een aparte reactieve
-// hook is niet nodig:
-//
-//   - het lint wikkelt hem in een selector — `useAppStore(s => cmd.isEnabled(s))` — en is daarmee
-//     gewoon reactief, want Zustand abonneert op de afgeleide waarde;
-//   - de dispatcher roept dezelfde functie direct aan (die kan geen hooks aanroepen).
-//
-// `isEnabled` en `run` zijn BEWUST niet aan elkaar gekoppeld. Dat is geen slordigheid maar de reden
-// dat dit contract het `indent`-geval aankan: buiten boommodus zet het lint de knop op grijs (dat
-// is `isEnabled`), terwijl de sneltoets wél vuurt en via `notifyStructureLocked()` uitlegt waaróm
-// er niets gebeurt. Een sneltoets kan namelijk geen tooltip dragen. `run` handelt het
-// geblokkeerde geval dus zelf af; de dispatcher hoeft `isEnabled` niet te raadplegen.
-//
-// WAT HIER NIET IN HOORT. Acties die maar op één oppervlak bestaan. Die dupliceren niets, en ze
-// hierheen halen maakt dit bestand een tweede `shortcutRegistry` zonder er iets mee op te lossen.
-// Labels horen er ook niet in: het lint en de sneltoetsdialoog gebruiken bewust verschillende
-// vertaalsleutels ("Ongedaan maken" op een knop, een langere omschrijving in de sneltoetslijst).
 import type { AppState } from '@/state/appStore';
 import { buildImportLabels } from '@/i18n/importLabels';
 import { isTreeMode } from '@/engine/view/visibleRows';
@@ -28,19 +8,8 @@ import { canRedo, canUndo } from '@/state/sessionHistory';
 import { isTaskListInView } from '@/state/ganttVisibility';
 
 export interface Command {
-  /** Stabiele id — tevens de sleutel in {@link COMMANDS}. */
   id: string;
-  /**
-   * Voert de actie uit. Krijgt de store imperatief mee, zodat zowel de toetsenbord-dispatcher als
-   * een klik-handler hem kan aanroepen. Handelt zelf af wat er moet gebeuren als de actie NIET
-   * beschikbaar is (bv. een melding tonen) — de dispatcher controleert `isEnabled` niet.
-   */
   run: (store: AppState) => void;
-  /**
-   * Of de actie op dit moment zinvol is. Afwezig = altijd. Puur en synchroon, zodat het lint hem in
-   * een Zustand-selector kan wikkelen (dan is hij reactief) en de dispatcher hem direct kan
-   * aanroepen. Zet hier GEEN store-mutatie in.
-   */
   isEnabled?: (store: AppState) => boolean;
 }
 
@@ -69,22 +38,15 @@ export const COMMANDS = {
   },
   open: {
     id: 'open',
-    // De vertaalde naam voor een geïmporteerd project, via de globale `i18n` (zelfde instantie als
-    // `useTranslation`): dit is geen hook.
     run: (s) => { void s.openFile(buildImportLabels((key) => i18n.t(key, { ns: 'common' }))); },
   },
   delete: {
     id: 'delete',
-    // Storegebonden bulk-route: het expliciete `run(store)`-contract mag nooit via de
-    // app-singleton teruglekken. Het contextmenu gebruikt dezelfde storeactie via zijn adapter.
     run: (s) => { s.deleteTasksBulk(s.selectedTaskIds); },
     isEnabled: hasEditableSelection,
   },
   indent: {
     id: 'indent',
-    // Buiten boommodus doet inspringen niets zinnigs. Het lint grijst de knop uit (via `isEnabled`)
-    // en hangt er een tooltip aan; de sneltoets kán dat niet en legt het daarom uit met een melding.
-    // Vandaar dat `run` het geblokkeerde geval zelf afvangt.
     run: (s) => {
       if (isTreeMode(s.view)) s.indentTasks(s.selectedTaskIds);
       else s.notifyStructureLocked();
@@ -115,8 +77,6 @@ export const COMMANDS = {
       void saveShowHistogram(next);
     },
   },
-  // Het Waarschuwingenpaneel aan/uit (Beeld → Panelen). Sessie-vlag, dus niets te persisteren;
-  // het uitklappen van een ingeklapte rail regelt `setUI`.
   toggleWarningsPanel: {
     id: 'toggleWarningsPanel',
     run: (s) => {
@@ -127,7 +87,6 @@ export const COMMANDS = {
 
 export type CommandId = keyof typeof COMMANDS;
 
-/** Of de actie nu uitvoerbaar is. Eén plek, zodat lint en dispatcher niet elk hun eigen aanname doen. */
 export function isCommandEnabled(cmd: Command, store: AppState): boolean {
   return cmd.isEnabled ? cmd.isEnabled(store) : true;
 }

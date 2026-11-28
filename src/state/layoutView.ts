@@ -5,7 +5,6 @@ import type { LayoutOverlays, LayoutViewParts, ViewState } from '@/types/view';
 import type { TaskGridSurfaceId, TaskGridSurfacePreferences } from '@/types/taskGrid';
 import type { UIState } from './slices/types';
 
-/** Minimale structurele invoer; bewust geen AppState-import, zodat dit een bladmodule blijft. */
 export interface LayoutViewInputs {
   ui: Pick<UIState,
     | 'activeRibbonTab' | 'showBaselineOverlay' | 'showProgressLine' | 'showStatusDateLine'
@@ -14,7 +13,6 @@ export interface LayoutViewInputs {
   taskGridSurfaces: Record<TaskGridSurfaceId, TaskGridSurfacePreferences>;
 }
 
-/** De layoutdelen zoals ze NU op het scherm staan — de ene bron voor store en lint. */
 export function currentLayoutParts(state: LayoutViewInputs): LayoutViewParts {
   const surface = taskGridSurfaceForRibbonTab(state.ui.activeRibbonTab);
   return {
@@ -28,7 +26,6 @@ export function currentLayoutParts(state: LayoutViewInputs): LayoutViewParts {
   };
 }
 
-/** De overlay-schermopties zoals ze nu staan, in de vorm van het layoutdeel. */
 export function currentOverlays(ui: LayoutViewInputs['ui']): LayoutOverlays {
   return {
     baseline: ui.showBaselineOverlay,
@@ -40,12 +37,10 @@ export function currentOverlays(ui: LayoutViewInputs['ui']): LayoutOverlays {
   };
 }
 
-/** Ids van de layoutknoppen die nu aanstaan. Een knop valt af zodra het scherm er niet meer mee klopt. */
 export function activeLayoutIds(state: LayoutViewInputs): string[] {
   return liveSessionLayouts(state.view.layoutSession, currentLayoutParts(state)).map(layout => layout.id);
 }
 
-/** Omgekeerde richting van `currentOverlays`: de `ui`-velden voor een (deel van een) overlay-deel. */
 export function overlaysToUi(overlays: Partial<LayoutOverlays>): Partial<UIState> {
   const ui: Partial<UIState> = {};
   if (overlays.baseline !== undefined) ui.showBaselineOverlay = overlays.baseline;

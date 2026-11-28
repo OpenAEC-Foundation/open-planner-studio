@@ -1,0 +1,16 @@
+# Zoeken op de basis van de Immer-producer
+
+Binnen een producer maakt elke lees-toegang tot een element van een draftlijst een Immer-proxy, die bij het afronden
+weer doorlopen wordt. Een `findIndex` of `filter` over `s.tasks` of `s.assignments` kost zo per bewerking een proxy per
+taak of toewijzing, en in een bulkbewerking selectie maal taken. Daarom zoeken `taskIndexById` en
+`taskAssignmentDrafts` (`src/state/immerDraft.ts`) op de basis van de producer (`original`) en pakken ze alleen de
+gevonden plekken uit de draft; klopt die plek niet meer, dan valt de functie terug op de gewone zoektocht op de draft.
+Volgens het weggehaalde commentaar gemeten: 500 taken in een project van 8000 kostten met de zoektocht op de draft
+ongeveer 0,5 s extra.
+
+## Gevolgen
+
+- `taskAssignmentDrafts` is alleen exact zolang de producer `s.assignments` niet herschikte, aanvulde of inkortte;
+  roep hem aan vóór zulke mutaties.
+- `baseList` vergelijkt de identiteit van een lijst op de basis, omdat elke toegang via een draft een nieuwe proxy
+  geeft.

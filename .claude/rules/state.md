@@ -228,3 +228,10 @@ de getoonde datums en de tellers (0333) en de bouwstenen voor de lezers (0334).
 
 **Datums zoals opgeslagen verlaten rekent altijd door** (`useExitRecordedDates`, ook met Automatisch berekenen uit):
 `docs/adr/0782-datums-zoals-opgeslagen-verlaten-rekent-altijd.md`.
+
+**Zoeken op de basis van de Immer-producer** (`taskIndexById`, `taskAssignmentDrafts` in `immerDraft.ts`):
+`docs/adr/0830-zoeken-op-de-basis-van-de-immer-producer.md`. **Datums zoals opgeslagen bij crashherstel**
+(`restoredMode`, `applyRestoredRecordedMode`): `docs/adr/0831-datums-zoals-opgeslagen-bij-crashherstel.md`. **De
+remmen van Automatisch berekenen buiten de store** (`editHold.ts`, `failedSolveGate.ts`):
+`docs/adr/0832-remmen-van-automatisch-berekenen-buiten-de-store.md`. **Een vers project heeft geen naam**
+(`createDefaultProject`): `docs/adr/0833-een-vers-project-heeft-geen-naam.md`.
