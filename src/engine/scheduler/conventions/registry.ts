@@ -1,89 +1,28 @@
-/**
- * Rekenprofielen — het conventieregister.
- *
- * Twee lagen, disjuncte sleutels:
- *  - **Conventies** (`ConventionKey`, negenentwintig booleans): regels die per planningspakket verschillen.
- *    Ze leven in het profiel (`Project.schedulingProfile`), als basis + afwijkingen.
- *  - **Projectopties** (`ProjectOptionKey`, elf sleutels): per-bestand projectinstellingen
- *    (lagCalendar, kritiek-definitie, TF-modus, SS-lag-variant, nivelleerinstellingen als data, …). Ze blijven in `Project.schedulingOptions`.
- *
- * De solver krijgt één `EffectiveSchedulingOptions` via `effectiveSchedulingOptions(project)`.
- *
- * Deze module is puur en importeert uitsluitend types: `services/` (de XER-lezer, de IFC-lezer)
- * importeren hieruit, nooit andersom (`npm run verify:cycles`).
- */
 import type {
   BuiltInProfileId, ConventionKey, EffectiveSchedulingOptions, Project, ProjectOptionKey, ProjectSchedulingOptions, SchedulingConventions, SchedulingProfile,
 } from '@/types/project';
 
 export const BUILT_IN_PROFILE_IDS = ['p6', 'msproject', 'ops'] as const satisfies readonly BuiltInProfileId[];
 
-/**
- * BESCHRIJVEND thema van een conventie: waar gaat de regel over, in de woorden van een planner. Alleen
- * de weergave (het profielblok in Projectinfo, de gids) gebruikt dit; de motor, de migratie en de
- * IFC-laag lezen het nooit. De volgorde van `CONVENTION_THEMES` is de volgorde van de koppen in de UI.
- *  - `completedWork`: gestarte en voltooide taken rond de statusdatum (voortgang).
- *  - `relationsLag`: hoe een relatie of haar lag de opvolger of de late kant van de voorganger bindt.
- *  - `milestones`: mijlpalen (nulduur) en LOE-activiteiten, die een eigen venster in plaats van een duur hebben.
- *  - `float`: vrije/totale speling en de late datums waaruit die volgt.
- *  - `instants`: een datum of tijdstip uit het bestand dat letterlijk blijft staan (geplande start,
- *    werkelijke datums, constraintmoment).
- *  - `msproject`: de twee voortgangsconventies van Microsoft Project.
- *  - `durations`: duur en maat — telt een duur, lag of rest in werkdagen of in uren.
- */
 export type ConventionTheme = 'completedWork' | 'relationsLag' | 'milestones' | 'float' | 'instants' | 'msproject' | 'durations';
 export const CONVENTION_THEMES = [
   'completedWork', 'relationsLag', 'milestones', 'float', 'instants', 'msproject', 'durations',
 ] as const satisfies readonly ConventionTheme[];
 
 export interface ConventionDescriptor {
-  /** Stabiele sleutel; tegelijk de sleutel in `SchedulingOptions` en in de IFC-JSON. */
   id: ConventionKey;
-  /** Alle conventies zijn booleans. Komt er ooit een andere soort bij, dan breidt die de unie uit
-   *  samen met de sanitizers (die nu alleen booleans accepteren). */
   kind: 'boolean';
   builtIn: Record<BuiltInProfileId, boolean>;
-  /** Herkomstgroep: A = al een `SchedulingOptions`-sleutel vóór de profielen, B = was alleen actief
-   *  achter de XER-bronmarkering, C = nooit achter een bronmarkering geweest. Een legacy-XER-blob
-   *  (zonder profiel-pset) migreert naar het P6-profiel zonder afwijkingen, dus met C aan; een
-   *  profiel-pset die de sleutel niet kent krijgt `legacyValue`. */
   group: 'A' | 'B' | 'C';
-  /** BESCHRIJVEND: het thema waaronder de conventie in de UI staat (zie `ConventionTheme`). Geen
-   *  motorgedrag; los van `group` (dat is de herkomst in het register, geen onderwerp). */
   theme: ConventionTheme;
-  /** De waarde die geldt wanneer een bestand MÉT `OPS_SchedulingProfile` deze sleutel niet kent (een
-   *  bestand van vóór `since`). Standaard de OPS-waarde (`builtIn.ops`): een oudere profielkeuze
-   *  blijft zo zichtbaar. Met `legacyFromBase` geldt de basiswaarde, omdat het oude bestand
-   *  over die nieuwe conventie niets koos (T12). Bestanden zonder profiel-pset gebruiken
-   *  `legacyOptionsToProfile`. */
   legacyValue: boolean;
-  /** Nieuwe regel: een ouder profiel koos hierover niets (T12). */
   legacyFromBase?: true;
-  /** Was deze conventie vóór de rekenprofielen alleen actief onder de XER-bronmarkering? Zo ja, dan
-   *  was een losse vlag zonder die markering inert en gooit de legacy-migratie hem weg. */
   gatedByP6Source: boolean;
-  /** i18n-sleutel (namespace common): `<labelKey>.label` / `<labelKey>.help`. */
   labelKey: string;
-  /** ISO-datum waarop de conventie in het register kwam (documentatie bij `legacyValue`). */
   since: string;
-  /** BESCHRIJVEND: op welke data de conventie in de motor alleen iets doet (zie `ConventionRequires`).
-   *  Afwezig ⇒ geen van beide poorten. De UI toont er een kort label naast het vinkje mee. */
   requires?: ConventionRequires;
 }
 
-/**
- * Waar een conventie in de motor op poort (critreview #169, N2). Alleen weergave: de motor leest dit
- * nooit (`verify:conventions` verbiedt dat), hij poort zelf. Afgeleid uit de motorcode, niet uit de gids,
- * en als GEDRAG getoetst in `check-conventions-p6-flags` (sectie "`requires` als gedrag"):
- *  - `hourPlanning`: de conventie doet alleen iets bij uurplanning. De motor rekent een taak in uren
- *    als haar kalender werkblokken heeft (`workTime`) óf als de taak zelf in uren staat
- *    (`engineForTaskCalendar`); ook de interne 24-uurs lag-kalender is uurplanning. Sinds alleen uren
- *    F3 telt ook een taak in dagen als uren wanneer de dagenmaat (`workdayDurationMeasure`) uit staat,
- *    zoals onder P6 en MSP (§3.2). Zonder dat alles (dagkalender, taken in dagen met de dagenmaat aan)
- *    verandert aan/uit niets.
- *  - `xerOrigin`: de conventie werkt alleen op taken (of relaties) met P6-herkomst uit een `.xer`
- *    (`p6ProjectId`/`p6TaskId` en verwante velden, of de B1-relatievlag).
- */
 export interface ConventionRequires {
   hourPlanning?: true;
   xerOrigin?: true;
@@ -92,30 +31,27 @@ export interface ConventionRequires {
 const HOUR = { hourPlanning: true } as const;
 const XER = { xerOrigin: true } as const;
 const HOUR_XER = { hourPlanning: true, xerOrigin: true } as const;
-/** Per conventie de poort uit de motor (bron: de regel in `CPMSolver.ts`/`scheduleAnalysis.ts`/de
- *  beslisfuncties). Niet genoemd ⇒ werkt ook op een dagkalender en op data zonder P6-herkomst. */
 const CONVENTION_REQUIRES: Partial<Record<ConventionKey, ConventionRequires>> = {
-  p6ZeroDurationUsesPlannedBoundary: HOUR,           // A15 p6ZeroDurationUsesFinishBoundary/…BoundaryPair: `!eng.isHourMode`
-  p6PreserveActualInstants: XER,                     // A18 forwardPass: `task.p6ProjectId !== undefined`
-  p6PreserveZeroDurationConstraintInstants: HOUR,    // A20 backwardBoundOf: `eng.isHourMode`
-  p6RelationFinishBoundary: HOUR_XER,                // B1 de relatievlag zet alleen de XER-lezer, en alleen bij `predecessorCalendar.isHourMode`
-  p6BackwardLagFinishBoundary: HOUR,                 // B2 binnen `if (predEng.isHourMode)`
-  p6CompletedDataDateWindow: XER,                    // B3 provenancepoort (`p6ProjectId`/`p6TaskId`)
-  p6CompletedLoeActualFinish: XER,                   // B4 `missingProjectProvenance`/`missingTaskProvenance`
-  p6OpenLoeTargetSpan: HOUR_XER,                     // B5 `cal.isHourMode` (anders NaN ⇒ geweigerd) + provenance
-  p6CompletedPredecessorAtDataDate: HOUR,            // C1 `!progressCal.isHourMode`
-  p6FreeFloatOnOwnCalendar: HOUR,                    // C2 `cal.isHourMode`
-  p6CompletedRemainingLag: HOUR_XER,                 // C3 `!lagEng.isHourMode`; alle vier aanroepers zitten achter een route met herkomstpoort (C4/C5/A21-venster)
-  p6CompletedOutOfSequenceWindow: HOUR_XER,          // C4 `!progressCal.isHourMode` + de B3-route (provenance)
-  p6CompletedPhysicalAtDataDate: HOUR_XER,           // C5 recordCompletedPhysicalPoint `!progressCal.isHourMode` + provenance
-  p6InProgressStartLagElapsed: HOUR,                 // C6 `!lagEng.isHourMode`
-  p6FinishFinishStartMilestoneLateFinish: HOUR,      // C7 `predEng.isHourMode && succEng.isHourMode`
-  p6LateFinishOnOwnCalendar: HOUR,                   // C9 `!eng.isHourMode`
-  p6FinishNotBeforeFinishFinishBound: HOUR,          // C12 `!cal.isHourMode` / `cal.isHourMode`
-  p6AlapPositionedFromSuccessors: HOUR,              // C14 isUnstartedAlapPositionedFromSuccessors: `cal.isHourMode`
+  p6ZeroDurationUsesPlannedBoundary: HOUR,
+  p6PreserveActualInstants: XER,
+  p6PreserveZeroDurationConstraintInstants: HOUR,
+  p6RelationFinishBoundary: HOUR_XER,
+  p6BackwardLagFinishBoundary: HOUR,
+  p6CompletedDataDateWindow: XER,
+  p6CompletedLoeActualFinish: XER,
+  p6OpenLoeTargetSpan: HOUR_XER,
+  p6CompletedPredecessorAtDataDate: HOUR,
+  p6FreeFloatOnOwnCalendar: HOUR,
+  p6CompletedRemainingLag: HOUR_XER,
+  p6CompletedOutOfSequenceWindow: HOUR_XER,
+  p6CompletedPhysicalAtDataDate: HOUR_XER,
+  p6InProgressStartLagElapsed: HOUR,
+  p6FinishFinishStartMilestoneLateFinish: HOUR,
+  p6LateFinishOnOwnCalendar: HOUR,
+  p6FinishNotBeforeFinishFinishBound: HOUR,
+  p6AlapPositionedFromSuccessors: HOUR,
 };
 
-/** `since`-datums van groep C (C1–C9, C11, C12, C14). */
 const SINCE_X12_BROK2 = '2026-09-23';
 const SINCE_X12_BROK3 = '2026-09-23';
 const SINCE_X12_BROK4 = '2026-09-23';
@@ -139,57 +75,38 @@ function convention(
   };
 }
 
-/** Het register, in vaste volgorde (die volgorde is ook de sleutelvolgorde in de IFC-JSON).
-  *  Registernummers: A12, A13, A15–A20, A22, A23, B1–B5, C1–C9, C11, C12, C14 (C10 en C13 bestaan niet). */
 export const CONVENTIONS: readonly ConventionDescriptor[] = [
   { ...convention('milestoneWithoutPredecessorAtDayEnd', 'C', 'milestones', { p6: false, msproject: false, ops: true }, false, '2026-10-23'), legacyFromBase: true },
-  // A17, B3 en B4 staan in elk ingebouwd profiel uit: geen effect op P6-doorgerekende bestanden (ze
-  // komen uit rehab-2, P3-uitvoer); aan of uit verandert geen enkele gemeten cel.
-  // Thema per regel: het ONDERWERP van de conventie (zie `ConventionTheme`), met de reden erachter.
-  convention('preserveActualDatesInBackwardPass', 'A', 'completedWork', P6_ONLY, false),       // A12 gestarte/voltooide taak houdt haar datums aan de late kant
-  convention('clampNegativeFreeFloat', 'A', 'float', P6_ONLY, false),                          // A13 gaat over de vrije speling zelf
-  convention('p6ZeroDurationUsesPlannedBoundary', 'A', 'milestones', P6_ONLY, true),           // A15 kalendergrens van een nulduurmijlpaal
-  convention('p6UseTaskPlannedStartFloor', 'A', 'instants', P6_ONLY, true),                    // A16 de geplande start uit het bestand blijft als ondergrens staan
-  convention('p6FinishMilestoneBoundaryWindow', 'A', 'milestones', NONE, true),                // A17 (P6: uit) eindmijlpaal op twee grenzen
-  convention('p6PreserveActualInstants', 'A', 'instants', P6_ONLY, true),                      // A18 werkelijke tijdstippen letterlijk, niet naar een band
-  // A19 staat vast aan in P6: in alle P6-doorgerekende bestanden heeft elke lopende taak
-  // early_start == restart_date. Er is geen per-bestand-koppeling aan `rem_target_link_flag`.
-  convention('p6UseRemainingStartForProgress', 'A', 'completedWork', P6_ONLY, true),           // A19 vroege start van een lopende taak = restwerk
-  convention('p6PreserveZeroDurationConstraintInstants', 'A', 'instants', P6_ONLY, true),      // A20 constraintmoment exact; tijdstip boven mijlpaal: de regel gaat over het moment
-  convention('resumeFromActualElapsed', 'A', 'msproject', MSP_ONLY, false),                    // A22 MS Project-voortgang
-  convention('unstartedIgnoresStatusDate', 'A', 'msproject', MSP_ONLY, false),                 // A23 MS Project-voortgang
-  convention('p6RelationFinishBoundary', 'B', 'relationsLag', P6_ONLY, true),                  // B1 eind-startrelatie op een bandgrens
-  convention('p6BackwardLagFinishBoundary', 'B', 'relationsLag', P6_ONLY, true),               // B2 lag terugrekenen
-  convention('p6CompletedDataDateWindow', 'B', 'completedWork', NONE, true),                   // B3 (P6: uit) voltooide taak in het statusdatumvenster
-  convention('p6CompletedLoeActualFinish', 'B', 'completedWork', NONE, true),                  // B4 (P6: uit) voltooide LOE: voltooid werk wint van LOE
-  convention('p6OpenLoeTargetSpan', 'B', 'milestones', P6_ONLY, true),                         // B5 niet-gestarte LOE: venster i.p.v. duur, net als een mijlpaal
-  // C1–C14: docblok met P6/MS Project/OPS en bron bij de sleutel in `types/project.ts`. C1 en C4
-  // staan in elk ingebouwd profiel uit: op P6-doorgerekende bestanden geen effect, alleen rehab-2
-  // (P3-uitvoer) droeg ze. C3 blijft in P6 aan: C5 rekent de lag tussen zijn statusdatumpunt en een
-  // opvolger met rekenregel C3, en C3 uit maakt honderden exacte corpuscellen inexact (regel A).
-  convention('p6CompletedPredecessorAtDataDate', 'C', 'completedWork', NONE, false, SINCE_X12_BROK2),     // C1 voltooide voorganger na de statusdatum
-  convention('p6FreeFloatOnOwnCalendar', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK2),                  // C2 vrije speling per kalender
-  convention('p6CompletedRemainingLag', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK2),            // C3 de LAG na een voltooide voorganger (naast C6)
-  convention('p6CompletedOutOfSequenceWindow', 'C', 'completedWork', NONE, false, SINCE_X12_BROK3),       // C4 voltooide taak buiten volgorde
-  convention('p6CompletedPhysicalAtDataDate', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK3),     // C5 voltooide fysieke-voortgangstaak; alleen CP_Phys gemeten, dus smal
-  convention('p6InProgressStartLagElapsed', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK3),        // C6 de start-startlag uit een lopende voorganger
-  convention('p6FinishFinishStartMilestoneLateFinish', 'C', 'milestones', P6_ONLY, false, SINCE_X12_BROK4), // C7 eind-eindrelatie naar een startmijlpaal: het doel is de mijlpaal
-  convention('p6StartedTaskIgnoresPlannedStartFloor', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK4), // C8 lopende taak (tegenhanger van A16)
-  convention('p6LateFinishOnOwnCalendar', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK6),                 // C9 late finish ⇒ de speling
-  convention('p6ProgressOverrideIgnoresStartedSuccessor', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK8), // C11 voortgangsinstelling Progress Override
-  convention('p6FinishNotBeforeFinishFinishBound', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK8),        // C12 eind-eindgrens
-  // C13 is geen registerconventie maar een regel binnen C5.
-  convention('p6AlapPositionedFromSuccessors', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK10),      // C14 ALAP-taak zo laat als de opvolgers toestaan
-  // Alleen uren §3.14: de dagenmaat. Een ouder profiel koos hierover niets, dus een ontbrekende sleutel
-  // volgt de basis (T12), net als B6.
+  convention('preserveActualDatesInBackwardPass', 'A', 'completedWork', P6_ONLY, false),
+  convention('clampNegativeFreeFloat', 'A', 'float', P6_ONLY, false),
+  convention('p6ZeroDurationUsesPlannedBoundary', 'A', 'milestones', P6_ONLY, true),
+  convention('p6UseTaskPlannedStartFloor', 'A', 'instants', P6_ONLY, true),
+  convention('p6FinishMilestoneBoundaryWindow', 'A', 'milestones', NONE, true),
+  convention('p6PreserveActualInstants', 'A', 'instants', P6_ONLY, true),
+  convention('p6UseRemainingStartForProgress', 'A', 'completedWork', P6_ONLY, true),
+  convention('p6PreserveZeroDurationConstraintInstants', 'A', 'instants', P6_ONLY, true),
+  convention('resumeFromActualElapsed', 'A', 'msproject', MSP_ONLY, false),
+  convention('unstartedIgnoresStatusDate', 'A', 'msproject', MSP_ONLY, false),
+  convention('p6RelationFinishBoundary', 'B', 'relationsLag', P6_ONLY, true),
+  convention('p6BackwardLagFinishBoundary', 'B', 'relationsLag', P6_ONLY, true),
+  convention('p6CompletedDataDateWindow', 'B', 'completedWork', NONE, true),
+  convention('p6CompletedLoeActualFinish', 'B', 'completedWork', NONE, true),
+  convention('p6OpenLoeTargetSpan', 'B', 'milestones', P6_ONLY, true),
+  convention('p6CompletedPredecessorAtDataDate', 'C', 'completedWork', NONE, false, SINCE_X12_BROK2),
+  convention('p6FreeFloatOnOwnCalendar', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK2),
+  convention('p6CompletedRemainingLag', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK2),
+  convention('p6CompletedOutOfSequenceWindow', 'C', 'completedWork', NONE, false, SINCE_X12_BROK3),
+  convention('p6CompletedPhysicalAtDataDate', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK3),
+  convention('p6InProgressStartLagElapsed', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK3),
+  convention('p6FinishFinishStartMilestoneLateFinish', 'C', 'milestones', P6_ONLY, false, SINCE_X12_BROK4),
+  convention('p6StartedTaskIgnoresPlannedStartFloor', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK4),
+  convention('p6LateFinishOnOwnCalendar', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK6),
+  convention('p6ProgressOverrideIgnoresStartedSuccessor', 'C', 'completedWork', P6_ONLY, false, SINCE_X12_BROK8),
+  convention('p6FinishNotBeforeFinishFinishBound', 'C', 'relationsLag', P6_ONLY, false, SINCE_X12_BROK8),
+  convention('p6AlapPositionedFromSuccessors', 'C', 'float', P6_ONLY, false, SINCE_X12_BROK10),
   { ...convention('workdayDurationMeasure', 'C', 'durations', { p6: false, msproject: false, ops: true }, false, '2026-10-23'), legacyFromBase: true },
 ];
 
-// ── Compile-time: register ⇔ ConventionKey, en projectopties ⊥ conventies ─────────────────────────
-// Een Record over ConventionKey dwingt dat elke conventie hier staat (de runtime-check in
-// `check-conventions-registry.ts` legt de lijst hierboven ernaast); een sleutel die zowel optie als
-// conventie is, is per constructie onmogelijk (`ProjectOptionKey` is het complement) — de assertie
-// hieronder maakt dat expliciet.
 const _everyConventionNamed: Record<ConventionKey, true> = {
   milestoneWithoutPredecessorAtDayEnd: true,
   preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true,
@@ -211,8 +128,6 @@ type Overlap = Extract<ProjectOptionKey, ConventionKey>;
 const _disjoint: [Overlap] extends [never] ? true : Overlap = true;
 void _disjoint;
 
-/** Staat de conventie in ÉLK ingebouwd profiel uit? Dan is ze alleen in een
- *  eigen profiel aan te zetten; de UI zet ze in een aparte laatste groep. Afgeleid uit `builtIn`. */
 export const isOffInEveryBuiltIn = (d: ConventionDescriptor): boolean =>
   BUILT_IN_PROFILE_IDS.every(id => !d.builtIn[id]);
 
@@ -227,28 +142,22 @@ export function conventionsFor(pick: (d: ConventionDescriptor) => boolean): Sche
   return out as SchedulingConventions;
 }
 
-/** De opgeloste conventies per ingebouwd profiel. Levert steeds een verse kopie. */
 export function builtInConventions(baseId: BuiltInProfileId): SchedulingConventions {
   return conventionsFor(d => d.builtIn[baseId]);
 }
 
-/** De conventiewaarden voor een opgeslagen profiel dat een sleutel niet kent. */
 export function legacyConventions(): SchedulingConventions {
   return conventionsFor(d => d.legacyValue);
 }
 
-/** Het ingebouwde profiel zelf: basis zonder afwijkingen; de naam komt uit i18n. */
 export function builtInProfile(id: BuiltInProfileId): SchedulingProfile {
   return { baseId: id, id, name: '', overrides: {} };
 }
 
-/** i18n-sleutel (namespace common) voor de weergavenaam van een ingebouwd profiel. */
 export function displayNameKey(id: BuiltInProfileId): string {
   return `profiles.builtIn.${id}`;
 }
 
-/** Basis + afwijkingen ⇒ alle negenentwintig conventies. Afwezig profiel ≡ `ops` zonder afwijkingen.
- *  Alleen bekende conventiesleutels met een boolean tellen; de rest van `overrides` wordt genegeerd. */
 export function resolveConventions(profile: SchedulingProfile | undefined): SchedulingConventions {
   const out = builtInConventions(profile?.baseId ?? 'ops');
   const overrides = profile?.overrides;
@@ -261,9 +170,6 @@ export function resolveConventions(profile: SchedulingProfile | undefined): Sche
   return out;
 }
 
-/** De minimale afwijkingen van `baseId` die `conventions` beschrijven. Ontbrekende sleutels in
- *  `conventions` leveren geen afwijking op. `diffAgainstBase(b, resolveConventions({baseId: b, …}))`
- *  geeft voor minimale overrides exact die overrides terug (bewaakt in de registercheck). */
 export function diffAgainstBase(
   baseId: BuiltInProfileId, conventions: Partial<SchedulingConventions>,
 ): Partial<SchedulingConventions> {
@@ -276,11 +182,6 @@ export function diffAgainstBase(
   return out;
 }
 
-/** Is dit profiel het standaardprofiel: ingebouwd `ops` zonder ENIGE afwijking? Zo'n profiel wordt
- *  niet weggeschreven en na lezen niet op het project gezet (afwezig ≡ ops). Letterlijk, niet
- *  semantisch: een afwijking die onder ops toevallig gelijk is aan de
- *  basis (P6 {A13: uit} → OPS) blijft staan, zodat P6 → OPS → P6 het origineel teruggeeft. Alleen
- *  bekende conventiesleutels met een boolean tellen (zoals in `resolveConventions`). */
 export function isDefaultProfile(profile: SchedulingProfile | undefined): boolean {
   if (!profile) return true;
   const overrides = profile.overrides as Partial<Record<string, unknown>>;
@@ -288,8 +189,6 @@ export function isDefaultProfile(profile: SchedulingProfile | undefined): boolea
     && CONVENTION_KEYS.every(key => typeof overrides[key] !== 'boolean');
 }
 
-/** De P6-projectoptie-defaults met precieze types (alle velden aanwezig), voor de XER-lezer die er
- *  zijn `XER_SCHEDULING_DEFAULTS` uit opbouwt. Levert steeds een verse kopie. */
 export function p6OptionDefaults(): {
   lagCalendar: 'predecessor';
   criticalDefinition: { mode: 'totalFloat'; thresholdHours: number };
@@ -306,24 +205,10 @@ export function p6OptionDefaults(): {
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
     p6CompletedLateFromRemainingWindow: true,
-    // P6-standaard "Calculate Start-to-Start lag from: Early Start" (de variant van C6).
     startToStartLagFrom: 'earlyStart',
   };
 }
 
-/** Standaard-PROJECTOPTIES voor een nieuw of bronloos project per basis. P6 = de optie-defaults
- *  van de XER-lezer (`p6OptionDefaults`) ZONDER de twee bronsignalen `useExpectedFinishDates` en
- *  `p6CompletedLateFromRemainingWindow`: die horen bij een `.xer`-bestand (SCHEDOPTIONS), de UI toont ze
- *  alleen-lezen als "uit het bronbestand", en een profiel voegt ze dus niet toe (critreview #169 N5,
- *  review #331 punt 4). De XER-lezer neemt ze zelf uit `p6OptionDefaults`; dat
- *  `XER_SCHEDULING_DEFAULTS` = deze set + die twee is, pint `check-conventions-registry.ts`.
- *  MS Project en OPS = niets (afwezig ≡ het huidige gedrag). Voor MS Project bewust ook geen
- *  `totalFloatMode` (eigenaarsbesluit 2026-10-02, spec §3.1): afwezig = *Automatisch* = finish-speling
- *  bij statusdatum én gestarte taak, anders de kleinste. Dat is MSP's regel (voor een gestarte taak de
- *  finish slack) zodra er een statusdatum is; zonder statusdatum telt voortgang hier niet mee en krijgt
- *  ook een gestarte taak de kleinste. Het is ook wat een geopend `.mpp` draagt (de `.mpp`-lezer zet
- *  geen optie). *Kleinste* (altijd min) is een van de P6-keuzes (`FT_MIN`); het P6-profiel zet *Finishspeling*
- *  (`p6OptionDefaults`). Levert steeds een verse kopie. */
 export function defaultOptionsFor(baseId: BuiltInProfileId): ProjectSchedulingOptions {
   switch (baseId) {
     case 'p6': {
@@ -339,24 +224,11 @@ export function defaultOptionsFor(baseId: BuiltInProfileId): ProjectSchedulingOp
   }
 }
 
-/**
- * Profielwissel naar het ingebouwde profiel `newBaseId`.
- *  - Staat het project op een INGEBOUWD id, dan blijven ALLE afwijkingen letterlijk staan: op een
- *    ingebouwd id komen afwijkingen per definitie uit het bestand of uit de migratie (A19 uit XER,
- *    `clampNegativeFreeFloat: false` uit een pset, …) en die zijn projectdata. Niet opnieuw tegen de
- *    nieuwe basis diffen: dan zou P6 → MS Project → P6 een andere opgeloste set geven.
- *  - Staat het project op een EIGEN profiel, dan is dat een bewuste gebruikerskeuze die de wissel
- *    juist verlaat: het nieuwe profiel is de kale basis.
- * Puur; geen state.
- */
 export function switchProfile(profile: SchedulingProfile | undefined, newBaseId: BuiltInProfileId): SchedulingProfile {
   const keep = !profile || isBuiltInProfileId(profile.id);
   return { ...builtInProfile(newBaseId), overrides: keep && profile ? { ...profile.overrides } : {} };
 }
 
-/** De ene set die de solver krijgt: het projectblok met de opgeloste conventies van het profiel
- *  als LAATSTE gespreid, zodat het profiel altijd wint van eventuele
- *  conventiesleutels die in de overgang nog in `schedulingOptions` staan. */
 export function effectiveSchedulingOptions(
   project: Pick<Project, 'schedulingProfile' | 'schedulingOptions'>,
 ): EffectiveSchedulingOptions {

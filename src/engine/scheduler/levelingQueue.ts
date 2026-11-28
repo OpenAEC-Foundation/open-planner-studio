@@ -1,4 +1,3 @@
-// Min-heap van vaste sorteerrangen, gedeeld door taakkeuze en de voorwaartse nivelleerpass.
 export class LevelingQueue {
   private ranks: number[] = [];
 

@@ -66,13 +66,6 @@ export interface CpmDisplayActualLateDecision {
   reason: CpmDisplayActualLateReason;
 }
 
-/**
- * Smalle, pure en fail-closed diagnose voor één bewezen P6-XER-vorm: een voltooide LOE met
- * uitsluitend inkomende SS-relaties en zonder opvolger. Alleen deze vorm mag in `forwardPass`
- * door de generieke hammock-route vallen zodat de bestaande completed-actualroute haar concrete
- * actualFinish gebruikt. De helper leest uitsluitend toegestane invoer/bronprovenance, nooit P6's
- * opgeslagen early/late/float-uitkomst.
- */
 export function explainCompletedXerLoeActualFinishEligibilityResolved(
   task: Task,
   dataDate: Date | null,
@@ -82,7 +75,6 @@ export function explainCompletedXerLoeActualFinishEligibilityResolved(
 ): CompletedXerLoeActualFinishDecision {
   if (dataDate === null) return { eligible: false, reason: 'missingDataDate' };
   if (!Number.isFinite(dataDate.getTime())) return { eligible: false, reason: 'invalidDataDate' };
-  // Conventie B4 `p6CompletedLoeActualFinish`.
   if (schedulingOptions?.p6CompletedLoeActualFinish !== true) {
     return { eligible: false, reason: 'conventionOff' };
   }
@@ -95,9 +87,6 @@ export function explainCompletedXerLoeActualFinishEligibilityResolved(
   if (schedulingOptions.p6PreserveActualInstants !== true) {
     return { eligible: false, reason: 'preserveActualInstantsOff' };
   }
-  // De forward-route valt daarna door naar de bestaande completed-actualverwerking. Die
-  // bewaart XER-instanten alleen voor echte P6-taken; zonder beide herkomstsleutels zou deze
-  // uitzondering dus een andere route openen dan de gemeten Harbour-vorm.
   if (task.p6ProjectId === undefined || task.p6ProjectId === '') {
     return { eligible: false, reason: 'missingProjectProvenance' };
   }
@@ -117,9 +106,6 @@ export function explainCompletedXerLoeActualFinishEligibilityResolved(
   if (task.time.stop !== undefined || task.time.resume !== undefined || task.p6SuspendResume === true) {
     return { eligible: false, reason: 'hasSuspendResume' };
   }
-  // Een LOE die als mijlpaal of met een niet-positieve duur binnenkomt is niet de gemeten
-  // Harbour-vorm. Ook wanneer het targetvenster toevallig een span toont, openen we die
-  // tegenstrijdige bronvorm niet met deze uitzondering.
   if (task.isMilestone || !Number.isFinite(task.time.scheduleDuration) || task.time.scheduleDuration <= 0) {
     return { eligible: false, reason: 'milestoneOrZeroDuration' };
   }
@@ -145,11 +131,6 @@ export function explainCompletedXerLoeActualFinishEligibilityResolved(
   return { eligible: true, reason: 'eligible' };
 }
 
-/**
- * Pure, fail-closed diagnose van de completed actual-pin in `CPMSolver.backwardPass`.
- * Guardvolgorde volgt bewust exact de bestaande runtimepoort: dataDate → preserve → actualFinish
- * → completion. De eerste afwijzing is de enige gerapporteerde reden.
- */
 export function explainBackwardActualPinEligibility(
   task: Task,
   dataDate: Date | null,
@@ -164,10 +145,6 @@ export function explainBackwardActualPinEligibility(
   return { eligible: true, reason: 'eligible' };
 }
 
-/**
- * Pure, fail-closed diagnose van de zichtbare late-datumprojectie in `scheduleAnalysis`.
- * Guardvolgorde volgt exact de bestaande runtimepoort: dataDate → completion → preserve.
- */
 export function explainDisplayActualLateEligibility(
   task: Task,
   dataDate: Date | null,
@@ -193,16 +170,6 @@ export interface P6CompletedLateRemainingWindowDecision {
   reason: P6CompletedLateRemainingWindowReason;
 }
 
-/**
- * `CPMSolver.backwardPass` en `scheduleAnalysis` moeten PRECIES dezelfde voorwaarde gebruiken om de P6-restwerkregel voor voltooide activiteiten te
- * activeren — anders kan een taak "tussen de poorten in vallen" (bv. `TK_Complete` zonder
- * `act_end_date`: wel `completedWindow.eligible`, niet `backwardActualPin.eligible`) en verandert
- * de getoonde late datum/float wél terwijl de solvertak zelf niet draait. Eén functie, drie
- * bestaande, los getoetste bouwstenen in vaste volgorde: eerst de completed-actual-pin-poort
- * (dataDate/preserve/actualFinish/completion), dan conventie B3 (`p6CompletedDataDateWindow`), dan de vlag
- * `p6CompletedLateFromRemainingWindow` zelf, dan de nauwe statusdatumvenster-poort (dezelfde als
- * de forward-display). De eerste afwijzing is de enige gerapporteerde reden.
- */
 export function explainP6CompletedLateRemainingWindowEligibilityResolved(
   task: Task,
   dataDate: Date | null,
@@ -210,9 +177,6 @@ export function explainP6CompletedLateRemainingWindowEligibilityResolved(
 ): P6CompletedLateRemainingWindowDecision {
   const pin = explainBackwardActualPinEligibility(task, dataDate, schedulingOptions);
   if (!pin.eligible) return { eligible: false, reason: pin.reason };
-  // Deze regel meet tegen het statusdatumvenster van conventie B3 (`p6CompletedDataDateWindow`);
-  // staat die uit, dan kan de regel niet gelden. Zelfde uitkomst als de venster-poort verderop,
-  // maar met een vroegere, eigen reden.
   if (schedulingOptions?.p6CompletedDataDateWindow !== true) {
     return { eligible: false, reason: 'conventionOff' };
   }
