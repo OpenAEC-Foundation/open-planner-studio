@@ -17,14 +17,15 @@ kloppen.
   lijst van de computer zijn alleen de kop, de `name`-tabel en `OS/2` nodig: een paar kilobyte per bestand, tegen
   tot 20 MB voor een CJK-letter. De desktop leest de lettertypemappen daarom in stukken (`ByteReader`).
 - `clipOpToWindow` (`svgDraw2d.ts`) knipt rechthoeken en rechte lijnen af op het venster van een blad, hoewel de
-  geneste `<svg>` ze al afknipt. Volgens het weggehaalde commentaar rastert de browser elk element over zijn hele
-  omhullende, en een rasterlijn of weekendband loopt over de hele hoogte van het rapport (bij 5000 taken 120.000 px);
-  één schermtegel kostte zo tot 0,6 s. Alleen wat binnen het venster pixel voor pixel gelijk blijft, wordt afgeknipt:
+  geneste `<svg>` ze al afknipt. Chromium rastert elk element over zijn hele omhullende, en een rasterlijn of
+  weekendband loopt over de hele hoogte van het rapport (bij 5000 taken 100.000+ px); één schermtegel kostte zo tot
+  0,6 s (een trace in `docs/superpowers/specs/2026-11-07-rapport-tabblad-bevindingen.md`, "Oorzaak van de
+  uitschieters"). Alleen wat binnen het venster pixel voor pixel gelijk blijft, wordt afgeknipt:
   geen boog, geen gesloten of gevuld pad, geen gestreepte rand, en een gestreepte lijn begint op een hele periode van
   haar oude begin.
 - De letterklasse van een tekst is een hash van de CSS-letter zelf (`reportFontClass`), zodat één gedeelde stijlregel
-  per letter alle bladen opmaakt (`paperFontRules.ts`). Volgens het weggehaalde commentaar laat elke nieuwe `<style>` de
-  browser het hele document opnieuw opmaken; een `<style>` per blad was dus trager.
+  per letter alle bladen opmaakt (`paperFontRules.ts`). Elke nieuwe `<style>` laat de browser het hele document opnieuw
+  opmaken; een `<style>` per blad was dus trager (zelfde document, "Wat er veranderde").
 - Op een blad in een rechts-naar-linkstaal wisselt de serialisatie `text-anchor` `start` en `end` om
   (`svgDraw2d.ts`). Canvas en PDF houden `textAlign` links en rechts absoluut, maar in SVG hangt `text-anchor` aan de
   schrijfrichting; zonder de wissel zou rechts uitgelijnde tekst op het papier aan de andere kant staan dan in de PDF.

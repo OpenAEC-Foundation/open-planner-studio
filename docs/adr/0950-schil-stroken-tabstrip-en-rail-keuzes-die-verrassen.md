@@ -22,7 +22,7 @@ geen timer, omdat een weigering die vanzelf weggaat te missen is.
   verdwijnen pas bij een marge vrije ruimte (`documentTabNeedsArrows` in `documentTabScroll.ts`); anders kan het verschijnen van de pijlen de uitkomst omkeren
   en flikkeren ze aan en uit.
 - Het doel van een lopende vloeiende pijlklik vervalt ook na `PENDING_SCROLL_MS` (`DocumentTabBar`), omdat WebKit het
-  `scrollend`-event niet kent (uit het weggehaalde commentaar, niet nagegaan).
+  `scrollend`-event pas sinds Safari 26.2 kent (caniuse, `scrollend`); oudere WebKit-webviews missen het.
 - De statusbalk vouwt bij een andere breedte, tekstgrootte of letter opnieuw in dezelfde frame (`flushSync` in
   `useStatusFold.ts`): anders staat er één frame overloop in beeld.
 - In de rechterrail (`RailPanel` in `RightRail.tsx`) staat het paneel met vaste hoogte op `flex: 0 1 auto` en hebben
