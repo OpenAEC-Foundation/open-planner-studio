@@ -1,17 +1,3 @@
-// Datasets en Node-metingen voor `npm run measure:large-plans` (nulmeting grote planningen, #405 deel 2.4).
-//
-// Draait via `node scripts/run-ts.mjs scripts/measure-large-plans-data.ts --out <map> [--sizes 1000,5000,10000]
-// [--repeats 3]`. Per grootte:
-//   1. genereert de dataset met de bestaande benchmarkgenerator (`generateBenchmarkProject`, vaste seed,
-//      standaard acht resources: dezelfde data als Benchmark… in de app);
-//   2. rekent hem één keer door (CPMSolver + `applyCpmResult`, net als de benchmarkrunner) en schrijft
-//      het resultaat als IFC naar `<out>/plan-<grootte>.ifc` — het bestand dat de browsermeting opent;
-//   3. beschrijft de dataset (relaties per type, samenvattingsniveaus, resources, toewijzingen, kalenders)
-//      en geeft een SHA-256 over de inhoud van het IFC-bestand (zonder schrijftijd), zodat een herhaling aantoonbaar dezelfde data gebruikt;
-//   4. meet in Node (esbuild-bundel, geen browser) de kernfasen los: rekenen, IFC schrijven, IFC lezen.
-//      Die getallen zijn een controle naast de browsermeting, geen vervanging ervan.
-//
-// Schrijft `<out>/datasets.json`. Wijzigt geen productcode en raakt de store niet aan.
 import { createHash } from 'node:crypto';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -26,7 +12,6 @@ import { readIFCWithXerReconstruction } from '@/services/formatRegistry';
 import { isLeafTask } from '@/utils/taskHierarchy';
 import type { Task } from '@/types/task';
 
-/** Vaste seed: de standaard van de generator (0x5eed), hier expliciet zodat het verslag hem noemt. */
 const SEED = 0x5eed;
 
 function arg(name: string): string | undefined {
@@ -55,16 +40,12 @@ function stats(samples: number[]) {
   return { median: r(median), min: r(sorted[0]), max: r(sorted[sorted.length - 1]), samples: samples.map(r) };
 }
 
-/** Haal de schrijftijd uit de IFC-tekst, zodat de hash alleen over de inhoud gaat. De schrijver zet
- *  hetzelfde tijdstip in FILE_NAME, als aanmaakdatum van IFCWORKPLAN/IFCWORKSCHEDULE en (als
- *  epoch-seconden) in IFCOWNERHISTORY. */
 function normalizeWriteTime(ifc: string): string {
   const stamp = /^FILE_NAME\('[^']*','([^']*)'/m.exec(ifc)?.[1];
   const withoutStamp = stamp ? ifc.split(`'${stamp}'`).join("'<tijd>'") : ifc;
   return withoutStamp.replace(/^(#\d+=IFCOWNERHISTORY\((?:[^,]*,){7})\d+\)/m, '$1<tijd>)');
 }
 
-/** Diepte van een taak in de WBS (0 = wortel). */
 function depthOf(task: Task, byId: Map<string, Task>): number {
   let d = 0;
   let cur = task;
@@ -91,7 +72,6 @@ for (const size of sizes) {
   for (const r of data.resources) resourcesByType[r.type] = (resourcesByType[r.type] ?? 0) + 1;
   const { sequences: expanded } = expandSummaryRelations(data.tasks, data.sequences);
 
-  // Node-fase: rekenen (de solver zelf; constructie buiten de tijd, zoals de benchmarkrunner).
   const cpm: number[] = [];
   let result = null as ReturnType<CPMSolver['solve']> | null;
   for (let i = 0; i < repeats; i++) {
@@ -128,8 +108,6 @@ for (const size of sizes) {
     size,
     file: `plan-${size}.ifc`,
     ifcBytes: Buffer.byteLength(ifc),
-    // Inhoudshash: de schrijver zet het tijdstip van schrijven in FILE_NAME en IFCOWNERHISTORY. Die twee
-    // waarden worden genormaliseerd; al het andere (taken, relaties, GUID's) is bij dezelfde seed gelijk.
     contentSha256: createHash('sha256').update(normalizeWriteTime(ifc)).digest('hex'),
     generator: { function: 'generateBenchmarkProject', seed: `0x${SEED.toString(16)}`, resourceCount: data.resources.length },
     tasks: data.tasks.length,

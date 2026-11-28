@@ -1,24 +1,4 @@
 #!/usr/bin/env node
-// De uitvoerder van de volledige planningssuite, en de telling erachter.
-//
-// `tests/planning/run.sh` loopt zijn checkregels af en voert ze bij een volledige run niet zelf uit: hij
-// schrijft een plan (zie `parsePlan`) en geeft dat hier door. Dit script bundelt de checks van dit deel,
-// draait elke check in de gewone tijdzone en daarna in de zones van de matrix, met hoogstens OPS_PLANNING_JOBS
-// processen tegelijk (standaard 4, of minder als de machine minder kernen heeft).
-//
-//   node scripts/planning-pool.mjs run <plan> <verwacht.txt> [--shard=k/n] [--manifest=<pad>]
-//   node scripts/planning-pool.mjs list <plan>                         # inhoud voor verwacht.txt
-//   node scripts/planning-pool.mjs count <verwacht.txt> <manifest>...  # alles precies één keer gedraaid?
-//   node scripts/planning-pool.mjs durations <manifest>...             # inhoud voor check-durations.json
-//
-// Elk proces krijgt een eigen logbestand en een eigen TMPDIR, dus uitvoer loopt niet door elkaar en twee
-// checks delen geen tijdelijke map. De bundels schrijft esbuild vooraf, elk op een eigen pad; daarna lezen
-// de processen ze alleen. Een rode check houdt de rest niet tegen: de run draait door en eindigt rood.
-//
-// De telling: `tests/planning/expected-checks.txt` noemt elke check en of hij in de tijdzone-matrix hoort.
-// Het plan moet daar precies mee kloppen, in twee richtingen, en elke uitgevoerde run komt met zijn exitcode
-// in het manifest. `count` legt de manifesten van alle delen naast die lijst: een run die ontbreekt of
-// dubbel staat, is rood. Exit 0 = alles groen, 1 = minstens één afwijking.
 import { spawn, spawnSync } from 'node:child_process';
 import { appendFileSync, closeSync, mkdirSync, mkdtempSync, openSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { availableParallelism, tmpdir } from 'node:os';
@@ -26,21 +6,10 @@ import { basename, dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { assignShards } from './browser-shards.mjs';
 
-/** De zone van een run in de gewone tijdzone, dus zonder eigen TZ. */
 const BASE_ZONE = '-';
 const SEP = '\x1f';
-/** Een GitHub-runner heeft 4 vCPU's. Ook op een grotere machine niet meer: de zware checks vragen veel geheugen. */
 const DEFAULT_JOBS = 4;
 
-/**
- * Het plan, per regel velden gescheiden door tabs:
- *   esbuild <arg> …
- *   zones <zone> …
- *   check <id> <bron> <bundel> <matrix 0|1> <env, door \x1f gescheiden> <argv, door \x1f gescheiden>
- *   cmd <id> <env> <argv>    (geen bundel, geen matrix; argv[0] is het programma)
- * Bij `check` is de bron leeg als de bundel er al ligt (de harness). Het eerste argv-veld is dan het
- * eerste argument van `node`.
- */
 export function parsePlan(text) {
   const plan = { esbuild: [], zones: [], items: [] };
   for (const line of text.split('\n')) {
@@ -63,12 +32,10 @@ export function parsePlan(text) {
 
 const splitField = (field) => (field ? field.split(SEP) : []);
 
-/** Een poort met echte tijdgrenzen draait alleen, nadat alle andere processen klaar zijn. */
 export const runsAlone = (item) => item.env.includes('OPS_RELAX_PERF=0');
 
 const byId = (a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0);
 
-/** De inhoud van expected-checks.txt voor dit plan. */
 export function expectedLines(plan) {
   return [
     '# Elke controle van de volledige planningssuite: `matrix` draait ook in elke zone, `los` alleen gewoon.',
@@ -92,7 +59,6 @@ export function parseExpected(text) {
   return expected;
 }
 
-/** Elke run die moet draaien, als `id<tab>zone`. */
 export function expectedRuns(expected) {
   const runs = [];
   for (const [id, kind] of expected.kinds) {
@@ -102,7 +68,6 @@ export function expectedRuns(expected) {
   return runs;
 }
 
-/** Waar plan en verwachte lijst uiteenlopen. Een lege lijst betekent: ze kloppen. */
 export function planProblems(plan, expected) {
   const problems = [];
   if (plan.zones.join(' ') !== expected.zones.join(' ')) {
@@ -127,20 +92,11 @@ export function planProblems(plan, expected) {
   return problems;
 }
 
-/**
- * Deel `k` van `n`: langste eerst naar het lichtste deel, op gemeten seconden per check (zie de browser-
- * shards). Alle runs van één check blijven bij elkaar. Dekking hangt niet van de duren af: een check
- * zonder meting krijgt de mediaan, en een verouderd getal kost alleen balans.
- */
 export function itemsOfShard(items, k, n, durations = {}) {
   const ids = new Set(assignShards(items.map(item => item.id), durations, n)[k - 1].files);
   return items.filter(item => ids.has(item.id)).sort(byId);
 }
 
-/**
- * Gewicht per check voor de verdeling over de jobs. Een check die alleen draait, houdt de andere kernen leeg:
- * hij telt daarom voor DEFAULT_JOBS keer zijn duur. Een vaste factor, zodat elke job dezelfde verdeling ziet.
- */
 export function shardWeights(items, durations) {
   const weights = { ...durations };
   for (const item of items) {
@@ -149,13 +105,11 @@ export function shardWeights(items, durations) {
   return weights;
 }
 
-/** De runs op geschatte duur per run, langste eerst; bij gelijke duur in de oude volgorde. Een onbekende check telt als 1 s. */
 export function longestFirst(runs, durations, zoneCount) {
   const estimate = (run) => (durations[run.item.id] ?? 1) / (run.item.matrix ? 1 + zoneCount : 1);
   return runs.map((run, i) => ({ run, i })).sort((a, b) => estimate(b.run) - estimate(a.run) || a.i - b.i).map(x => x.run);
 }
 
-/** Seconden per check uit de manifesten, voor `tests/planning/check-durations.json`. */
 export function durationsFromManifests(manifests) {
   const totals = new Map();
   for (const manifest of manifests) {
@@ -169,7 +123,6 @@ export function durationsFromManifests(manifests) {
   return Object.fromEntries(sorted.map(([id, ms]) => [id, Math.max(1, Math.round(ms / 1000))]));
 }
 
-/** `--shard=k/n` naar `[k, n]`; gooit bij een ongeldige waarde. */
 export function parseShard(value) {
   const m = /^(\d+)\/(\d+)$/.exec(value);
   const k = m ? Number(m[1]) : 0;
@@ -178,7 +131,6 @@ export function parseShard(value) {
   return [k, n];
 }
 
-/** Vergelijkt de manifesten van alle delen met de verwachte runs. */
 export function countProblems(expected, manifests) {
   const want = new Set(expectedRuns(expected));
   const seen = new Map();
@@ -203,7 +155,6 @@ export function countProblems(expected, manifests) {
   return { problems, expected: want.size, ran: [...seen.values()].reduce((a, b) => a + b, 0) };
 }
 
-/** Eén proces, met stdout en stderr samen in één eigen bestand. Lost altijd op, ook als starten mislukt. */
 function runProcess(program, args, { cwd, env, logPath }) {
   return new Promise((resolve) => {
     const fd = openSync(logPath, 'a');
@@ -221,7 +172,6 @@ function runProcess(program, args, { cwd, env, logPath }) {
   });
 }
 
-/** Alle checks samen bundelen; lukt dat niet, dan los, zodat alleen de kapotte check wegvalt. */
 function bundleItems(items, esbuildArgs, root, logs) {
   const failed = new Map();
   const todo = items.filter(item => item.src);
@@ -244,7 +194,6 @@ function bundleItems(items, esbuildArgs, root, logs) {
   return failed;
 }
 
-/** Runs parallel uitvoeren, met hoogstens `jobs` tegelijk. `onDone` volgt in de volgorde van afronden. */
 async function runPool(runs, jobs, start, onDone) {
   let next = 0;
   const worker = async () => {
@@ -309,7 +258,6 @@ async function commandRun(argv) {
   const makeRun = (item, zone) => ({ item, zone, index: 0, log: '', code: null, ms: 0 });
   const baseRuns = runnable.map(item => makeRun(item, BASE_ZONE));
   const zoneRuns = plan.zones.flatMap(zone => runnable.filter(item => item.matrix).map(item => makeRun(item, zone)));
-  // Langste runs eerst: dan eindigt de job niet met één lange run terwijl de andere kernen niets doen.
   const parallel = longestFirst([...baseRuns.filter(run => !runsAlone(run.item)), ...zoneRuns], durations, plan.zones.length);
   const alone = baseRuns.filter(run => runsAlone(run.item));
   [...parallel, ...alone].forEach((run, i) => { run.index = i; });
@@ -319,8 +267,6 @@ async function commandRun(argv) {
     const dir = join(work, 'tmp', String(run.index));
     mkdirSync(dir, { recursive: true });
     run.log = join(logs, `${run.index}.log`);
-    // Eén compile-cache voor de hele run (besluit Ethan 2026-11-02): elke bundel draait tot zes keer, en vanaf
-    // de tweede keer slaat Node het compileren over. Node controleert elke cache-entry; een kapotte telt niet.
     const env = { NODE_COMPILE_CACHE: join(work, 'compile-cache'), ...process.env, TMPDIR: dir, TMP: dir, TEMP: dir };
     if (run.zone !== BASE_ZONE) env.TZ = run.zone;
     for (const pair of run.item.env) {
@@ -336,7 +282,6 @@ async function commandRun(argv) {
     rmSync(dir, { recursive: true, force: true });
   };
 
-  // De uitvoer van de gewone run komt in planvolgorde, ook als een latere check eerder klaar is.
   const printQueue = [...baseRuns];
   const flush = () => {
     while (printQueue.length > 0 && printQueue[0].code !== null) {
@@ -345,7 +290,6 @@ async function commandRun(argv) {
       if (run.code !== 0) console.log(`XX  ${run.item.id}: exit ${run.code} — de uitvoer hierboven is van deze check`);
     }
   };
-  // Hangt iets, dan staat in de log welke processen nog lopen.
   const heartbeat = setInterval(() => {
     const names = [...active].map(label);
     console.log(`    nog bezig na ${Math.round((Date.now() - started) / 1000)} s: ${names.join(', ')}`);
@@ -374,8 +318,6 @@ async function commandRun(argv) {
     }
   }
 
-  // Volledige run: hier al tellen. Een deel telt zijn eigen stuk; de telling over alle delen doet de CI
-  // daarna met `count`.
   if (n === 1) {
     const { problems: gaps, expected: want, ran } = countProblems(expected, [manifest]);
     const missing = gaps.filter(gap => !/: exit /.test(gap));

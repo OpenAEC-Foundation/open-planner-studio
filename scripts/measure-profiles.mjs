@@ -1,28 +1,4 @@
 #!/usr/bin/env node
-// `npm run measure:profiles` — de landingsmeting van regel A (rekenprofielen-spec §2 besluit 5, §5).
-//
-// Draait achter elkaar, elk als eigen `bash tests/planning/run.sh <check>`-aanroep (dus met eigen
-// exitcode), en print daarna één samenvattingstabel per profiel:
-//   P6-profiel          check-xer-product-fidelity-x12.ts mét OPS_XER_CORPUS: de cel-poort
-//                       (xer-product-fidelity-cells.json, zeven poortassen) plus de drie nuldoelregels;
-//   MS Project-profiel  check-mpp-fidelity.ts: GOAL_ZERO_DEVIATIONS en de per-bestand-tellingenpins.
-//                       Het MS Project-orakel meet alleen start en einde (twee assen); omdat die
-//                       baseline op nul staat is elke pin al een cel-poort, er is geen cel-bestand.
-//                       Nul gescande bestanden is "niet gemeten" en dus rood (fail-closed);
-//   vangrails           check-xer-corpusless-fidelity-gate.ts + check-fidelity-cells-gate.ts
-//                       (corpusloos, bewaken de gecommitte baselines);
-//   --full              daarna de volledige corpusloze planningssuite (zonder OPS_XER_CORPUS).
-//                       Standaard NIET: die draait al in `npm run verify`, en machinebreed hoort er
-//                       maar één zware run tegelijk te lopen.
-//   --only=p6|msp|vangrails  draait alleen dat onderdeel (voor gerichte runs en de scripttest).
-//
-// Het oordeel per onderdeel staat in `measure-profiles-status.mjs` (rood is de standaard; zie daar
-// voor de twee niet-rode X12-toestanden GROEN en NULDOEL — VERBETERD zonder herpin is rood, zie daar). `--strict` maakt ook een nog
-// rode nuldoelregel rood. Kindprocessen krijgen nooit OPS_XER_CELLS_WRITE, OPS_XER_FIDELITY_REPORT of
-// OPS_MPP_FIDELITY_REPORT (noch OPS_XER_V2_WRITE / OPS_XER_GATE_PINS) mee: een meting schrijft of herformatteert nooit per ongeluk iets.
-//
-// Exit 0 = regel A gehouden onder elk gemeten profiel, 1 = minstens één onderdeel rood.
-// Niet in `verify`: corpusgebonden, en het corpus zit niet in de repo.
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -70,7 +46,6 @@ function record(row, verdict) {
   }
 }
 
-// ── P6-profiel ────────────────────────────────────────────────────────────────────────────────
 if (selected.has('p6')) {
   const corpus = process.env.OPS_XER_CORPUS;
   if (!corpus || !existsSync(corpus)) {
@@ -78,8 +53,6 @@ if (selected.has('p6')) {
     record({ profile: 'P6', part: 'X12 productfidelity', exit: '-', counts: '-', cells: '-' },
       { status: 'ROOD (geen corpus)', pass: false, failures: [] });
   } else {
-    // Rapportage-only: houdt de p6Computed-sidecar vers. Exitcode wordt geprint, niet in het oordeel
-    // meegenomen — een verouderde sidecar maakt alleen de splitsing onbetrouwbaar, niet de cel-poort.
     const side = spawnSync(process.execPath, ['scripts/run-ts.mjs', 'scripts/xer-p6-computed.ts', '--check'], { encoding: 'utf8', env: process.env });
     console.log(`INFO p6Computed-sidecar --check exit ${side.status ?? side.signal}: ${`${side.stdout ?? ''}${side.stderr ?? ''}`.trim().split('\n').join(' | ')}`);
     const x12 = run('p6-x12', ['check-xer-product-fidelity-x12.ts'], childEnv(process.env));
@@ -88,9 +61,7 @@ if (selected.has('p6')) {
       .replace(/^.*inexact per as /, '').replace(/;.*$/, '');
     const goal = x12.lines.find((line) => line.startsWith('XX X12 nuldoel is baseline-onafhankelijk: totaal zesassige'));
     const sixAxis = goal ? goal.replace(/^.*kreeg /, '') : (x12.exit === 0 ? '0' : '?');
-    // Rapportage-only splitsing naar p6Computed (scripts/xer-p6-computed.ts); geen invloed op het oordeel.
     const split = (x12.lines.find((line) => line.startsWith('INFO X12 split')) ?? '').replace(/^INFO X12 split \(rapportage, geen poort[^)]*\): /, '');
-    // Manifestuitsluiting per project/taak (eigenaarsbesluit): nooit stil — het aantal staat in de tabel.
     const excluded = (x12.lines.find((line) => line.startsWith('INFO X12 manifestuitsluiting')) ?? '').match(/uitgesloten: (\d+) taken in (\d+) projecten/);
     record({
       profile: 'P6', part: 'X12 productfidelity (cel-poort + nuldoel)', exit: String(x12.exit),
@@ -101,7 +72,6 @@ if (selected.has('p6')) {
   }
 }
 
-// ── MS Project-profiel ────────────────────────────────────────────────────────────────────────
 if (selected.has('msp')) {
   const mpp = run('msp-mpp-fidelity', ['check-mpp-fidelity.ts'], childEnv(process.env));
   const verdict = classifyMsp({ exit: mpp.exit, lines: mpp.lines });
@@ -114,7 +84,6 @@ if (selected.has('msp')) {
   }, verdict);
 }
 
-// ── Corpusloze vangrails ──────────────────────────────────────────────────────────────────────
 if (selected.has('vangrails')) {
   const guard = run('vangrails', ['check-xer-corpusless-fidelity-gate.ts', 'check-fidelity-cells-gate.ts'],
     childEnv(process.env, { dropXerCorpus: true }));
@@ -126,7 +95,6 @@ if (selected.has('vangrails')) {
   }, guard.exit === 0 ? { status: 'GROEN', pass: true, failures } : { status: `ROOD (${failures.length} faalregel(s))`, pass: false, failures });
 }
 
-// ── Optioneel: volledige corpusloze suite ─────────────────────────────────────────────────────
 if (FULL) {
   const suite = run('planning-suite', [], childEnv(process.env, { dropXerCorpus: true }));
   const failures = failureLines(suite.lines);

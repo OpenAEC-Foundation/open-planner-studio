@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-// Bouwt de headless MCP-server (`headless/mcp-server/`, issue #570) tot één zelfstandig bestand in
-// `dist-mcp-server/`: `server.mjs` (ESM, alle code en ingebedde teksten erin, geen runtime-
-// dependencies), een kleine `package.json` met `bin`, de licentieteksten, de licenties van de
-// meegebundelde dependencies (THIRD-PARTY-NOTICES.md) en een README. Draait met alleen
-// `node server.mjs`: zonder repo, zonder `node_modules`. Er wordt NIET gepubliceerd.
-// Uitleg: docs/headless-mcp.md.
-//
-//   npm run build:mcp-server               # → dist-mcp-server/
-//   node scripts/build-mcp-server.mjs --out <map>
-//
-// De bouw controleert de grens mechanisch, net als `build-core.mjs` (scripts/lib/headless-bundle.mjs):
-// React, React DOM, `@tauri-apps/*`, de app-singleton (`src/state/appStore.ts`), `src/components/`,
-// `src/hooks/` en de i18n-UI-config mogen niet in de bundel zitten.
 import esbuild from 'esbuild';
 import { chmodSync, copyFileSync, existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
@@ -27,11 +14,6 @@ const appPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 export const MCP_SERVER_PACKAGE_NAME = '@openaec/open-planner-mcp-server';
 const BIN_NAME = 'open-planner-mcp';
 
-/**
- * De tekstbestanden die tools tijdens het draaien lezen, ingebed in de bundel (sleutel = pad binnen
- * `public/`). Nu: de agentgids en alle agent-skills voor `planner_get_planning_guide`. Een tool die een
- * nieuw runtime-bestand gaat lezen, hoort hier zijn bestand bij te zetten.
- */
 function embeddedAssets() {
   const assets = {};
   const add = (rel) => {
@@ -92,7 +74,6 @@ if (leaks.length > 0) {
   console.error(`XX de MCP-serverbundel bevat ${leaks.length} verboden input(s):\n  ${leaks.join('\n  ')}`);
   process.exit(1);
 }
-// De tools moeten er allemaal in zitten (hergebruik, geen kopie): elke toolmodule is een input.
 const toolModules = readdirSync(join(root, 'src/services/mcp/tools')).filter((f) => f.endsWith('.ts'));
 const missingTools = toolModules.filter((f) => !inputs.some((p) => p.endsWith(`src/services/mcp/tools/${f}`)));
 if (missingTools.length > 0) {

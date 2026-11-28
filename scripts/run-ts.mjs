@@ -1,9 +1,4 @@
 #!/usr/bin/env node
-// Bundelt één TypeScript-entry (met @/-alias naar src/) headless voor Node via esbuild en
-// draait 'm meteen — dezelfde techniek als tests/planning/run.sh, maar via de esbuild-JS-API
-// zodat de generator/verificatie de ECHTE store + writer/reader kunnen importeren.
-//
-//   node scripts/run-ts.mjs scripts/generate-examples.ts [args...]
 import esbuild from 'esbuild';
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
@@ -41,6 +36,5 @@ try {
   const r = spawnSync(process.execPath, [out, ...rest], { stdio: 'inherit', cwd: root });
   process.exitCode = r.status ?? 1;
 } finally {
-  // Alleen de map van deze aanroep verwijderen; ook bij een buildfout of mislukte entry.
   rmSync(tempDir, { recursive: true, force: true });
 }
