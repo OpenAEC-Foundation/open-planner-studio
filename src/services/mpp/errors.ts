@@ -1,4 +1,4 @@
-// Bron: MPXJ van Jon Iles e.a., structuurkennis en veldconstanten geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
+// Bron: MPXJ, © Jon Iles e.a., structuurkennis en veldconstanten geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
 
 export class MppUnsupportedError extends Error {
   readonly mppCode: 'MPP_LEGACY' | 'MPP_ENCRYPTED';

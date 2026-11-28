@@ -1,4 +1,4 @@
-// Bron: MS-CFB-specificatie van Microsoft, ter controle de containerlezer van MPXJ van Jon Iles e.a. (LGPL-2.1, github.com/joniles/mpxj).
+// Bron: MS-CFB-specificatie van Microsoft, ter controle de containerlezer van MPXJ, © Jon Iles e.a. (LGPL-2.1, github.com/joniles/mpxj).
 
 export class CfbParseError extends Error {
   readonly cfbCode = 'CFB_INVALID';

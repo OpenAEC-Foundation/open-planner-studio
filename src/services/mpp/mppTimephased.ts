@@ -1,4 +1,4 @@
-// Bron: MPXJ van Jon Iles e.a., structuurkennis en veldconstanten geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
+// Bron: MPXJ, © Jon Iles e.a., structuurkennis en veldconstanten geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
 import type { TaskSplitGap } from '@/types/task';
 import { gapsBetweenWorkedSpans, intersectAssignmentGaps } from '@/services/contourIo';
 import { getShort, getInt, getDouble, getTimestamp } from './mppPrimitives';

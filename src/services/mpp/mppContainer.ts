@@ -1,4 +1,4 @@
-// Bron: MPXJ van Jon Iles e.a., structuurkennis en veldconstanten geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
+// Bron: MPXJ, © Jon Iles e.a., structuurkennis en veldconstanten geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
 import type { CfbFile } from './cfb';
 import { getInt, getShort } from './mppPrimitives';
 import { MppUnsupportedError } from './errors';
