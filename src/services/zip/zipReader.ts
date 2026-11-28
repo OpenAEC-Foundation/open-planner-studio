@@ -1,15 +1,3 @@
-/**
- * Minimale ZIP-**lezer** (stored + deflate), gedeeld door de extensie-installatie
- * (`src/extensions/extensionService.ts`) en de `.xlsx`-lezer. Puur: geen store, geen React, geen
- * `@tauri-apps/*`, geen module-level muteerbare state.
- *
- * Drie bewuste keuzes:
- *   1. de limieten zijn **injecteerbaar** (`ZipReadLimits`) in plaats van module-locale constanten;
- *   2. het uitpakbudget wordt **tijdens** het inflaten per chunk afgerekend, niet erna — een
- *      nacontrole is geen limiet (zie `inflateRawBounded`);
- *   3. Zip64 wordt expliciet **geweigerd** in plaats van stil verkeerd gelezen.
- */
-
 import { crc32 } from './crc32';
 
 export interface ZipEntry {
@@ -17,9 +5,6 @@ export interface ZipEntry {
   data: Uint8Array;
 }
 
-/** `bytesSeen` staat er voor de zip-bomtest: het is het aantal bytes dat al uitgepakt wás toen de
- *  weigering afging. Verhuist de budgettoets naar ná de inflatielus, dan springt dat getal van
- *  "budget + één chunk" naar de volle payload — precies het mutatiebewijs. */
 export class ZipValidationError extends Error {
   readonly bytesSeen?: number;
   constructor(message: string, bytesSeen?: number) {
@@ -29,15 +14,6 @@ export class ZipValidationError extends Error {
   }
 }
 
-/**
- * De omgeving kan geen deflate uitpakken. Een subklasse van `ZipValidationError` zodat hij door
- * `parseZipEntries` heen propageert in plaats van in de local-scan-terugval te belanden — die zou
- * exact dezelfde fout nóg een keer produceren, met een misleidende `console.warn` ertussen.
- *
- * Waarom een EIGEN fout: zonder deze guard wordt een gedeflate blad in een omgeving zonder
- * `DecompressionStream` als "geen ZIP" gemeld — een nutteloze melding: het bestand mankeert niets,
- * de omgeving kan het alleen niet uitpakken.
- */
 export class ZipCompressionUnsupportedError extends ZipValidationError {
   constructor() {
     super('Compressie niet ondersteund in deze omgeving');
@@ -45,31 +21,19 @@ export class ZipCompressionUnsupportedError extends ZipValidationError {
   }
 }
 
-/** De inflater als naad: `(gecomprimeerd, budget) => uitgepakt`. */
 export type ZipInflate = (compressed: Uint8Array, budget: number) => Promise<Uint8Array>;
 
 export interface ZipReadOptions {
-  /**
-   * `undefined` (standaard) kiest `DecompressionStream` als die bestaat en anders de
-   * omgevingsweigering; `null` dwingt die weigering af; een functie vervangt de inflater.
-   * Zelfde vorm als `writeZip`'s `deflate`-naad, zodat beide takken getest kunnen worden zónder
-   * de omgeving te vervalsen.
-   */
   inflate?: ZipInflate | null;
 }
 
 export interface ZipReadLimits {
-  /** Per entry, ná uitpakken. */
   maxEntryBytes: number;
-  /** Som over alle entries, ná uitpakken. */
   maxTotalBytes: number;
-  /** Aantal entries dat we überhaupt bekijken. */
   maxEntries: number;
-  /** Uitgepakt ÷ ingepakt per entry — de goedkope vroege uitstap. */
   maxRatio: number;
 }
 
-/** De limieten waarmee de extensie-installatie altijd al werkte (24/48 MiB), plus de twee nieuwe. */
 export const EXTENSION_ZIP_LIMITS: ZipReadLimits = {
   maxEntryBytes: 24 * 1024 * 1024,
   maxTotalBytes: 48 * 1024 * 1024,
@@ -77,28 +41,18 @@ export const EXTENSION_ZIP_LIMITS: ZipReadLimits = {
   maxRatio: 200,
 };
 
-const SIG_LOCAL = 0x04034b50;       // local file header
-const SIG_CENTRAL = 0x02014b50;     // central directory file header
-const SIG_EOCD = 0x06054b50;        // end of central directory
-const SIG_DATA_DESC = 0x08074b50;   // optional data descriptor
+const SIG_LOCAL = 0x04034b50;
+const SIG_CENTRAL = 0x02014b50;
+const SIG_EOCD = 0x06054b50;
+const SIG_DATA_DESC = 0x08074b50;
 
-/** De sentinels die in een Zip64-archief "de echte maat staat in het extra-veld" betekenen. */
 const ZIP64_U32 = 0xffffffff;
 const ZIP64_U16 = 0xffff;
 
-/** Zip64 wordt geweigerd, niet geraden: zonder deze weigering leest de lezer zo'n bestand stil
- *  verkeerd (alle maten komen uit `getUint32`). Onze eigen bladen zijn kilobytes groot. */
 function rejectZip64(): never {
   throw new ZipValidationError('Zip64 wordt niet ondersteund');
 }
 
-/**
- * Inflate ruwe deflate-data via de browser-native DecompressionStream, met een budget dat **per
- * chunk** wordt afgerekend. Zodra de som het budget passeert wordt de reader gecancelled en vliegt
- * er een `ZipValidationError`; er wordt dus nooit meer dan budget + één chunk gealloceerd.
- *
- * Geëxporteerd omdat de zip-bomtest hem los moet kunnen aanroepen om `bytesSeen` te toetsen.
- */
 export async function inflateRawBounded(
   compressed: Uint8Array,
   budget: number,
@@ -107,8 +61,6 @@ export async function inflateRawBounded(
   const ds = new DecompressionStream('deflate-raw');
   const writer = ds.writable.getWriter();
   const reader = ds.readable.getReader();
-  // Bewust niet awaiten: bij een grote buffer blokkeert `write` op backpressure zolang er nog
-  // niemand leest. Fouten uit deze kant komen alsnog via `reader.read()` terug.
   void writer.write(compressed as Uint8Array<ArrayBuffer>).catch(() => {});
   void writer.close().catch(() => {});
 
@@ -136,7 +88,6 @@ export async function inflateRawBounded(
   return out;
 }
 
-/** Kiest de inflater; zie `ZipReadOptions.inflate`. */
 function resolveInflate(opts: ZipReadOptions | undefined): ZipInflate {
   if (opts?.inflate === null) return () => Promise.reject(new ZipCompressionUnsupportedError());
   if (opts?.inflate !== undefined) return opts.inflate;
@@ -145,11 +96,6 @@ function resolveInflate(opts: ZipReadOptions | undefined): ZipInflate {
     : inflateRawBounded;
 }
 
-/**
- * Het budget voor één entry. De absolute grenzen dragen de garantie; `maxRatio` is de goedkope
- * vroege uitstap. Beide worden teruggegeven zodat de weigering kan zeggen wélke grens het was —
- * "deze entry inflateert 200× " is voor de gebruiker een ander verhaal dan "dit bestand is groot".
- */
 function entryBudget(
   limits: ZipReadLimits,
   alreadyUnpacked: number,
@@ -170,7 +116,7 @@ async function decompressEntry(
 ): Promise<Uint8Array> {
   const { budget, ratioBudget } = entryBudget(limits, alreadyUnpacked, compressed.length);
 
-  if (method === 0) {                              // stored — geen inflatie, dus geen bom
+  if (method === 0) {
     if (compressed.length > budget) {
       throw new ZipValidationError(
         `ZIP-entry "${name}" overschrijdt de uitpaklimiet van ${budget} bytes`,
@@ -184,7 +130,7 @@ async function decompressEntry(
   try {
     return await inflate(compressed, budget);
   } catch (err) {
-    if (err instanceof ZipCompressionUnsupportedError) throw err; // geen budgetkwestie
+    if (err instanceof ZipCompressionUnsupportedError) throw err;
     if (err instanceof ZipValidationError) {
       const label = budget === ratioBudget && ratioBudget < limits.maxEntryBytes
         ? `ZIP-entry "${name}" overschrijdt het compressie-ratio-plafond van ${limits.maxRatio}x`
@@ -195,12 +141,6 @@ async function decompressEntry(
   }
 }
 
-/**
- * De CRC-32 die de ZIP zelf van deze entry vastlegde tegen de bytes die eruit kwamen. Zonder deze
- * toets is een geflipte byte in een gestoorde entry volstrekt onzichtbaar: hij komt gewoon als
- * inhoud terug en de fout landt pas ergens verderop (of nergens). Een archief dat zijn eigen
- * checksum niet haalt is beschadigd, punt.
- */
 function verifyEntryCrc(expected: number, data: Uint8Array, name: string): void {
   const actual = crc32(data);
   if (actual !== expected) {
@@ -235,20 +175,6 @@ function addZipPayloadSize(current: number, size: number, name: string, limits: 
   return next;
 }
 
-/**
- * Strip uitsluitend één topmap wanneer iedere bestandsentry exact diezelfde topmap deelt — en
- * ALLEEN wanneer het hele archief gevraagd is (`stripTopDir`).
- *
- * Die tweede voorwaarde is geen detail. Het strippen bestaat voor de extensie-installatie, waar een
- * ZIP vaak één wikkelmap draagt (`mijn-extensie/manifest.json`). Een afnemer die met `select` een
- * SUBSET opvraagt bedoelt daar iets heel anders mee: hij vraagt om exact díe padnamen. Zou er dan
- * ook gestript worden, dan krijgt hij ze onder een andere naam terug — en bij een selectie van één
- * part is "iedere entry deelt dezelfde topmap" per definitie waar. De tweede pass van de
- * `.xlsx`-lezer vraagt bijvoorbeeld `xl/worksheets/sheet1.xml` op en zou dan
- * `worksheets/sheet1.xml` terugkrijgen, waarna elk echt voortgangsblad als `noSheet` geweigerd wordt.
- *
- * De naamveiligheids- en dubbelnaamcontroles gelden onverkort in beide gevallen.
- */
 function normalizeZipEntries(entries: ZipEntry[], stripTopDir: boolean): ZipEntry[] {
   const parts = entries.map((entry) => entry.name.split('/'));
   const sharedTopDir = stripTopDir && parts.length > 0
@@ -264,16 +190,6 @@ function normalizeZipEntries(entries: ZipEntry[], stripTopDir: boolean): ZipEntr
   });
 }
 
-/**
- * Parse ZIP-entries. Primair via de CENTRAL DIRECTORY (betrouwbare maten, lost het
- * data-descriptor-overshoot-probleem op); valt terug op een local-header-scan als de
- * EOCD ontbreekt of de central-directory-lezing faalt.
- *
- * `select` bepaalt WELKE entries worden uitgepakt — de rest wordt overgeslagen zónder te inflaten
- * (hardening én snelheid: het scannen van de directory is goedkoop, inflaten is dat niet). Hij
- * krijgt de naam zoals die in het archief staat, dus vóór het strippen van een gedeelde topmap.
- * Ontbreekt hij, dan worden alle entries uitgepakt — het bestaande extensiegedrag.
- */
 export async function parseZipEntries(
   buffer: ArrayBuffer,
   limits: ZipReadLimits = EXTENSION_ZIP_LIMITS,
@@ -292,7 +208,6 @@ export async function parseZipEntries(
   return normalizeZipEntries(entries, select === undefined);
 }
 
-/** Zoek de End Of Central Directory-record (scan achterwaarts; comment is meestal leeg). */
 function findEocdOffset(view: DataView, byteLength: number): number {
   const minOffset = Math.max(0, byteLength - 0xffff - 22);
   for (let p = byteLength - 22; p >= minOffset; p--) {
@@ -312,7 +227,7 @@ async function parseViaCentralDirectory(
   if (eocd < 0) return null;
 
   const total = view.getUint16(eocd + 10, true);
-  let cd = view.getUint32(eocd + 16, true); // offset van central directory
+  let cd = view.getUint32(eocd + 16, true);
   if (total === ZIP64_U16 || cd === ZIP64_U32) rejectZip64();
   if (total > limits.maxEntries) {
     throw new ZipValidationError(`ZIP bevat ${total} entries; het maximum is ${limits.maxEntries}`);
@@ -336,8 +251,6 @@ async function parseViaCentralDirectory(
       rejectZip64();
     }
 
-    // Elke lengte uit een header is een leugen tot het tegendeel blijkt: eerst toetsen tegen de
-    // bufferlengte, dan pas een view maken of de cursor verzetten.
     if (cd + 46 + nameLen + extraLen + commentLen > buffer.byteLength) {
       throw new ZipValidationError('ZIP central directory loopt buiten het bestand');
     }
@@ -346,11 +259,10 @@ async function parseViaCentralDirectory(
 
     assertSafeZipEntryName(name);
 
-    if (name.endsWith('/')) continue; // map
+    if (name.endsWith('/')) continue;
     declaredTotal = addZipPayloadSize(declaredTotal, uncompressedSize, name, limits);
-    if (select && !select(name)) continue; // niet gevraagd: niet uitpakken
+    if (select && !select(name)) continue;
 
-    // Lees het local file header om de exacte datastart te vinden (extra-veld kan afwijken).
     if (localOffset + 30 > buffer.byteLength || view.getUint32(localOffset, true) !== SIG_LOCAL) continue;
     const localNameLen = view.getUint16(localOffset + 26, true);
     const localExtraLen = view.getUint16(localOffset + 28, true);
@@ -369,9 +281,6 @@ async function parseViaCentralDirectory(
   return entries;
 }
 
-/** Fallback: lineaire scan over local file headers (voor ZIP's zonder bruikbare EOCD).
- *  Draagt exact dezelfde grenzen als de central-directory-route — anders was de hardening te
- *  omzeilen door de central directory simpelweg weg te laten. */
 async function parseViaLocalHeaders(
   buffer: ArrayBuffer,
   limits: ZipReadLimits,
@@ -396,9 +305,6 @@ async function parseViaLocalHeaders(
     const flags = view.getUint16(offset + 6, true);
     const method = view.getUint16(offset + 8, true);
     let expectedCrc = view.getUint32(offset + 14, true);
-    // Bit 3 zet de CRC in een data descriptor ná de data; het local header draagt dan een nul.
-    // Kunnen we die descriptor niet aanwijzen, dan is er GEEN vastgelegde CRC om tegen te toetsen
-    // — dan overslaan, want een nul-CRC als waarheid nemen zou elke bit-3-entry vals afkeuren.
     let crcKnown = (flags & 0x08) === 0;
     let compSize = view.getUint32(offset + 18, true);
     const uncompressedSize = view.getUint32(offset + 22, true);
@@ -413,16 +319,11 @@ async function parseViaLocalHeaders(
 
     assertSafeZipEntryName(name);
 
-    // Bit 3 (0x08): grootte staat in een data descriptor ná de data. dataDescLen = het
-    // aantal bytes vanaf de data tot (en met) de descriptor; compSize = data ervóór.
     let dataDescLen = 0;
     if ((flags & 0x08) && compSize === 0) {
       const { dataLen, descLen } = scanDataDescriptor(view, buffer.byteLength, dataOffset);
       compSize = dataLen;
       dataDescLen = descLen;
-      // Bij bit 3 staat de CRC-32 niet in het local header (daar staat 0) maar in de descriptor:
-      // ná de optionele signatuur van 4 bytes. Zonder deze correctie zou élke bit-3-entry op een
-      // valse CRC-mismatch stuklopen.
       const descStart = dataOffset + dataLen;
       const crcAt = descStart + (descLen === 16 ? 4 : 0);
       if (descLen > 0 && crcAt + 4 <= buffer.byteLength) {
@@ -453,9 +354,6 @@ async function parseViaLocalHeaders(
   return entries;
 }
 
-/** Voor een bit-3-entry: vind het einde van de data en de lengte van de descriptor.
- *  Lost de eerdere 12-byte-overshoot op door de descriptor mee te bepalen i.p.v.
- *  altijd 12 bytes op te tellen. */
 function scanDataDescriptor(
   view: DataView,
   byteLength: number,
@@ -464,12 +362,9 @@ function scanDataDescriptor(
   for (let p = dataOffset; p + 4 <= byteLength; p++) {
     const sig = view.getUint32(p, true);
     if (sig === SIG_DATA_DESC) {
-      // Descriptor mét signatuur: sig(4) + crc(4) + comp(4) + uncomp(4) = 16 bytes.
       return { dataLen: p - dataOffset, descLen: 16 };
     }
     if (sig === SIG_LOCAL || sig === SIG_CENTRAL) {
-      // Volgende header bereikt: de descriptor zónder signatuur (12 bytes) zit
-      // vóór deze header, dus die hoort nog bij de huidige entry.
       const dataLen = Math.max(0, p - dataOffset - 12);
       return { dataLen, descLen: 12 };
     }
