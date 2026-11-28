@@ -11,14 +11,18 @@ ze dubbel lijken. Hetzelfde geldt voor de lijsten met verwachte waarden die er m
 - Letterlijke orakels: de `old…`-functies in `check-gantt-render-options.ts` (de lichamen van de oude `useMemo`'s uit
   `GanttCanvas.tsx`) en in `check-axis-consolidation.ts` (de oude formules van print, GanttCanvas, de raster-`startOffset`
   en de uursleep), `oldResourceNames` in `check-view-index.ts`, `reference` in `check-move-candidates-scale.ts` en
-  `oudVrij` in `check-print-screen-parity.ts`. `check-bar-label-color.ts` ontleedt hex zelf (`rgbOf`) in plaats van
+  `oudVrij` in `check-print-screen-parity.ts`. Eén orakel deelt wel code: `oldTrace` en de huidige `buildTrace` lopen
+  allebei via `traceFrom` (`src/engine/taskGrid/trace.ts`). De gekopieerde beslislogica (modus, focus, drijvende
+  reeksen) blijft onafhankelijk; de graafwandeling eronder is gedeeld, dus een fout daarin vangt deze vergelijking niet. `check-bar-label-color.ts` ontleedt hex zelf (`rgbOf`) in plaats van
   de helper uit `themePalette.ts` te gebruiken.
 - Lijsten met de hand: `recentsVerwacht` in `check-export-guard.ts` noemt elk exportformaat met de hand, en de check
   ernaast eist dat elk formaat uit `EXPORT_FORMATS` erin staat. De verwachte DCMA-uitkomsten in `check-dcma.ts` staan
-  er als getallen, niet afgeleid uit `dcmaAssessment.ts`.
-- De fixture van `check-gantt-render-options.ts` wijkt bewust af van de standaard. Elk doorgegeven veld in `baseInput`
-  heeft een andere waarde dan de terugval van de renderer bij een ontbrekend veld (`weekStartDay: 'sunday'`,
-  `barSplitMode: 'always'`, `showFloatBand: false`, `showBarDates: true`), en de booleans staan niet allemaal op
+  er als getallen, niet afgeleid uit `dcmaAssessment.ts`, met één uitzondering: punt 12 (de kritiek-padtest) verwacht
+  de verschuiving `CRITICAL_PATH_TEST_SLIP_DAYS` uit `dcmaAssessment.ts`.
+- De fixture van `check-gantt-render-options.ts` wijkt bewust af van de standaard. Velden in `baseInput` zoals
+  `weekStartDay: 'sunday'`, `barSplitMode: 'always'`, `showFloatBand: false` en `showBarDates: true` hebben een andere
+  waarde dan de terugval van de renderer bij een ontbrekend veld (niet elk veld: `durationDisplay: 'auto'` en
+  `highContrast: false` vallen samen met de terugval), en de booleans staan niet allemaal op
   dezelfde waarde. Anders blijft een bouwer die een veld laat vallen of twee velden verwisselt groen. Om dezelfde reden
   ligt het extreme punt van de ketens `earlyStart || scheduleStart || lateStart` op de middelste schakel, en heeft de
   trace-focus zowel een voorganger als een opvolger. De fixture-bewakers (de bodem van 365 dagen moet overschreden
