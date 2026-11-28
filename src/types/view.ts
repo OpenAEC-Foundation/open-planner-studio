@@ -1,63 +1,33 @@
-/**
- * View-/render-contract-types. Deze types beschrijven de
- * presentatie-/weergavelaag (Gantt-view, tijdschaal, filter/groep/sorteer/layout-model, datum- en
- * duurweergave) en worden gedeeld door engine (`GanttRenderer`, `HistogramRenderer`, `timelineTiers`,
- * `filterEval`), services (`printPreview`) én de state-laag. Ze wonen daarom in `src/types/` (met
- * alleen type-imports) i.p.v. in de state-laag. `state/slices/types.ts` her-exporteert ze voor bestaande
- * consumenten; de bijbehorende waarde-constanten (`DATE_NOTATIONS`, …) blijven daar.
- */
-
 import type { TaskGridColumnPreference } from '@/types/taskGrid';
 import type { BarColorSelection } from '@/types/barColor';
 
-// De getoonde schaal volgt de vaste zoomgrenzen van `scaleFromZoom`.
 export type TimeScale = 'day' | 'week' | 'month' | 'quarter' | 'year' | 'hour';
 
-// Datumnotatie: bepaalt ALLEEN hoe datums aan de gebruiker getoond worden
-// (tabel, panelen, rapporten, print, tooltips) én de segmentvolgorde van het datumveld.
-// Interne opslag/serialisatie blijft ALTIJD ISO (YYYY-MM-DD) — deze waarde raakt bestanden,
-// engine of import/export nooit. Ontbrekende localStorage-sleutel ⇒ 'dmy' (dd-mm-jjjj).
 export type DateNotation = 'dmy' | 'mdy' | 'ymd';
 
-// Tijdnotatie: bepaalt ALLEEN hoe kloktijden getoond en ingevoerd worden ('24h' = 13:00,
-// '12h' = 1:00 PM). Opslag, bestandsformaten en MCP-antwoorden blijven ISO en 24 uur.
-// Ontbrekende localStorage-sleutel ⇒ '24h'.
 export type TimeNotation = '24h' | '12h';
 
-// Duurweergave — hoe duur in tabellen/tooltips getoond wordt.
-// 'auto' = eigen eenheid per taak ("3d"/"20u"); 'days'/'hours' = altijd forceren.
 export type DurationDisplay = 'auto' | 'days' | 'hours';
 
-// Taakbalken bij onderbrekingen — of uur-taakbalken in hun echte
-// werkblokken (bar-necking) worden opgesplitst. 'never' = altijd doorlopend;
-// 'selection' = segmenten zichtbaar zodra de taak geselecteerd is; 'always' = altijd.
 export type BarSplitMode = 'never' | 'selection' | 'always';
 
-// --- Eén veldreferentie voor filter, groep én sort ---
 export type BuiltinFieldKey =
   | 'name' | 'wbsCode' | 'duration' | 'start' | 'finish'
   | 'totalFloat' | 'isCritical' | 'completion' | 'taskType' | 'isMilestone'
-  // Analysevelden.
   | 'freeFloat' | 'interferingFloat' | 'isNearCritical' | 'floatPath'
-  // Synthetisch filter-only veld: "actief tussen" toetst start ÉN finish
-  // tegelijk tegen een periode (interval-overlap), dus geen sorteer-/groepeerbaar scalar-veld —
-  // zie FILTER_ONLY_BUILTIN_KEYS in fieldCatalog.ts.
   | 'activeDuring';
 
 export type FieldRef =
   | { src: 'builtin'; key: BuiltinFieldKey }
-  | { src: 'activityCode'; typeId: string }   // waarde = valueId (uit task.activityCodes)
-  | { src: 'customField'; defId: string }      // waarde = task.customFields[defId]
-  | { src: 'resource' }                          // afgeleide waarde = namen van toegewezen resources
-  // Afgeleide waarde = de TYPES van de toegewezen resources (arbeid, materieel, …), zodat
-  // het scherm de tweelaagse indeling van het rapport Resourcediagram kan nabouwen.
+  | { src: 'activityCode'; typeId: string }
+  | { src: 'customField'; defId: string }
+  | { src: 'resource' }
   | { src: 'resourceType' };
 
-/** Kolomconfiguratie op de Tabel-weergave (FullTaskGrid). Volgorde = arrayvolgorde. */
 export interface ColumnConfig {
   field: FieldRef;
   visible: boolean;
-  width: number; // px
+  width: number;
 }
 
 export type FilterOperator =
@@ -71,11 +41,9 @@ export type FilterNode =
       field: FieldRef;
       operator: FilterOperator;
       value?: string | number | boolean | string[];
-      value2?: string | number; // alleen 'between'
+      value2?: string | number;
     };
 
-/** App-brede filterpreset. Bewust alleen het filter, zodat wisselen nooit kolommen, groepering,
- * sortering of tijdschaal van de actuele weergave raakt. */
 export interface SavedFilter {
   id: string;
   name: string;
@@ -84,7 +52,7 @@ export interface SavedFilter {
 
 export interface GroupLevel {
   field: FieldRef;
-  dir: 'asc' | 'desc'; // volgorde waarin de banden zelf verschijnen
+  dir: 'asc' | 'desc';
 }
 
 export interface SortLevel {
@@ -92,36 +60,19 @@ export interface SortLevel {
   dir: 'asc' | 'desc';
 }
 
-/** App-globale presentatie-preset. Bewust GEEN scroll/zoom-positie of sessie-flags.
- *
- *  Een layout legt alleen vast wat hij DRAAGT: een ontbrekende sleutel betekent "laat dat deel van het
- *  beeld met rust". Een opgeslagen filter is zo een layout met alleen `filter`, het meegeleverde
- *  resourcediagram een layout met alleen `group` + `sort`. Zie `src/engine/view/layoutPresets.ts`. */
 export interface Layout {
   id: string;
   name: string;
-  /** Kolomindeling die op het actieve taakgridoppervlak wordt toegepast. De bron-surface wordt
-   *  niet vastgelegd: dezelfde layout is bewust bruikbaar in Gantt en volledige Tabel. */
   columns?: TaskGridColumnPreference[];
   group?: GroupLevel[];
   sort?: SortLevel[];
-  /** Aanwezig + `null` = "wis het filter"; afwezig = filter ongemoeid. */
   filter?: FilterNode | null;
-  timeScale?: TimeScale; // preset-naam; toepassen → setZoom(TIMESCALE_ZOOM[timeScale])
-  /** Relatielijnen in de Gantt tonen. Het resourcediagram zet ze uit: een taak kan daar onder
-   *  meerdere banden staan, waardoor de pijlen kriskras door het beeld lopen. */
+  timeScale?: TimeScale;
   showRelations?: boolean;
-  /** De overige Gantt-overlays. Anders dan de relatielijnen zijn dit app-brede
-   *  schermopties (`ui.*`, bewaard in `localStorage`), geen documentdata. */
   overlays?: LayoutOverlays;
-  /** Sleutel uit de vaste icoonset van de layoutknoppen (`layoutIcons.tsx`); geen layoutDEEL. */
   icon?: string;
 }
 
-/**
- * Het layoutdeel Overlay: de schermopties uit Beeld → Basislijnen & voortgang, op de relatielijnen
- * na — die zijn een eigen deel (`showRelations`, per document). De dialoog toont beide onder één kop.
- */
 export interface LayoutOverlays {
   baseline: boolean;
   progressLine: boolean;
@@ -131,11 +82,9 @@ export interface LayoutOverlays {
   barColors: BarColorSelection;
 }
 
-/** De delen die een layout kan dragen, in vaste UI-volgorde. */
 export const LAYOUT_PARTS = ['columns', 'filter', 'group', 'sort', 'timeScale', 'showRelations', 'overlays'] as const;
 export type LayoutPart = typeof LAYOUT_PARTS[number];
 
-/** Het deel van het scherm waar een layout over gaat — precies de layoutdelen, volledig ingevuld. */
 export interface LayoutViewParts {
   columns: TaskGridColumnPreference[];
   filter: FilterNode | null;
@@ -146,57 +95,32 @@ export interface LayoutViewParts {
   overlays: LayoutOverlays;
 }
 
-/**
- * Een layoutknop is een SCHAKELAAR: aanzetten past de layout toe,
- * nogmaals klikken zet hem uit en brengt zijn delen terug naar `restore` — het beeld van vóór de
- * eerste layoutklik. Knoppen die VERSCHILLENDE delen dragen kunnen tegelijk aanstaan (resourcediagram
- * + een filterknop); een knop die een deel van een andere draagt vervangt die andere.
- */
 export interface LayoutSession {
-  /** De aangezette layouts zoals ze werden toegepast; de store kent de layoutlijst zelf niet. */
   layouts: Layout[];
   restore: LayoutViewParts;
 }
 
-/** Split view binnen één document — undefined = uit. */
 export interface SplitViewState {
-  ratio: number;          // 0..1 breedteverdeling linker pane
-  secondaryZoom: number;  // eigen zoom rechter pane
+  ratio: number;
+  secondaryZoom: number;
   secondaryScrollX: number;
 }
 
 export interface ViewState {
   scrollX: number;
   scrollY: number;
-  zoom: number; // pixels per day
+  zoom: number;
   timeScale: TimeScale;
-  viewStartDate: string; // leftmost visible date
-  /** Histogram-selectie: id van de resource die de histogramstrook toont;
-   *  undefined = alle renewables samengeteld. Per-document (zit in ViewState → DocumentPayload). */
+  viewStartDate: string;
   histogramResourceId?: string;
-  // --- Per-document view-state ---
-  /** Geneste AND/OR-filter; null = geen filter (short-circuit). */
   filter: FilterNode | null;
-  /** Groepeer-niveaus; [] = WBS-boom. */
   group: GroupLevel[];
-  /** Sorteer-niveaus (multi-key, stabiel); [] = boom-/bandvolgorde. */
   sort: SortLevel[];
-  /** Ingeklapte groepsbanden (pad-gecodeerde JSON-sleutels). */
   collapsedGroupKeys: string[];
-  /** Split view binnen dit document; undefined = uit. */
   splitView?: SplitViewState;
-  /** Relatielijnen in de Gantt tonen; undefined = aan. */
   showRelations?: boolean;
-  /** De layoutknop die nu aanstaat, met het beeld om naar terug te keren; undefined = geen. */
   layoutSession?: LayoutSession;
-  /** Open-fit-signaal: na het laden van een document zet fileSlice dit op `true`; de
-   *  GanttCanvas voert dan de fit-to-project uit (het kent de viewport-breedte, de store niet) en
-   *  wist het meteen weer. Transient — bewust GEEN undo/redo (view zit niet in de snapshot). */
   pendingFit?: boolean;
-  /** "Spring naar taak"-signaal: `focusOnTask` zet dit op de doel-taak-id; GanttCanvas
-   *  voert de zoom-/scrollberekening uit (kent de canvas-afmetingen, de store niet) en wist het
-   *  meteen weer. Transient — zelfde precedent als `pendingFit`. */
   pendingFocusTaskId?: string;
-  /** Houd de huidige zoom vast tijdens een focusverzoek (nieuwe taak); alleen de scroll beweegt. */
   pendingFocusTaskPreserveZoom?: boolean;
 }

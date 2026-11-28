@@ -9,12 +9,6 @@ import type { TaskRelationIndex } from '@/engine/taskGrid/relationIndex';
 export type TaskGridSurfaceId = 'gantt-task-grid' | 'full-task-grid';
 export type TaskColumnId = string & { readonly __taskColumnId: unique symbol };
 
-/**
- * "Datums zoals opgeslagen". Gedragslogica en de exacte
- * regels staan in `src/state/recordedDatesSelectors.ts` — deze twee unietypes wonen hier (leaf-
- * laag) omdat `TaskColumnContext` hieronder ze nodig heeft en niets in `src/types/*.ts` van
- * `@/state/*` afhangt; `recordedDatesSelectors.ts` importeert ze hier weer type-only vandaan.
- */
 export type RecordedTaskAxis = 'ls' | 'lf' | 'tf' | 'ff';
 export type RecordedTaskMark = 'partly-unrecorded' | undefined;
 
@@ -26,8 +20,6 @@ export interface TaskGridColumnPreference {
   id: TaskColumnId;
   width: number;
   pinned: boolean;
-  /** Door de gebruiker versleept: met de instelling "Kolommen automatisch aanpassen" blijft deze
-   *  breedte staan. Alleen aanwezig als `true`; een dubbelklik op de rand (optimale breedte) wist hem. */
   manualWidth?: boolean;
 }
 
@@ -95,7 +87,6 @@ export interface RelationSetIntent {
 export interface AssignmentSetIntent {
   kind: 'assignment-set';
   taskId: string;
-  /** De assignmentkolom die deze set heeft gepland. Membership mag alleen via resources wijzigen. */
   columnId: TaskColumnId;
   tokens: readonly TaskAssignmentToken[];
 }
@@ -105,39 +96,20 @@ export interface TaskAssignmentToken {
   assignmentId?: string;
   unitsPerDay: number;
   curve?: ResourceCurve;
-  /** Resterend werk in werkminuten — alleen de kolom
-   *  `assignment.remainingWork` zet 'm; `gridTransaction.ts` voert hem via de werkdriehoek uit. */
   remainingWorkMinutes?: number;
-  /** Alleen bij een kostenresource (issue #815): het begrote bedrag, zodat het bij plakken meereist. */
   costAmount?: number;
-  /** De soort van de bronresource toen de cel gelezen werd (issue #815). Het klembord is app-globaal:
-   *  in een ander document (of na een typewissel) kan dezelfde id een ander type hebben. Past de soort
-   *  niet bij het doeltype, dan weigert de validatie met `assignmentKindMismatch`. Afwezig (getypte
-   *  tekst, een ouder token) ⇒ alleen het doeltype telt. */
   resourceKind?: TaskAssignmentResourceKind;
 }
 
-/** Kosten of werk (werk = alles behalve een kostenresource, ook materiaal). */
 export type TaskAssignmentResourceKind = 'cost' | 'work';
 
-/** Eén al geparseerde domeinwrite. Paste groepeert deze writes, maar mag zichzelf niet nesten. */
 export type GridWriteIntent = CellEditIntent | RelationSetIntent | AssignmentSetIntent;
 
 export interface PasteIntent {
   kind: 'paste';
   writes: readonly GridWriteIntent[];
-  /** Gezet naar `TaskGridPasteOptions.skipReadOnlyCells` (clipboard.ts). Alleen een
-   *  echte Ctrl+V-paste zet dit aan; `planTaskGridClear` (Delete/Backspace) laat het weg en behoudt
-   *  zijn bestaande "één niet-leegbare cel ⇒ volledige rollback"-semantiek. gridTransaction.ts leest
-   *  dit om te bepalen of conditioneel read-only cellen tijdens de transactie mogen worden
-   *  overgeslagen in plaats van de hele taak te blokkeren. */
   allowSkippingReadOnlyCells?: boolean;
-  /** Aantal statisch berekende doelcellen die deze paste al bij het plannen oversloeg (alleen
-   *  gezet wanneer `allowSkippingReadOnlyCells` aanstond). gridTransaction.ts telt hier zijn eigen,
-   *  tijdens de transactie ontdekte overgeslagen cellen (conditioneel read-only) bovenop voor de
-   *  ÉÉN geaggregeerde melding. */
   skippedReadOnlyCount?: number;
-  /** De taken van die overgeslagen cellen, voor de weigering ("Niet aangepast: …"). */
   skippedReadOnlyTaskIds?: string[];
 }
 
@@ -151,69 +123,30 @@ export interface TaskColumnContext {
   resourcesById: ReadonlyMap<string, Resource>;
   baselinesById: ReadonlyMap<string, Baseline>;
   scheduleStale: boolean;
-  /** UI-tekst voor descriptorwaarden en tooltips, inclusief interpolatie. */
   labelForText?: (key: string, values?: Readonly<Record<string, string | number>>) => string;
-  /** Schrijfrichting voor betekenisdragende pijlen; pinning blijft bewust fysiek links. */
   textDirection?: 'ltr' | 'rtl';
-  /** Projectinstellingen die alleen de descriptorbewerkbaarheid/-parser sturen. */
   wbsAutoNumber?: boolean;
   effectiveHoursPerDay?: (task: Task) => number;
-  /** B4: de werkdaggrenzen voor datumweergave, ook op een scalaire kalender. */
   effectiveCalendar?: (task: Task) => WorkCalendar;
-  /** Instelling Duurweergave voor de weergavetekst van de Duur-kolom (edit- en kopieertekst blijven
-   *  de eigen, parsebare eenheid); ontbreekt ⇒ `'auto'`. In het OPS-profiel geeft het raster hier
-   *  altijd `'auto'` door (B9, `effectiveDurationDisplay`). */
   durationDisplay?: DurationDisplay;
-  /** Telt het rekenprofiel een dagenmaat in werkdagen (conventie `workdayDurationMeasure`)? Aan of
-   *  afwezig ⇒ "5d" is de dagenmaat; uit (P6, MSP) ⇒ "5d" is de urenmaat (B8, §3.12). */
   workdayDurationMeasure?: boolean;
-  /** App-taal voor het decimaalteken van duren en speling; ontbreekt ⇒ punt. */
   numberLocale?: string;
-  /** De echte projectkalenderberekening voor baselineafwijkingen (`variance.signedWorkDaysBetween`).
-   *  Ontbreekt hij, dan blijft de afwijking leeg — er is bewust geen kalenderloze terugval. */
   signedWorkDaysBetween?: (fromIso: string, toIso: string) => number;
-  /** Is deze baseline van deze urentaak met de oude dagtelling opgeslagen (`engine/baselineOldDay.ts`)?
-   *  Dan tonen Baselineduur en Duurafwijking een ⚠. Ontbreekt ⇒ nooit een ⚠ (alleen weergave). */
   baselineOldDay?: (task: Task, baselineTask: BaselineTask) => boolean;
-  /** "Datums zoals opgeslagen" — badge voor de kolom `recorded.source`.
-   *  `undefined` buiten de modus (`recordedDates === null`), dus de kolom bestaat
-   *  dan niet: `available(ctx) => ctx.recordedMark !== undefined`. */
   recordedMark?: (task: Task) => RecordedTaskMark;
-  /** Welke late-/floatassen het BESTAND niet vastlegde voor deze taak — de bestaande late-/float-
-   *  kolommen gebruiken dit om "niet vastgelegd" te tonen in plaats van de bestaande `?? 0`-
-   *  terugval (die als VELDWAARDE blijft staan, zie `recordedDates.ts`) als een echt getal te
-   *  presenteren. Zelfde aanwezigheid als `recordedMark` (beide `undefined` zonder vastlegging). */
   recordedUnrecordedAxes?: (task: Task) => readonly RecordedTaskAxis[];
-  /** De werkregelkolommen bestaan alleen wanneer de weergave
-   *  ontsloten is (instelling of documentontsluiting, `taskTypesUnlocked`). */
   taskTypesUnlocked?: boolean;
-  /** `Project.defaultWorkRule` — de regel van een taak zonder eigen regel. De uitleg bij het ⚠ in
-   *  *Resterend werk* kiest daarmee dezelfde slotzin als het paneel en als de duurbewerking zelf
-   *  (besluit V10). Ontbreekt ⇒ FIXED_DURATION_RATE, net als `effectiveWorkRule`. */
   defaultWorkRule?: WorkRule;
-  /** Instelling Tijdnotatie voor de weergave- en kopieertekst van datum-met-tijd; ontbreekt ⇒ `'24h'`.
-   *  De parser accepteert beide notaties; de opgeslagen waarde blijft ISO. */
   timeNotation?: TimeNotation;
 }
 
-/**
- * Waar de kop van een kolom vandaan komt. `labelKey` is een vertaalsleutel (task-namespace).
- * `labelText` is een naam die de gebruiker zelf gaf (activity code, eigen veld, baseline): gewone
- * tekst, GEEN vertaalsleutel, en hij gaat dus nooit door `t()`: die leest een punt als
- * sleutelscheiding ("Fase 1.2" wordt "2", "Blok v.o." leeg). Met beide wordt de kop "<labelText> — <vertaalde
- * labelKey>" (baselinekolommen). Lees een kop via `taskColumnLabel` (taskColumnRegistry).
- */
 export type TaskColumnLabelSource =
   | { labelKey: string; labelText?: undefined }
   | { labelText: string; labelKey?: string };
 
 export type TaskColumnDescriptor = TaskColumnDescriptorFields & TaskColumnLabelSource;
 
-/** Een kleine ⚠ in een cel, met uitleg als tooltip. `kind` geeft de cel een vaste selector
- *  (`data-ops-<kind>`); `text` is de vertaalde uitleg. */
 export interface TaskCellWarning {
-  /** Wordt `data-ops-<kind>` op het ⚠ (`GridCell`). `remaining-work-deviates`: opgeslagen restwerk wijkt
-   *  af van inzet × restduur (kolom *Resterend werk*, zelfde toets als het paneel Toewijzingen). */
   kind: 'baseline-old-day' | 'remaining-work-deviates';
   text: string;
 }
@@ -225,26 +158,19 @@ interface TaskColumnDescriptorFields {
   editorKind: 'text' | 'number' | 'percentage' | 'date' | 'datetime' | 'duration' | 'boolean' | 'enum' | 'color' | 'autocomplete' | 'relations' | 'custom' | 'none';
   editorOptions?: readonly { value: string; labelKey?: string; label?: string }[];
   defaultWidth: number;
-  /** Afgeleide plannerwaarde buiten de algemene categorie `computed`; volgt scheduleStale. */
   scheduleDerived?: boolean;
   available(ctx: TaskColumnContext): boolean;
   readOnly: boolean | ((task: Task, ctx: TaskColumnContext) => boolean);
-  /** Waarom deze cel alleen-lezen is, als validatiecode (`taskGrid.validation.<code>`). Ontbreekt hij
-   *  of geeft hij `undefined`, dan geldt de algemene code `readOnly` ("berekende kolom"). */
   readOnlyReason?: (task: Task, ctx: TaskColumnContext) => string | undefined;
   read(task: Task, ctx: TaskColumnContext): unknown;
   format(value: unknown, task: Task, ctx: TaskColumnContext): string;
   copy(task: Task, ctx: TaskColumnContext): string;
-  /** Starttekst voor de editor wanneer de canonieke kopieervorm rijkere markers bevat. */
   editText?: (task: Task, ctx: TaskColumnContext) => string;
   tooltip?: (value: unknown, task: Task, ctx: TaskColumnContext) => string | null;
-  /** Een ⚠ naast de waarde (alleen weergave; kopieer- en bewerktekst blijven gelijk). */
   warning?: (value: unknown, task: Task, ctx: TaskColumnContext) => TaskCellWarning | null;
   parse?: (text: string, task: Task, ctx: TaskColumnContext) => GridResult<unknown, readonly CellValidationError[]>;
   validate?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<unknown, readonly CellValidationError[]>;
   planWrite?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<readonly GridWriteIntent[], readonly CellValidationError[]>;
-  /** Zelfde writer zonder conditionele read-onlyvoorpoort. Alleen de meercellige pasteplanner
-   * gebruikt dit; de atomaire transactielaag beoordeelt schrijfbaarheid tegen de geordende draft. */
   planWriteUnchecked?: (value: unknown, task: Task, ctx: TaskColumnContext) => GridResult<readonly GridWriteIntent[], readonly CellValidationError[]>;
   autoFitText(task: Task, ctx: TaskColumnContext): string;
 }

@@ -221,3 +221,5 @@ voor een taak (0243).
 **Besluiten in `engine/scheduler/recordedDates.ts`** staan in `docs/adr/`: de vastlegging zegt alleen wat het bestand
 zei (0330), het rekenresultaat uit de vastlegging (0331), de vastlegging terug in de taken (0332), de verschuiving op
 de getoonde datums en de tellers (0333) en de bouwstenen voor de lezers (0334).
+
+**Keuzes in de domeintypen in `src/types/`** (de typen hangen niet van `src/state/` af, kolomkoppen van de gebruiker gaan niet door `t()`, de eigen File System Access-typen): `docs/adr/0730-domeintypen-keuzes-die-verrassen.md`.
