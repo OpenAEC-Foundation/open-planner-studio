@@ -124,21 +124,31 @@ die taken, `maxShiftWorkdays` is de grootste verschuiving in werkdagen (één de
 hetzelfde met een melding. `toIfc()` schrijft de nieuwe datums, met de markering. Een nieuw bestand
 meldt niets.
 
-De samenvatting (`formatVersion: 1`) bevat:
+De samenvatting (`formatVersion: 1`) bevat alleen gewone JSON-waarden:
 
-- `project`: id, naam, rekenprofiel, start, berekend einde, duur in werkdagen;
+- `project`: id, naam, rekenprofiel (bijv. `ops`, `p6`, `msp`), de projectstart zoals in het bestand
+  vastgelegd, het berekende einde en de projectduur in werkdagen;
 - `counts`: taken, samenvattingstaken, mijlpalen, relaties, resources, toewijzingen, kritieke taken;
-- `tasks`: per taak id, naam, WBS, ouder, samenvatting ja/nee, mijlpaal ja/nee, vroege start en einde,
-  late start en einde, totale speling (werkdagen) en kritiek ja/nee, in de volgorde van het bestand;
-- `criticalPath`: de taak-id's van het kritieke pad;
-- `warnings`: waarschuwingen van de berekening met een vaste code en de betrokken id's
-  (`CONSTRAINT_VIOLATED`, `DEADLINE_MISSED`, `OUT_OF_SEQUENCE`, `CALENDAR_CAPPED`,
-  `RELATION_IGNORED`, `HAMMOCK_WITHOUT_FINISH_DRIVER`), plus de waarschuwingen van het openen (ook in
-  `openWarnings`): `XER_ARCHIVE_DROPPED` en `MINUTE_MODEL_CONVERTED`. `XER_ARCHIVE_DROPPED` komt als
-  het bestand een P6-bronarchief (XER) had dat niet bruikbaar is. De lezer laat het archief dan weg,
-  en `toIfc()` schrijft het niet meer mee. `detail` geeft de reden (`bytes-missing`,
-  `hash-mismatch`, …); de app meldt hetzelfde verlies bij het openen. `MINUTE_MODEL_CONVERTED` staat
-  hierboven;
+- `tasks`: per taak id, naam, WBS, ouder (`parentId`, `null` op het hoogste niveau), samenvatting ja/nee
+  (`true` als de taak kindtaken heeft), mijlpaal ja/nee, vroege start en einde, late start en einde,
+  totale speling (werkdagen, fractioneel bij urenplanning) en kritiek ja/nee, in de volgorde van het bestand;
+- `criticalPath`: de taak-id's van het kritieke pad, in padvolgorde;
+- `warnings`: waarschuwingen; de planning is dan wel doorgerekend. Elke waarschuwing heeft een vaste
+  `code` en `ids`: de betrokken taak-id's, of relatie-id's bij `OUT_OF_SEQUENCE` en `RELATION_IGNORED`.
+  `detail` is een korte vaste reden, alleen bij codes die er een hebben. De codes van de berekening:
+  - `CONSTRAINT_VIOLATED`: de logica overschrijdt een late-zijde-constraint (negatieve speling);
+  - `DEADLINE_MISSED`: de vroege einddatum valt na de deadline;
+  - `OUT_OF_SEQUENCE`: voortgang die de relatielogica tegenspreekt;
+  - `CALENDAR_CAPPED`: een kalender maakt het taakvenster onwerkbaar; de datum is afgekapt;
+  - `RELATION_IGNORED`: een relatie wees naar een onbekende taak en is genegeerd;
+  - `HAMMOCK_WITHOUT_FINISH_DRIVER`: een hamertaak zonder finish-driver; de duur valt terug op nul.
+
+  Daarbij komen de waarschuwingen van het openen (ook in `openWarnings`): `XER_ARCHIVE_DROPPED` en
+  `MINUTE_MODEL_CONVERTED`. `XER_ARCHIVE_DROPPED` komt als het bestand een P6-bronarchief (XER) had dat
+  niet bruikbaar is. De lezer laat het archief dan weg, en `toIfc()` schrijft het niet meer mee.
+  `detail` geeft de reden (`schema-version`, `hash-mismatch`, `truncated`, `bytes-missing`,
+  `metadata-invalid` of `structure`), `ids` is leeg; de app meldt hetzelfde verlies bij het openen.
+  `MINUTE_MODEL_CONVERTED` staat hierboven;
 - `foreignContent`: wat het document naast de planning bewaart en ongewijzigd terugschrijft (een gebouwmodel, gegevens
   van andere programma's), als `{ format: 'ifc', schema, objectCount }`: `schema` is de schemanaam uit de kop
   (`IFC4X3_ADD2`, `IFC4`, …), `objectCount` het aantal entiteiten dat niet tot de eigen planning hoort. Het veld
