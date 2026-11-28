@@ -11,8 +11,8 @@ Op een geldig bestand geven beide hetzelfde.
 ## Gevolgen
 
 - Sectoren en minisectoren hebben elk hun eigen budget. Eén budget op de korrel van de minisector (64 bytes) zou voor
-  gewone sectoren te ruim zijn; dat gaf bij 20 MB invoer 932 MB piekgeheugen (gemeten in de commit "fix(mpp):
-  DIFAT-cap uit bestandsgrootte …", ook genoemd in `check-mpp-import.ts`).
+  gewone sectoren te ruim zijn; dat gaf bij 20 MB invoer 932 MB piekgeheugen (gemeten in commit edd3083ed, "fix(mpp):
+  DIFAT-cap uit bestandsgrootte …", in de versie van `check-mpp-import.ts` uit die commit).
 - Een wachtwoord weigert de lezer alleen als in de stroom `Props14` in de wortel de vlagbit 0x1 staat én de
   wachtwoordhash aanwezig is (`readPasswordProtection`, `mppContainer.ts`). MPXJ noemt een bestand met de vlag
   maar zonder hash, dat MS Project zonder wachtwoord opent (`MPP14Reader`); een kale vlagtoets zou dat

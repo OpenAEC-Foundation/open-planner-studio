@@ -35,7 +35,8 @@ die uit haar kinderen volgen; dat is een grotere wijziging. Weglaten was geen op
   per type geldt.
 - Met de samenvatting als voorganger bij SS of SF, en als opvolger bij FF of SF, kan een taak in de voorwaartse
   rekening later komen dan bij de fase als één taak, niet eerder; in bouwplanning is dat de veilige kant (de gevallen
-  `wbs-summary-relation-conservative-*` in `cases-edge.json`).
+  `wbs-summary-relation-conservative-*` in `cases-edge.json`). Geen van de 28 samenvattingsrelaties in het
+  corpusbestand had zo'n vorm of een procentuele lag (commit 1a04011ec).
 - De vier vormen staan met handberekende datums in `cases-edge.json` (`wbs-summary-relation-pred-01`, `-succ-01`,
   `-both-01` en `-nested-01`); welke bladrelaties ontstaan, met welk type en welke lag, toetst
   `check-summary-relation-expansion.ts`.

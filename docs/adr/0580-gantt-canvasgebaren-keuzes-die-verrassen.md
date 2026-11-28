@@ -16,8 +16,9 @@ erboven in ADR 0570; hier staat wat daar niet in staat.
   click-luisteraar op `window` in de bubble-fase.
 - `useGanttHistogramInteraction` blijft gemount als het histogram uit gaat; alleen de strook in de portal
   verdwijnt. Het effect op `active` sluit de tooltip daarom zelf, anders verscheen hij zonder nieuwe hover weer zodra
-  het histogram terugkwam. `TOOLTIP_SAFETY_NET_MS` sluit een tooltip die zo lang niet veranderde: een tik met touch geeft wel een `mousemove` en een `click` maar geen
-  `mouseleave` (Touch Events: na een tik volgen `mousemove`, `mousedown`, `mouseup` en `click`).
+  het histogram terugkwam. `TOOLTIP_SAFETY_NET_MS` sluit een tooltip die zo lang niet veranderde: een tik met touch kan een tooltip openen
+  die geen `mouseleave` krijgt (Touch Events §7 laat het omzetten van een tik naar muisevents, en wat daarna volgt,
+  aan de browser over).
 - `useGanttViewportCoordinator` bouwt voor de inhoudsbreedte een eigen as zonder scroll en zoom (`spanAxis`). Zo hangt
   de dagspanne niet van scroll af, en `computeContentWidth` rekent haar daarna met de zoom om in pixels; met de gedeelde as, die bij elke scroll verandert, liep de berekening
   bij elke scroll opnieuw over alle taken (een bevinding uit het profiel met 8000 taken in de commit "perf(gantt):

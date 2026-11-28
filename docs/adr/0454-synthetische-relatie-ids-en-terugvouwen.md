@@ -27,6 +27,8 @@ optelling: anders telt een kruisproduct van vijf paren in de statusbalk als vijf
   niet aan. Ze lezen uit dat resultaat geen relatie-ids: `previewMoveProject` het projecteinde en de projectduur,
   `progressPlannedDates.ts` de vroege datums van een voorwaartse rekening en de benchmark de taakuitkomsten
   (`isCritical`, `applyCpmResult`).
+- In het corpusbestand `870d339f60603f71` (niet in de repo) waren vóór het terugvouwen 114 van de 167 drijvende
+  relaties synthetisch, en die vielen uit de weergave (gemeten in commit 1a04011ec).
 - `check-summary-relation-expansion.ts` toetst het voorvoegsel van de ids en het behoud van type en lag, de botsing
   (een echt id gelijk aan het eerste synthetische: geen dubbele ids, de echte relatie houdt haar id, de twee
   bladrelaties krijgen `::exp-1` en `::exp-2`), en per veld het terugvouwen, ook twee keer achter elkaar voor ids
