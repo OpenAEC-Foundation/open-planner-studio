@@ -360,6 +360,42 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
+// Knownbug 876: diagnose in een draft, niet de huidige foute uitkomst vastleggen als norm.
+// L krijgt de ruwe FS-bovengrens van de externe opvolger. Met SS0 en twee taken in
+// kalendertijd hoort P dezelfde late start te krijgen, ook als die op zondag valt.
+{
+  const es = '2026-06-07T22:00';
+  const elapsedTask = (id: string, hours: number, links?: ExternalLink[]) => task(id, es, 1, 'project', {
+    time: { ...createDefaultTaskTime(es, hours, 'hours'), durationType: 'ELAPSEDTIME' },
+    ...(links ? { externalLinks: links } : {}),
+  });
+  const anchorDate = '2026-06-08T20:00';
+  const link: ExternalLink = {
+    id: 'x876', direction: 'successor', relType: 'FS', anchorDate, lagDays: 0, sourceMissing: false,
+    sourceRef: { projectId: 'ander', taskId: 'S' },
+  };
+  const seq: Sequence = { id: 'ss876', predecessorId: 'P', successorId: 'L', type: SEQ_TYPE.SS, lagDays: 0 };
+  const snapshot = (t: NonNullable<ReturnType<ReturnType<typeof solve>['tasks']['get']>>) => (
+    [t.earlyStart, t.lateStart, t.lateFinish, t.totalFloatMinutes, t.isCritical]
+  );
+  for (const base of ['ops', 'p6', 'msproject'] as const) {
+    for (const lagCalendar of LAG_CALENDARS) {
+      const tag = `${base}/${lagCalendar}`;
+      const r = solve([elapsedTask('P', 1), elapsedTask('L', 24, [link])], [seq], base, lagCalendar);
+      const P = r.tasks.get('P')!;
+      const L = r.tasks.get('L')!;
+      eq(`876 ${tag} beide vroege starts`, [P.earlyStart, L.earlyStart], [es, es]);
+      eq(`876 ${tag} L houdt externe grens`, snapshot(L).slice(1, 4),
+        ['2026-06-07T20:00', anchorDate, -120]);
+      if (lagCalendar === '24hour') {
+        eq(`876 ${tag} tegenproef SS0 geeft dezelfde startgrens door`, snapshot(P).slice(1),
+          ['2026-06-07T20:00', '2026-06-07T21:00', -120, true]);
+      }
+      console.log(`Knownbug 876 ${tag}: P=${JSON.stringify(snapshot(P))} L=${JSON.stringify(snapshot(L))}`);
+    }
+  }
+}
+
 if (failures.length) {
   console.error(`XX external-lag-calendar: ${failures.length}/${checks}\n${failures.slice(0, 40).join('\n')}`);
   process.exit(1);
