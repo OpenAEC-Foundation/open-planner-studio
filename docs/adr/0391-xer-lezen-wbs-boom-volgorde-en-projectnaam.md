@@ -7,8 +7,8 @@ onder de samenvatting van haar `wbs_id`. Een ouder telt alleen als hij een PROJW
 in de fixture naar een P6-export (de projectknoop met `proj_node_flag` Y). De kop van die toets beschrijft wat een
 `parentId` naar een niet-bestaande taak deed: geen wortel, dus een plat raster, inklappen zonder effect en geen
 rollup. Om dezelfde reden hangt een activiteit met een `wbs_id` die het project niet heeft op het hoogste niveau
-(`check-xer-wbs-tree.ts` 2, 12 en 13). Dat MPXJ een rij en een activiteit met een onvindbare ouder ook op het
-hoogste niveau zet (`TableProjectReader`), komt uit het weggehaalde commentaar en is niet nagegaan.
+(`check-xer-wbs-tree.ts` 2, 12 en 13). MPXJ zet een rij en een activiteit met een onvindbare ouder ook op het
+hoogste niveau (`TableProjectReader`).
 
 ## Gevolgen
 
@@ -18,8 +18,7 @@ hoogste niveau zet (`TableProjectReader`), komt uit het weggehaalde commentaar e
 - `compareP6Keys` vergelijkt twee sleutels van alleen cijfers als getal: zonder voorloopnullen eerst op lengte, dan
   op tekens, en bij gelijke waarde op de oorspronkelijke tekst, zodat ook een lang getal exact vergelijkt zonder
   `Number`. Op tekst kwam `10` vóór `2` (`check-xer-wbs-tree.ts` 3). Een sleutel met een ander teken komt na de
-  getallen, in codepuntvolgorde. Dat MPXJ ook numeriek sorteert (`WbsRowComparatorXER`), komt uit het weggehaalde
-  commentaar en is niet nagegaan.
+  getallen, in codepuntvolgorde. MPXJ sorteert ook numeriek (`WbsRowComparatorXER`).
 - Tekst vergelijkt de lezer op codepunten (`compareCodePoints`), niet met `localeCompare`, zodat de volgorde niet
   van de taal van de machine afhangt (`check-xer-reader.ts` 26 en 27).
 - De takenarray staat in boomvolgorde (`flattenOrder`), zoals in de P6 XML-lezer (ADR 0261): elke activiteit direct

@@ -11,8 +11,8 @@ wat `unknown` betekent.
 ## Gevolgen
 
 - Een nieuw doel is alleen bewezen met de foutvorm van `stat` voor "bestaat niet" (`missingTarget`: os error 2), niet
-  met `exists() === false`. Volgens het weggehaalde commentaar (niet nagegaan) gebruikt plugin-fs daar `Path::exists`,
-  dat ook `false` geeft als de metadata niet te lezen is; een scopeweigering ("forbidden path") blijft ook onbekend.
+  met `exists() === false`. De command `exists` van plugin-fs 2.7.1 (`commands.rs`) geeft
+  `Path::exists` van Rust terug, en dat geeft ook `false` als de metadata niet te lezen is; een scopeweigering ("forbidden path") blijft ook onbekend.
 - `replaceUserFile` (`atomicWrite.ts`) schrijft een doel dat `lstat` als symbolische link of met meer dan één naam meldt
   direct, zonder tijdelijk bestand. Een hernoeming zou een gewoon bestand op de plek van de link zetten (het doel van
   de link houdt dan de oude inhoud), en bij een harde link houdt de andere naam de oude inhoud. Daarvoor geeft de app

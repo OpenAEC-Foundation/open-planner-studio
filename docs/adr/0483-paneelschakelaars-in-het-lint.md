@@ -32,10 +32,8 @@ meegeeft; een expliciete waarde wint. De lintknoppen geven die nooit mee.
 ## Gevolgen
 
 - Resources en Resourcedock doen iets anders en heten daarom anders, met een eigen icoon, op beide tabbladen
-  hetzelfde. Het icoon `resource.dock` zegt waar het paneel komt, `resource.workspace` wat erin staat. Volgens het
-  weggehaalde commentaar volgt het dock-icoon (een rechthoek met een afgescheiden zijvak, zonder pijlpunt omdat die
-  in de compacte strip wegvalt) de conventie van VS Code en Figma voor deze schakelaar; dat is niet nagegaan. Het
-  draagt `ops-icon-rail` en spiegelt in RTL (`ar`, `fa`) mee in `Ribbon.css`, omdat de rail daar links staat. Het
+  hetzelfde. Het icoon `resource.dock` zegt waar het paneel komt, `resource.workspace` wat erin staat. Het dock-icoon
+  is een rechthoek met een afgescheiden zijvak (`icons.generated.ts`). Het draagt `ops-icon-rail` en spiegelt in RTL (`ar`, `fa`) mee in `Ribbon.css`, omdat de rail daar links staat. Het
   wisselt niet van icoon bij aan of uit: de actieve stand van het lint is de terugkoppeling, net als bij Histogram.
 - Nieuwe resource zet alleen het verzoek `pendingNewResource`, samen met het volledige paneel (`showResourcePanel:
   true`, `resourcePanelDocked: false`). Dat paneel is nodig omdat alleen `ResourcePanel` het verzoek afhandelt en de

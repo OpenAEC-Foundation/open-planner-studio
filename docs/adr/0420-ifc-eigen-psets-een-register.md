@@ -36,6 +36,6 @@ en met E in die check). De route voor een nieuw veld staat in `docs/ifc-round-tr
   `OPS_P6Progress` (ADR 0303) en draagt ook de records `DayMeasureDurations` en `ExactMinutes`, omdat de werkregelbrug duur en werk beheert
   (`docs/ifc-round-trip.md`, "Dagenmaat met een breuk, lagmaat en speling"). `OPS_P6Progress` draagt alleen de velden
   van ADR 0303; de ruwe XER-bytes staan in `OPS_XerSourceArchive`, het bronarchief van ADR 0048.
-- `OPS_Sequences` hangt aan het werkschema en sleutelt op de GlobalId van de relatie (ADR 0047). De reden in het
-  weggehaalde commentaar: IFC laat een `IfcPropertySet` niet rechtstreeks aan een `IfcRelSequence` hangen. Dat is niet
-  in de repo nagegaan; de schematabel van `check-ifc-schema.ts` noemt alleen de entiteiten die de writer gebruikt.
+- `OPS_Sequences` hangt aan het werkschema en sleutelt op de GlobalId van de relatie (ADR 0047), omdat IFC een
+  `IfcPropertySet` niet rechtstreeks aan een `IfcRelSequence` laat hangen: in de schematabel van `check-ifc-schema.ts`
+  (`tests/planning/ifcSchemaTable.ts`) staat `IfcRelSequence` niet bij `RelatedObjects` van `IfcRelDefinesByProperties`.

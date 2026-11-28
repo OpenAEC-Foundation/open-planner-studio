@@ -1,11 +1,13 @@
 # XER: de vastgelegde rekenuitvoer zoals ze in het bestand staat
 
 `readXerRecordedTimes` (`xerRecordedTimes.ts`) leest de zes kolommen van bak 4 (regel `xer`) als weergave. Een taak
-krijgt een vastlegging alleen met een leesbare `early_start_date` én `early_end_date`. De lezer corrigeert daarna niets: ook een vroeg einde vóór de vroege start blijft staan. Reden uit het
-weggehaalde commentaar, gemeten op het corpus en niet nagegaan: voor een voltooide activiteit is dat de vorm van de
-bron. In `rehab-2.xer` (P3-uitvoer) staat bij 2.036 voltooide taken de vroege start op de statusdatum en het vroege
-einde op het einde van de werkdag ervoor; Roads zet bij voltooide taken start en einde gelijk. Geen van beide is een
-werkelijke datum; welke datum de weergave toont, kiezen `shownStart`/`shownFinish` (`utils/taskDates.ts`). Een toets op de volgorde gooide 29 % van de vastlegging van `rehab-2.xer` weg.
+krijgt een vastlegging alleen met een leesbare `early_start_date` én `early_end_date`. De lezer corrigeert daarna niets: ook een vroeg einde vóór de vroege start blijft staan. De reden,
+gemeten op het corpus: voor een voltooide activiteit is dat de vorm van de bron. In `rehab-2.xer` (P3-uitvoer) staat
+bij 2.036 voltooide taken de vroege start op het eerste werkmoment na de statusdatum en het vroege einde op het laatste
+werkmoment ervóór; Roads zet bij voltooide taken start en einde gelijk (de telling per orakel in
+`docs/superpowers/plans/2026-09-23-x12-c1-c4-toets-buiten-rehab2.md`). Geen van beide is een
+werkelijke datum; welke datum de weergave toont, kiezen `shownStart`/`shownFinish` (`utils/taskDates.ts`). Een toets op de volgorde gooide 29 % van de vastlegging van `rehab-2.xer` weg: 2.042 van de 6.976 taken, 2.036 daarvan
+voltooid (de regressietoets in `check-xer-recorded-times.ts`).
 
 ## Gevolgen
 

@@ -7,8 +7,7 @@ een paar keuzes die er zonder uitleg overbodig uitzien. Wat al in `.claude/rules
 ## Gevolgen
 
 - `toolListEntry` (`toolListing.ts`) geeft alle vier de annotaties mee, ook een hint die gelijk is aan de standaard
-  van de MCP-spec. Volgens het weggehaalde commentaar leest Claude Code een ontbrekende `destructiveHint` of
-  `openWorldHint` als `false` en vraagt het dan geen toestemming meer bij een destructieve tool (niet nagegaan).
+  van de MCP-spec.
 - De typen in `contracts.ts` groeien alleen aan: een veld komt erbij, er verdwijnt of verandert er geen. AI-clients
   buiten de repo lezen die vormen.
 - `MCP_INSTRUCTIONS` (`dispatcher.ts`) blijft kort: clients zetten het in elke systeemprompt. Het bevat alleen de

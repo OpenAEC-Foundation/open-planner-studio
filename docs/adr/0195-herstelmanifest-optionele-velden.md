@@ -11,8 +11,7 @@ niet-lege string (`recoverySiteMeta`), en een `foreignSource` die geen object is
 
 - `datesAsRecorded` is een feit dat elke herstelronde expliciet in het manifest schrijft, geen heuristiek over de
   teruggelezen datums (`docs/xer-recovery-guardrails.md`). De datums in een snapshot kunnen gelijk zijn aan de
-  vastlegging zonder dat de modus aanstond; het weggehaalde commentaar noemde als voorbeeld een bewerking die de modus
-  verliet, gevolgd door een auto-save vóór de uitgestelde herberekening.
+  vastlegging zonder dat de modus aanstond.
 - Een manifest of webrecord dat een optioneel veld niet kent, geeft bij het lezen de veilige standaard:
   `datesAsRecorded` onwaar, geen site-doel. Voor `isDirty` leest `loadWeb` eerst de regel van een manifest met
   `documents`, dan de vlag in het oude documentrecord, en anders waar (`check-recovery-web-hold.ts`, de proeven met

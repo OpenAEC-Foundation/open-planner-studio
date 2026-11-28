@@ -11,8 +11,8 @@ het (`fileTools.ts`).
   (`p6xmlWriter.ts`); een waarde van 0 of minder, of geen waarde, wordt 1.
 - Een resource krijgt `costPerHour` uit `PricePerUnit` van een `<ResourceRate>` met zijn `ResourceObjectId`. Bij meer
   rijen wint de rij met de vroegste `EffectiveDate` (een lege datum gaat voor elke datum), omdat OPS één vlak tarief
-  per resource kent. De lezer neemt `PricePerUnit` als uurtarief; dat P6 het zo bedoelt, komt uit het weggehaalde
-  commentaar en is niet nagegaan.
+  per resource kent. De lezer neemt `PricePerUnit` als uurtarief; MPXJ doet dat ook
+  (`XmlContextReader`).
 - Het tempo van een toewijzing, in deze volgorde. Het begrote tempo is `PlannedUnitsPerTime` als dat boven 0 is, anders
   `RemainingUnitsPerTime` als dat boven 0 is, anders 1; de terugval op het resttempo volgt de XER-lezer
   (`plannedAssignmentRate`, die ook een resttempo van 0 neemt; review #361 punt 2). Materiaal krijgt het begrote tempo
@@ -34,5 +34,6 @@ het (`fileTools.ts`).
   `RemainingStartDate`); als die samen geen periode geven, een `<PlannedCurve>` met `:` als resterend werk vanaf
   `PlannedStartDate`. Een ontbrekend anker is de start van de taak (`axisOffsetMinutes` op de taakkalender). Alleen een
   activiteit krijgt een contour, en alleen bij meer dan één periode en werk in minstens één ervan
-  (`p6SpreadToContourPeriods`, `attachContours`; regel `contour`). Dat MPXJ deze drie velden met deze ankers leest,
-  komt uit het weggehaalde commentaar en is niet nagegaan.
+  (`p6SpreadToContourPeriods`, `attachContours`; regel `contour`). MPXJ leest deze drie velden met dezelfde ankers
+  zolang die datums zijn ingevuld (`XmlProjectReader`, `TimephasedHelper.read`); ontbreekt een datum, dan slaat MPXJ
+  die spreiding over, waar OPS de start van de taak neemt.

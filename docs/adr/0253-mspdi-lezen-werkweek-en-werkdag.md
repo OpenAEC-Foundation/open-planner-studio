@@ -11,7 +11,8 @@ die een lezer zonder uitleg zou terugdraaien.
   `<WorkWeeks>` heeft ook een `WeekDays`-ouder, en zonder de controle op de grootouder werd de zaterdag van zo'n
   zomerrooster een werkdag van het hele jaar (`check-import-namen-werkweek.ts`, punt 2). Een afgeleide kalender krijgt
   per weekdag zijn eigen `<WeekDay>` en anders die van zijn basis (`effectiveWeek`; `check-mspdi-feestdagen.ts` 10 en
-  11). Dat MS Project en MPXJ zo erven, komt uit het weggehaalde commentaar en is niet nagegaan.
+  11). MPXJ erft ook per weekdag van de basis (`ProjectCalendar.setParent` en
+  `getDayType`).
 - De enkelvoudige werkdag komt van de eerste werkdag met tijden na sortering op `dayType` (zondag eerst), niet in
   bestandsvolgorde: de eigen writer zet maandag eerst, en dan koos een rondgang een andere dag. Ze komt uit de
   standaardweek, niet uit het eerste `<WorkingTime>` van de kalender, omdat dat van een uitzondering of een tijdelijke
