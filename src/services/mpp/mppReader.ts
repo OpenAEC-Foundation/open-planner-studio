@@ -1,4 +1,4 @@
-// Bron: MPXJ van Jon Iles e.a., structuurkennis en veldconstanten geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
+// Bron: MPXJ, © Jon Iles e.a., structuurkennis en veldconstanten geport naar TypeScript (LGPL-2.1, github.com/joniles/mpxj).
 import type { Project } from '@/types/project';
 import type {
   Task, TaskConstraint, TaskSplitGap, MspTaskType, TaskTimephasedContour, TimephasedContourPeriod,
