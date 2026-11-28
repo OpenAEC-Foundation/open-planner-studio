@@ -2,8 +2,8 @@
 
 `buildXerResourceCatalog` leest de resources één keer voor het hele bestand. `materializeXerResources`
 (`xerResources.ts`) maakt per project een eigen, wijzigbare kopie van de resources (`structuredClone`), en de
-catalogus en de TASKRSRC-rijen blijven één keer gelezen, bevroren brondata. Het weggehaalde commentaar gaf als reden
-dat er zo per project geen kopie van elke toewijzingsrij ontstaat; `rehab-2.xer` heeft 52.640 toewijzingen
+catalogus en de TASKRSRC-rijen blijven één keer gelezen, bevroren brondata. Reden: zo
+ontstaat er per project geen kopie van elke toewijzingsrij; `rehab-2.xer` heeft 52.640 toewijzingen
 (`docs/superpowers/plans/2026-10-07-perf-grote-planningen.md`). Hoe de lezer een toewijzing leest, staat in
 `xerResourceAssignments.ts`; het verschil met de P6 XML-lezer in ADR 0269.
 

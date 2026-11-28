@@ -4,8 +4,7 @@ MS Project bewaart een duur in tienden van een minuut. `readTasks` levert `SCHED
 (de tienden gedeeld door 10, zonder afronding) en geeft elke taak de urenmaat (`durationUnit: 'hours'`, spec
 alleen-uren §3.10, T15; review #591 ronde 1 punt 3). `readTasks` neemt eigen tekstvelden niet over en decodeert dus geen
 OPS-markering voor de dagenmaat; `scanMppImportLoss` (`mppImportLoss.ts`) leest hun bytes alleen voor de telling van
-wat bij import wegvalt (knownbug 301; volgens het weggehaalde commentaar droeg ook geen van de 661 `.mpp`-bestanden van het
-corpus een `OPS_`-veld). `scheduleDuration` rekent `hourTaskScheduleDuration` uit op de effectieve taakkalender, na
+wat bij import wegvalt (knownbug 301). `scheduleDuration` rekent `hourTaskScheduleDuration` uit op de effectieve taakkalender, na
 de promotie van ADR 0283.
 
 ## Gevolgen
@@ -13,10 +12,10 @@ de promotie van ADR 0283.
 - Het eenhedenveld `ACTUAL_DURATION_UNITS` (`TaskFieldId.DurationUnits`) bepaalt `durationType`: een
   kalendertijdeenheid (`getDurationTimeUnits` begint met `elapsed`) geeft `ELAPSEDTIME`, elke andere eenheid en een
   ontbrekend veld `WORKTIME`. Dezelfde `durationMinutes` zijn dus bij `ELAPSEDTIME` klokminuten en bij `WORKTIME`
-  werkminuten; hoe de solver ze plant, staat in ADR 0016. Dat een kalendertijdduur in een `.mpp` al in klokminuten
-  staat (de vaste dag van 24 uur in MPXJ `MPPUtility.getAdjustedDuration`), komt uit het weggehaalde commentaar.
-- Volgens het weggehaalde commentaar gaat een duur met een breuk van een minuut als `ExactMinutes`-record mee naar
-  IFC en XML (T14).
+  werkminuten; hoe de solver ze plant, staat in ADR 0016. Een kalendertijdduur staat in een `.mpp` al in klokminuten
+  (de vaste dag van 24 uur in MPXJ `MPPUtility.getAdjustedDuration`).
+- Een duur met een breuk van een minuut gaat als `ExactMinutes`-record mee naar IFC en XML (T14;
+  `check-uren-f5b-adapters.ts` (1)).
 - `REMAINING_DURATION` heeft dezelfde eenheid, wordt geklemd (`clampRemainingDurationTenths`, `limits.ts`) en wordt
   onafgerond `remainingMinutes`. Ontbreekt het veld of is het record te kort, dan levert de lezer geen rest, en leidt
   `normalizeImportedProgress` haar bij voortgang af uit `completion`. De eigen rest gaat voor, omdat MS Project die
@@ -32,8 +31,7 @@ de promotie van ADR 0283.
   dat gevuld is en de taak `MANUALLY_SCHEDULED` is of `SCHEDULED_START` leeg is, anders `SCHEDULED_START`; voor het
   einde hetzelfde met `Finish` en `SCHEDULED_FINISH`. Een handmatige taak met een handmatige start en een leeg
   handmatig einde krijgt zo die start en het einde uit `SCHEDULED_FINISH`. Waarom het handmatige anker telt: ADR 0024.
-  Dat dit de overschrijfregel van MPXJ `MPP14Reader.java` is en dat het handmatige paar in het corpus bij 261
-  handmatige taken in 15 bestanden afwijkt, komt uit het weggehaalde commentaar.
+  Dit is de overschrijfregel van MPXJ `MPP14Reader.java`.
 - `resolveScheduleField` staat bewust ook in `tests/planning/mppGroundTruth.ts`, zonder import: die meetlat moet een
   fout in de lezer kunnen vinden en mag de regel dus niet delen. Houd de parameternamen en de uitdrukking in beide
   gelijk.

@@ -35,7 +35,7 @@ kalenderklokken met een eigen functie en weigert seconden die niet nul zijn (`pa
 - `sixDecimalHoursToMinutes` (voor `xerReader` en `p6xmlReader`) leest uren met zes decimalen. Ligt `uren × 60`
   binnen `SIX_DECIMAL_HOUR_NOISE_MINUTES` (0,00003 minuut, de grootste ruis van zes decimalen: 0,5 × 10⁻⁶ uur × 60)
   van een hele minuut, dan wordt het die hele minuut; anders blijft de breuk staan, afgerond op een miljoenste
-  minuut. Reden: 40 minuten staan er als 0,666667 uur. Een echte breuk zoals 0,33 uur (19,8 minuten) blijft. Dat
-  met die ruis 29 P6-cellen onexact werden (regel A) en een late datum met de oude kalenderwandeling een dag terug
-  sprong (knownbug 385, niet meer in `knownbugs.md`), komt uit het weggehaalde commentaar en is niet nagegaan. De
+  minuut. Reden: 40 minuten staan er als 0,666667 uur. Een echte breuk zoals 0,33 uur (19,8 minuten) blijft. Met
+  die ruis werden 29 P6-cellen onexact (regel A; commit 62101d596) en sprong een late datum met de oude
+  kalenderwandeling een dag terug (knownbug 385, niet meer in `knownbugs.md`; commit 04f4710ea). De
   toetsen staan in ADR 0265 (`check-uren-f5b-adapters.ts` (13) en (14)).

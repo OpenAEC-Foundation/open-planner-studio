@@ -8,8 +8,7 @@ er bewust niet: de WBS-kolom zegt al waar een rij staat, en op papier gaat elke 
 
 ## Gevolgen
 
-- Zonder meting gelden de terugvalbreedtes uit `COL`; volgens het weggehaalde commentaar zijn die gemeten met het
-  meegeleverde Inter. De bovengrens (`max`) is tweemaal de terugval: ruim genoeg voor een vertaalde kop of een diepe
+- Zonder meting gelden de terugvalbreedtes uit `COL`. De bovengrens (`max`) is tweemaal de terugval: ruim genoeg voor een vertaalde kop of een diepe
   WBS-code, en een grens waardoor één uitzonderlijke waarde de tijdas niet opeet; daarboven kapt `ellipsize` af.
 - De vloer van een meegeschaalde kolom is `AUTO_COLUMN_MIN_WIDTH` (30): smaller leest een kolom als een dubbele
   scheidingslijn. De curvekolom ligt tussen `CURVE_COLUMN_WIDTH_MIN` (40) en `COL.curve.w` (98); zonder meting geldt het
@@ -22,8 +21,8 @@ er bewust niet: de WBS-kolom zegt al waar een rij staat, en op papier gaat elke 
   andere.
 - Een gecentreerde kolomkop mag de volle kolombreedte gebruiken; een links uitgelijnde kop (naam, curve, een links
   uitgelijnde registerkolom) begint na de celmarge en heeft de rest van de kolom. Een datacel krijgt de breedte min de
-  celmarge aan beide kanten. De marge is voor een gecentreerde kop speling: de Arabische kop van Eenh./d meet volgens
-  het weggehaalde commentaar 44,8 px in een kolom van 45 en hoort voluit te staan. Een datacel houdt haar marge omdat
+  celmarge aan beide kanten. De marge is voor een gecentreerde kop speling: de Arabische kop van Eenh./d meet
+  44,8 px in een kolom van 45 (commit b1b354777) en hoort voluit te staan. Een datacel houdt haar marge omdat
   rechts uitgelijnde getallen anders tegen de lijn staan.
 - De ingebouwde kolommen (`BuiltinPrintColumnKey`) houden hun tekenwijze van vóór de kolomlijst van #817, zodat de
   standaardafdruk niet veranderde. `check-report-columns.ts` (sectie 1) vergelijkt de render zonder lijst met de render

@@ -6,8 +6,8 @@ restmethode (`largestRemainderRound`): eerst naar beneden, daarna krijgen de slo
 bij tot de som het afgeronde totaal is. De stap hangt aan het tempo, niet aan het totaal. Ligt `unitsPerDay` binnen
 1e-9 van een geheel getal, dan verdeelt ze in hele eenheden per dag, omdat een halve machinist of 0,67 kraan op één
 dag geen planning is; anders in honderdsten, omdat een fractioneel tempo gewone invoer is (`UnitsInput` neemt
-breuken aan). Een toets op het totaal zou een fractioneel tempo met een heel totaal in hele eenheden leggen; volgens
-het weggehaalde commentaar gaf `distributeUnits(0.5, 4)` dan [1, 1, 0, 0] in plaats van vier keer 0,5.
+breuken aan). Een toets op het totaal zou een fractioneel tempo met een heel totaal in hele eenheden leggen:
+`distributeUnits(0.5, 4)` gaf dan [1, 1, 0, 0] in plaats van vier keer 0,5 (`largestRemainderRound` met stap 1).
 `check-contour-engine.ts`, geval a7b, toetst *Dubbele piek* met tempo 0,5 over 4 dagen (totaal 2) op honderdsten;
 a7c en b6 toetsen de hele eenheden bij tempo 1.
 

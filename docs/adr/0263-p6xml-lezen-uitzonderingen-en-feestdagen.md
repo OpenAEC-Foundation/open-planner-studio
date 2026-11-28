@@ -4,8 +4,8 @@ De writer schrijft beide soorten uitzondering als `<HolidayOrException>`, één 
 `check-p6xml-writer-p6.ts` (3)). `parseP6HolidayOrExceptions` maakt er een feestdag van als het element geen leesbaar
 `<WorkTime>`-blok heeft, of precies één blok van 00:00 tot het einde van de dag (23:59 telt als 1440 minuten, ADR
 0262); met andere blokken wordt het een werkende uitzondering op die blokken. De lezer rekent één blok van 00:00 tot
-23:59 als vrije dag (`check-p6xml-nested.ts` 4e); dat P6 het zo bedoelt, komt uit het weggehaalde commentaar en de
-writer, en is niet tegen P6 nagegaan. De writer schrijft een werkende dag van 24 uur daarom als twee aansluitende
+23:59 als vrije dag (`check-p6xml-nested.ts` 4e); MPXJ leest het ook zo
+(`XmlReaderHelper`). De writer schrijft een werkende dag van 24 uur daarom als twee aansluitende
 blokken (`splitWholeDay`), en de lezer voegt die weer samen (`check-p6xml-calendar-rules.ts` (3)).
 
 ## Gevolgen

@@ -20,9 +20,7 @@ gebruikt, staat in ADR 0043 (IFC), 0252 en 0253 (MSPDI), 0262 en 0264 (P6 XML) e
   werd zo'n kalender alleen een uurkalender als een taak erop een signaal gaf, en een resourcekalender die alleen via
   een toewijzing gebruikt wordt, krijgt dat signaal nooit. `check-mpp-import.ts` ("Z8 instrumentfix 1") eist een
   afwijking voor 0 tot 1440, geen afwijking voor 0 tot 1439, en een uurkalender met 24 uur per dag uit
-  `promoteHourCalendar` zonder signaal. Dat dit de ingebouwde kalender "24 Hours" van MS Project is, en dat de
-  resourcekalenders in `mpp14timephased.mpp` zo zijn, komt uit het weggehaalde commentaar en het commentaar in die
-  toets; dat corpusbestand staat niet in de repo.
+  `promoteHourCalendar` zonder signaal.
 - De helpers voor (c) bij een duur: `isoDurationToMinutes` geeft `null` bij een lege waarde, `$` of een duur zonder
   `T`, en anders de minuten van het tijddeel (ADR 0050 over de dagen vóór de `T`); een vorm die `parseIfcDuration`
   niet leest, geeft diens fout. `isSubDayMinutes` is waar als de afgeronde minuten geen veelvoud zijn van de
