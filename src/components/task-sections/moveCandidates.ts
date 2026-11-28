@@ -2,25 +2,8 @@ import type { ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
 import { isLeafTask } from '@/utils/taskHierarchy';
 
-/**
- * Kandidaat-doeltaken voor "verplaats naar…" (item 4) in `TaskAssignmentsSection`: bladtaken
- * zonder mijlpaal, niet de brontaak zelf, en waarop de resource nog niet zit. Een kostenresource
- * (`costResourceIds`, #815) mag ook naar een mijlpaal; samenvattingstaken blijven uit.
- *
- * WAAROM EEN INDEX. De oude regel stond inline in de component en liep per toewijzingsrij, bij
- * élke render, over alle taken × alle toewijzingen (`tasks.filter(… !assignments.some(…))`). Op
- * rehab-2.xer (6.978 taken, 52.640 toewijzingen) kostte één selectie daardoor 47 s en een
- * veldwijziging 105 s (prestatiemeting 2026-10-07). Nu:
- *  - de index `resourceId → Set<taskId>` kost één doorloop over de toewijzingen (de component
- *    bouwt hem in `useMemo` op `tasks`/`assignments`);
- *  - `has` stopt bij de eerste kandidaat — dat is alles wat een render nodig heeft (toon het menu
- *    of niet);
- *  - `list` loopt alleen de taken door en draait pas als de gebruiker het menu opent.
- */
 export interface MoveCandidateLookup {
-  /** Is er minstens één kandidaat? Stopt bij de eerste. */
   has(sourceTaskId: string, resourceId: string): boolean;
-  /** Alle kandidaten, in taakvolgorde (dezelfde volgorde als de oude `tasks.filter`). */
   list(sourceTaskId: string, resourceId: string): Task[];
 }
 
