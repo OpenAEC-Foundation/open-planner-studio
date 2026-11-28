@@ -58,24 +58,6 @@ import { ExternalLinkDialog } from '@/components/dialogs/ExternalLinkDialog';
 import { searchDependentProjectsManually } from '@/state/dependentProjectsSearch';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
-/**
- * Ribbon-widgets: de "component-escape-hatch" uit de config-registry — de
- * onderdelen die te complex zijn voor pure data (eigen state, popovers, inputs, dropdowns).
- * Elke widget haalt zijn eigen store-state op (geen props uit een god-functie), zodat de
- * registry ze zonder plumbing kan opnemen.
- */
-
-/**
- * Baselines & voortgang-groep: knop Baselines beheren + statusdatum + voortgangsmodus.
- *
- * Volle breedte: de knop en beide velden staan naast elkaar. De groep heeft ook een ingeklapte
- * vorm: één knop met een popover die dezelfde bediening bevat (zelfde patroon als
- * MilestoneDropdown/TemplatesDropdown hieronder). Die vorm verschijnt
- *  - bij het handmatig ingeklapte lint (`ui.ribbonCompact`): de vier bedieningen samen zijn te breed
- *    voor de 40px-strip;
- *  - bij een smal venster, via de automatische inpassing (`RibbonCollapsible`, `useRibbonAutoFit`):
- *    een veld kan niet tot een icoon krimpen, dus de groep klapt als geheel in.
- */
 export function BaselinesProgressGroupContent() {
   const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
@@ -86,8 +68,6 @@ export function BaselinesProgressGroupContent() {
   const progressMode = useAppStore(s => s.project.progressMode);
   const setStatusDate = useAppStore(s => s.setStatusDate);
   const setProgressMode = useAppStore(s => s.setProgressMode);
-  // Tijdveld alleen als de solver de tijd van de statusdatum gebruikt: projectkalender in uur-modus
-  // (besluit orkestrator 2026-10-19: toon wat de motor gebruikt). De schakelaar Urenplanning telt niet.
   const showTime = useAppStore(s => isHourModeCalendar(s.calendar));
   const displayDate = useDisplayDate();
 
@@ -110,9 +90,6 @@ export function BaselinesProgressGroupContent() {
           }}
         />
         {showTime && <StatusDateTimeField statusDate={statusDate} onCommit={setStatusDate} />}
-        {/* De wisknop houdt ook zonder datum zijn plek (onzichtbaar en niet bedienbaar). Anders
-            hangt de groepsbreedte af van de waarde, en klapt de groep bij een vaste vensterbreedte
-            om door alleen een datum in te vullen of te wissen. */}
         <button
           className="ribbon-btn small"
           title={statusDate ? tMenu('ribbon.statusDateClear') : undefined}
@@ -121,14 +98,10 @@ export function BaselinesProgressGroupContent() {
           disabled={!statusDate}
           tabIndex={statusDate ? undefined : -1}
           onClick={event => {
-            // Met het toetsenbord gewist: de knop wordt onbedienbaar, dus de focus gaat naar het
-            // datumveld ernaast in plaats van naar `body` (anders valt hij uit de popover). Pas na de
-            // render: een veld met focus neemt de nieuwe (lege) waarde niet over.
             const field = event.detail === 0 ? event.currentTarget.parentElement?.querySelector<HTMLInputElement>('input') : null;
             setStatusDate(undefined);
             if (field) setTimeout(() => field.focus(), 0);
           }}
-          // `minWidth: 0`: een kleine knop is standaard 70 px breed; alleen het icoon past ruim in 22 px.
           style={{ padding: 0, minWidth: 0, visibility: statusDate ? undefined : 'hidden' }}
         >
           <Icon id="planning.clear-status-date" size={16} />
@@ -141,8 +114,6 @@ export function BaselinesProgressGroupContent() {
     { value: 'RETAINED_LOGIC', label: tMenu('ribbon.progressModeRetained') },
     { value: 'PROGRESS_OVERRIDE', label: tMenu('ribbon.progressModeOverride') },
   ];
-  // In de popover een native keuzelijst: een tweede geportalde RibbonDropdown binnen de popover
-  // is niet veilig (zie RibbonInlineSelect).
   const progressModeControl = (inPopover: boolean) => (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '2px 4px' }}>
       <span className="ribbon-info">{tMenu('ribbon.progressMode')}</span>
@@ -182,8 +153,6 @@ export function BaselinesProgressGroupContent() {
           onClick={() => setOpen(o => !o)}
         />
       ) : (
-        // Automatisch ingeklapt (smal venster): een grote knop zoals Mijlpaal ▾. De tooltip noemt
-        // de ingevulde statusdatum, zodat zichtbaar blijft wat er achter de knop staat.
         <RibbonCollapsedTrigger
           icon={<Icon id="planning.progress-menu" size={24} />}
           label={tMenu('ribbon.baselines')}
@@ -229,17 +198,6 @@ export function BaselinesProgressGroupContent() {
   );
 }
 
-/**
- * Tijdveld naast de statusdatum (besluit eigenaar 2026-10-17). Zichtbaar volgens
- * `isHourModeCalendar` (projectkalender in uur-modus); de tijd volgt de instelling Tijdnotatie, de
- * opslag blijft ISO 24 uur. Het datumveld ernaast houdt het tijddeel vast bij een datumwijziging
- * (`dateCommitValue` in `DateTextInput`).
- *
- * Het veld toont de modelwaarde tot de gebruiker typt; pas bij blur/Enter wordt het concept gelezen
- * (één commit ⇒ één undo-stap, `setStatusDate` markeert de planning als verouderd). Leeg maken haalt de
- * tijd weg (alleen de datum). Een onleesbare tijd valt stil terug op de modelwaarde. Zonder statusdatum
- * is het veld uitgeschakeld: een tijd zonder datum bestaat niet.
- */
 function StatusDateTimeField({ statusDate, onCommit }: {
   statusDate: string | undefined;
   onCommit: (next: string | undefined) => void;
@@ -287,13 +245,6 @@ function StatusDateTimeField({ statusDate, onCommit }: {
   );
 }
 
-/**
- * Mijlpaal-knop met keuzemenu: startmijlpaal, eindmijlpaal of
- * inspectiemoment (eindmijlpaal + taaktype Keuring/Inspectie + verplicht).
- *
- * Plaatst de mijlpaal onder de selectie i.p.v. altijd achteraan — exact dezelfde regel
- * en dezelfde gedeelde route als de lintknop "+ Taak" (`addTaskNearSelection`).
- */
 export function MilestoneDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tTask } = useTranslation('task');
@@ -337,15 +288,11 @@ export function MilestoneDropdown() {
 
 export interface RelationActionAvailability {
   linkSelected: boolean;
-  /** Voorgangers of opvolgers toewijzen in het paneel (issue #1000): voor precies één taak. */
   assign: boolean;
   addExternal: boolean;
   refreshExternal: boolean;
 }
 
-/** Pure beschikbaarheidsregels achter de vaste dropdownacties. Koppelen en toewijzen alleen met
- *  de takenlijst in beeld (`isTaskListInView`): onder het volledige resourcepaneel is de selectie
- *  onzichtbaar en staat het eigenschappenpaneel er niet (review #1004). */
 export function relationActionAvailability(
   selectedTaskCount: number,
   externalRelationCount: number,
@@ -354,8 +301,6 @@ export function relationActionAvailability(
   chainOrderFixed: boolean,
 ): RelationActionAvailability {
   return {
-    // Twee of meer: de selectie wordt een keten (issue #1000, Ctrl+F2 in MS Project). Alleen als
-    // elke gekozen taak in beeld staat (`selectionInView`) en hun volgorde vastligt (`chainOrder`).
     linkSelected: taskListInView && selectionVisible && chainOrderFixed && selectedTaskCount >= 2,
     assign: taskListInView && selectedTaskCount === 1,
     addExternal: selectedTaskCount === 1,
@@ -363,10 +308,6 @@ export function relationActionAvailability(
   };
 }
 
-/**
- * Relatie is bewust een keuzemenu met vaste betekenissen. De selectie bepaalt alleen of een
- * actie beschikbaar is; de hoofdknop verandert nooit stil van gedrag.
- */
 export function RelationDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tTask } = useTranslation('task');
@@ -376,7 +317,6 @@ export function RelationDropdown() {
   const [refreshStatus, setRefreshStatus] = useState('');
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
   const dependencyMode = useAppStore(s => s.ui.showDependencyMode);
-  // Tekenen gebeurt van balk naar balk; zonder Gantt in beeld kan dat niet.
   const ganttVisible = useAppStore(s => isGanttWorkspaceVisible(s.ui));
   const taskListInView = useAppStore(s => isTaskListInView(s.ui));
   const selectionVisible = useAppStore(selectionInView);
@@ -388,8 +328,6 @@ export function RelationDropdown() {
   const setUI = useAppStore(s => s.setUI);
   const refreshAllExternalAnchors = useAppStore(s => s.refreshAllExternalAnchors);
   const refreshFromChosenFiles = useAppStore(s => s.refreshExternalAnchorsFromChosenFiles);
-  // Stap 1.8: in de browser zonder host kan de planner de bronbestanden die niet gelezen zijn opnieuw kiezen.
-  // De app onthoudt welke bronnen zonder pad nog openstaan, en hoeveel bronnen met pad niet gelezen zijn.
   const [unreadSources, setUnreadSources] = useState<{ projectIds: string[]; others: number }>({ projectIds: [], others: 0 });
   const canChooseSources = unreadSources.projectIds.length > 0 && !isTauri() && !siteStorageAvailable();
   const availability = relationActionAvailability(
@@ -430,8 +368,6 @@ export function RelationDropdown() {
         setOpen(false);
       },
     },
-    // Zoals Assign in Primavera (issue #1000): kies de andere taken uit een doorzoekbare lijst in
-    // het relatiepaneel, met type en lag. Het paneel gaat open met de richting al gekozen.
     ...(['predecessor', 'successor'] as const).map(direction => ({
       key: direction === 'predecessor' ? 'assignPredecessors' as const : 'assignSuccessors' as const,
       label: tCommon(direction === 'predecessor' ? 'context.assignPredecessors' : 'context.assignSuccessors'),
@@ -466,7 +402,6 @@ export function RelationDropdown() {
       onClick: () => {
         void (async () => {
           const result = await refreshAllExternalAnchors(buildImportLabels(tCommon));
-          // Geen bron gaat stil verloren: de uitslag noemt hoeveel bronnen niet gelezen zijn.
           setRefreshStatus(result.sources === 0 && result.unread === 0
             ? tTask('externalLinks.noSourcesToast')
             : [
@@ -478,8 +413,6 @@ export function RelationDropdown() {
       },
     },
     {
-      // Stap 1.11: wie hangt van deze planning af? Altijd beschikbaar; het resultaat komt als melding
-      // en staat bij de taken (eigenschappenpaneel).
       key: 'findDependents',
       label: tMenu('ribbon.relationFindDependents'),
       disabled: false,
@@ -538,7 +471,6 @@ export function RelationDropdown() {
                 void (async () => {
                   const result = await refreshFromChosenFiles(buildImportLabels(tCommon));
                   if (!result) return;
-                  // Wat niet gekozen is, blijft open: de melding telt het, en de knop blijft voor die bronnen.
                   const remaining = remainingUnreadSources(unreadSources.projectIds, result.readProjectIds);
                   const stillUnread = remaining.length + unreadSources.others;
                   setRefreshStatus([
@@ -563,7 +495,6 @@ export function RelationDropdown() {
   );
 }
 
-/** Sjablonen: lijst uit localStorage; klik = invoegen onder de selectie (of root). */
 export function TemplatesDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const [open, setOpen] = useState(false);
@@ -571,7 +502,6 @@ export function TemplatesDropdown() {
   const insertWbsTemplate = useAppStore(s => s.insertWbsTemplate);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
 
-  // Sjablonenlijst verversen bij elk openen (localStorage kan intussen gewijzigd zijn).
   useEffect(() => {
     if (open) setTemplates(listWbsTemplates());
   }, [open]);
@@ -630,9 +560,7 @@ export function RecentFilesDropdown() {
   const allRecentFiles = useAppStore(s => s.recentFiles);
   const openRecentFile = useAppStore(s => s.openRecentFile);
 
-  // Fallback-web (Firefox/Safari) zonder site: geen herbruikbare refs → geen (dode) recents tonen.
   if (!supportsRecentFiles()) return null;
-  // Een site-bestand is alleen te openen zolang de site er is; anders tonen we het niet.
   const recentFiles = siteStorageAvailable() ? allRecentFiles : allRecentFiles.filter(e => e.ref.kind !== 'site');
 
   return (
@@ -656,8 +584,6 @@ export function RecentFilesDropdown() {
         </div>
       ) : (
         recentFiles.map(e => {
-          // Subregel: het echte pad (Tauri), een label voor een site-bestand, of de bestandsnaam
-          // (web-handle, geen pad beschikbaar).
           const sub = e.ref.kind === 'path' ? e.ref.path : e.ref.kind === 'site' ? tMenu('backstage.recentOnSite') : e.name;
           return (
             <RibbonMenuItem
@@ -707,9 +633,6 @@ export function ExportDropdown() {
           key={f.format}
           overflow="wrap"
           onClick={() => {
-            // exportAs geeft een resultaat terug. Op dit tabblad is
-            // GanttCanvas gemonteerd, dus bij een cyclus (ok===false) vuurt daar al de
-            // cyclus-toast — bewust géén tweede meldmechanisme hier. Popover direct dicht, vóór de dialoog.
             void exportAs(f.format);
             setOpen(false);
           }}
@@ -723,10 +646,6 @@ export function ExportDropdown() {
   );
 }
 
-/**
- * Extensie-knoppen: door extensies geregistreerde ribbon-knoppen, gegroepeerd
- * per groepslabel, achteraan de actieve tab gerenderd.
- */
 export function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
   const buttons = useAppStore(s => s.extensionRibbonButtons);
   const forTab = buttons.filter(b => b.tab === tab);
@@ -749,8 +668,6 @@ export function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
               <RibbonButton
                 key={`${b.extensionId}:${b.label}`}
                 label={b.label}
-                // Ribbon-iconen komen uit draaiende extensiecode — hygiëne, maar loopt
-                // langs dezelfde sanitizer als de manifest-iconen.
                 icon={
                   <ExtensionIcon
                     raw={b.icon}
@@ -768,18 +685,11 @@ export function ExtensionRibbonGroups({ tab }: { tab: RibbonTab }) {
   );
 }
 
-/**
- * Toewijs-popover: alleen actief bij precies één geselecteerde leaf-taak; toont de nog-niet-toegewezen
- * resources en roept `assignResource` direct aan. Op een mijlpaal alleen kostenresources (#815); een
- * kostenresource krijgt geen inzet of curve.
- */
 export function ResourceAssignDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tTask } = useTranslation('task');
   const { t: tCommon } = useTranslation('common');
   const [open, setOpen] = useState(false);
-  // Toewijzingsparameters in de popover: eenheden/dag + verdeelcurve, zodat een
-  // toewijzing in één beweging compleet is.
   const [units, setUnits] = useState(1);
   const [curve, setCurve] = useState<ResourceCurve>('UNIFORM');
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
@@ -816,7 +726,6 @@ export function ResourceAssignDropdown() {
             </div>
           ) : (
             <>
-              {/* Eenheden/dag + curve gelden voor de volgende toewijzing die je aanklikt (niet voor kosten). */}
               {anyWorkResource && (<>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 12px' }}>
                 <label className="!text-small" style={{ color: 'var(--theme-text-dim)' }}>{tTask('properties.assignments.unitsPerDay')}</label>
@@ -860,19 +769,6 @@ export function ResourceAssignDropdown() {
   );
 }
 
-/**
- * Groeperen-popover: tot 2 rijen {veld ▾, richting}. Live via `setGroup` (geen apart "toepassen").
- *
- * Let op de `!w-32` op de richting-select. `.input` staat in `globals.css` **buiten** elke
- * cascade-layer met `width: 100%`, terwijl Tailwind-utilities in `@layer utilities` zitten —
- * unlayered wint altijd van layered, dus een gewone `w-28` doet niets. Zonder die vaste breedte
- * eist de richting-select 100% van de rij en houdt het veld-dropdown (`flex-1`, dus
- * flex-basis 0) ~12px over: een sliver zonder leesbare tekst.
- */
-/**
- * Eén app-globale bediening voor scherm én rapport. Categorievelden komen rechtstreeks uit Group;
- * een projectgebonden veld dat hier ontbreekt blijft bewaard maar gebruikt tijdelijk Taaktype.
- */
 export function ScreenColorsPopoverButton() {
   const { t: tMenu } = useTranslation('menu');
   const selection = useAppStore(s => s.ui.barColorSelection);
@@ -1015,10 +911,6 @@ export function GroupPopoverButton() {
   );
 }
 
-/**
- * Sorteren-popover: herhaalbare rijen {veld ▾, richting}, "+ niveau" onbeperkt.
- * Live via `setSort`.
- */
 export function SortPopoverButton() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -1061,13 +953,6 @@ export function SortPopoverButton() {
   );
 }
 
-/**
- * Layout-groep: elke layout is een eigen lintknop met icoon en naam — één klik zet hem
- * aan, nogmaals klikken zet hem uit en brengt het beeld van vóór de klik terug (`toggleLayout`). De
- * plusknop opent de layoutdialoog. Knoppen die verschillende delen dragen kunnen samen aanstaan
- * (resourcediagram + een filterknop); een opgeslagen filter is zo'n filterknop.
- * Opslag app-globaal via `settingsStore`; meegeleverde layouts komen uit code (`builtinLayouts`).
- */
 export function LayoutGroupContent() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -1075,17 +960,14 @@ export function LayoutGroupContent() {
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const toggleLayout = useAppStore(s => s.toggleLayout);
-  // Als tekst geselecteerd: een selector die telkens een nieuwe array teruggeeft zou elke render
-  // als wijziging tellen.
   const activeKey = useAppStore(s => activeLayoutIds(s).join('\n'));
   const activeIds = useMemo(() => new Set(activeKey ? activeKey.split('\n') : []), [activeKey]);
 
   const [layouts, setLayouts] = useState<Layout[]>([]);
   const reload = useCallback(() => { void loadLayouts().then(setLayouts, ignoreUnreadable); }, []);
   useEffect(() => { reload(); }, [reload]);
-  useStoredSettingRefresh('ops-taskGridLayouts', reload); // de host na de start (#818) of een ander tabblad
+  useStoredSettingRefresh('ops-taskGridLayouts', reload);
 
-  // Ná het sluiten van de layout- of filterdialoog (mogelijke CRUD) de knoppenrij verversen.
   const dialogOpen = showLayoutsDialog || showFilterDialog;
   const prevOpenRef = useRef(dialogOpen);
   useEffect(() => {
@@ -1098,12 +980,8 @@ export function LayoutGroupContent() {
     [tCommon, layouts],
   );
 
-  // Rechtsklik op een layoutknop: bewerken / dupliceren / verwijderen. Meegeleverde layouts zijn
-  // alleen te dupliceren. Verwijderen vraagt eerst een bevestiging (geen native dialoog).
   const [menuId, setMenuId] = useState<string | null>(null);
   const [pendingDelete, setPendingDelete] = useState<Layout | null>(null);
-  // Een wijziging op de vers gelezen lijst, nooit de kopie van de knoppenrij terugschrijven: die mist bijvoorbeeld
-  // een filter dat net in de filterdialoog is opgeslagen (`updateLayouts`, knownbug 1362).
   const persist = (change: (current: Layout[]) => Layout[]) => { void updateLayouts(change).then(setLayouts, layoutsNotSaved); };
   const duplicate = (layout: Layout) => {
     const { id: _id, ...rest } = layout;
@@ -1174,7 +1052,6 @@ export function LayoutGroupContent() {
   );
 }
 
-/** Presentatie-groep: presentation-toggle (F11), split view, mini-map. */
 export function PresentationGroupContent() {
   const { t: tMenu } = useTranslation('menu');
   const presentationMode = useAppStore(s => s.ui.presentationMode);
@@ -1218,11 +1095,6 @@ export function PresentationGroupContent() {
   );
 }
 
-/**
- * Tijdschaal-groep (beeld): zoom +/-/reset + schaal-dropdown. De keuze mapt naar een
- * zoom-preset; de getoonde waarde wordt AFGELEID uit zoom via scaleFromZoom — kan dus
- * nooit desyncen van de as.
- */
 export function TimeScaleGroupContent() {
   const { t: tMenu } = useTranslation('menu');
   const compact = useRibbonDensity() !== 'full';
@@ -1241,10 +1113,6 @@ export function TimeScaleGroupContent() {
   const resetFitButtons = (
     <>
       <RibbonSmallButton icon={<Icon id="view.zoom-default" size={16} />} label={tMenu('ribbon.zoomReset')} title={tMenu('ribbon.zoomResetTitle')} onClick={() => setZoom(DEFAULT_ZOOM)} />
-      {/* "Passend op project" ook hier: het canvas-contextmenu is onbereikbaar zodra de
-          takentabel volledig gevuld is. `requestFitToProject` is dezelfde
-          pendingFit-route als na het openen van een bestand — GanttCanvas kent de
-          viewport-breedte en voert de echte berekening uit. */}
       <RibbonSmallButton icon={<Icon id="view.fit" size={16} />} label={tMenu('ribbon.zoomFit')} title={tMenu('ribbon.zoomFitTitle')} onClick={() => requestFitToProject()} />
     </>
   );
@@ -1257,15 +1125,12 @@ export function TimeScaleGroupContent() {
         { value: 'month', label: tMenu('ribbon.month') },
         { value: 'week', label: tMenu('ribbon.week') },
         { value: 'day', label: tMenu('ribbon.day') },
-        // De uurschaal is altijd beschikbaar.
         { value: 'hour', label: tMenu('ribbon.hour') },
       ]}
       onChange={v => setTimeScale(v as TimeScale)}
     />
   );
 
-  // Compacte modus: alles op één platte rij i.p.v. een 2-regelige kolom die boven de
-  // 40px-strip uitsteekt. De afgeleide zoom-tekst valt weg (secundair); knoppen collapsen via CSS.
   if (compact) {
     return (
       <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
@@ -1290,36 +1155,20 @@ export function TimeScaleGroupContent() {
   );
 }
 
-/**
- * Kolommen-knop — gedeelde binding voor de Beeld-tab (kleine knop) en de Tabel-tab (grote knop).
- *
- * De Tabel-surface bezit de ene gedeelde `ColumnChooser`. Vanaf Beeld schakelt deze binding daarom
- * eerst naar Tabel en opent vervolgens diezelfde kiezer; er bestaat geen tweede kolomdefinitie.
- */
 export function useColumnsButtonBinding() {
   const { t: tMenu } = useTranslation('menu');
   const setUI = useAppStore(s => s.setUI);
-  // Precies de conditie waaronder App.tsx de volledige Tabel-weergave (FullTaskGrid) mount: alleen het
-  // volle, niet-gedockte resourcepaneel neemt de werkruimte over. Met Resourcedock aan staat de Tabel er gewoon.
   const tableVisible = useAppStore(s => s.ui.activeRibbonTab === 'table'
     && !(s.ui.showResourcePanel && !s.ui.resourcePanelDocked));
   const chooserOpen = useAppStore(s => s.ui.showColumnsDialog);
   return {
     title: tMenu(tableVisible ? 'ribbon.columnsHintTable' : 'ribbon.columnsHintGoToTable'),
-    // Een tweede klik sluit de kiezer weer (Ethan, 7 november 2026). De kiezer telt deze knop daarom
-    // niet als klik ernaast (`COLUMNS_RIBBON_TOGGLE_SELECTOR`); anders sloot `mousedown` hem en
-    // opende de `click` hem meteen opnieuw.
     onClick: () => setUI(tableVisible && chooserOpen
       ? { showColumnsDialog: false }
       : { activeRibbonTab: 'table', showColumnsDialog: true }),
   };
 }
 
-/**
- * Weergave-groep (beeld): kolommen-dialoog, filter-editor, groepeer-/
- * sorteer-popovers. Narrow "small"-knoppen zodat de groep smal blijft en in compacte modus
- * niet overlapt.
- */
 function SavedFilterDropdown() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -1330,14 +1179,12 @@ function SavedFilterDropdown() {
   const showFilterDialog = useAppStore(s => s.ui.showFilterDialog);
   const showLayoutsDialog = useAppStore(s => s.ui.showLayoutsDialog);
   const [open, setOpen] = useState(false);
-  // Opgeslagen filters zijn layouts die alleen een filter dragen — één opslag, en
-  // toepassen loopt via `applyLayout` (dus mét undo-stap), net als in de layoutlijst.
   const [savedFilters, setSavedFilters] = useState<Layout[]>([]);
 
   const loadFilterLayouts = useCallback(() => loadLayouts().then(all => all.filter(isFilterOnlyLayout)), []);
   const reload = useCallback(() => { void loadFilterLayouts().then(setSavedFilters, ignoreUnreadable); }, [loadFilterLayouts]);
   useEffect(() => { reload(); }, [reload]);
-  useStoredSettingRefresh('ops-taskGridLayouts', reload); // de host na de start (#818) of een ander tabblad
+  useStoredSettingRefresh('ops-taskGridLayouts', reload);
   const dialogOpen = showFilterDialog || showLayoutsDialog;
   const previousDialogOpen = useRef(dialogOpen);
   useEffect(() => {
@@ -1346,8 +1193,6 @@ function SavedFilterDropdown() {
   }, [dialogOpen, reload]);
 
   const openFilterControls = () => {
-    // Lees bij de klik opnieuw: bij het openen van de app kan de asynchrone initiële laadactie
-    // nog lopen. Daardoor wordt een bestaande preset nooit ten onrechte als een lege lijst gezien.
     void loadFilterLayouts().then(filters => {
       setSavedFilters(filters);
       if (filters.length === 0) {
@@ -1357,7 +1202,6 @@ function SavedFilterDropdown() {
       }
       setOpen(value => !value);
     }, (error: unknown) => {
-      // Niet te lezen: open de filterdialoog; opslaan daar leest de lijst opnieuw (`updateLayouts`).
       ignoreUnreadable(error);
       setUI({ showFilterDialog: true });
       setOpen(false);
@@ -1413,11 +1257,6 @@ export function DisplayGroupContent() {
   );
 }
 
-/**
- * Overallocatie-indicator (resources). Defensieve guard: zonder resources kan er
- * geen overallocatie zijn — voorkomt een fantoomvlag als een oud resourceLoadResult nog in de
- * store staat na een document-swap/leegmaken.
- */
 export function OverallocationIndicator() {
   const { t: tMenu } = useTranslation('menu');
   const resources = useAppStore(s => s.resources);
@@ -1443,7 +1282,6 @@ export function OverallocationIndicator() {
   );
 }
 
-/** IFC-tab: puur informatief label (de IFC-workflow leeft in het rechter IFC-paneel). */
 export function IfcInfo() {
   const { t: tMenu } = useTranslation('menu');
   return <span className="ribbon-info">{tMenu('ribbon.ifcInfo')}</span>;
