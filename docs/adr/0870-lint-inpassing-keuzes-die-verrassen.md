@@ -3,7 +3,7 @@
 `useRibbonAutoFit` (`Ribbon.tsx`) maakt bij een smal venster knoppen mini en klapt veldengroepen in (de regel staat in
 `.claude/rules/ui-shell.md`). Het doet dat zonder React-state: in een `useLayoutEffect` zet het `data-*`-attributen die
 React niet beheert, meet `scrollWidth` en zoekt zo de stand die past, vóór de browser schildert. Zo ziet de gebruiker
-geen tussenstand en kan een meting geen nieuwe render en dus geen lus veroorzaken. Met state zou elke meetstap een
+geen tussenstand en kost het zoeken naar de indeling zelf geen render. Met state zou elke meetstap een
 render kosten en zichtbaar knipperen.
 
 ## Gevolgen
