@@ -17,7 +17,6 @@ import { RibbonButton } from '@/components/layout/Ribbon/ribbonPrimitives';
  *  - **auto-backup**: persistente toggle (`saveAiAutoBackup`, default aan) — vóór de eerste mutatie
  *    per document schrijft de tool-laag dan een IFC-snapshot;
  *  - **"Nu backup maken"**: `makeManualBackup()` met succes/fout-feedback + een activiteit-regel;
- *  - **"Backup-map openen"**: `openBackupFolder()` via de shell-open-plugin.
  *
  * De twee fs-knoppen (handmatige backup / map openen) zijn Tauri-only; in de web-build zijn ze
  * uitgeschakeld met een "alleen desktop"-tooltip (net als de Server-groep). Pauze/alleen-lezen en de

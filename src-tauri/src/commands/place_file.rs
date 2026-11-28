@@ -2230,14 +2230,18 @@ mod tests {
         verwacht.sort();
         assert_eq!(verboden, verwacht);
 
-        // Per commando: `rename` en `remove` van `$APPLOCALDATA` zelf zijn verboden (Linux en Windows);
-        // de andere commando's hebben geen eigen verbod, dus `mkdir`, `read_dir`, lezen en schrijven in de
-        // app-datamap blijven (review #975 ronde 1).
-        let verbod_op_l = if verbod_hier().is_empty() {
-            vec![]
-        } else {
-            vec![gewoon(&local)]
-        };
+        // Per commando: `rename` en `remove` van de app-datamap zelf en van `$APPDATA/ai-backups` zelf
+        // zijn verboden (webviewgegevens-*.json plus backupmap.json, #1245); de andere commando's hebben
+        // geen eigen verbod, dus `mkdir`, `read_dir`, lezen en schrijven in de app-datamap blijven
+        // (review #975 ronde 1).
+        let app_data = app.path().app_data_dir().unwrap();
+        let mut verwacht_verbod = vec![
+            gewoon(&local),
+            gewoon(&app_data),
+            gewoon(&app_data.join("ai-backups")),
+        ];
+        verwacht_verbod.sort();
+        verwacht_verbod.dedup();
         for command in [
             "rename",
             "remove",
@@ -2250,18 +2254,40 @@ mod tests {
                 .resolve_command_scope::<FsScopeEntry>("fs", command)
                 .unwrap()
                 .unwrap_or_else(|| panic!("de capability laat fs {command} toe"));
-            let verboden: Vec<PathBuf> = resolved
+            let mut verboden: Vec<PathBuf> = resolved
                 .command_scope()
                 .denies()
                 .iter()
                 .filter_map(|e| e.path.as_deref().map(gewoon))
                 .collect();
             if command == "rename" || command == "remove" {
-                assert_eq!(verboden, verbod_op_l, "{command}");
+                verboden.sort();
+                verboden.dedup();
+                assert_eq!(verboden, verwacht_verbod, "{command}");
             } else {
                 assert!(verboden.is_empty(), "{command}: {verboden:?}");
             }
         }
+    }
+
+    #[test]
+    fn place_file_backupmap_vervangen_verboden() {
+        use tauri::Manager;
+        let (app, window) = echte_app();
+        let webview: &tauri::Webview<_> = window.as_ref();
+        let app_data = app.path().app_data_dir().unwrap();
+        let backup = app_data.join("ai-backups");
+
+        for command in ["rename", "remove"] {
+            let scope = scope_voor(webview, command, true)
+                .unwrap_or_else(|| panic!("de capability laat fs {command} toe"));
+            assert!(!scope.allows(&backup), "{command} van ai-backups zelf geweigerd (bron en doel: allows toetst het pad zelf)");
+            assert!(!scope.allows(&app_data), "{command} van $APPDATA zelf geweigerd");
+            assert!(scope.allows(&backup.join("doc-1").join("plan.ifc")), "{command} van een bestand onder ai-backups mag");
+            assert!(scope.allows(&backup.join("doc-1")), "{command} van een submap onder ai-backups mag");
+        }
+        let mkdir = scope_voor(webview, "mkdir", true).expect("de capability laat fs mkdir toe");
+        assert!(mkdir.allows(&backup), "mkdir van een bestaande ai-backups mag");
     }
 
     // De struikeldraad van #975 omgekeerd (knownbug 1797): `fs:default` van tauri-plugin-fs 2.7.1 verbiedt
@@ -2456,7 +2482,7 @@ mod tests {
     /// een dev-build `recovery.<slug>`), het MCP-register (`discoveryContract.ts`, `discoveryFiles.ts`),
     /// de dev-brug (`devBridge.ts`), de resourcebibliotheek (`libraryStore.ts`), de AI-backup
     /// (`backupService.ts`) en de feedback-schermafbeelding (`feedbackService.ts`). `""` is de map zelf.
-    const EIGEN_GEBRUIK: [(&[&str], &[&str]); 7] = [
+    const EIGEN_GEBRUIK: [(&[&str], &[&str]); 8] = [
         // De map zelf: aanmaken, lezen en kijken, nooit hernoemen of verwijderen (gezocht in `src/`).
         (&[""], &["exists", "stat", "read_dir", "mkdir"]),
         (
@@ -2524,11 +2550,14 @@ mod tests {
         ),
         (
             &[
-                "ai-backups",
                 "ai-backups/doc-mhx1q2k9ab3",
                 "ai-backups/doc-mhx1q2k9ab3/plan-2026-11-16T20-00-00-000Z.ifc",
             ],
             &["mkdir", "read_dir", "write_text_file", "remove"],
+        ),
+        (
+            &["ai-backups"],
+            &["mkdir", "read_dir", "write_text_file"],
         ),
         (
             &["feedback", "feedback/feedback-2026-11-16T20-00-00-000Z.png"],
