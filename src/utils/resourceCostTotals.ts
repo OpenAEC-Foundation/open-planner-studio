@@ -1,10 +1,5 @@
 import { isCostResource, type Resource, type ResourceAssignment } from '@/types/resource';
 
-/**
- * De kolom "Totaal" van het resourcepaneel, per resource-id. Een werk- of materiaalresource: belaste
- * uren (van de taakkalender, `ResourceLoadResult.hours`) × tarief. Een kostenresource (#815): de som van
- * de bedragen op zijn toewijzingen. Geen tarief, geen belasting of geen bedrag ⇒ `undefined` ("—").
- */
 export function resourceCostTotals(
   resources: readonly Resource[],
   assignments: readonly ResourceAssignment[],

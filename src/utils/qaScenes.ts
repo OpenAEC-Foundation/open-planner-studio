@@ -1,22 +1,12 @@
-// Kijkscènes voor handmatige controle, alleen in DEV: `?qaScene=<naam>` zet de app via echte klikken op
-// het punt dat de eigenaar moet zien, scrolt erheen en omlijnt het doel. Zo kan een checkstap een link
-// zijn in plaats van een klikinstructie. Valt uit elke productiebouw (dynamische import achter
-// `import.meta.env.DEV` in main.tsx). Geen testhaak: browsertests doen hun eigen handelingen.
 import { useAppStore } from '@/state/appStore';
 import { TIMESCALE_ZOOM } from '@/engine/renderer/timelineTiers';
 
 type Scene = {
-  /** Eigen verloop zonder Projectinfo; geeft het doel-selector terug. */
   run?: () => Promise<string>;
-  /** Voorbereiding in de store vóór Projectinfo opengaat (alleen beginstand, geen geteste handeling). */
   setup?: () => void;
-  /** Klikken binnen Projectinfo voordat het doel zichtbaar is. */
   steps?: () => Promise<void>;
-  /** Het element dat de eigenaar moet zien. */
   target?: string;
-  /** Omlijning binnen het element, voor een doel in een vlak dat de buitenkant afknipt. */
   inset?: boolean;
-  /** Geen omlijning en niet scrollen: de hele weergave is het doel. */
   plain?: boolean;
 };
 
@@ -32,7 +22,6 @@ async function waitFor(selector: string, timeoutMs = 10000): Promise<HTMLElement
   }
 }
 
-/** Knop op zichtbare tekst (nl of en), binnen `scope`. */
 async function clickText(scope: string, texts: readonly string[], timeoutMs = 10000): Promise<void> {
   const end = Date.now() + timeoutMs;
   for (;;) {
@@ -50,22 +39,18 @@ async function openProjectInfo(): Promise<void> {
   await waitFor('[data-ops-scheduling-profile-section]');
 }
 
-/** Klapt *Conventies van dit profiel* open (standaard dicht). */
 async function expandConventions(): Promise<void> {
   const toggle = await waitFor('[data-ops-conventions-toggle]');
   if (toggle.getAttribute('aria-expanded') !== 'true') toggle.click();
   await waitFor('[data-ops-conventions-body]');
 }
 
-/** "Nieuw profiel" met de voorgestelde naam: daarna zijn de conventies bewerkbaar. */
 async function createProfile(): Promise<void> {
   (await waitFor('[data-ops-scheduling-new-profile]')).click();
   (await waitFor('[data-ops-new-profile-create]')).click();
   await waitFor('input[type="checkbox"][data-ops-convention]');
 }
 
-/** Beginstand: het project rekent als Primavera P6, met reken-opties zoals Roads (langste pad) en een
- *  bronoptie uit de .xer; `overrides` = afwijkingen op het ingebouwde id (zoals de migratie ze geeft). */
 function setP6Project(overrides: Record<string, boolean> = {}): void {
   useAppStore.setState(s => {
     s.project.schedulingProfile = { baseId: 'p6', id: 'p6', name: '', overrides };
@@ -81,8 +66,6 @@ async function chooseProfile(value: string): Promise<void> {
   (await waitFor(`[role="option"][data-value="${value}"]`)).click();
 }
 
-/** Opent een bestand van een oudere app-versie (geen schemamarkering) met kop `schema`, en drukt Ctrl+S:
- *  de schemavraag (#292) verschijnt. Het bestand is de fixture van de arity-test. */
 async function openOldFileAndSave(schema: 'IFC4' | 'IFC4X3'): Promise<string> {
   const raw = await (await fetch('/tests/planning/fixtures/ifc-arity-oude-writer.ifc')).text();
   const text = raw.replace("FILE_SCHEMA(('IFC4X3'));", `FILE_SCHEMA(('${schema}'));`);
@@ -92,22 +75,17 @@ async function openOldFileAndSave(schema: 'IFC4' | 'IFC4X3'): Promise<string> {
   return '[data-ops-ifc-schema-question]';
 }
 
-// ── Hulpjes voor de gele-waarschuwingsscènes ───────────────────────────────────────────────────
-
-/** Opent een voorbeeldproject uit `public/examples` als nieuw document en wacht tot het staat. */
 async function openExample(file: string): Promise<void> {
   const text = await (await fetch(`/examples/${file}`)).text();
   await useAppStore.getState().openExampleFromString(text, file);
   await sleep(800);
 }
 
-/** Klikt een lintknop: eerst het tabblad, dan het item (`data-ops-ribbon-item`). */
 async function clickRibbon(tab: string, item: string): Promise<void> {
   (await waitFor(`[data-ops-ribbon-tab="${tab}"]`)).click();
   (await waitFor(`[data-ops-ribbon-item="${item}"]`)).click();
 }
 
-/** Zoekt binnen `scope` het eerste element dat aan `match` voldoet, en geeft er een selector voor. */
 async function tagWhere(scope: string, match: (el: HTMLElement) => boolean, timeoutMs = 10000): Promise<string> {
   const end = Date.now() + timeoutMs;
   for (;;) {
@@ -121,13 +99,11 @@ async function tagWhere(scope: string, match: (el: HTMLElement) => boolean, time
   }
 }
 
-/** Zet de planning op verouderd (zoals na een bewerking zonder F5). */
 async function markStale(): Promise<void> {
   const { markDateMutation } = await import('@/state/transaction');
   useAppStore.setState(s => { markDateMutation(s); });
 }
 
-/** Brengt de taakrij in beeld en selecteert de taak met een echte klik op de naamcel. */
 async function clickTaskRow(taskId: string): Promise<void> {
   useAppStore.getState().focusOnTask(taskId);
   const row = `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-data-row="true"][data-grid-row-key="${taskId}"]`;
@@ -135,7 +111,6 @@ async function clickTaskRow(taskId: string): Promise<void> {
   await sleep(300);
 }
 
-/** Een gewone taak (geen mijlpaal, geen samenvatting) die over een lange vrije periode loopt. */
 async function taskOverFreePeriod(): Promise<string> {
   const [{ findLongFreePeriods }, { effectiveCalendarOf }, { shownStart, shownFinish }] = await Promise.all([
     import('@/engine/scheduler/freePeriods'),
@@ -149,8 +124,6 @@ async function taskOverFreePeriod(): Promise<string> {
   return task.id;
 }
 
-/** Een bibliotheek met één poolresource, gekoppeld aan het actieve project en toegewezen aan één
- *  gewone taak. Geeft de bibliotheek en de taak terug. */
 function seedLibraryBooking(companyId?: string): { companyId: string; taskId: string } {
   const s = useAppStore.getState();
   const cid = companyId ?? s.addCompany('Bouwbedrijf Kijklink');
@@ -169,21 +142,9 @@ function seedLibraryBooking(companyId?: string): { companyId: string; taskId: st
   return { companyId: cid, taskId: task.id };
 }
 
-// ── F4b: momenten en maten (spec "alleen uren" §7.2 F4, checkstap voor de eigenaar) ───────────────
-
-/** Een week met een korte vrijdag (vr 07:00–12:00 + 13:00–14:00, 6 u), de voorbeeldweek van de spec. */
 const F4B_DAY = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
 const F4B_FRIDAY = [{ start: 420, end: 720 }, { start: 780, end: 840 }];
 
-/**
- * Beginstand voor de F4b-checkstap, vanaf ma 2 nov 2026 in het OPS-profiel:
- *  - Fundering storten: dagenmaat 2,5 d (einde wo 11:00, midden op de dag);
- *  - Metselwerk: urenmaat 40 u, na de fundering (start wo 11:00, midden op de dag);
- *  - Leidingwerk: dagenmaat 3 d, SS na de fundering met een lag van 0,5 d (start ma 11:00);
- *  - Kozijnen: dagenmaat 5 d met een pauze van één werkdag op de korte vrijdag;
- *  - Tegelwerk: vast werk (altijd urenmaat), 24 u met één tegelzetter, na het metselwerk;
- *  - Oplevering: mijlpaal na het tegelwerk.
- */
 function seedF4bProject(theme: 'light' | 'dark'): Record<string, string> {
   const s = useAppStore.getState();
   s.newProject();
@@ -216,7 +177,6 @@ function seedF4bProject(theme: 'light' | 'dark'): Record<string, string> {
   st.addSequence({ predecessorId: fundering, successorId: leidingwerk, type: 'START_START', lagDays: 0.5 });
   st.addSequence({ predecessorId: metselwerk, successorId: tegelwerk, type: 'FINISH_START', lagDays: 0 });
   st.addSequence({ predecessorId: tegelwerk, successorId: oplevering, type: 'FINISH_START', lagDays: 0 });
-  // Vier werkdagen (ma–do) werk, dan een pauze van één werkdag: de korte vrijdag.
   st.updateTask(kozijnen, { splitGaps: [{ afterMinutes: 1920, gapMinutes: 480, source: 'user' }] });
   const tegelzetter = st.addResource({ name: 'Tegelzetter', type: 'LABOR', description: '', maxUnits: 1 });
   useAppStore.getState().assignResource(tegelwerk, tegelzetter, 1);
@@ -228,8 +188,6 @@ function seedF4bProject(theme: 'light' | 'dark'): Record<string, string> {
   return { fundering, metselwerk, leidingwerk, kozijnen, tegelwerk, oplevering };
 }
 
-/** Een herstelvraag die alleen kopieën van dit testproject noemt (van een vorige kijklink), wordt
- *  weggeklikt met "Niet herstellen". Noemt hij iets anders, dan blijft hij staan voor de eigenaar. */
 async function dismissOwnRecovery(): Promise<void> {
   const end = Date.now() + 2500;
   while (Date.now() < end) {
@@ -245,7 +203,6 @@ async function dismissOwnRecovery(): Promise<void> {
   }
 }
 
-/** Het welkomstvenster van een schone browser kan pas na de scène komen; klik het dan weg. */
 async function dismissLateWelcome(): Promise<void> {
   const end = Date.now() + 3000;
   while (Date.now() < end) {
@@ -257,14 +214,11 @@ async function dismissLateWelcome(): Promise<void> {
   }
 }
 
-/** Het project in de Gantt, met de tijdschaal in beeld (Beeld › Tijdschaal): de eigenaar kiest daar Dag,
- *  Uur en de zoomgrenzen. */
 async function f4bGantt(theme: 'light' | 'dark'): Promise<string> {
   await dismissOwnRecovery();
   const ids = seedF4bProject(theme);
   await sleep(400);
   await clickTaskRow(ids.fundering);
-  // `focusOnTask` past de zoom aan de taak aan; de check begint bij de voorinstelling Dag.
   useAppStore.getState().setZoom(TIMESCALE_ZOOM.day);
   useAppStore.getState().setViewStartDate('2026-11-02');
   await dismissLateWelcome();
@@ -272,7 +226,6 @@ async function f4bGantt(theme: 'light' | 'dark'): Promise<string> {
   return '[data-tour-anchor="ribbon-group:beeld:timeScale"]';
 }
 
-/** Het project in de Tabel: Start, Einde en Duur volgens B4 en B8. */
 async function f4bTable(theme: 'light' | 'dark'): Promise<string> {
   await dismissOwnRecovery();
   seedF4bProject(theme);
@@ -282,14 +235,8 @@ async function f4bTable(theme: 'light' | 'dark'): Promise<string> {
   return waitFor('[data-task-grid-surface-id="full-task-grid"] [role="grid"]').then(() => '[data-task-grid-surface-id="full-task-grid"]');
 }
 
-/** Schaal van de schets, in px per dag. */
 const SKETCH_ZOOM = 6;
 
-/**
- * Issue #741: de rijen uit de schets van de eigenaar, in dagen vanaf de start van het project. Per rij
- * de baselines in volgorde (Contract, Herplanning maart, Herplanning juni); een baseline is `[van, tot)`.
- * De keuze van de eigenaar was het beeld van `dak`: lange stukken op volle dikte en korte overlappen.
- */
 const SKETCH_ROWS = {
   dak: [[56, 70], [66, 84], [80, 92]],
   stap: [[28, 48], [34, 54], [40, 60]],
@@ -300,7 +247,6 @@ const SKETCH_ROWS = {
 } satisfies Record<string, readonly (readonly [number, number])[]>;
 type SketchRow = keyof typeof SKETCH_ROWS;
 
-/** Deze taken dragen een rij letterlijk, op de dagen uit de schets. Ze liggen daar in de tijd het dichtst bij. */
 const SKETCH_LITERAL: Record<string, SketchRow> = {
   'Construct site road': 'korter',
   'Excavation, building pit': 'gelijk',
@@ -309,13 +255,8 @@ const SKETCH_LITERAL: Record<string, SketchRow> = {
   'Ground floor masonry \u2014 House 1': 'gat',
   'Roof structure \u2014 House 1': 'dak',
 };
-/** De andere taken krijgen om de beurt een rij met dezelfde lengtes, verschoven naar de eigen balk. */
 const SKETCH_REPEAT: readonly SketchRow[] = ['dak', 'gat', 'twee', 'dak', 'korter', 'gat', 'dak', 'twee'];
 
-/**
- * Issue #741: De Akkers met drie baselines, op de schaal van de schets (6 px per dag) en vanaf de
- * start van het project in beeld. Mijlpalen schuiven mee, zodat er ook losse en samenvallende ruiten zijn.
- */
 async function openBaselinesDoorElkaar(): Promise<void> {
   await openExample('showcase-rijwoningen-de-akkers.ifc');
   const { addCalendarDays, formatDate, MS_PER_DAY, parseDate } = await import('@/utils/dateUtils');
@@ -330,16 +271,14 @@ async function openBaselinesDoorElkaar(): Promise<void> {
   const repeats = contract.tasks.filter(t => !t.isMilestone && !SKETCH_LITERAL[nameOf.get(t.taskId) ?? '']);
   const derive = (which: 0 | 1 | 2) => contract.tasks.flatMap((t, i) => {
     if (t.isMilestone) {
-      // Om de beurt: drie losse ruiten, twee samen en één los, of alle drie op hetzelfde moment.
       const days = ([[-6, 0, 6], [-5, -5, 3], [0, 0, 0]] as const)[i % 3][which];
       return [{ ...t, start: shift(t.start, days), finish: shift(t.finish, days) }];
     }
     const literal = SKETCH_LITERAL[nameOf.get(t.taskId) ?? ''];
     const row: readonly (readonly [number, number])[] = SKETCH_ROWS[literal ?? SKETCH_REPEAT[repeats.indexOf(t) % SKETCH_REPEAT.length]];
     const range = row[which];
-    if (!range) return []; // Op deze rij lopen maar twee baselines.
+    if (!range) return [];
     const offset = literal ? 0 : Math.max(0, dayOf(t.start) - 3) - row[0][0];
-    // De baseline bewaart de laatste dag: `tot` zelf hoort er niet meer bij.
     return [{ ...t, start: isoOf(range[0] + offset), finish: isoOf(range[1] + offset - 1) }];
   });
   const named = (name: string, which: 0 | 1 | 2) => ({
@@ -367,7 +306,6 @@ async function openBaselinesDoorElkaar(): Promise<void> {
     }
     await sleep(150);
   }
-  // De schaal van de schets, vanaf de start van het project: daar staan de rijen van de schets.
   useAppStore.getState().setZoom(SKETCH_ZOOM);
   const { computeScrollToDate } = await import('@/utils/ganttViewport');
   const state = useAppStore.getState();
@@ -378,7 +316,6 @@ async function openBaselinesDoorElkaar(): Promise<void> {
 }
 
 const SCENES: Record<string, Scene> = {
-  // F4b-checkstap: het testproject in licht en donker, en de plek van "Gemengde dag/uur-planning toestaan".
   'f4b-maten': { run: () => f4bGantt('light') },
   'f4b-maten-donker': { run: () => f4bGantt('dark') },
   'f4b-tabel': { run: () => f4bTable('light') },
@@ -388,13 +325,10 @@ const SCENES: Record<string, Scene> = {
       await dismissOwnRecovery();
       seedF4bProject('light');
       await dismissLateWelcome();
-      // De directe link opent de instellingen op Duurweergave (groep Notatie).
       useAppStore.getState().setUI({ showSettingsDialog: true, settingsFocusId: 'durationDisplay' });
       return tagWhere('[data-ops-setting="durationDisplay"]', () => true);
     },
   },
-  // Blauwe (nu oranje) infoblokken in Projectinfo › Rekenprofiel.
-  // Uitleg per conventie: het i-icoon krijgt de focus, de tooltip staat er meteen (en blijft bij scrollen).
   'info-uitleg': {
     steps: async () => { await expandConventions(); (await waitFor('[data-ops-convention-help]')).focus(); },
     target: '[data-ops-convention-help]',
@@ -412,10 +346,7 @@ const SCENES: Record<string, Scene> = {
     },
     target: '[data-ops-scheduling-source-options]',
   },
-  // Info-labels (badge--blue) bij de conventies.
   'label-uurplanning': { steps: expandConventions, target: '[data-ops-convention-requires="hourPlanning"]' },
-  // Info (oranje) naast waarschuwing (geel + icoon): een conventie aanzetten maakt de groep "afwijkend"
-  // en geeft onderaan "Wijzigingen niet toegepast".
   'waarschuwing-naast-info': {
     steps: async () => {
       await createProfile();
@@ -424,8 +355,6 @@ const SCENES: Record<string, Scene> = {
     },
     target: '[data-ops-convention-group="completedWork"]',
   },
-  // Profielblok (review #169, 2026-10-14): P6 met ingeklapte conventies en het blok "afwijkende
-  // reken-opties"; de naamvraag van "Nieuw profiel"; een afwijking uit een oud bestand, alleen-lezen.
   'profielblok-p6': { setup: () => setP6Project(), target: '[data-ops-scheduling-profile-section]' },
   'profielblok-nieuw-profiel': {
     setup: () => setP6Project(),
@@ -437,15 +366,10 @@ const SCENES: Record<string, Scene> = {
     steps: expandConventions,
     target: '[data-ops-convention-row="p6UseRemainingStartForProgress"]',
   },
-  // De IFC-schemakeuze (#292).
   'ifc-schema': { target: '[data-ops-project-ifc-schema]' },
-  // De schemavraag bij opslaan (#292): een IFC4-bestand, en een IFC 4.3-bestand van een oudere app.
   'ifc-vraag-ifc4': { run: () => openOldFileAndSave('IFC4') },
   'ifc-vraag-ifc43': { run: () => openOldFileAndSave('IFC4X3') },
 
-  // ── Gele waarschuwingen: waar de app nu geel toont (keuze welke rood worden) ──
-  // 1. Waarschuwingsbalk met driehoek boven de resourcetabel (StatusBanner `warning`), hier in de
-  //    Bibliotheekweergave. Dezelfde balk staat in Bezetting bij een ongeteld document (scène 7).
   'geel-bibliotheek-balk': {
     run: async () => {
       await openExample('showcase-verbouwing-eengezinswoning.ifc');
@@ -455,7 +379,6 @@ const SCENES: Record<string, Scene> = {
       return '[data-ops-company-view-hint]';
     },
   },
-  // 2. Baseline-dialoog: "⚠ Planning is verouderd — herbereken eerst (F5)" bij een verouderde planning.
   'geel-baseline-verouderd': {
     run: async () => {
       await openExample('showcase-verbouwing-eengezinswoning.ifc');
@@ -465,12 +388,10 @@ const SCENES: Record<string, Scene> = {
       return tagWhere('[role="dialog"] [data-ops-baseline-stale-hint]', () => true);
     },
   },
-  // 3. Project verplaatsen: "De nieuwe startdatum ligt in het verleden." bij een datum vóór vandaag.
   'geel-project-verplaatsen': {
     run: async () => {
       await openExample('showcase-verbouwing-eengezinswoning.ifc');
       await clickRibbon('planning', 'moveProject');
-      // Het gedeelde datumveld: een volledige datum plakken vult en commit alle drie de vakjes.
       const input = await waitFor('[data-ops-move-project-new-start] input') as HTMLInputElement;
       const data = new DataTransfer();
       data.setData('text', '2025-03-03');
@@ -478,7 +399,6 @@ const SCENES: Record<string, Scene> = {
       return tagWhere('[role="dialog"] div', el => el.style.color === 'var(--theme-warning-text)');
     },
   },
-  // 4. Taakpaneel: "⚠ Deze taak loopt over … — een vrije periode van … dagen" (bouwvak).
   'geel-vrije-periode': {
     run: async () => {
       await openExample('showcase-rijwoningen-de-akkers.ifc');
@@ -486,7 +406,6 @@ const SCENES: Record<string, Scene> = {
       return tagWhere('[data-ops-free-period-warning]', () => true);
     },
   },
-  // 5. Paneel Waarschuwingen met gele driehoekjes, geopend via de gele melding in de statusbalk.
   'geel-waarschuwingen-paneel': {
     run: async () => {
       await openExample('showcase-rijwoningen-de-akkers.ifc');
@@ -495,10 +414,8 @@ const SCENES: Record<string, Scene> = {
       await waitFor('[data-ops-warnings-panel] [data-ops-warning-id]');
       return '[data-ops-warnings-panel] ul[role="list"]';
     },
-    // Het paneel knipt een omlijning aan de buitenkant af.
     inset: true,
   },
-  // 6. Statusbalk onderaan: "⚠ 1 deadline(s) overschreden" en "⚠ 1 resource(s) overbezet".
   'geel-statusbalk': {
     run: async () => {
       await openExample('showcase-rijwoningen-de-akkers.ifc');
@@ -506,13 +423,10 @@ const SCENES: Record<string, Scene> = {
       return '[data-ops-status-warning]';
     },
   },
-  // 7. Bezetting: een slapend document dat niet door te rekenen is (relatiekring) telt niet mee —
-  //    gele balk bovenaan en per document "⚠ Telt niet mee: …". Omlijnd: de markering in de rij.
   'geel-bezetting': {
     run: async () => {
       await openExample('showcase-verbouwing-eengezinswoning.ifc');
       const { companyId } = seedLibraryBooking();
-      // Beginstand: een kring van twee relaties (zoals een geïmporteerd bestand kan hebben) en verouderd.
       const { markDateMutation } = await import('@/state/transaction');
       useAppStore.setState(s => {
         const [a, b] = s.tasks.filter(t => !t.isMilestone && !s.tasks.some(o => o.parentId === t.id));
@@ -530,8 +444,6 @@ const SCENES: Record<string, Scene> = {
       return '[data-ops-occupancy-stale-doc]';
     },
   },
-  // 8. Taakpaneel › Toewijzingen: gele driehoek bij opgeslagen werk dat afwijkt van inzet × duur
-  //    (tooltip "Wijkt af van inzet × duur"). Alleen zichtbaar met "Toon werkregels en werk".
   'geel-toewijzing-werk': {
     run: async () => {
       await openExample('showcase-verbouwing-eengezinswoning.ifc');
@@ -542,7 +454,6 @@ const SCENES: Record<string, Scene> = {
         return t && !t.isMilestone && !s.tasks.some(o => o.parentId === t.id);
       });
       if (!a) throw new Error('qaScene: geen toewijzing');
-      // Beginstand: opgeslagen restwerk van 1 uur (zoals een P6-toewijzing met een eigen spanne).
       useAppStore.setState(st => {
         const x = st.assignments.find(y => y.id === a.id)!;
         x.remainingWorkMinutes = 60;
@@ -551,16 +462,10 @@ const SCENES: Record<string, Scene> = {
       return `[data-ops-assignment-row="${a.id}"] [data-ops-assignment-work-deviates]`;
     },
   },
-  // Issue #391: meerdere baselines tegelijk in de Gantt, in één gestreepte strook.
-  // Drie baselines: "Contract" (actief) plus "Herplanning maart" en "Herplanning juni". De
-  // verschuivingen wisselen per taak, zodat alle gevallen in beeld komen: drie baselines die deels
-  // overlappen (stukken met 1, 2 en 3 kleuren), twee die precies samenvallen, en drie die elkaar niet
-  // raken. Bij de mijlpalen vallen Contract en maart op dezelfde datum (één gestreepte ruit).
   'meerdere-baselines': {
     run: async () => {
       await openExample('showcase-verbouwing-eengezinswoning.ifc');
       const { addCalendarDays, formatDate, parseDate } = await import('@/utils/dateUtils');
-      // Het voorbeeld heeft al een baseline; de scène begint met precies deze drie.
       useAppStore.setState(s => { s.baselines = []; s.activeBaselineId = null; });
       const contractId = useAppStore.getState().saveBaseline('Contract');
       const contract = useAppStore.getState().baselines.find(b => b.id === contractId)!;
@@ -569,15 +474,14 @@ const SCENES: Record<string, Scene> = {
       const shift = (iso: string, days: number) => (iso
         ? formatDate(addCalendarDays(parseDate(iso), days)) + iso.slice(10)
         : iso);
-      // Verschuiving in kalenderdagen per baseline [contract, maart, juni], per soort taak.
       const SHIFTS: Record<'deels' | 'gelijk' | 'los', [number, number, number]> = {
-        deels: [-4, -2, 0],    // overlappen deels: stukken met 1, 2 en 3 baselines
-        gelijk: [-3, -3, 0],   // contract en maart vallen samen: gestreept in twee kleuren
-        los: [-20, -10, 0],    // raken elkaar niet: drie losse effen stukken
+        deels: [-4, -2, 0],
+        gelijk: [-3, -3, 0],
+        los: [-20, -10, 0],
       };
       const kindOf = (taskId: string) => {
         const i = rank.get(taskId);
-        if (i === undefined) return null; // mijlpaal
+        if (i === undefined) return null;
         return (['deels', 'gelijk', 'los'] as const)[i % 3];
       };
       const derive = (name: string, which: 0 | 1 | 2) => ({
@@ -602,7 +506,6 @@ const SCENES: Record<string, Scene> = {
         s.comparedBaselineIds = [maart.id, juni.id];
       });
       (await waitFor('[data-ops-ribbon-tab="beeld"]')).click();
-      // In een verse browser komt het welkomstvenster soms pas ná het begin van de scène.
       for (let i = 0; i < 20; i++) {
         if (document.querySelector('[data-ops-welcome-dialog]')) {
           await clickText('[data-ops-welcome-dialog]', ['Overslaan', 'Skip']);
@@ -613,7 +516,6 @@ const SCENES: Record<string, Scene> = {
       return '[data-ops-baseline-split]';
     },
   },
-  // Issue #741: een echt project met drie baselines die op elke rij door elkaar lopen.
   'baselines-door-elkaar': {
     plain: true,
     run: async () => {
@@ -621,7 +523,6 @@ const SCENES: Record<string, Scene> = {
       return '[data-ops-ribbon-tab="beeld"]';
     },
   },
-  // Issue #741: hetzelfde project in het rapport (afdrukvoorbeeld), met de strook aan.
   'baselines-door-elkaar-rapport': {
     plain: true,
     run: async () => {
@@ -648,7 +549,6 @@ export async function runQaScene(name: string): Promise<void> {
     console.warn(`qaScene: onbekend "${name}"; bekend: ${Object.keys(SCENES).join(', ')}`);
     return;
   }
-  // Welkomstvenster (eerste start in een schone browser) wegklikken.
   await sleep(300);
   if (document.querySelector('[data-ops-welcome-dialog]')) await clickText('[data-ops-welcome-dialog]', ['Overslaan', 'Skip']);
   let target: string;
@@ -662,7 +562,6 @@ export async function runQaScene(name: string): Promise<void> {
   }
   if (scene.plain) return;
   (await waitFor(target)).scrollIntoView({ block: 'center' });
-  // Alle treffers omlijnen (bv. meerdere meldingen naast elkaar in de statusbalk).
   for (const el of document.querySelectorAll<HTMLElement>(target)) {
     el.style.outline = '3px dashed var(--theme-accent)';
     el.style.outlineOffset = scene.inset ? '-3px' : '3px';

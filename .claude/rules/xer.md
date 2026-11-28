@@ -168,3 +168,5 @@ Besluiten van de lezer van P6 XML: `docs/adr/0260-p6xml-lezen-export-van-ops-en-
 
 `docs/adr/0590-xer-kalenders-basiskalender-en-weekendherstel.md`,
 `0591-xer-vastgelegde-rekenuitvoer-zonder-correctie.md` en `0592-xer-schrijven-projectknoop-materiaal-en-restwerk.md`.
+
+De Windows-1252-decodering van de XER-lezer (`src/utils/windows1252.ts`): `docs/adr/0622-windows-1252-met-een-eigen-tabel.md`.
