@@ -17,4 +17,4 @@ herstel (0190 tot en met 0193, 0475).
   het verkeerde document.
 - `useRecoveryRestore` zet de poort van Automatisch opslaan (`finish()`) ook open als herstellen mislukt. De poort
   dichthouden betekent dat er vanaf dan niets meer wordt weggeschreven, een groter risico dan het verlies van die ene
-  snapshotgeneratie; de snapshots worden vastgehouden (`holdRecoveryForLater`) en de fout gaat naar het meldingenkanaal.
+  snapshotgeneratie; de app probeert de snapshots vast te houden (`holdRecoveryForLater`) en de fout gaat naar het meldingenkanaal.

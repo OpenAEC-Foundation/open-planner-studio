@@ -16,13 +16,14 @@ hetzelfde lijkt te doen maar een fout gaf. Die staan hier; de rest staat in de c
   - Een veld met `data-ops-app-keys="true"` (een `UnitsInput` zonder draft, PR #369) laat Ctrl+Z, Ctrl+Y en
     Ctrl+Shift+Z en een kale Escape door. Na Ctrl+S of F5 komt de focus terug in het veld; Ctrl+Z moet dan de undo
     van de app zijn, niet die van het veld.
-- `useFocusTrap` filtert zichtbare elementen op `getClientRects().length > 0`, niet op `offsetParent`: de overlay is
-  `position: fixed`, en daarbinnen is `offsetParent` altijd `null`, dus dat filter zou elk element wegfilteren. De
+- `useFocusTrap` filtert zichtbare elementen op `getClientRects().length > 0`, niet op `offsetParent`: dat is `null`
+  voor een element dat zelf `position: fixed` heeft, ook als het zichtbaar is. De
   keydown-listener hangt op het paneel en niet op `document`, zodat bij gestapelde dialogen alleen het paneel met de
   focus Tab vangt.
-- `useClickOutside` houdt de callback actueel via een ref en niet via de afhankelijkheden van het effect. Een
-  aanroeper geeft bij elke render een nieuwe closure mee; met die closure in de afhankelijkheden start de
-  `defer`-timer bij elke render opnieuw en werkt klikken buiten het paneel nooit.
+- `useClickOutside` hangt met `defer` de listeners pas na de huidige gebeurtenis aan, zodat de klik of rechtsklik die
+  het paneel opent (het contextmenu van de Gantt) het niet meteen weer sluit. De callback blijft actueel via een ref
+  en niet via de afhankelijkheden van het effect: een aanroeper geeft bij elke render een nieuwe closure mee, en die
+  zou de `defer`-timer bij elke render opnieuw starten.
 - `useZoomShortcuts` herkent Ctrl+0 ook aan `e.code` (`Digit0`, `Numpad0`). Uit het weggehaalde commentaar, niet
   nagegaan: sommige combinaties van browser en toetsenbord leveren bij Ctrl+0 niet steeds dezelfde `key`.
 - `useSystemColorSchemeSync` (`useResolvedUITheme.ts`) volgt het kleurschema van het systeem altijd, ook als de
