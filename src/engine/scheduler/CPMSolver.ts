@@ -1651,6 +1651,9 @@ export class CPMSolver {
             : this.snapActualForward(progressCal, actualStart);
           const actualFinish = parseInstant(t.actualFinish);
           let ef = preserveActualInstants ? actualFinish : this.snapOnOrBefore(progressCal, actualFinish);
+          if (!preserveActualInstants && !t.actualFinish.includes('T')) {
+            ef = this.dayLastBandEnd(progressCal, actualFinish) ?? ef;
+          }
           if (t.actualFinish.includes('T')
             && utcDayStart(ef).getTime() === utcDayStart(actualFinish).getTime()) ef = actualFinish;
           if (isZeroDurationMilestone(task)) es = ef;
