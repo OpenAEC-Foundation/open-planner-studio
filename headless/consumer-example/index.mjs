@@ -1,10 +1,4 @@
 #!/usr/bin/env node
-// Minimaal extern consumeervoorbeeld van @openaec/open-planner-core.
-// Gebruikt ALLEEN het gebouwde pakket (geen code uit src/ van de app).
-//
-//   node index.mjs <project.ifc> [--json] [--out <herberekend.ifc>]
-//
-// Exitcodes: 0 = doorgerekend, 1 = fout van de kern (code op stderr), 2 = verkeerd gebruik.
 import { readFileSync, writeFileSync } from 'node:fs';
 import { openIfc, openIfcBytes, PlannerCoreError, VERSION } from '@openaec/open-planner-core';
 

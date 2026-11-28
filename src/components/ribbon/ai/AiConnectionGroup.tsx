@@ -12,30 +12,6 @@ import { useRibbonDensity } from '@/components/layout/Ribbon/ribbonDensity';
 import { useCopyFeedback } from '@/hooks/useCopyFeedback';
 import { isTauri } from '@/utils/platform';
 
-/**
- * AI-ribbontab — groep **Verbinding**:
- *  - poortveld (`loadMcpPort`/`saveMcpPort`), alleen wijzigbaar wanneer de server gestopt is;
- *  - tokenveld (verborgen; toon/verberg, kopieerknop, regenereerknop mét bevestigingswaarschuwing
- *    dat bestaande koppelingen breken);
- *  - een normale (grote) ribbonknop "Verbinden" die de {@link AiConnectionDetailsDialog} opent
- *    (endpoint, auth-header, configuratiefragment, koppelprompt) — het label volgt de intentie
- *    ("ik wil verbinden") in plaats van de inhoud van de dialoog; die toelichting staat in de
- *    tooltip (`ai.connectHint`).
- *
- * De koppelgegevens staan bewust in een dialoog en niet in de ribbon zelf: een ribbongroep is maar
- * 66 px hoog (`.ribbon-group-content`), dus een volledige URL/header-regel wordt afgekapt. De groep
- * blijft daarom op twéé veldrijen naast één grote knop — dat past ruim binnen de ribbonhoogte.
- *
- * Poort/token leven in localStorage (settingsStore), niet in de store — vandaar lokale React-state
- * die op mount uit de persistente laag wordt geïnitialiseerd. `ensureMcpToken` garandeert dat er een
- * token bestaat zodra de gebruiker dit tabblad opent.
- *
- * Compacte dichtheid: de twee veldrijen + grote knop zijn samen ~58-66 px hoog,
- * ruim boven de 40px-strip van de compacte lint-modus (`.ribbon-container.compact .ribbon-content`).
- * Daarom klapt de hele groep — net als "Baselines & voortgang" op de Planning-tab — samen tot één
- * kleine knop met popover die poort, token en de "Verbinden"-actie ongewijzigd bevat.
- */
-
 const fieldStyle: React.CSSProperties = {
   padding: '3px 6px',
   background: 'var(--theme-input-bg)',
@@ -72,11 +48,8 @@ export function AiConnectionGroup() {
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [keyboardOpen, setKeyboardOpen] = useState(false);
 
-  // Poort mag alleen wijzigen zolang de bridge niet draait (de draaiende server bindt de poort).
   const portLocked = serverState === 'live';
 
-  // Alleen op de dev-server: `?mcp=connect` (docs/dev-link.md) opent dit venster meteen, zodat een
-  // check niet langs het lint hoeft. De import valt uit elke productiebouw.
   useEffect(() => {
     if (!import.meta.env.DEV || isTauri()) return;
     void import('@/utils/devOpenLink').then(({ takeDevConnectionDetails }) => {
@@ -89,21 +62,17 @@ export function AiConnectionGroup() {
     if (!Number.isFinite(n) || n <= 0) return;
     setPort(n);
     saveMcpPort(n);
-    // Houd het off-statusobject (en dus de "uit"-weergave) in sync met de gekozen poort.
     setAiServerStatus({ state: 'off', port: n });
   };
 
   const onRegenerate = () => {
     setConfirming(false);
-    // Draait de bridge, dan herstart hij met het nieuwe token: het oude werkt daarna echt niet meer.
     void regenerateAndApplyMcpToken(() => useAppStore.getState().ui.aiServerStatus.state === 'live').then((fresh) => {
       setToken(fresh);
       setShowToken(true);
     });
   };
 
-  // Poort- en tokenveld zijn geëxtraheerd omdat ze ONgewijzigd in zowel de volle als de
-  // compacte (popover-)vorm hergebruikt worden — alleen de verpakking eromheen verschilt.
   const portControl = (
     <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
       <span style={{ minWidth: 44 }}>{t('ai.port')}</span>
@@ -177,10 +146,6 @@ export function AiConnectionGroup() {
     </>
   );
 
-  // Ingeklapte vorm: hele groep achter één knop + popover — zelfde patroon als
-  // BaselinesProgressGroupContent. Poort/token blijven functioneel identiek, alleen de trigger
-  // vervangt de brede tweeledige lay-out. Gebruikt bij het handmatig ingeklapte lint en, via
-  // RibbonCollapsible, bij een smal venster.
   const popover = (
     <Popover
       open={popoverOpen}
@@ -203,10 +168,7 @@ export function AiConnectionGroup() {
       ) : (
         <RibbonCollapsedTrigger
           icon={<Icon id="ai.connection-menu" size={24} />}
-          // De naam van de groep (zoals in Office), niet "Verbinden": die knop staat al in het paneel
-          // en opent iets anders.
           label={tMenu('ribbon.aiConnection')}
-          // Niet `ai.connectHint`: die beschrijft de knop Verbinden in het paneel, niet poort en token.
           title={tMenu('ribbon.aiConnection')}
           open={popoverOpen}
           onClick={viaKeyboard => { setKeyboardOpen(viaKeyboard); setPopoverOpen(o => !o); }}
@@ -250,8 +212,6 @@ export function AiConnectionGroup() {
               {tokenControl}
             </div>
 
-            {/* Endpoint/header/configuratiefragment/koppelprompt staan in een dialoog — zie de
-                toelichting boven. Label volgt de intentie ("Verbinden"); de tooltip legt de inhoud uit. */}
             <span title={t('ai.connectHint')}>
               <RibbonButton
                 icon={<Icon id="ai.connection-details" size={24} />}

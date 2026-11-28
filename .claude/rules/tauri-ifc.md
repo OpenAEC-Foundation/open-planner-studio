@@ -194,7 +194,7 @@ Besluiten van het register en de descriptors per taak: `docs/adr/0420-ifc-eigen-
 
 Besluiten: `docs/adr/0760-fetch-met-een-tijdslimiet.md` (`fetchWithTimeout.ts`),
 `0761-ingelezen-taken-boom-en-restduur.md` (`importNormalize.ts`) en `0762-xer-bronarchief-eerst-valideren.md`
-(`xerSourceArchive.ts`).
+(`xerSourceArchive.ts`). De kleuren van eigen werksoorten (`taskTypes/`): `docs/adr/1161-kleuren-van-eigen-werksoorten.md`.
 
 ### MSPDI-beschikbaarheid en CSV-export (`msproject/`, `csv/`)
 

@@ -9,20 +9,6 @@ import { makeManualBackup, openBackupFolder } from '@/services/mcp/backup';
 import { record as recordActivity } from '@/services/mcp/activityLog';
 import { RibbonButton } from '@/components/layout/Ribbon/ribbonPrimitives';
 
-/**
- * AI-ribbontab — groep **Veiligheid**:
- *  - **pauze**: toggelt `ui.aiPaused` (bridge blijft live; muterende tools krijgen tijdelijk een
- *    nette "gepauzeerd"-fout, lezen mag door) — status op de knop, hint als tooltip;
- *  - **alleen-lezen**: toggelt `ui.aiReadOnly` (mutaties geweigerd zolang actief);
- *  - **auto-backup**: persistente toggle (`saveAiAutoBackup`, default aan) — vóór de eerste mutatie
- *    per document schrijft de tool-laag dan een IFC-snapshot;
- *  - **"Nu backup maken"**: `makeManualBackup()` met succes/fout-feedback + een activiteit-regel;
- *
- * De twee fs-knoppen (handmatige backup / map openen) zijn Tauri-only; in de web-build zijn ze
- * uitgeschakeld met een "alleen desktop"-tooltip (net als de Server-groep). Pauze/alleen-lezen en de
- * backup-toggle zijn platform-agnostisch (ui-vlaggen + persistente setting).
- */
-
 type Feedback = { kind: 'ok' | 'err'; text: string } | null;
 
 export function AiSafetyGroup() {
@@ -37,7 +23,6 @@ export function AiSafetyGroup() {
   const [feedback, setFeedback] = useState<Feedback>(null);
   const tauri = isTauri();
 
-  // De backup-toggle leeft in localStorage (settingsStore), niet in de store — init op mount.
   useEffect(() => { void loadAiAutoBackup().then(setAutoBackup); }, []);
 
   const onToggleAutoBackup = () => {
@@ -86,7 +71,6 @@ export function AiSafetyGroup() {
 
   return (
     <div style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
-      {/* Pauze + alleen-lezen (ui-vlaggen; werken overal). */}
       <div style={{ display: 'flex', gap: 6 }}>
         <span title={t('aiSafety.pauseHint')}>
           <RibbonButton
@@ -107,7 +91,6 @@ export function AiSafetyGroup() {
         </span>
       </div>
 
-      {/* Backup: toggle + handmatig + map openen. */}
       <div style={{ display: 'flex', gap: 6 }}>
         <span title={t('aiSafety.autoBackupHint')}>
           <RibbonButton
@@ -135,7 +118,6 @@ export function AiSafetyGroup() {
         </span>
       </div>
 
-      {/* Feedback-regel (handmatige backup succes/fout). */}
       {feedback && (
         <div
           className="!text-body"

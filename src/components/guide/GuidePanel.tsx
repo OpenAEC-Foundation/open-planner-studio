@@ -1,30 +1,3 @@
-/**
- * Het begeleidingspaneel: de app tekent de stappen die een extensie via `api.help.startGuide`
- * aanlevert (contract 1.4.0). De looptijd (welke stap, gedaan of niet, controles) woont in
- * `extensions/guideRuntime.ts`; dit component leest alleen de momentopname en stuurt de knoppen door.
- *
- * WAAR HET PANEEL STAAT, EN WAAROM. Zwevend onderaan (standaard aan de eindkant: rechts, in ar/fa
- * links), boven de statusbalk — niet in de rechterrail. De rail bestaat alleen zolang er een
- * railpaneel aan staat en wordt in de volledige werkruimtes (Tabel/IFC/Rapport/Resources) en in
- * Backstage niet gerenderd; een tutorial loopt juist dóór die weergaven heen. Een stap die de
- * rail zelf aanwijst (`properties-panel`, `rail:…`) zou bovendien naast zijn eigen instructie staan
- * te wringen om ruimte. Zwevend blijft het paneel in elke weergave op dezelfde plek. Het wijkt uit
- * voor het gemarkeerde anker en voor een open venster, en klapt vanzelf in als dat aan geen van beide
- * kanten lukt; de beslissing staat in `guidePlacement.ts`. De gebruiker kan het ook zelf inklappen
- * (bijv. op een laag scherm); een nieuwe stap klapt het weer uit.
- *
- * GEEN MARKERING. Het paneel markeert het anker niet en dimt de app niet: de stapstekst zegt al wat de
- * gebruiker moet doen, en een ring plus grijs scherm maakte de app onbruikbaar (besluit eigenaar,
- * 2026-10-23). Het anker telt alleen nog voor de plaatsing: het paneel bedekt het niet.
- *
- * SLEPEN. De gebruiker kan het paneel aan de kop (of het ingeklapte knopje) verslepen. Vanaf dat moment
- * staat het waar de gebruiker het neerzet, ook bij een volgende stap of tutorial, tot de app herlaadt; de
- * automatische plaatsing en het vanzelf inklappen staan dan uit. Bij een kleiner venster blijft het
- * binnen beeld.
- *
- * Het paneel ligt boven dialogen (een stap kan over een dialoog gaan, en de gebruiker moet het daar kunnen
- * uitklappen) maar onder de meldingen.
- */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -43,20 +16,15 @@ import '@/components/backstage/HelpPanel.css';
 import { notifyToastLayoutChange } from '@/components/layout/toastPlacement';
 import './GuidePanel.css';
 
-/** Hoe vaak anker, vensters en paneel opnieuw gemeten worden: een anker kan verschijnen (tabwissel),
- *  verschuiven of weg zijn, een venster opent of sluit, een afbeelding in de stap laadt. */
 const MEASURE_MS = 250;
-/** Schatting van het ingeklapte knopje zolang het nog niet getekend is; daarna telt de echte maat. */
 const COMPACT_ESTIMATE = { width: 180, height: 36 };
 
-/** Het anker (met terugval op de linttab), of `null`. */
 function measureAnchor(anchor: string | null): DOMRect | null {
   if (!anchor) return null;
   const fallback = ribbonTabFallback(anchor);
   return findTourAnchorRect(anchor) ?? (fallback ? findTourAnchorRect(fallback) : null);
 }
 
-/** De zichtbare open vensters (gedeelde `Dialog` en de eigen vensters met `role="dialog"`). */
 function measureDialogs(): DOMRect[] {
   const rects: DOMRect[] = [];
   document.querySelectorAll('[role="dialog"]').forEach(el => {
@@ -66,17 +34,13 @@ function measureDialogs(): DOMRect[] {
   return rects;
 }
 
-/** Marge tot de vensterrand (gelijk aan `.guide-panel--end/start`). */
 const EDGE = 12;
 
-/** Is de interface rechts-naar-links (ar/fa)? Dan ligt de eindkant links. */
 function isRtl(): boolean {
   return getComputedStyle(document.documentElement).direction === 'rtl';
 }
 
-/** Een zelf neergezet paneel (linkerbovenhoek), binnen het venster gehouden. */
 type FreePos = { left: number; top: number };
-/** Onder deze afstand (px) is een druk op de kop een klik, geen sleep. */
 const DRAG_THRESHOLD = 4;
 
 function clampPos(pos: FreePos, size: { width: number; height: number }): FreePos {
@@ -92,7 +56,6 @@ function samePos(a: FreePos | null, b: FreePos | null): boolean {
   return a === b || (!!a && !!b && a.left === b.left && a.top === b.top);
 }
 
-/** Een paneel van `size` met onderkant `bottom` aan elke kant. */
 function sideRects(size: { width: number; height: number }, bottom: number): Record<GuideSide, PlacementRect> {
   const at = (left: number): PlacementRect => ({ left, top: bottom - size.height, right: left + size.width, bottom });
   const near = at(EDGE);
@@ -110,9 +73,7 @@ export function GuidePanel() {
   const sideRef = useRef<GuideSide>('end');
   const [freePos, setFreePos] = useState<FreePos | null>(null);
   const freePosRef = useRef<FreePos | null>(null);
-  // Na een sleep op het ingeklapte knopje mag de klik die erop volgt het paneel niet uitklappen.
   const suppressClick = useRef(false);
-  // Zelf in- of uitgeklapt: geldt voor deze stap en zolang het vanzelf inklappen niet omslaat.
   const [override, setOverride] = useState<{ key: string; auto: boolean; mode: 'collapsed' | 'expanded' } | null>(null);
 
   const lang = helpImageLang(i18n.language);
@@ -124,11 +85,8 @@ export function GuidePanel() {
   const mode = override && override.key === stepKey && override.auto === autoCompact ? override.mode : null;
   const compact = mode === 'collapsed' || (mode !== 'expanded' && autoCompact);
 
-  // Wat de meting nodig heeft zonder elke keer een nieuwe interval te starten; bijgewerkt na elke render.
   const live = useRef({ anchor, compact, expandedSize: null as { width: number; height: number } | null });
 
-  // Meet anker, vensters en paneel en kies de plek (`guidePlacement.ts`). Na elke render (zodat
-  // een nieuwe stap meteen goed staat, vóór de schilderbeurt) en daarnaast op een interval en bij resize.
   const measure = useCallback(() => {
     const cur = live.current;
     const panel = panelRef.current;
@@ -136,7 +94,6 @@ export function GuidePanel() {
     const here = panel.getBoundingClientRect();
     const free = freePosRef.current;
     if (free) {
-      // Zelf neergezet: geen automatische plaatsing, alleen binnen beeld houden.
       const next = clampPos(free, { width: here.width, height: here.height });
       if (!samePos(next, free)) {
         freePosRef.current = next;
@@ -166,8 +123,6 @@ export function GuidePanel() {
     measure();
   });
   const active = !!view;
-  // Mount/unmount en pure positiewijzigingen ziet een ResizeObserver niet (knownbug 62).
-  // Eén signaal per commit; de meldingenhost voegt signalen binnen hetzelfde frame samen.
   useLayoutEffect(() => {
     notifyToastLayoutChange();
     return notifyToastLayoutChange;
@@ -182,7 +137,6 @@ export function GuidePanel() {
     };
   }, [active, measure]);
 
-  // Slepen aan de kop of het knopje. Knoppen in de kop blijven gewone knoppen.
   const onDragStart = useCallback((e: ReactPointerEvent<HTMLElement>) => {
     if (e.button !== 0) return;
     const handle = e.currentTarget;
@@ -213,7 +167,6 @@ export function GuidePanel() {
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       if (moved && handle.tagName === 'BUTTON') {
-        // De klik volgt in dezelfde taak op pointerup; daarna telt een klik weer gewoon.
         suppressClick.current = true;
         setTimeout(() => { suppressClick.current = false; }, 0);
       }
