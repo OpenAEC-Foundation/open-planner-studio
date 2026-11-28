@@ -4,12 +4,6 @@ import { Task } from '@/types/task';
 import { SequenceType } from '@/types/sequence';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 
-/**
- * Hammock/Level-of-Effort-toggle + read-only driver-info — deel van de tijdsectie uit
- * `TaskPropertiesPanel`, losgetrokken van `TaskTimeFields` zodat hij WEL gedeeld kan worden met
- * `TaskDialog` (puur informatief/vlag-zetten, geen commit-drift-risico zoals de duur-invoer).
- * Alleen op leaf-taken die geen mijlpaal zijn — zelfde guard als het paneel.
- */
 export function TaskHammockFields({ task, onChange }: {
   task: Task;
   onChange: (patch: Partial<Task>) => void;
@@ -21,9 +15,6 @@ export function TaskHammockFields({ task, onChange }: {
 
   if (task.isMilestone || isSummaryTask(task)) return null;
 
-  // Hammock-drivers: auto-detectie volgens P6-conventie — inkomende
-  // FS/SS-relaties = start-driver (leveren de ES), FF/SF-relaties = finish-driver (leveren de EF,
-  // dus de afgeleide span). READ-ONLY getoond zodat de gebruiker de spanne ziet zonder klikwerk.
   const incoming = sequences.filter(s => s.successorId === task.id);
   const startDrivers = incoming.filter(s => s.type === 'FINISH_START' || s.type === 'START_START');
   const finishDrivers = incoming.filter(s => s.type === 'FINISH_FINISH' || s.type === 'START_FINISH');

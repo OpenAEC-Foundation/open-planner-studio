@@ -19,21 +19,15 @@ import type { RelationAssignDirection } from '@/state/slices/types';
 interface HoverState { x: number; y: number; task: Task; }
 
 interface RelationDraft {
-  /** Richting van de conceptrelatie, gezien vanuit de GEKOZEN taak t.o.v. de huidige taak. */
   direction: RelationAssignDirection;
-  /** De aangevinkte tegenpartijen, in de volgorde van kiezen (issue #888: meerdere tegelijk). */
   picked: string[];
-  /** Staat de trefferlijst open? Dicht na een keuze met Enter; typen opent hem weer. */
   listOpen: boolean;
   query: string;
-  /** Index in de zichtbare trefferlijst voor pijltoetsbediening. */
   highlight: number;
   type: SequenceType;
   lag: Pick<Sequence, 'lagDays' | 'lagUnit' | 'lagPercent' | 'lagMinutes'>;
 }
 
-/** Hoeveel treffers de conceptrij tegelijk toont — de rechterrail is smal, een langere lijst
- *  duwt de rest van het paneel weg in plaats van te helpen. */
 const MAX_OPTIONS = 8;
 
 const EMPTY_DRAFT: RelationDraft = {
@@ -46,23 +40,6 @@ const EMPTY_DRAFT: RelationDraft = {
   lag: { lagDays: 0 },
 };
 
-/**
- * Afhankelijkheden (relatietabel: type + lag + driving-badge + verwijderen) — sectie van
- * `TaskPropertiesPanel`. Issue #989: de relaties staan in twee aparte lijsten (voorgangers en
- * opvolgers, elk met een eigen kop), in plaats van één gemengde lijst waarin alleen de kleur van
- * de markering de richting verraadt. RELATIONEEL/storeful: roept `updateSequence`/
- * `removeSequence` rechtstreeks aan, identiek in paneel én dialoog (dialoog heeft altijd een
- * bestaand `task.id`).
- *
- * Het WBS-nummer van de gekoppelde taak is een knop (alleen het nummer, geen richtingspijl).
- * Hover toont dezelfde `TaskTooltipContent` als het canvas (via de gedeelde, portal-gebaseerde
- * `HoverTooltip`); klik roept `focusOnTask` aan — selecteert de taak, klapt een ingeklapte
- * oudersketen uit, en laat GanttCanvas ernaartoe zoomen/scrollen. Dat laatste heeft een gemonte
- * `GanttCanvas` nodig om het `pendingFocusTaskId`-signaal ooit op te pikken en te wissen — die
- * garantie geldt alleen in het eigenschappenpaneel (`!isFullPanel`, App.tsx), niet in `TaskDialog`
- * (opent op elk tabblad via F2). `interactive=false` valt daarom
- * terug op platte tekst (taaknaam), zonder knop/hover/klik.
- */
 const TYPE_OPTIONS = SEQUENCE_TYPE_OPTIONS.map(o => ({ value: o.value, label: o.label }));
 
 export function TaskDependenciesSection({ taskId, interactive = true }: { taskId: string; interactive?: boolean }) {
@@ -73,20 +50,12 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   const updateSequence = useAppStore(s => s.updateSequence);
   const removeSequence = useAppStore(s => s.removeSequence);
   const focusOnTask = useAppStore(s => s.focusOnTask);
-  // De pijlen lopen de keten af (issue #888): links de voorganger, rechts de opvolger, volgens de
-  // regel in `relationStep.ts` (bij meerdere: de sturende, dan de kritiekste).
   const stepTargets = useMemo(() => ({
     predecessor: relationStepTarget({ tasks, sequences, cpmResult }, taskId, 'predecessor'),
     successor: relationStepTarget({ tasks, sequences, cpmResult }, taskId, 'successor'),
   }), [tasks, sequences, cpmResult, taskId]);
   const [hover, setHover] = useState<HoverState | null>(null);
-  // De uitlegzin staat alleen onder de relatie waar de focus in zit: onder élke regel zou het blok
-  // bij veel relaties twee keer zo lang maken.
   const [focusedSequenceId, setFocusedSequenceId] = useState<string | null>(null);
-  // De zin verschijnt en verdwijnt met de focus, en schuift daarmee de regels eronder. Gebeurt dat
-  // tussen indrukken en loslaten van de muis, dan landt het loslaten naast de knop en gaat de klik
-  // verloren (issue #888: terug, vooruit en verder springen langs de relaties). Daarom wacht een
-  // focuswissel met de muis met de zin tot de knop is losgelaten.
   const pointerHeld = useRef(false);
   const pendingFocus = useRef<string | null>(null);
   const showSentenceFor = (update: (current: string | null) => string | null) => {
@@ -107,40 +76,23 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
     window.addEventListener('pointercancel', release, true);
   };
 
-  // Spooktooltip: onMouseLeave/onClick op de knop zelf zijn niet genoeg. Wisselt de selectie (of
-  // verandert de sequence-lijst) zonder dat de muis de knop verlaat — bv. Ctrl+Z, een pijltoets, of
-  // de AI-assistent die de selectie verzet — dan blijft de tooltip van de vorige taak zweven, ook over dialogen heen (hij
-  // rendert via een portal met een hoge z-index). Elke wissel van context wist 'm daarom expliciet.
   useEffect(() => {
     setHover(null);
   }, [taskId, sequences]);
 
-  // Na een selectiewissel kan de regel met de focus verdwenen zijn zonder blur (React vuurt die niet
-  // bij het weghalen), en zou de zin bij een volgende taak met dezelfde relatie blijven staan terwijl
-  // de focus elders is. Lees daarom opnieuw welke relatie nu echt de focus heeft.
   useEffect(() => {
     const focused = document.activeElement?.closest<HTMLElement>('[data-ops-sequence-id]');
     setFocusedSequenceId(focused?.dataset.opsSequenceId ?? null);
   }, [taskId]);
 
-  // Conceptrelatie: de sectie kan zelf relaties aanmaken. Het concept blijft LOKAAL tot
-  // de bevestiging — dezelfde vorm als `RelationTypePopover` op het canvas — zodat type en lag als
-  // één undoable mutatie landen en Escape niets hoeft terug te draaien.
   const [draft, setDraft] = useState<RelationDraft | null>(null);
   const confirmRef = useRef<HTMLButtonElement>(null);
 
-  // Zelfde reden als de spooktooltip hieronder: een selectiewissel (pijltoets, Ctrl+Z, AI) mag geen
-  // half ingevulde conceptrij van de vórige taak laten staan — die zou bij bevestigen op de nieuwe
-  // taak landen. Ook niet na een documentwissel: een variant draagt dezelfde taak-id's, en het concept
-  // landde dan in het andere document (review #1004, ronde 6).
   const documentId = useAppStore(s => s.activeDocumentId);
   useEffect(() => {
     setDraft(null);
   }, [taskId, documentId]);
 
-  // "Voorgangers/Opvolgers toewijzen…" uit het rechtsklikmenu of het lint (issue #1000, Assign in
-  // Primavera): open de conceptrij met die richting. Na de reset hierboven, zodat een verzoek dat
-  // samen met de selectiewissel komt blijft staan. Alleen het paneel (`interactive`) handelt het af.
   const assignRequest = useAppStore(s => s.ui.pendingRelationAssign);
   const draftRef = useRef<HTMLDivElement>(null);
   const revealDraft = useRef(false);
@@ -150,9 +102,6 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
     setDraft({ ...EMPTY_DRAFT, direction: assignRequest.direction });
     useAppStore.getState().setUI({ pendingRelationAssign: null });
   }, [assignRequest, interactive, taskId]);
-  // De sectie staat onderaan het paneel, vaak buiten beeld: schuif de hele conceptrij (zoekveld,
-  // type en lag) erin. De focus gaat expliciet naar het zoekveld: `autoFocus` werkt alleen als de
-  // rij nieuw verschijnt, niet bij een tweede verzoek terwijl ze al openstaat.
   useLayoutEffect(() => {
     if (!draft || !revealDraft.current) return;
     revealDraft.current = false;
@@ -160,7 +109,6 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
     draftRef.current?.querySelector<HTMLInputElement>('[data-ops-dependency-search]')?.focus();
   }, [draft]);
 
-  // Alleen zoekinvoer bepaalt de treffers; pijlen, type, richting en lag wijzigen het concept ook.
   const query = draft?.query;
   const options = useMemo(
     () => (query === undefined ? [] : relationTaskOptions(tasks, taskId, query, MAX_OPTIONS)),
@@ -173,9 +121,6 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   );
   if (taskSequences.length === 0 && !interactive) return null;
 
-  // Issue #989: voorgangers en opvolgers als twee aparte lijsten met elk een eigen kop. De twee
-  // kolommen staan naast elkaar zolang de sectie breed genoeg is; op een smalle rail stapelt de
-  // CSS ze onder elkaar (zie .dependency-cols in globals.css).
   const COLUMN_KEYS = { predecessor: 'properties.predecessors', successor: 'properties.successors' } as const;
   const sequenceColumns = (['predecessor', 'successor'] as const).map(role => ({
     role,
@@ -186,7 +131,6 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
     .map(id => tasks.find(t => t.id === id))
     .filter((task): task is Task => task !== undefined);
   const draftOther = pickedTasks.length === 1 ? pickedTasks[0] : undefined;
-  /** De conceptrelatie met één tegenpartij; type en lag gelden voor elke aangevinkte taak. */
   const draftSequenceWith = (otherId: string): Sequence => ({
     id: 'relation-draft',
     predecessorId: draft?.direction === 'predecessor' ? otherId : taskId,
@@ -196,8 +140,6 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   });
   const draftSequence = draftSequenceWith(draftOther?.id ?? '');
 
-  /** Vink een treffer aan of uit. Met `close` (Enter) gaat de lijst dicht en staat de keuze in het
-   *  zoekveld, zoals bij één taak; met de muis blijft de lijst open om door te vinken. */
   const toggleOption = (option: { taskId: string; label: string }, close: boolean) => {
     setDraft(current => {
       if (!current) return current;
@@ -224,13 +166,9 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
       const { id: _id, ...relation } = draftSequenceWith(task.id);
       return relation;
     }));
-    // Alleen wat lukte valt weg: een weigering (duplicaat/voorouder/kring) meldt zichzelf via het
-    // gecentraliseerde kanaal en blijft aangevinkt staan, zodat de keuze te corrigeren is.
     const refused = pickedTasks.filter((_task, index) => created[index] === null).map(task => task.id);
     if (refused.length === 0) { setDraft(null); return; }
     setDraft(current => (current ? { ...current, picked: refused } : current));
-    // Kwam er iets bij, dan haalt Ctrl+Z dat terug. In het zoekveld zou Ctrl+Z alleen de tekst
-    // terugdraaien (een tekstveld houdt zijn eigen undo), dus de focus gaat naar het vinkje.
     if (refused.length < pickedTasks.length) confirmRef.current?.focus();
   };
   const directionKey = draft?.direction === 'successor' ? 'Successors' : 'Predecessors';
@@ -397,8 +335,6 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
                   }
                   if (e.key === 'Enter') {
                     e.preventDefault();
-                    // Eerst kiezen, dan bevestigen: zolang de trefferlijst open staat betekent
-                    // Enter "vink deze taak aan", daarna pas "leg de relaties vast".
                     const option = draft.listOpen ? options[draft.highlight] : undefined;
                     if (option) toggleOption(option, true);
                     else commitDraft();
@@ -418,8 +354,6 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
               <Icon id="ui.close" size={10} />
             </button>
           </div>
-          {/* De lijst staat in de rij en niet erboven: met de muis vink je door, en de knop om vast
-              te leggen moet daarbij bereikbaar blijven (schets #888). */}
           {draft.listOpen && options.length > 0 && (
             <ul className="dependency-draft-options" role="listbox" aria-multiselectable="true">
               {options.map((option, index) => {
@@ -529,7 +463,6 @@ export function TaskDependenciesSection({ taskId, interactive = true }: { taskId
   );
 }
 
-/** Eén pijl: naar de voorganger (links) of de opvolger (rechts); grijs als er in die richting geen relatie is. */
 function StepButton({ direction, targetId, onStep }: {
   direction: RelationStepDirection;
   targetId: string | null;
