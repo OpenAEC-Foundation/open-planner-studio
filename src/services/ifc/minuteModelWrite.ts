@@ -9,11 +9,8 @@ import { dayEndInstant, workdayOfInstant, isDateOnly } from '@/engine/calendar/w
 import { addCalendarDays, formatDate, parseDate, parseInstant } from '@/utils/dateUtils';
 import { taskDurationWritesMinutes } from './dayMeasureIo';
 
-/** Een moment is afleidbaar als D1–D7 exact hetzelfde moment teruggeeft. Ook nachtblokken
- * en het exclusieve kalendertijdeinde worden zo gespiegeld, zonder tijd af te kappen. */
 function anchor(value: string, field: TaskDateField, ctx: TaskDateContext): string | null {
   if (!value || isDateOnly(value)) return value;
-  // Onleesbare brondata blijft letterlijk; een ongeldig moment heeft geen daganker.
   if (!Number.isFinite(parseInstant(value).getTime())) return null;
   const date = value.slice(0, 10);
   const days = new Set([date, workdayOfInstant(ctx.clock, value, taskDateFieldSide(field)),
@@ -25,17 +22,9 @@ function anchor(value: string, field: TaskDateField, ctx: TaskDateContext): stri
   return null;
 }
 
-/** De eindvelden van de planning (knownbug 279): op een letterlijke kalender krijgt zo'n veld zonder tijd
- *  zijn moment. */
 const LITERAL_END_FIELDS: ReadonlySet<TaskDateField> = new Set(['scheduleFinish', 'earlyFinish', 'lateFinish', 'actualFinish']);
-/** Het eigen begin van een nulduur-mijlpaal (D7): bij een FINISH-mijlpaal ook een eindmoment. */
 const MILESTONE_OWN_STARTS: ReadonlySet<TaskDateField> = new Set(['scheduleStart', 'earlyStart', 'lateStart', 'actualStart']);
 
-/** T17 is een schrijfkeuze van dit document. Er komt geen vlag in een bibliotheekkalender.
- *  `realTimes` (MSPDI en P6 XML sinds F5b, I8): geen enkel veld krijgt een daganker. Een veld zonder tijd
- *  krijgt zijn moment volgens D1–D7, met dezelfde regel als de laadgrens (`normalizeTaskDate`); een
- *  moment blijft. `literalCalendarIds` en `atDayEnd` blijven precies zoals zonder deze optie: de writer
- *  geeft de letterlijke kalenders apart mee (`OPS_LiteralCalendars`). */
 export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calendar' | 'resourceCalendars' | 'baselines'>,
   options: {
     literalAutomaticMilestones?: boolean; realTimes?: boolean; keepLiteralCalendarIds?: readonly string[];
@@ -43,8 +32,6 @@ export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calend
   } = {}) {
   const calendars = input.resourceCalendars ?? [];
   const clocks = new DayClockCache(input.calendar, calendars);
-  // `keepLiteralCalendarIds` (alleen de IFC-writer, knownbug 1026): kalenders die letterlijk waren bij het openen
-  // blijven letterlijk, ook als geen taak dat meer nodig heeft (`DocumentPayload.ifcLiteralCalendarIds`).
   const literalCalendarIds = new Set<string>(options.keepLiteralCalendarIds ?? []);
   const atDayEnd = new Set<string>();
   const contexts = new Map<string, TaskDateContext>();
@@ -57,32 +44,18 @@ export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calend
       const day = workdayOfInstant(ctx.clock, task.time.earlyFinish, 'end');
       if (dayEndInstant(ctx.clock, day) === task.time.earlyFinish) {
         atDayEnd.add(task.id);
-        // MSPDI heeft geen AtDayEnd-hint. Bewaar daar de momenten van deze hele kalender.
         if (options.literalAutomaticMilestones) literalCalendarIds.add(effective(task).id);
         ctx = { ...ctx, milestoneKind: 'FINISH' };
       }
     }
     contexts.set(task.id, ctx);
     const cal = effective(task);
-    // Een `PT`-duur maakt de kalender letterlijk (§3.6): een urentaak, en sinds F3 ook een dagenmaat-taak
-    // met een breuk (die gaat als `PT…` met een record, T21). v2026.9.0 promoveert zo'n kalender en leest
-    // elke tijd letterlijk; de nieuwe lezer houdt hem scalair via `IsHourCalendar = .F.`.
-    // Twee uitzonderingen, alleen in de merge met een vreemd deel (fixronde 7 van #867), het spiegelbeeld van
-    // `keepLiteralCalendarIds`:
-    //  - een dagtaak in `sourceDurationTaskIds`: haar duur en kalender zijn nog zoals de lezer ze uit de bron las. De merge
-    //    schrijft de duur van de bron (een gebroken dag als `P0Y0M0.5D`, zoals OPS tot v2026.43.0), en daarvoor hoeft de
-    //    kalender niet te veranderen. De datums volgen de gewone regel hieronder.
-    //  - een urentaak op een kalender uit `sourceBandCalendarIds`: de writer schrijft die kalender met blokken en
-    //    `IsHourCalendar = .F.`, zoals OPS van v2026.7.7 tot en met v2026.43.0. De lezer leest een urentaak daar op de
-    //    minuut (`ifcReader.ts`, `minutePrecise`), dus haar momenten gaan letterlijk het bestand in (hieronder), zonder
-    //    dat de kalender letterlijk wordt.
     const hours = task.time.durationUnit === 'hours';
     const bandHourTask = hours && options.sourceBandCalendarIds?.has(cal.id) === true;
     if (bandHourTask) continue;
     if (hours || (taskDurationWritesMinutes(task) && !options.sourceDurationTaskIds?.has(task.id))) {
       literalCalendarIds.add(cal.id);
     }
-    // Zo ook een datum die niet op een anker past.
     mapTaskDates(task, (value, field) => {
       if (anchor(value, field, ctx) === null) literalCalendarIds.add(cal.id);
       return value;
@@ -105,12 +78,6 @@ export function minuteModelWriteView(input: Pick<ImportResult, 'tasks' | 'calend
     const ctx = { clock: clocks.calendarClock(undefined), milestoneKind: null };
     if (anchor(b.projectEnd, 'deadline', ctx) === null) literalCalendarIds.add(input.calendar.id);
   }
-  // Op een letterlijke kalender gaat elke waarde letterlijk het bestand in, op één na: een eindveld zonder
-  // tijd (knownbug 279). Dat ging als `…T07:00:00` (dagtaak) of `…T00:00:00` (urentaak) en las terug als
-  // het begin van die dag: een werkdag te vroeg. Zo'n veld krijgt hier zijn moment volgens D1–D7, met
-  // dezelfde regel als de laadgrens (`normalizeTaskDate`). Alleen de eindvelden van de planning, en bij
-  // een FINISH-mijlpaal ook zijn eigen begin (D7); een beperking, deadline, extern anker, stop/hervat en
-  // een kale start blijven zoals ze zijn.
   if (options.realTimes) {
     const real = (value: string, field: TaskDateField, ctx: TaskDateContext) => normalizeTaskDate(value, field, ctx) ?? value;
     const tasks = input.tasks.map(task => mapTaskDates(task, (value, field) => real(value, field, contexts.get(task.id)!)));

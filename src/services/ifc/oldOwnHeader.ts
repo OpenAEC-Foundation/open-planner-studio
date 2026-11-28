@@ -1,35 +1,23 @@
-/** De ene ruwe kopvorm van de 17 tags v2026.2.0 t/m v2026.7.12: LF, IFC4X3, drie vrije FILE_NAME-velden.
- * Geen afhankelijkheid van lezer of scanners: zij delen deze herkenning, met posities in hun eigen invoer.
- */
 const PREFIX = "ISO-10303-21;\nHEADER;\nFILE_DESCRIPTION(('ViewDefinition [SchedulingView]'),'2;1');\nFILE_NAME('";
 const AFTER_LINE = "\nFILE_SCHEMA(('IFC4X3'));\nENDSEC;\nDATA;\n";
 const NAME_DATE = ".ifc','";
 const DATE_AUTHOR = "',('";
 const AUTHOR_COMPANY = "'),('";
 const END_NAME = "'),'Open Planner Studio 0.1','Open Planner Studio','');";
-// Alleen ASCII-ankers; één code-eenheid per byte, ook bij UTF-8. Nooit terugcoderen voor een positie.
 const byteText = new TextDecoder('latin1');
 const utf8 = new TextDecoder();
 const enc = new TextEncoder();
-/** Main telde de hele UTF-8-prefix t/m de LF na FILE_NAME, niet alleen de vrije tekst. */
 export const OLD_OWN_HEADER_PREFIX_MAX = 64 << 10;
 export interface OldOwnHeader {
-  /** Positie van de D van DATA;, in bytes of UTF-16-code-eenheden volgens de invoer. */
   readonly dataStart: number;
   readonly fields: ReadonlyArray<readonly [number, number]>;
 }
 
-/** Een vrij veld met een scheidingsstuk maakt de ontleding dubbelzinnig. */
 function uniqueAt(line: string, part: string): number {
   const at = line.indexOf(part);
   return at >= 0 && line.indexOf(part, at + 1) < 0 ? at : -1;
 }
 
-/** Exacte herkenning: object = maskeren/vaste DATA-grens; null = anders; undefined = nog onvolledig.
- * 'main' = de vaste buitenvorm klopt, maar vrije tekst mag niet worden gemaskeerd of overgeslagen. Alleen de
- * doelcontrole behoudt dan de oude leeslus van main; scan en lezer gebruiken hun gewone route.
- * De ene 64-KiB-grens is die van main, voor alle drie gebruikers gelijk.
- */
 export function recognizeOldOwnHeader(content: string | Uint8Array, complete = true): OldOwnHeader | 'main' | null | undefined {
   const codeAt = (i: number) => typeof content === 'string' ? content.charCodeAt(i) : content[i];
   const match = (at: number, fixed: string): boolean | undefined => {
@@ -72,16 +60,10 @@ export function recognizeOldOwnHeader(content: string | Uint8Array, complete = t
     const text = typeof content === 'string' ? value : utf8.decode(content.subarray(PREFIX.length + start, PREFIX.length + end));
     for (let i = 0; i < text.length; i++) {
       const code = text.charCodeAt(i);
-      // Main beëindigt de FILE_NAME-regel bij CR/LF. Andere stuurtekens krijgen geen kopuitzondering,
-      // maar behouden wel de bestaande doelroute van main binnen dezelfde bytegrens.
       if (code === 0x0d || code === 0x0a) return null;
       if (code < 0x20 || (code >= 0x7f && code <= 0x9f) || code === 0x2028 || code === 0x2029) mainOnly = true;
     }
-    // readEntity (ifcReader.ts) leest #\w+[ASCII-witruimte]*=; die private regel heeft geen gedeelde export.
-    // Zo'n begin kan voor main echte inhoud zijn en mag dus nooit verdwijnen achter maskering of een latere DATA-grens.
-    // Commentaar kan ids samenvoegen of de rest verbergen; ook dat blijft volledig op de main-route.
     if (/#\w+[ \t\r\n\v\f]*=/.test(value) || value.includes('/*') || value.includes('*/')) mainOnly = true;
-    // Een losse apostrof en een puntkomma mogen; quote/veldgrenzen, ook met tussenruimte, zijn geen vrije tekst.
     if (/'\s*[,)]|[(,]\s*'/.test(value)) mainOnly = true;
   }
   if (mainOnly) return 'main';
