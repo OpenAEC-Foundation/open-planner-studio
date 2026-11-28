@@ -17,34 +17,12 @@ export interface ParsedTaskDuration {
   explicitUnit: boolean;
 }
 
-/**
- * Waar een getypte duur over gaat (spec "alleen uren" §3.12, besluit B8). Alles is optioneel: zonder
- * context leest de parser zoals in het OPS-profiel, met een kaal getal in de maat van de taak.
- */
 export interface DurationInputContext {
-  /** Is "d" bij deze taak de dagenmaat? Ja in een profiel dat een dagenmaat in werkdagen telt (conventie
-   *  `workdayDurationMeasure`, OPS) en bij kalendertijd (een dag is daar altijd 24 klokuren). Uit (P6,
-   *  MS Project, geen kalendertijd) ⇒ "5d" is de urenmaat: 5 × de werktijd per dag. Bouw hem met
-   *  {@link taskDurationInputContext}. */
   dayMeasure?: boolean;
-  /** De uren per dag waarmee deze taak tussen dagen en uren omrekent (`durationHoursPerDay`): de werktijd
-   *  per dag van de taakkalender, bij kalendertijd 24. Nodig om een dag als uren te lezen (onder P6/MSP,
-   *  of een kaal getal in een andere eenheid dan de maat van de taak). */
   hoursPerDay?: number;
-  /** De eenheid die tabel of veld bij deze taak toont. Een kaal getal staat in die eenheid en houdt de
-   *  maat van de taak. Standaard de maat van de taak. */
   shownUnit?: TaskDurationUnit;
 }
 
-/**
- * Wat een getypte of geplakte duur bij DEZE taak betekent (B8, §3.12). Eén bouwer voor paneel, dialoog en
- * de Duur-kolom (invoer, bewerktekst en kopieertekst), zodat de regel nergens afdrijft:
- *  - `countsWorkdays`: telt het rekenprofiel een dagenmaat in werkdagen (`profileCountsWorkdays`)?
- *  - `hoursPerDay`: de werktijd per dag van de taakkalender (`effHoursPerDay`);
- *  - `display`: de Duurweergave die het veld volgt (`'auto'` ⇒ de maat van de taak).
- * Kalendertijd telt een dag als 24 klokuren, in elk profiel: "d" blijft daar een dag, en een omrekening
- * tussen dagen en uren gebruikt 24 u (`durationHoursPerDay`).
- */
 export function taskDurationInputContext(
   task: Pick<Task, 'time'>,
   opts: { countsWorkdays: boolean; hoursPerDay: number; display: DurationDisplay },
@@ -56,18 +34,14 @@ export function taskDurationInputContext(
   };
 }
 
-/** Grootste duur die de invoer aanneemt: zo blijft het aantal minuten een veilig geheel getal. */
 const MAX_SAFE_MINUTES = Number.MAX_SAFE_INTEGER;
 
-/** Een getypt getal: cijfers met een optionele decimaal, als punt of als komma ("2.5", "2,5"). */
 const NUMBER = String.raw`(\d+(?:[.,]\d+)?)`;
 
 function toNumber(text: string): number {
   return Number(text.replace(',', '.'));
 }
 
-/** Een aantal werkdagen als invoer: eindig, niet negatief en niet onveilig groot. Zes decimalen, zoals
- *  de opslag in IFC (`ifcDayNumber`); zo blijft "2,5" precies 2,5 en wordt "1/3" geen lange staart. */
 function dayAmount(value: number): number | null {
   if (!Number.isFinite(value) || value < 0 || !Number.isSafeInteger(Math.round(value * 24 * 60))) return null;
   return Number(value.toFixed(6));
@@ -82,22 +56,11 @@ function validHoursPerDay(hoursPerDay: number | undefined): hoursPerDay is numbe
   return hoursPerDay !== undefined && Number.isFinite(hoursPerDay) && hoursPerDay > 0;
 }
 
-/** Een aantal dagen in de urenmaat: dagen × werktijd per dag (B8 onder P6/MSP, B1a). */
 function daysAsHours(days: number, hoursPerDay: number, explicitUnit: boolean): ParsedTaskDuration | null {
   const durationMinutes = minutesOf(days * hoursPerDay * 60);
   return durationMinutes === null ? null : { unit: 'hours', durationMinutes, explicitUnit };
 }
 
-/**
- * Eén taakduur-parser voor dialoog, eigenschappenpaneel en de Duur-kolom van het raster (B8, §3.12):
- *  - "5d" (ook "5 days"): de dagenmaat; onder een profiel zonder dagenmaat (P6, MSP) de urenmaat,
- *    5 × de werktijd per dag. Vast werk zet de store daarna om naar uren (B1a,
- *    `routeFixedWorkDurationToHours`).
- *  - "40u", "40h", "1,5u", "2h 30m": de urenmaat.
- *  - Een kaal getal ("3", "2,5") houdt de maat van de taak, in de eenheid die het veld toont
- *    (`shownUnit`).
- * Breuken zijn voor iedereen te typen, met een punt of een komma (B2). `null` bij onleesbare invoer.
- */
 export function parseTaskDurationInput(
   input: string,
   selectedUnit: TaskDurationUnit,
@@ -133,8 +96,6 @@ export function parseTaskDurationInput(
     const scheduleDuration = dayAmount(amount);
     return scheduleDuration === null ? null : { unit: 'days', scheduleDuration, explicitUnit: false };
   }
-  // Het veld toont een andere eenheid dan de maat van de taak (Duurweergave onder P6/MSP): het getal
-  // staat in die eenheid, de taak houdt haar maat.
   if (shown === 'days') {
     const shownDays = dayAmount(amount);
     return shownDays === null ? null : daysAsHours(shownDays, context.hoursPerDay, false);
@@ -143,11 +104,6 @@ export function parseTaskDurationInput(
   return scheduleDuration === null ? null : { unit: 'days', scheduleDuration, explicitUnit: false };
 }
 
-/**
- * De bewerkbare duur van een taak als kaal getal, in de eenheid die het veld toont (`shownUnit`,
- * standaard de maat van de taak): "2.5" voor 2,5 d, "12.083333" voor 12 u 5 min. Met een punt; de
- * parser leest punt en komma. `hoursPerDay` is nodig als het veld een andere eenheid toont dan de maat.
- */
 export function formatTaskDurationInput(
   task: Task,
   opts: { shownUnit?: TaskDurationUnit; hoursPerDay?: number } = {},
@@ -164,32 +120,12 @@ function trimDecimals(n: number): string {
   return n.toFixed(6).replace(/(?:\.0+|(\.\d*?)0+)$/, '$1');
 }
 
-/** Het startmoment waarvandaan een eenheidswissel meet: de getoonde start, op het eerstvolgende
- *  werkmoment. Een datum zonder tijd telt als het begin van die dag (D1). */
 function conversionStart(task: Task, engine: CalendarEngine): Date {
   return engine.nextWorkInstant(parseInstant(shownStart(task)));
 }
 
-/** De maatconventie van het effectieve rekenprofiel (`workdayDurationMeasure`): aan in OPS, uit onder
- *  P6 en MS Project. Een eenheidswissel moet hem kennen, want hij bepaalt hoe de motor een dag telt. */
 export type DurationMeasure = Pick<EffectiveSchedulingOptions, 'workdayDurationMeasure'>;
 
-/**
- * Een bewuste eenheidswissel die het eindmoment houdt (§3.2, B1: een dagenmaat-taak mag een breuk
- * hebben). De omzetting telt zoals de motor (`CPMSolver.addDurationChecked`) onder het effectieve
- * profiel (`measure`), op de eigen kalender van de taak met werkblokken (`calendarForEngine`):
- *  - telt de dag in de dagenmaat (`taskCountsInWorkdays`: OPS-profiel, geen kalendertijd), dan volgt de
- *    omzetting de kalender dag voor dag vanaf de getoonde start. Dagen ⇒ uren: de werkminuten tot het
- *    einde van de dagenmaat (`addMeasuredWorkdays`); op de voorbeeldweek (ma–do 8 u, vr 6 u) wordt 5 d
- *    vanaf ma 07:00 dus 38 u. Uren ⇒ dagen: de werkdagen met hun deel (`measuredWorkdaysBetween`);
- *    12 u vanaf ma 07:00 op 8 u per dag wordt 1,5 d;
- *  - anders is een dag een vast aantal minuten: onder P6 en MS Project de werktijd per dag van de
- *    kalender (`durationMinutesOf`), bij kalendertijd 1440 klokminuten (`elapsedMinutesOf`). Op de
- *    voorbeeldweek onder P6 is 40 u dus 5 d, en 24 u kalendertijd is 1 d.
- * `null` als de kalender geen werkblokken heeft, de taak geen leesbare start heeft (alleen nodig voor de
- * dagenmaat), of de motor uit het resultaat niet precies dezelfde minuten terugrekent. Dan blijft de
- * eenheid.
- */
 export function proposeTaskDurationConversion(
   task: Task,
   target: TaskDurationUnit,
@@ -197,11 +133,8 @@ export function proposeTaskDurationConversion(
   measure: DurationMeasure,
 ): ParsedTaskDuration | null {
   if (target === task.time.durationUnit) return null;
-  // Elke kalender heeft werkblokken (§3.2, B2): een dagkalender krijgt ze uit begin, einde en uren per
-  // dag, zoals de motor (`calendarForEngine`). Zonder af te leiden werkblokken is er geen voorstel.
   const engine = new CalendarEngine(calendarForEngine(calendar));
   if (!engine.isHourMode) return null;
-  // De dagenkant van de wissel bepaalt de telling: een urentaak telt nooit in de dagenmaat.
   const dayMeasure = taskCountsInWorkdays(
     { time: { durationUnit: 'days', durationType: task.time.durationType } }, measure,
   );
@@ -227,29 +160,18 @@ export function proposeTaskDurationConversion(
   return { unit: 'days', scheduleDuration: Number(days.toFixed(6)), explicitUnit: true };
 }
 
-/** De minuten waarmee de motor een taak in de urenmaat of in kalendertijd laat lopen: kalendertijd in
- *  klokminuten (`elapsedMinutesOf`), anders in werkminuten op hele minuten (`durationMinutesOf`, zoals
- *  `CPMSolver.workMinutesOf`). */
 function fixedDayMinutes(task: Task, engine: CalendarEngine): number {
   return task.time.durationType === 'ELAPSEDTIME'
     ? elapsedMinutesOf(task, engine)
     : Math.round(durationMinutesOf(task, engine));
 }
 
-/**
- * Een duur in KLOKminuten van een kalendertijdtaak als expliciete duur, voor de oude minutenroute van
- * de Duur-kolom (samengestelde invoer als "1d 4u", die de kolom met 24 u per dag leest). Zo rekent de
- * transactie de klokminuten niet nog eens om met de werktijd per dag. Een taak in dagen houdt haar maat
- * als de minuten precies op zes decimalen passen ("1d 0u" = 1 d, "2,5d 3u" = 2,625 d); anders wordt het
- * de urenmaat ("1d 4u" = 28 u). `null` bij een negatief of onveilig groot getal.
- */
 export function elapsedClockDuration(task: Task, minutes: number): ParsedTaskDuration | null {
   const clockMinutes = minutesOf(minutes);
   if (clockMinutes === null) return null;
   if (task.time.durationUnit === 'days') {
     const scheduleDuration = Number((clockMinutes / (24 * 60)).toFixed(6));
     const candidate: Task = { ...task, time: { ...task.time, scheduleDuration } };
-    // Exact als de motor dezelfde klokminuten terugrekent (`elapsedMinutesOf` kent geen werktijd).
     if (elapsedMinutesOf(candidate, { isHourMode: true, hoursPerDay: 24 }) === clockMinutes) {
       return { unit: 'days', scheduleDuration, explicitUnit: false };
     }
@@ -257,9 +179,6 @@ export function elapsedClockDuration(task: Task, minutes: number): ParsedTaskDur
   return { unit: 'hours', durationMinutes: clockMinutes, explicitUnit: true };
 }
 
-/** De wissel zonder dagenmaat: een dag is een vast aantal minuten (zie
- *  {@link proposeTaskDurationConversion}). Exact als de motor uit het resultaat dezelfde minuten
- *  terugrekent; anders `null`. */
 function proposeFixedDayConversion(task: Task, target: TaskDurationUnit, engine: CalendarEngine): ParsedTaskDuration | null {
   const minutesPerDay = task.time.durationType === 'ELAPSEDTIME' ? 24 * 60 : engine.hoursPerDay * 60;
   if (!Number.isFinite(minutesPerDay) || minutesPerDay <= 0) return null;
@@ -267,27 +186,17 @@ function proposeFixedDayConversion(task: Task, target: TaskDurationUnit, engine:
     const days = task.time.scheduleDuration;
     if (!Number.isFinite(days) || days < 0) return null;
     const minutes = fixedDayMinutes(task, engine);
-    // Kalendertijd rekent niet op hele minuten: een dagdeel dat geen hele minuut is, is niet exact.
     if (!Number.isSafeInteger(minutes)) return null;
     return { unit: 'hours', durationMinutes: minutes, explicitUnit: true };
   }
   const wanted = task.time.durationMinutes ?? 0;
   if (!Number.isSafeInteger(wanted) || wanted < 0) return null;
-  // Zes decimalen, zoals de invoer en de opslag in IFC (`dayAmount`).
   const scheduleDuration = Number((wanted / minutesPerDay).toFixed(6));
   const candidate: Task = { ...task, time: { ...task.time, durationUnit: 'days', scheduleDuration, durationMinutes: undefined } };
   if (fixedDayMinutes(candidate, engine) !== wanted) return null;
   return { unit: 'days', scheduleDuration, explicitUnit: true };
 }
 
-/**
- * Eén ingang voor een bewuste eenheidswissel, gedeeld door eigenschappenpaneel, taakdialoog en
- * taakraster: de gekozen eenheid wordt meteen toegepast (geen voorstel om doorheen te klikken).
- * De omzetting houdt het eindmoment onder het effectieve profiel ({@link proposeTaskDurationConversion});
- * sinds de dagenmaat een breuk mag hebben (B1) is ze bijna altijd exact. `null` als de kalender of de
- * start niet te lezen is, of bij kalendertijd met een dagdeel dat geen hele minuut is; dan blijft de
- * eenheid. De regel landt alléén hier, zodat de drie routes vanzelf gelijk blijven.
- */
 export function convertTaskDurationUnit(
   task: Task,
   target: TaskDurationUnit,
