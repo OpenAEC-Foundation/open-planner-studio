@@ -14,7 +14,6 @@ export function beginRecordedDateEdit(context: AppStoreContext, snapshot: Snapsh
 }
 export function endRecordedDateEdit(context: AppStoreContext): void { gates.delete(context); }
 
-/** Classificeer vóór de brug. Een eerder planningsverschil mag nooit in de overlay verdwijnen. */
 export function recordedDateRuleChange(context: AppStoreContext, task: Task, requestedNeutral: boolean, apply: () => void): void {
   const gate = gates.get(context);
   const expected = gate?.expected.get(task.id);
@@ -30,19 +29,11 @@ export function recordedDateRuleChange(context: AppStoreContext, task: Task, req
   gate!.expected.set(task.id, accepted);
 }
 
-/**
- * `resourceIds` zonder de kostenresources (#815). Een kostentoewijzing erbij of eraf verandert alleen
- * dát lidmaatschap; ze raakt geen datum, geen werk en geen sturing, dus de opgeslagen datums blijven.
- * Een werk- of materiaalresource blijft wél datumrelevant. De oude stand filtert met de kostenresources
- * van vóór de stap, de nieuwe met die van erna: zo is het wissen van een kostenresource (cascade)
- * neutraal, en telt een resource die in de stap van COST naar werk gaat en wordt toegewezen wél mee.
- */
 function withoutCostMembership(task: Task, costIds: ReadonlySet<string>): Task {
   if (costIds.size === 0 || !task.resourceIds.some(id => costIds.has(id))) return task;
   return { ...task, resourceIds: task.resourceIds.filter(id => !costIds.has(id)) };
 }
 
-/** Eén eindtoets voor de transactie én een leesstap midden in een batch. */
 export function keepsRecordedDates(context: AppStoreContext): boolean {
   const gate = gates.get(context);
   const state = context.store.getState();

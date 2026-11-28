@@ -1,18 +1,3 @@
-// Gedeeld muteerlichaam voor gebruikerssplits: `taskSlice.setTaskSplits` én de
-// MCP-draft (`runtime/createMcpTransactions.ts`).
-//
-// Zelfde verdeling als `assignmentMutations.ts`: het LICHAAM is gedeeld, wat per pad verschilt
-// blijft bij de aanroeper:
-//  - de guards — onbekend id: de slice geeft `'not-editable'` terug, de draft GOOIT; de
-//    inhoudelijke weigering (`taskSplitRefusal`) delen ze wél, want die is voor beide een antwoord
-//    aan de aanroeper (UI: gekleurd blok, MCP: VALIDATION), geen stille no-op;
-//  - undo/`isDirty`/`scheduleStale` — de slice via `beginUndoable`/`finishMutation`, de draft zet
-//    alleen `isDirty` (de transactie bezit snapshot en eindherberekening);
-//  - het verlies van MSP-sturing (laag 3/4) — de slice meldt zelf, de draft registreert de taak op
-//    de MCP-lease, zodat de envelop `timephasedGuidanceLost` draagt en de transactie één keer meldt,
-//    alleen als hij slaagt. Daarom geeft `applyTaskSplits` het verlies terug, niet een melding.
-//
-// Werkt op Immer-drafts: de functies MUTEREN `task`, doen geen snapshot en geen guard.
 import type { Task, TaskSplitGap } from '@/types/task';
 import type { WorkCalendar } from '@/types/calendar';
 import { taskDurationUnit } from '@/engine/scheduler/duration';
@@ -31,67 +16,42 @@ import {
   captureTriangle, settleDurationEdit, type RecomputedRemainingWork, type WorkRuleDeps,
 } from '@/engine/work/workRuleApply';
 
-/** Minimale state-vorm (subset van AppState) — vermijdt een import van de volledige storetype. De
- *  werkregelvelden (`WorkRuleDeps` + `assignments`) zijn voor de werkdriehoek. */
 interface SplitState extends WorkRuleDeps {
   calendars: WorkCalendar[];
   calendar: WorkCalendar;
   assignments: ResourceAssignment[];
 }
 
-/** Stap (1): de weigering, vóór élke draftmutatie. `null` (alle onderbrekingen opheffen) mag altijd,
- *  óók op een niet-wélgevormde importsplit. */
 export function taskSplitRefusal(task: Task, pieces: SplitPiece[] | null, hoursPerDay: number): SplitRefusal | null {
   return pieces === null ? null : canSplitTask(task, hoursPerDay, isSummaryTask(task));
 }
 
-/** Wat een splitbewerking de aanroeper te melden geeft. */
 export interface SplitOutcome {
-  /** De taak verloor aantoonbaar MS Project-timephased-sturing (laag 3/4). */
   timephasedLost: boolean;
-  /** Bewaard, afwijkend restwerk dat de duurwijziging opnieuw uitrekende (`settleDurationEdit`). */
   recomputedWork: RecomputedRemainingWork[];
 }
 
-/**
- * Stappen (3)–(7) van de splitbewerking op één taak. Aanroepen NA `taskSplitRefusal` (en, in de
- * slice, na `beginUndoable`). `hoursPerDay` is die van de taakkalender (`taskCalendarHoursPerDay`).
- * De meldingen gaan terug naar de aanroeper (`SplitOutcome`): de slice meldt zelf, de draft legt ze
- * op de MCP-lease.
- */
 export function applyTaskSplits(
   s: SplitState,
   task: Task,
   pieces: SplitPiece[] | null,
   hoursPerDay: number,
 ): SplitOutcome {
-  // (3) De oude werkduur — nodig vóór de duur eronder verschuift.
   const oldWorkMinutes = taskWorkMinutesOf(task, hoursPerDay);
   const slotMinutes = Math.max(1, hoursPerDay * 60);
-  // Een splitbewerking die de werkduur verandert is een duurbewerking — de werkdriehoek volgt, net
-  // als in `updateTask`.
   const triangle = captureTriangle(task, s.assignments, s);
   let recomputedWork: RecomputedRemainingWork[] = [];
 
-  // (4) Nieuwe gaten + werkduur uit het stukkenmodel. `adoptLevelingGaps` is de adoptieregel: wat
-  // de gebruiker na zijn bewerking op het scherm ziet staan, blijft staan — "Nivellering wissen"
-  // haalt niets meer weg van een taak die hij zelf heeft ingedeeld.
   const { gaps, totalWorkMinutes } = pieces === null
     ? { gaps: [] as TaskSplitGap[], totalWorkMinutes: oldWorkMinutes }
     : fromSplitPieces(adoptLevelingGaps(pieces), task.splitGaps);
   if (Math.abs(totalWorkMinutes - oldWorkMinutes) > 1e-6) {
     task.time.scheduleDuration = totalWorkMinutes / slotMinutes;
     if (taskDurationUnit(task) === 'hours') task.time.durationMinutes = totalWorkMinutes;
-    // `keepGaps`: de gatenlijst hierboven is al op de NIEUWE werkduur gerekend — nog een keer
-    // laten schalen zou dubbel zijn.
     rescaleTaskContours(task, oldWorkMinutes, hoursPerDay, contourKeepsWork(task, s.project.defaultWorkRule), { keepGaps: true });
     recomputedWork = settleDurationEdit(task, triangle).recomputedWork;
   }
 
-  // (5) Contour meeverhuizen: dagslots lezen met de OUDE gaten (de as waarop het profiel nu
-  // staat), terugschrijven met de NIEUWE — zo blijft het werk per WERKdag ongewijzigd terwijl de
-  // pauzedagen verschuiven. Verricht werk (`kind: 'actual'`) blijft ongemoeid; dat regelt
-  // `buildEditedContourPeriods` zelf.
   const oldSlots = (task.timephasedContours ?? [])
     .map(contour => contourDaySlots(contour.periods, task.splitGaps, slotMinutes).remaining);
   task.splitGaps = gaps.length > 0 ? gaps : undefined;
@@ -104,19 +64,12 @@ export function applyTaskSplits(
     }));
   }
 
-  // (6) Tijdbasis-gevolgen: een splitbewerking IS een tijdbasis-bewerking, óók zonder
-  // duurwijziging — anders overschrijft het gelezen MSP-timephased-venster de nieuwe spanne en
-  // beweegt er geen datum. Zelfde vorm als `updateTask`/`setTaskCalendar`.
   const lostTimephasedGuidance = invalidateForTimeBaseChange(task);
 
-  // (7) Eigen finish bijwerken zodat de balk direct klopt; de echte datums komen bij F5/auto-calc,
-  // zoals bij elke duurwijziging. `earlyFinish` gaat mee omdat de renderer die als eerste leest
-  // (`earlyFinish || scheduleFinish`) — dezelfde tweeslag als `useBarDrag`s dag-resize.
   const engine = new CalendarEngine(calendarForEngine(
     resolveCalendar(task.calendarId, s.calendars, s.calendar),
   ));
   task.time.scheduleFinish = splitScheduleFinish(task, engine);
-  // Het balkeinde vanaf waar de balk staat, niet vanaf het anker.
   task.time.earlyFinish = splitScheduleFinish(task, engine, task.time.earlyStart || task.time.scheduleStart);
 
   return { timephasedLost: lostTimephasedGuidance, recomputedWork };

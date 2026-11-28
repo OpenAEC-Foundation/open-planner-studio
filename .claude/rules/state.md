@@ -228,3 +228,6 @@ de getoonde datums en de tellers (0333) en de bouwstenen voor de lezers (0334).
 
 **Datums zoals opgeslagen verlaten rekent altijd door** (`useExitRecordedDates`, ook met Automatisch berekenen uit):
 `docs/adr/0782-datums-zoals-opgeslagen-verlaten-rekent-altijd.md`.
+
+**Keuzes in de losse modules van `src/state/` (n–z)**: meldingen uit de store, weigeringen, samenvouwen en eenmalig per
+document (0840), en de overige keuzes die verrassen, per functie (0841).

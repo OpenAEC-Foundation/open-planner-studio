@@ -43,20 +43,11 @@ function sourceSnapshot(state: AppState): {
   };
 }
 
-/**
- * De ene uitvoerbare bootstrapketen voor persoonlijke taakgridvoorkeuren. De React-hook roept deze
- * functie rechtstreeks aan; de headless regressietest dus ook — geen nagebouwde migratielogica.
- *
- * De loader krijgt eerst defaults uit één coherent snapshot. Blijkt daarna dat migratie/fallback
- * nodig is, dan wordt de bron opnieuw atomair gelezen; een kunstmatig trage loader plus een
- * documentwissel kan de legacykolommen zo nooit aan het inmiddels verkeerde actieve project binden.
- */
 export async function bootstrapTaskGridPreferences(
   store: TaskGridBootstrapStore,
   dependencies: TaskGridBootstrapDependencies = {},
 ): Promise<TaskGridBootstrapOutcome> {
   const load = dependencies.load ?? loadTaskGridSettings;
-  // De standaardindeling die een ontbrekende sleutel vult, is geen keuze van de gebruiker (#818).
   const save = dependencies.save ?? ((preferences: PersistedTaskGridPreferencesV1) => saveTaskGridPreferences(preferences, 'start'));
   const result = await load(sourceSnapshot(store.getState()).defaults);
   if (result.status === 'valid') {
@@ -73,16 +64,11 @@ export async function bootstrapTaskGridPreferences(
           currentSource.legacy.columns, currentSource.legacy.projectId,
         );
     }
-    // Als dit faalt, wordt hydrate niet bereikt en blijft de tijdelijke legacybron beschikbaar.
     await save(fallback);
     store.getState().hydrateTaskGridPreferences(fallback);
     return 'migrated';
   }
 
-  // Een bestaande maar corrupte/nieuwere raw key heeft voorrang op oude documentkolommen. De raw
-  // waarde blijft onaangeroerd; alleen de in-memory toestand valt veilig terug op defaults. Ook geen
-  // automatische schrijfactie (`autoWrite: false`), anders overschrijft "Kolommen automatisch
-  // aanpassen" de afgewezen voorkeur met de teruggevallen standaardkolommen.
   store.getState().hydrateTaskGridPreferences(fallback, { autoWrite: false });
   return 'invalid-fallback';
 }

@@ -1,4 +1,3 @@
-// Zelfde bedrading als de schemavraag: alleen de open vraag (met haar reden) staat in UI-state; de resolver blijft erbuiten.
 import { useAppStore } from '@/state/appStore';
 import { setPlanOnlyAsker } from '@/services/ifc/planOnlyQuestion';
 

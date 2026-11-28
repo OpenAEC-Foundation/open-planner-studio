@@ -1,18 +1,7 @@
-/**
- * De ene in-app melding voor een onbruikbaar XER-bronarchief ("openen met melding"). `readIFC` laat
- * zo'n archief vallen en zet `ImportResult.xerArchiveIssue`; deze module maakt daar de
- * gebruikerstekst van — via het meldingenkanaal, nooit een native dialoog.
- *
- * Bladmodule (importeert niets uit `slices/`), zodat zowel `fileSlice` (openen) als `documentSlice`
- * (crashherstel) hem kunnen gebruiken zonder importcyclus.
- */
 import type { XerArchiveIssue, XerArchiveIssueCode } from '@/services/importTypes';
 import type { NotificationDetailLine, NotificationMessageKey, NotifyInput } from './slices/types';
-// De in-app gids achter de XER-meldingen (openen, exportverlies, onbruikbaar archief).
 import { XER_IMPORT_HELP_ARTICLE_ID } from './helpArticles';
 
-/** Eén vertaalde reden per code. `Record` over de gesloten unie ⇒ een nieuwe code zonder tekst is
- *  een compile-fout. */
 export const XER_ARCHIVE_REASON_KEYS: Readonly<Record<XerArchiveIssueCode, NotificationMessageKey>> = {
   'schema-version': 'notifications.xerArchiveReasonSchemaVersion',
   'hash-mismatch': 'notifications.xerArchiveReasonHashMismatch',
@@ -22,7 +11,6 @@ export const XER_ARCHIVE_REASON_KEYS: Readonly<Record<XerArchiveIssueCode, Notif
   structure: 'notifications.xerArchiveReasonStructure',
 };
 
-/** Reden(en) + gevolg, zonder kopregel. Dubbele codes (meerdere herstelde documenten) één keer. */
 function reasonAndConsequenceLines(issues: readonly XerArchiveIssue[]): NotificationDetailLine[] {
   const codes = [...new Set(issues.map(issue => issue.code))];
   return [
@@ -31,10 +19,6 @@ function reasonAndConsequenceLines(issues: readonly XerArchiveIssue[]): Notifica
   ];
 }
 
-/**
- * Voeg de archiefmelding toe aan een bestaande bestandsmelding (als detailregels), of maak er een
- * eigen melding van als er geen is. Geen issues ⇒ `notice` ongewijzigd terug.
- */
 export function withXerArchiveIssueNotice(
   notice: NotifyInput | undefined,
   issues: readonly (XerArchiveIssue | null | undefined)[],

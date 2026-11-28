@@ -6,7 +6,6 @@ import {
 } from '@/engine/view/visibleRows';
 import { getNoneLabelValue, getResourceTypeLabelsValue } from '@/utils/noneLabel';
 
-/** Minimale structurele invoer; bewust geen AppState-import, zodat dit een echte bladmodule blijft. */
 export interface ViewRowsState {
   tasks: Parameters<typeof computeViewRows>[0];
   view: {
@@ -22,7 +21,6 @@ export interface ViewRowsState {
   assignments: ViewContext['assignments'];
 }
 
-/** Eén pure invoerprojectie voor viewupdates, historymaterialisatie en bandberekeningen. */
 export function viewRowInputs(state: ViewRowsState): { opts: ViewRowOpts; ctx: ViewContext } {
   return {
     opts: {

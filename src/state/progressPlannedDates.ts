@@ -14,7 +14,6 @@ type ProgressPlanning = Pick<AppState,
   'tasks' | 'sequences' | 'project' | 'calendar' | 'calendars'
   | 'cpmResult' | 'datesAsRecorded' | 'scheduleStale'>;
 
-/** Reken op een kopie zonder de statusdatumvloer voor open werk. */
 function progressSolveInput(state: ProgressPlanning) {
   const input = solveInputFor(state.project, cloneTasksForSolve(state.tasks), state.sequences, state.calendar, state.calendars);
   return {
@@ -27,7 +26,6 @@ function solveProgressPlacement(state: ProgressPlanning): ReturnType<typeof solv
   return solveProject(progressSolveInput(state));
 }
 
-/** De eerste afleiding rekent zo nodig op een kopie, gedeeld door alle taken in deze invoer. */
 export function progressPlannedDates(
   state: ProgressPlanning, placementEdited = false, forward?: ProgressForwardPass, solved?: CPMResult,
 ): (task: Task) => PlannedProgressDates | undefined {
@@ -35,7 +33,6 @@ export function progressPlannedDates(
   let result = solved;
   return task => {
     const before = task.time.progressBeforeRecalculation;
-    // Een echte berekening wist deze basis. Tijdens een MCP-transactie kan de vlag nog uitstaan.
     if (before && task.time.actualStart && !task.time.actualFinish) {
       const { status, splitGaps, ...time } = before;
       const projected = { ...task, status, splitGaps, time: { ...task.time, ...time } };
@@ -102,7 +99,6 @@ interface LiveProgressPlan {
 
 const liveProgressStarts = new WeakMap<AppState, LiveProgressPlan>();
 
-/** Hergebruik de rekenstand voor dezelfde momentopname. */
 export function liveProgressPlannedDates(state: AppState): ReturnType<typeof progressPlannedDates> {
   let plan = liveProgressStarts.get(state);
   if (!plan) {
@@ -114,7 +110,6 @@ export function liveProgressPlannedDates(state: AppState): ReturnType<typeof pro
   return plan.lookup;
 }
 
-/** Na één bekende voortgangsmutatie is alleen het gewijzigde blad met zijn opvolgers verouderd. */
 export function carryLiveProgressPlan(before: AppState, after: AppState, taskId: string): void {
   if (before === after || before.tasks === after.tasks) return;
   const forward = liveProgressStarts.get(before)?.forward;
@@ -126,7 +121,6 @@ export function carryLiveProgressPlan(before: AppState, after: AppState, taskId:
   if (!task || task.id !== taskId || before.tasks.length !== after.tasks.length
     || before.tasks.some((item, i) => i !== index && item !== after.tasks[i])
     || !forward.accept(task)) return;
-  // Verplaats de rekenstand. Een vorige momentopname kan later via Ctrl+Z terugkomen.
   liveProgressStarts.delete(before);
   liveProgressStarts.set(after, { lookup: progressPlannedDates(after, false, forward), forward });
 }
@@ -138,7 +132,6 @@ export function taskPlacementChanged(before: Task, after: Task): boolean {
     || before.time.remainingMinutes !== after.time.remainingMinutes;
 }
 
-/** Voortgang van deze taken kan de geplande datum van een andere taak wijzigen. */
 export function progressCanShiftOtherTasks(state: Pick<AppState, 'tasks' | 'sequences'>): (id: string) => boolean {
   if (state.tasks.some(task => task.isHammock || task.constraint?.type === 'ALAP' || task.constraint2?.type === 'ALAP')) {
     return () => true;
@@ -148,7 +141,6 @@ export function progressCanShiftOtherTasks(state: Pick<AppState, 'tasks' | 'sequ
   return id => predecessors.has(id);
 }
 
-/** Toets de taken in relatievolgorde, met alleen de al aanvaarde voortgang als extra invoer. */
 export function progressPlacementForBatch(
   state: ProgressPlanning, ids: ReadonlySet<string>, statusDate: string | undefined,
 ) {
@@ -182,7 +174,6 @@ export function progressPlacementForBatch(
   };
 }
 
-/** Bij gecombineerde invoer telt de bewerkte plaatsing mee, vóór de conceptvoortgang. */
 export function progressPlannedDatesAfterEdit(
   state: AppState, before: Task, edited: Task, completing: boolean,
 ): PlannedProgressDates | undefined {
