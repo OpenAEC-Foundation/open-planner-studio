@@ -1,21 +1,9 @@
-// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
-// Voortgang INVULLEN via de UI (`engine/progressEntry.ts`), met echte events: klik op de balk,
-// het eigenschappenpaneel, het contextmenu, Ctrl+Z.
-//
-// Regel 1 (Z1, besluit eigenaar): voortgang invullen zonder statusdatum ⇒ de app zet de statusdatum
-// op VANDAAG (wat het statusdatumveld oplevert: datum zonder tijd) en meldt dat via het ene
-// meldkanaal. Statusdatum + voortgang zijn samen één undo-stap. Vóór de wijziging bleef de
-// statusdatum leeg en rekende de solver de lopende taak met speling −1.
-//
-// De brug zet alleen fixtures (taken, relaties, weergave) en leest state; de geteste handelingen
-// gaan via muis en toetsenbord. Headless tegenhanger: tests/planning/check-progress-entry.ts.
 import type { Locator, Page } from '@playwright/test';
 import { taskColumnId } from '@/engine/taskGrid/fieldIds';
 import { computeEffectiveViewStart } from '@/utils/ganttViewport';
 import { shownFinish, shownStart } from '@/utils/taskDates';
 import { barPoint, expect, state, test } from './fixtures/ops';
 
-/** Vandaag in de browser, zoals de gebruiker hem in het statusdatumveld typt (lokale kalenderdag). */
 function browserToday(page: Page): Promise<string> {
   return page.evaluate(() => {
     const d = new Date();
@@ -30,7 +18,6 @@ function shiftDays(iso: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-/** A (5 wd) → B (3 wd) FS, projectstart `startOffset` kalenderdagen t.o.v. vandaag, geen statusdatum. */
 async function seedChain(page: Page, startOffset: number): Promise<{ A: string; B: string; start: string }> {
   const today = await browserToday(page);
   const start = shiftDays(today, startOffset);
@@ -75,13 +62,11 @@ async function readProgressDates(page: Page, taskId: string) {
   };
 }
 
-/** De datum zoals de melding hem toont (standaardnotatie dd-mm-jjjj). */
 function shown(iso: string): string {
   const [y, m, d] = iso.split('-');
   return `${d}-${m}-${y}`;
 }
 
-/** Bestaande voltooide taak; levert pas een balkpunt als de nieuwe datums én tijdas getekend zijn. */
 async function seedActualDates(
   page: Page,
   taskId: string,
@@ -106,10 +91,6 @@ async function seedActualDates(
     return { paints, tasks: current.tasks, view: current.view };
   }, { id: taskId, start: actualStart, finish: actualFinish, viewStart: viewStartDate, requestedZoom: zoom });
 
-  // Een niet-null barPoint kan nog bij de vorige paint horen (knownbug175). Alleen een hogere
-  // paintteller is ook niet genoeg: een al ingepland frame kan nog de oude invoer tekenen.
-  // Lees daarom de echte as en beide balkranden in dezelfde observatie. De oorsprong komt uit
-  // dezelfde pure afleiding als de app; de fixture gebruikt dagbalken met een inclusieve einddag.
   const origin = computeEffectiveViewStart(fixture.tasks, fixture.view.viewStartDate);
   let point: { x: number; y: number } | null = null;
   await expect.poll(async () => {
@@ -120,7 +101,6 @@ async function seedActualDates(
       const left = gantt.taskBarPoint(id, 'left');
       const right = gantt.taskBarPoint(id, 'right');
       const body = gantt.taskBarPoint(id);
-      // dateX observeert de kalenderdag; de native momenten liggen binnen die dag.
       const instantX = (iso: string) => {
         const x = gantt.dateX(iso.slice(0, 10));
         const minutes = iso.includes('T') ? Number(iso.slice(11, 13)) * 60 + Number(iso.slice(14, 16)) : 0;
@@ -169,7 +149,6 @@ async function rejectReversedDates(page: Page, scope: Locator, taskId: string): 
     expect(await readProgress(page, taskId)).toEqual(before);
     expect((await state(page)).undoDepth).toBe(depth);
   }
-  // Een geldige correctie blijft mogelijk na de weigering.
   const start = scope.getByRole('group', { name: /^(Actual start|Werkelijke start)$/i }).getByRole('textbox').first();
   await start.fill('11');
   await scope.locator('[data-ops-progress-slider]').first().focus();
@@ -215,7 +194,6 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   expect(await readProgressDates(page, B)).toEqual(completed);
 
   await expect.poll(() => readProgress(page, B).then(p => p.statusDate)).toBe(today);
-  // Het statusdatumveld in het lint toont hem ook (Planning-tab).
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ activeRibbonTab: 'planning' }));
   const [y, m, d] = today.split('-');
   const statusField = page.getByRole('group', { name: /^(Status date|Statusdatum)$/ }).first();
@@ -225,13 +203,10 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await expect(statusField.getByRole('textbox').nth(2)).toHaveValue(y);
   expect((await state(page)).undoDepth).toBe(before.undoDepth + 1);
 
-  // Focus uit het schuifveld (een invoerveld vangt Ctrl+Z zelf), dan één Ctrl+Z.
   await page.mouse.click(point.x, point.y);
   await page.keyboard.press('Control+z');
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate: null, completion: 0, actualStart: null });
 
-  // Twee afzonderlijke bedieningen met handmatig rekenen gebruiken hetzelfde geplande venster,
-  // ook als de planner tussendoor twee andere taken aan elkaar koppelt.
   const [unrelatedA, unrelatedB] = await page.evaluate(() => {
     const store = window.__OPS__!.store.getState();
     store.setUI({ autoCalcCPM: false });
@@ -261,13 +236,11 @@ test('Regel 1, paneel: voortgang zonder statusdatum zet hem op vandaag, meldt da
   await page.locator(`[data-grid-row-key="${B}"] [data-grid-column-id="task.name"]`).first().click();
   await page.keyboard.press('Control+z');
   expect(await readProgressDates(page, B)).toEqual(partial);
-  await page.keyboard.press('Control+z'); // De koppeling van de andere taken.
+  await page.keyboard.press('Control+z');
   await page.keyboard.press('Control+z');
   expect(await readProgressDates(page, B)).toEqual(original);
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: true }));
 
-  // Wanneer de statusdatum al berekend is, is de zichtbare start van de open taak opgeschoven.
-  // Dezelfde schuif moet haar oorspronkelijke, door Fundering bepaalde, start vastleggen.
   await page.evaluate(date => {
     const s = window.__OPS__!.store.getState();
     s.setProject({ statusDate: date });
@@ -336,9 +309,6 @@ test('#998 contextmenu: opvolger gebruikt de planning nadat het nivelleergat ver
   expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0.5, actualStart: '2026-06-08T07:00' });
 });
 
-// ── Regel 2 (Z1b): voortgang op een taak die pas na de statusdatum begint ⇒ eerst vragen ─────────
-
-/** Keten die helemaal ná de statusdatum (gisteren) ligt: projectstart twee weken na vandaag. */
 async function seedFutureChain(page: Page): Promise<{ A: string; B: string; statusDate: string; today: string }> {
   const today = await browserToday(page);
   const statusDate = shiftDays(today, -1);
@@ -352,7 +322,6 @@ async function seedFutureChain(page: Page): Promise<{ A: string; B: string; stat
   return { A, B, statusDate, today };
 }
 
-/** Vul een datum in het gesegmenteerde datumveld van de vraag (standaardnotatie dd-mm-jjjj). */
 async function fillQuestionDate(page: Page, taskName: string, iso: string): Promise<void> {
   const [y, m, d] = iso.split('-');
   const segments = page.locator('[data-ops-actual-start-dialog]')
@@ -369,7 +338,6 @@ function titleHistoryButton(page: Page, kind: 'undo' | 'redo'): Locator {
     : /^(Redo|Opnieuw) \(Ctrl\+Y\)$/);
 }
 
-/** Lees Help met een echte klik; terug via Enter mag de wachtende voortgang niet bevestigen. */
 async function visitActualStartHelp(page: Page, taskId: string, options: {
   via?: 'click' | 'enter'; inspectNavigation?: boolean; inspectHistory?: boolean;
 } = {}): Promise<void> {
@@ -417,19 +385,16 @@ async function visitActualStartHelp(page: Page, taskId: string, options: {
   await expect(sidebar.getByRole('button', { name: /^(Close project|Sluit project)$/ })).toBeDisabled();
 
   if (options.inspectNavigation) {
-    // Schoon document + taakconcept: Sluit project mag ook zonder dirty-sluitvraag niet vertrekken.
     expect(pendingBefore.isDirty).toBe(false);
     for (const name of [
       /^(New|Nieuw)$/, /^(Open|Openen)$/, /^(Save|Opslaan)$/,
       /^(Save As|Opslaan als)$/, /^(Start tour|Rondleiding starten)$/,
     ]) await expect(sidebar.getByRole('button', { name })).toBeDisabled();
-    // force slaat Playwrights enabled-check over; de echte browserklik op disabled doet niets.
     await sidebar.getByRole('button', { name: /^(Close project|Sluit project)$/ }).click({ force: true });
     await page.locator('[data-ops-pill]').click({ force: true });
     expect(await pendingState()).toEqual(pendingBefore);
     await expect(page.locator('.help-panel')).toBeVisible();
 
-    // docs blijven leesbaar, maar examples:// en project:// zijn tijdelijk gewone tekst.
     await page.locator('[data-help-article="tut-startvraag-vertrek"]').click();
     await expect(article).toHaveAttribute('data-help-current', 'tut-startvraag-vertrek');
     await expect(article).toContainText('Voorbeeld openen');
@@ -441,7 +406,6 @@ async function visitActualStartHelp(page: Page, taskId: string, options: {
   }
 
   if (options.inspectHistory) {
-    // Beide richtingen zijn in de fixture beschikbaar; disabled komt van de vraag, niet van lege historie.
     expect(historyBefore.undoDepth).toBeGreaterThan(0);
     expect(historyBefore.redoDepth).toBeGreaterThan(0);
     const undo = titleHistoryButton(page, 'undo');
@@ -452,7 +416,6 @@ async function visitActualStartHelp(page: Page, taskId: string, options: {
       await button.click({ force: true });
       expect(await pendingState()).toEqual(pendingBefore);
     }
-    // Ook niet-documentaire ingangen naar mutaties (instellingen, AutoSave, feedback) wachten.
     const title = page.locator('.title-bar');
     await expect(title.locator('[data-ops-autosave]')).toBeDisabled();
     await expect(title.getByTitle(/^(App settings|App-instellingen)$/)).toBeDisabled();
@@ -460,7 +423,6 @@ async function visitActualStartHelp(page: Page, taskId: string, options: {
     for (const region of ['title', 'notices', 'status', 'overlays']) {
       await expect(page.locator(`[data-ops-background-controls="${region}"]`)).toHaveJSProperty('inert', true);
     }
-    // Geen tekstveld-focus: de app moet de historie blokkeren, niet de native tekst-undo.
     await page.locator('[data-ops-backstage-back]').focus();
     for (const key of ['Control+z', 'Control+y', 'Control+Shift+z', 'Meta+z', 'Meta+Shift+z']) {
       await page.keyboard.press(key);
@@ -468,7 +430,6 @@ async function visitActualStartHelp(page: Page, taskId: string, options: {
     }
   }
 
-  // De dialoog luistert tijdens Help niet mee naar Enter; de echte Terug-knop krijgt die toets.
   await page.locator('[data-ops-backstage-back]').focus();
   await page.keyboard.press('Enter');
   await expect(question).toBeVisible();
@@ -480,7 +441,6 @@ async function visitActualStartHelp(page: Page, taskId: string, options: {
 
 test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert niets, bevestigen is één stap', async ({ page, ops: _ops }) => {
   const { B, statusDate } = await seedFutureChain(page);
-  // Fixture met beschikbare undo én redo: een echte Undo-klik zet de beschrijvingswijziging klaar.
   const redoDescription = 'Nog niet opnieuw toegepast';
   const description = () => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.description, B);
   await page.evaluate(({ id, description }) => window.__OPS__!.store.getState().updateTask(id, { description }),
@@ -493,7 +453,6 @@ test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert ni
   const slider = page.locator('[data-ops-progress-slider]').first();
   const before = await state(page);
 
-  // Pijltje rechts op de schuif ⇒ de vraag, met de statusdatum als voorstel; er is nog niets veranderd.
   await slider.focus();
   await page.keyboard.press('ArrowRight');
   const question = page.locator('[data-ops-actual-start-dialog]');
@@ -507,7 +466,6 @@ test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert ni
   await expect(segments.nth(2)).toHaveValue(y);
   expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
 
-  // Help bewaart de nog niet bevestigde datum en de actie. Daarna blijft annuleren mogelijk.
   const helpDate = shiftDays(statusDate, -1);
   await fillQuestionDate(page, 'Metselwerk', helpDate);
   await visitActualStartHelp(page, B, { inspectHistory: true });
@@ -516,7 +474,6 @@ test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert ni
   await expect(segments.nth(1)).toHaveValue(helpMonth);
   await expect(segments.nth(2)).toHaveValue(helpYear);
 
-  // Onbestaande datum: DateTextInput bewaart zijn ruwe segmenten én foutstatus tijdens Help.
   await fillQuestionDate(page, 'Metselwerk', `${Number(y) - 1}-02-21`);
   await segments.nth(0).fill('31');
   await question.getByRole('button', { name: /^(Help on this topic|Help bij dit onderdeel)$/ }).focus();
@@ -537,13 +494,11 @@ test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert ni
   await fillQuestionDate(page, 'Metselwerk', helpDate);
   await expect(question.getByRole('alert')).toHaveCount(0);
 
-  // Annuleren (Escape): niets veranderd, geen undo-stap.
   await page.keyboard.press('Escape');
   await expect(question).toBeHidden();
   expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
   expect((await state(page)).undoDepth).toBe(before.undoDepth);
 
-  // Vraag geannuleerd: de shell is weer bedienbaar en dezelfde historie kan echt redo/undo doen.
   await expect(page.locator('[data-ops-background-controls="title"]')).toHaveJSProperty('inert', false);
   await expect(titleHistoryButton(page, 'undo')).toBeEnabled();
   await expect(titleHistoryButton(page, 'redo')).toBeEnabled();
@@ -558,7 +513,6 @@ test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert ni
   expect((await state(page)).undoDepth).toBe(before.undoDepth);
   expect((await state(page)).redoDepth).toBe(before.redoDepth);
 
-  // Opnieuw; een datum ná de statusdatum bestaat niet: gemeld, Toepassen blijft uit.
   await slider.focus();
   await page.keyboard.press('ArrowRight');
   await expect(question).toBeVisible();
@@ -569,7 +523,6 @@ test('Regel 2, paneel: de app vraagt de werkelijke start; annuleren verandert ni
   await expect(question.getByRole('alert')).toBeVisible();
   await expect(question.locator('[data-ops-actual-start-confirm]')).toBeDisabled();
 
-  // Een geldige datum, bevestigen met de knop.
   const actualStart = shiftDays(statusDate, -3);
   await fillQuestionDate(page, 'Metselwerk', actualStart);
   await expect(question.getByRole('alert')).toHaveCount(0);
@@ -592,7 +545,6 @@ test('Regel 2, schuif slepen: de vraag komt pas bij het loslaten, met de gesleep
   await page.mouse.down();
   await page.mouse.move(box.x + box.width * 0.3, box.y + box.height / 2, { steps: 5 });
   await page.mouse.move(box.x + box.width * 0.5, box.y + box.height / 2, { steps: 5 });
-  // Tijdens het slepen: geen vraag, niets toegepast, de schuif toont wel de gesleepte waarde.
   await expect(question).toHaveCount(0);
   expect((await readProgress(page, B)).completion).toBe(0);
   const dragged = Number(await slider.inputValue());
@@ -624,7 +576,6 @@ test('Regel 2, taakraster: % typen vraagt de werkelijke start en herhaalt de inv
   expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
   const actualStart = shiftDays(statusDate, -2);
   await fillQuestionDate(page, 'Metselwerk', actualStart);
-  // Enter bevestigt de vraag (en niets anders).
   await page.keyboard.press('Enter');
   await expect(question).toBeHidden();
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 0.4, actualStart: `${actualStart}T07:00` });
@@ -676,7 +627,6 @@ test('#998, taakraster: plakken van een latere voorganger en voortgang vraagt v�
 
 test('Regel 2, Taak bewerken: de vraag stapelt boven de dialoog; Enter bevestigt alleen de vraag', async ({ page, ops: _ops }) => {
   const { B, statusDate } = await seedFutureChain(page);
-  // Fixture: opgeslagen document, onopgeslagen taakconcept; de titelbalk toont de projectwisselaar.
   const registered = await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     window.__OPS__!.store.setState({ isDirty: false });
@@ -713,15 +663,12 @@ test('Regel 2, Taak bewerken: de vraag stapelt boven de dialoog; Enter bevestigt
   await expect(segments.nth(2)).toHaveValue(year);
   await page.keyboard.press('Enter');
   await expect(question).toBeHidden();
-  // De taakdialoog staat nog open: de voortgang staat op de concepttaak, nog niet in de store.
   await expect(taskDialog).toBeVisible();
   expect(await readProgress(page, B)).toEqual({ statusDate, completion: 0, actualStart: null });
 
   await taskDialog.locator('[data-ops-task-save]').click();
   await expect(taskDialog).toBeHidden();
   await expect.poll(() => readProgress(page, B)).toEqual({ statusDate, completion: 1, actualStart: `${actualStart}T07:00` });
-  // Heropen dezelfde taak in twee zichtbare standen. Ook als de werkelijke datums al bekend
-  // zijn, moet de nieuwe tijdas klaar zijn; coördinaten uit de vorige stand missen de balk.
   for (const [viewStart, zoom] of [['2026-09-01', 18], ['2026-09-05', 12]] as const) {
     const reopened = await seedActualDates(page, B, viewStart, zoom);
     await page.mouse.dblclick(reopened.x, reopened.y);
@@ -733,7 +680,6 @@ test('Regel 2, Taak bewerken: de vraag stapelt boven de dialoog; Enter bevestigt
     expect((await readProgress(page, B)).actualStart).toBe("2026-09-11T07:00");
   }
 
-  // Vraag afgehandeld: de vertrekacties en de bestaande projectlinks zijn weer beschikbaar.
   await page.locator('.ribbon-tab--file').click();
   await page.locator('.backstage-sidebar').getByRole('button', { name: 'Help', exact: true }).click();
   await page.locator('[data-help-article="tut-startvraag-vertrek"]').click();

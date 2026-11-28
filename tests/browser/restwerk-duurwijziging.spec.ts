@@ -1,12 +1,6 @@
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
-// Restwerk bij een duurwijziging (eigenaarsbesluit 2026-10-19, optie 2). De fixture bootst E-1010 uit
-// Harbour Point DCP-03 na: een niet-gestarte uurtaak van 80 h met een expliciete restduur en een
-// Design Engineer op inzet 1 met een bewaard restwerk van 320 h (wijkt af van 1 × 80 h, dus het
-// waarschuwingsteken staat). `__OPS__` zet alleen die fixture en leest state; de duur typen, Ctrl+Z,
-// cellen kiezen, Ctrl+C en Ctrl+V zijn echte browser-events.
-
 const H = 60;
 const BAND = [{ start: 480, end: 960 }];
 
@@ -34,7 +28,6 @@ async function seed(page: Page, tasks: SeedTask[]): Promise<string[]> {
         },
       });
       if (input.workHours !== undefined) ops.store.getState().assignResource(id, resourceId, 1);
-      // Zoals na een P6-import: een expliciete restduur en een bewaard restwerk.
       ops.store.setState((st) => {
         st.tasks.find(t => t.id === id)!.time.remainingMinutes = input.hours * 60;
         if (input.workRule) st.tasks.find(t => t.id === id)!.workRule = input.workRule;
@@ -73,7 +66,6 @@ test('paneel: duur 80 → 72 h ⇒ restwerk 72 h, één melding; Ctrl+Z zet 320 
   await duration.click();
   await duration.press('ControlOrMeta+a');
   await duration.pressSequentially('72');
-  // Rapport en Help delen de invoerpoort met het native menu: een draft blijft staan tot Enter.
   for (const key of ['Control+p', 'F1']) {
     await page.keyboard.press(key);
     await expect(duration).toBeFocused();
@@ -87,7 +79,6 @@ test('paneel: duur 80 → 72 h ⇒ restwerk 72 h, één melding; Ctrl+Z zet 320 
   await expect(page.locator('.ops-toast', { hasText: ONE })).toHaveCount(1);
   await expect(warning).toHaveCount(0);
 
-  // Ctrl+Z op de pagina (de invoer is na Enter niet meer actief).
   await expect(duration).not.toBeFocused();
   await page.keyboard.press('Control+z');
   await expect.poll(() => workOf(page, taskId)).toEqual({ duration: 80 * H, rest: 80 * H, work: 320 * H });
@@ -106,12 +97,10 @@ test('tabel: één waarde plakken in twee rijen ⇒ beide herrekend, één meldi
   );
   await expect(cell(sourceId)).toBeVisible();
 
-  // Kopieer de duur van de bronrij.
   await cell(sourceId).click();
   await expect(cell(sourceId)).toBeFocused();
   await page.keyboard.press('Control+c');
 
-  // Kies de duurcellen van de twee doelrijen (klik + Shift-klik) en plak.
   await cell(firstId).click();
   await expect(cell(firstId)).toBeFocused();
   await cell(secondId).click({ modifiers: ['Shift'] });
@@ -127,19 +116,13 @@ test('tabel: één waarde plakken in twee rijen ⇒ beide herrekend, één meldi
   await expect.poll(() => workOf(page, secondId)).toEqual({ duration: 40 * H, rest: 40 * H, work: 160 * H });
 });
 
-// Tabel-⚠ (eigenaarsbesluit 2026-10-19, optie 1): de kolom *Resterend werk (uren)* toont hetzelfde ⚠
-// als *Werk (rest)* in het paneel Toewijzingen, met dezelfde uitleg als title. De kolom zetten is een
-// fixture (dezelfde voorkeur als via de kolomkiezer); de duur typen en Ctrl+Z zijn echte toetsen.
-// De slotzin hangt af van de regel (besluit V10, eigenaar 2026-10-19, optie 1).
 const exactly = (texts: string[]) => new RegExp(`^(${texts.map(text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})$`);
 const HINT_NL = 'Opgeslagen werk 320u wijkt af van inzet × resterende duur (80u). Het histogram volgt het opgeslagen werk over de hele taakduur.';
 const HINT_EN = 'Stored work 320h differs from units × remaining duration (80h). The histogram follows the stored work across the whole task duration.';
-// Vaste duur en inzet (de standaard): de app vervangt het werk bij een duurwijziging.
 const HINT_320_80 = exactly([
   `${HINT_NL} De app verandert dit niet vanzelf. Wijzig je de duur, dan vervangt de app dit werk door inzet × nieuwe duur. Je krijgt dan een melding; Ctrl+Z zet het terug.`,
   `${HINT_EN} The app does not change this by itself. If you change the duration, the app replaces this work with units × new duration. You then get a notice; Ctrl+Z undoes it.`,
 ]);
-// Vast werk: het werk blijft staan, de inzet past zich aan.
 const HINT_320_80_KEEPS = exactly([
   `${HINT_NL} De app verandert dit niet vanzelf. Wijzig je de duur, dan blijft dit werk staan en past de app de inzet aan.`,
   `${HINT_EN} The app does not change this by itself. If you change the duration, this work stays and the app adjusts the units.`,
@@ -169,19 +152,16 @@ test('tabel: ⚠ in Resterend werk bij afwijkend restwerk, met de uitleg van het
   await expect(warning(deviatingId)).toHaveAttribute('title', HINT_320_80);
   await expect(warning(deviatingId)).toHaveAttribute('aria-label', HINT_320_80);
   await expect(warning(okId)).toHaveCount(0);
-  // Aanwijzen met de muis: de app-tooltip toont dezelfde tekst.
   await warning(deviatingId).hover();
   await expect(page.locator('.ops-tooltip[role="tooltip"]')).toHaveText(HINT_320_80);
   await page.mouse.move(5, 5);
   await expect(page.locator('.ops-tooltip[role="tooltip"]')).toHaveCount(0);
 
-  // Dezelfde tekst als het ⚠ in het paneel Toewijzingen.
   await page.evaluate((id) => window.__OPS__!.store.getState().selectTask(id), deviatingId);
   const panelWarning = page.locator('[data-ops-assignment-work-deviates]');
   await expect(panelWarning).toHaveCount(1);
   expect(await panelWarning.getAttribute('title')).toBe(await warning(deviatingId).getAttribute('title'));
 
-  // Duur 80 → 72 h in de tabel: de app rekent het restwerk opnieuw uit, het ⚠ verdwijnt.
   const duration = cell(deviatingId, 'task.time.scheduleDuration');
   await duration.click();
   await page.keyboard.press('Enter');
@@ -191,7 +171,6 @@ test('tabel: ⚠ in Resterend werk bij afwijkend restwerk, met de uitleg van het
   await expect(cell(deviatingId, 'assignment.remainingWork')).toContainText('Design Engineer: 72');
   await expect(warning(deviatingId)).toHaveCount(0);
 
-  // Ctrl+Z: 320 h en het ⚠ terug.
   await page.keyboard.press('Control+z');
   await expect.poll(() => workOf(page, deviatingId)).toEqual({ duration: 80 * H, rest: 80 * H, work: 320 * H });
   await expect(warning(deviatingId)).toHaveCount(1);
@@ -218,11 +197,9 @@ test('tabel: ⚠-uitleg bij Vast werk zegt dat het werk blijft; een duurwijzigin
   await expect(page.locator('.ops-tooltip[role="tooltip"]')).toHaveText(HINT_320_80_KEEPS);
   await page.mouse.move(5, 5);
 
-  // Het paneel kiest dezelfde slotzin.
   await page.evaluate((id) => window.__OPS__!.store.getState().selectTask(id), taskId);
   await expect(page.locator('[data-ops-assignment-work-deviates]')).toHaveAttribute('title', HINT_320_80_KEEPS);
 
-  // En de app doet wat de zin zegt: duur 80 → 72 h ⇒ het werk blijft 320 h, geen melding.
   const duration = cell('task.time.scheduleDuration');
   await duration.click();
   await page.keyboard.press('Enter');

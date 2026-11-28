@@ -1,10 +1,3 @@
-// Werkelijke datums op het scherm (eigenaarsbesluit 2026-10-12, optie 1: "zoals Primavera"). Echte
-// gebruikersflow: een .xer via de ribbonknop Openen en de bestandskiezer, in het P6-profiel. Daar zet
-// de motor de rekenstart van een voltooide (CP_Phys, C5) én een lopende taak (A19) op de statusdatum;
-// het scherm toont de werkelijke datums. Gecontroleerd wordt wat de gebruiker ZIET: de plek en breedte
-// van de Gantt-balken, het Start-veld in het eigenschappenpaneel en de melding bij slepen. De
-// `window.__OPS__`-brug zoekt alleen taak-id's op, selecteert een taak en leest balkgeometrie.
-// Zelfde fixture als `tests/planning/check-table-shown-dates.ts` (secties 8–11).
 import type { Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
@@ -13,8 +6,6 @@ function workWeekCalendar(): string {
   return `(0||CalendarData()((0||DaysOfWeek()(${[1, 2, 3, 4, 5, 6, 7].map(day).join('')}))(0||Exceptions()())))`;
 }
 
-// C1: voltooid 05-01 t/m 16-01 (twee werkweken). L1: gestart 23-02, rest 45 u na de statusdatum
-// 02-03. N1: niet gestart, volgt L1 (FS) ⇒ één werkweek vanaf 09-03.
 const ACTUALS_XER = [
   'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -51,8 +42,6 @@ async function openActualsXer(page: Page): Promise<{ c1: string; l1: string; n1:
 
 interface BarSpan { left: number; right: number; y: number; paints: number }
 
-/** De balk van een taak zoals de laatste paint hem tekende, pas als twee lezingen achter elkaar gelijk
- *  zijn (geen tussentijdse repaint) — hetzelfde rustpatroon als `gantt-hour-drag.spec.ts`. */
 async function settledBar(page: Page, id: string): Promise<BarSpan> {
   let last: BarSpan | null = null;
   let stableReads = 0;
@@ -86,14 +75,11 @@ test('werkelijke datums: een voltooide en een lopende P6-taak staan op hun werke
       l1EarlyStart: time(l1).earlyStart,
     };
   }, ids);
-  // Opzet: P6-profiel, buiten de modus "datums zoals opgeslagen", en de motor zet de rekenstart van
-  // beide taken op de statusdatum. Zonder dit is de rest van de test geen bewijs.
   expect(opened).toMatchObject({ profile: 'p6', datesAsRecorded: false, l1EarlyStart: '2026-03-02T08:00' });
   expect(opened.c1EarlyStart >= '2026-03-02').toBe(true);
 
   for (const round of ['geopend', 'na F5'] as const) {
     if (round === 'na F5') {
-      // F5 is de gewone herberekening van de gebruiker.
       await page.keyboard.press('F5');
       await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().scheduleStale)).toBe(false);
     }
@@ -101,12 +87,8 @@ test('werkelijke datums: een voltooide en een lopende P6-taak staan op hun werke
     const c1 = await settledBar(page, ids.c1);
     const l1 = await settledBar(page, ids.l1);
     const n1 = await settledBar(page, ids.n1);
-    // Voltooid: een balk over twee werkweken (05-01 08:00 t/m 16-01 17:00), geen stomp op de statusdatum.
     expect(c1.right - c1.left, `${round}: breedte van de voltooide balk`).toBeGreaterThan(8 * zoom);
-    // … en hij eindigt ruim vóór de start van de lopende taak (23-02): ruim vijf weken ertussen.
     expect(l1.left - c1.right, `${round}: ruimte tussen voltooid einde en lopende start`).toBeGreaterThan(20 * zoom);
-    // Lopend: de balk begint op de werkelijke start 23-02, twee weken vóór N1 (09-03) — niet op de
-    // statusdatum 02-03, één week ervóór.
     expect(n1.left - l1.left, `${round}: afstand lopende start tot opvolger`).toBeGreaterThan(10 * zoom);
   }
 });
@@ -114,7 +96,6 @@ test('werkelijke datums: een voltooide en een lopende P6-taak staan op hun werke
 test('werkelijke datums: Start van een gestarte taak is alleen-lezen in het paneel, slepen meldt het en verschuift niets', async ({ page, ops: _ops }) => {
   const ids = await openActualsXer(page);
 
-  // Paneel: de lopende taak selecteren (fixture) en het Start-veld lezen zoals de gebruiker het ziet.
   await page.evaluate(id => window.__OPS__!.store.getState().selectTask(id), ids.l1);
   const startField = page.locator('[data-ops-rail]').getByRole('group', { name: /^Start$/ });
   await expect(startField).toHaveAttribute('aria-disabled', 'true');
@@ -122,13 +103,10 @@ test('werkelijke datums: Start van een gestarte taak is alleen-lezen in het pane
   await expect(startField.locator('input').first()).toHaveValue('23');
   await expect(startField).toHaveAttribute('title', /(actual start|werkelijke start)/);
 
-  // Een niet gestarte taak houdt een bewerkbaar Start-veld.
   await page.evaluate(id => window.__OPS__!.store.getState().selectTask(id), ids.n1);
   await expect(startField).not.toHaveAttribute('aria-disabled', 'true');
   await expect(startField.locator('input').first()).toBeEnabled();
 
-  // Gantt: de voltooide balk horizontaal verslepen. Hij blijft staan, er komt geen beperking bij en
-  // de melding zegt waarom.
   const before = await page.evaluate(id => {
     const task = window.__OPS__!.store.getState().tasks.find(candidate => candidate.id === id)!;
     return { time: JSON.stringify(task.time), constraint: JSON.stringify(task.constraint ?? null) };
@@ -144,8 +122,6 @@ test('werkelijke datums: Start van een gestarte taak is alleen-lezen in het pane
   await page.mouse.move(grabX + Math.max(3 * zoom, 40), bar.y, { steps: 6 });
   await page.mouse.up();
 
-  // Er staat ook nog de openmelding van de XER; zoek de sleepmelding op haar tekst. Het is een
-  // weigering, dus rood en blijvend (eigenaarsbesluit 2026-10-17).
   const dragNotice = page.locator('.ops-toast.toast-error[role="alert"]').filter({ hasText: /(actual dates|werkelijke datums)/ });
   await expect(dragNotice).toHaveCount(1);
   await expect(dragNotice).toContainText('Voltooid');
@@ -157,7 +133,6 @@ test('werkelijke datums: Start van een gestarte taak is alleen-lezen in het pane
   const settled = await settledBar(page, ids.c1);
   expect(Math.abs(settled.left - bar.left), 'voltooide balk staat nog op zijn plek').toBeLessThan(1);
 
-  // Nog eens slepen aan dezelfde balk: geen tweede rode regel, maar één regel met teller ×2.
   await page.mouse.move(grabX, bar.y);
   await page.mouse.down();
   await page.mouse.move(grabX + Math.max(3 * zoom, 40), bar.y, { steps: 6 });

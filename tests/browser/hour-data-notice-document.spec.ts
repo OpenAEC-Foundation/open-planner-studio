@@ -1,4 +1,3 @@
-// T25: oude voorkeuren blijven staan en hebben geen invloed op bewerken of uurzoom.
 import { expect, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
 
 test('oude urenplanningvoorkeur aan en uit verandert niets; urentaak blijft bewerkbaar', async ({ page, ops: _ops }) => {
@@ -6,7 +5,6 @@ test('oude urenplanningvoorkeur aan en uit verandert niets; urentaak blijft bewe
     await page.evaluate(value => localStorage.setItem('ops-enableHourPlanning', value), legacy);
     await page.reload();
     await waitForOps(page);
-    // 285: eerst de asynchrone bootstrap afwachten, anders onderschept het late welkom Enter.
     await waitForWelcomeDialog(page);
     const id = await page.evaluate(() => {
       const s = window.__OPS__!.store.getState();

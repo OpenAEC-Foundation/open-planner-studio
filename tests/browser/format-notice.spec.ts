@@ -1,8 +1,3 @@
-// F2: taakdatums worden op D1/D2/D7-momenten vergeleken (§4.2); de echte handeling blijft gelijk.
-// Uitleg na het openen van een ander formaat dan IFC (eigenaarsbesluit 2026-10-12, optie 1).
-// Echte gebruikersflow: bestanden via de ribbonknop Openen en de bestandskiezer, de dialoog en de
-// instelling met echte klikken. `window.__OPS__` zet alleen de beginstand (uitleg aan; de fixture
-// zet hem voor de rest van de suite uit) en LEEST de uitkomst.
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Page } from '@playwright/test';
@@ -24,8 +19,6 @@ const IFC = readFileSync(join(process.cwd(), 'public/examples/10-villa-wassenaar
 const notice = (page: Page) => page.locator('[data-ops-format-notice]');
 const documentCount = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().documents.length);
 
-/** Open via de ribbonknop en de bestandskiezer. Het eerste bestand hergebruikt het lege tabblad
- *  van de fixture; elk volgend bestand krijgt een nieuw tabblad. Wacht tot het project er staat. */
 async function openFile(page: Page, name: string, buffer: Buffer, firstFile = false): Promise<void> {
   const before = await documentCount(page);
   const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ });
@@ -59,40 +52,33 @@ test('formaatuitleg: XER toont hem, "niet meer tonen" werkt, Instellingen zet he
       window.__OPS__!.store.getState().setUI({ formatNoticeHidden: [] });
     });
 
-    // 1. XER openen ⇒ de uitleg voor XER, met de drie blokken.
     await openFile(page, 'uitleg.xer', Buffer.from(XER), true);
     await expect(notice(page)).toHaveAttribute('data-ops-format-notice', 'xer');
     await expect(notice(page)).toContainText(/(Primavera file \(\.xer\) opened|Primavera-bestand \(\.xer\) geopend)/);
     await expect(notice(page).locator('[data-ops-format-notice-kept]')).toContainText(/(activity codes|activiteitcodes)/);
     await expect(notice(page).locator('[data-ops-format-notice-save]')).toContainText(/(Writing back to \.xer is not possible|Terugschrijven naar \.xer kan niet)/);
 
-    // 2. "Niet meer tonen" aanvinken en sluiten ⇒ bewaard.
     await notice(page).locator('[data-ops-format-notice-dont-show]').check();
     await notice(page).locator('[data-ops-format-notice-close]').click();
     await expect(notice(page)).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => localStorage.getItem('ops-formatNoticeHidden'))).toBe('["xer"]');
 
-    // 3. Opnieuw een XER ⇒ geen uitleg.
     await openFile(page, 'uitleg-2.xer', Buffer.from(XER));
     await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().ui.pendingFormatNotice)).toBeNull();
     await expect(notice(page)).toHaveCount(0);
 
-    // 4. Instellingen → Geavanceerd: XER weer aan ⇒ de uitleg komt terug.
     await setXerNoticeInSettings(page, true);
     await expect.poll(() => page.evaluate(() => localStorage.getItem('ops-formatNoticeHidden'))).toBe('[]');
     await openFile(page, 'uitleg-3.xer', Buffer.from(XER));
     await expect(notice(page)).toHaveAttribute('data-ops-format-notice', 'xer');
-    // Escape sluit zonder vinkje: de uitleg blijft aan.
     await page.keyboard.press('Escape');
     await expect(notice(page)).toHaveCount(0);
     expect(await page.evaluate(() => localStorage.getItem('ops-formatNoticeHidden'))).toBe('[]');
 
-    // 5. IFC openen ⇒ nooit een uitleg.
     await openFile(page, 'villa.ifc', IFC);
     expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.pendingFormatNotice)).toBeNull();
     await expect(notice(page)).toHaveCount(0);
 
-    // 6. Opnieuw een XER, dan "Lees meer" sluit de uitleg en opent de XER-gids in Help (zonder vinkje: blijft aan).
     await openFile(page, 'uitleg-4.xer', Buffer.from(XER));
     await expect(notice(page)).toHaveAttribute('data-ops-format-notice', 'xer');
     await notice(page).locator('[data-ops-format-notice-read-more]').click();
@@ -102,23 +88,18 @@ test('formaatuitleg: XER toont hem, "niet meer tonen" werkt, Instellingen zet he
     expect(await page.evaluate(() => localStorage.getItem('ops-formatNoticeHidden'))).toBe('[]');
   });
 
-// Integratie ronde 2 (#325 × #330): een P6 XML-bestand met meerdere projecten opent meerdere
-// documenten, maar geeft één uitleg (één open-actie). Een P6 XML zonder leesbare activiteit opent
-// niet: dan een foutmelding en géén uitleg.
 const P6XML_MULTI = readFileSync(join(process.cwd(), 'tests/planning/fixtures/p6xml-genest-meerdere-projecten.xml'));
 const P6XML_EMPTY = Buffer.from(`<?xml version="1.0" encoding="UTF-8"?>
 <APIBusinessObjects xmlns="http://xmlns.oracle.com/Primavera/P6/V8.3/API/BusinessObjects"><Project><ObjectId>7</ObjectId><Name>Leeg</Name></Project></APIBusinessObjects>`);
 
 test('formaatuitleg: P6 XML en CSV openen met uitleg; onleesbare imports geven alleen een fout',
   async ({ page, ops }) => {
-    // De mislukte import logt zijn fout (`Failed to open file`) naast de melding; die fout is hier verwacht.
     ops.acceptError(/Failed to open file: P6XmlImportError/);
     ops.acceptError(/Failed to open file: CsvDateImportError/);
     await page.evaluate(() => {
       localStorage.setItem('ops-formatNoticeHidden', '[]');
       window.__OPS__!.store.getState().setUI({ formatNoticeHidden: [] });
     });
-    // Tel elke keer dat de store een uitleg klaarzet (ook als dezelfde soort twee keer zou komen).
     await page.evaluate(() => {
       const w = window as unknown as { __noticeSets: string[] };
       w.__noticeSets = [];
@@ -130,8 +111,6 @@ test('formaatuitleg: P6 XML en CSV openen met uitleg; onleesbare imports geven a
     });
     const noticeSets = () => page.evaluate(() => (window as unknown as { __noticeSets: string[] }).__noticeSets);
 
-    // Knownbug 128: documentinhoud en undo/opslagdoel mogen bij een weigering niet veranderen.
-    // Alleen observeren; openen en wegklikken gaan via echte browserbediening.
     const documentData = () => page.evaluate(() => {
       const state = window.__OPS__!.store.getState();
       return JSON.stringify({
@@ -169,7 +148,6 @@ test('formaatuitleg: P6 XML en CSV openen met uitleg; onleesbare imports geven a
       await expect(error).toHaveCount(0);
     };
 
-    // Leeg/pristine tabblad: ook geen gedeeltelijke commit van de eerste, geldige CSV-rij.
     await rejectCsv([
       'Naam;Duur;Startdatum;Einddatum;Werkelijke start',
       'Geldig;1;2015-01-05;2015-01-05;',
@@ -177,7 +155,6 @@ test('formaatuitleg: P6 XML en CSV openen met uitleg; onleesbare imports geven a
     ].join('\n'), 'Werkelijke start', '2 maart 2026');
     expect(await noticeSets()).toEqual([]);
 
-    // 1. Meerdere projecten ⇒ twee documenten (het lege tabblad wordt hergebruikt), één uitleg.
     const before = await documentCount(page);
     const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ });
     let chooser = page.waitForEvent('filechooser');
@@ -186,14 +163,12 @@ test('formaatuitleg: P6 XML en CSV openen met uitleg; onleesbare imports geven a
     await expect.poll(() => documentCount(page)).toBe(before + 1);
     await expect(notice(page)).toHaveAttribute('data-ops-format-notice', 'p6xml');
     await expect(notice(page)).toHaveCount(1);
-    // De tekst klopt met de lezer van #330: baselines komen mee.
     await expect(notice(page).locator('[data-ops-format-notice-kept]')).toContainText(/(baseline project becomes a baseline|baselineproject wordt een baseline)/);
     expect(await noticeSets()).toEqual(['p6xml']);
     await notice(page).locator('[data-ops-format-notice-close]').click();
     await expect(notice(page)).toHaveCount(0);
     expect(await noticeSets()).toEqual(['p6xml']);
 
-    // 2. P6 XML zonder activiteiten ⇒ foutmelding, geen nieuw document, geen uitleg.
     const docs = await documentCount(page);
     chooser = page.waitForEvent('filechooser');
     await openButton.click();
@@ -204,7 +179,6 @@ test('formaatuitleg: P6 XML en CSV openen met uitleg; onleesbare imports geven a
     await expect(notice(page)).toHaveCount(0);
     expect(await noticeSets()).toEqual(['p6xml']);
 
-    // Gevulde documentset: een onleesbaar gepland einde weigeren, alle documenten behouden.
     const invalidCsv = [
       'Name,Duration,Start,Finish',
       'ISO,1,2015-01-05,2015-01-05',
@@ -214,7 +188,6 @@ test('formaatuitleg: P6 XML en CSV openen met uitleg; onleesbare imports geven a
     await rejectCsv(invalidCsv, 'Finish', 'Mon 3/2/26');
     expect(await noticeSets()).toEqual(['p6xml']);
 
-    // De gebruiker herstelt de cel en opent opnieuw: ISO/DMY/slash én lege datums importeren.
     await openFile(page, 'hersteld.csv', Buffer.from(invalidCsv.replace('Mon 3/2/26', '06/01/2015')));
     await expect(notice(page)).toHaveAttribute('data-ops-format-notice', 'csv');
     expect(await noticeSets()).toEqual(['p6xml', 'csv']);

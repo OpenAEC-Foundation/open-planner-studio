@@ -1,12 +1,3 @@
-// Dialoog "Codes & velden" (StructureDialog). Code, omschrijving en kleur van een activity-code-waarde,
-// en de namen van codetypes en gebruikersvelden, schreven per toetsaanslag (of per sleepstap in de
-// kleurkiezer) naar de store: "Kelder" typen gaf zes undo-stappen. Nu is één bewerking van een veld
-// één undo-stap: tekst bij het verlaten van het veld (of Enter), kleur bij het kiezen.
-//
-// Typen, Tab, Escape en Ctrl+Z zijn echte browser-events. De native kleurkiezer ligt buiten de pagina
-// (Playwright kan hem niet bedienen); daarom speelt de test de eventreeks na die de browser tijdens
-// een sleep aan het veld levert: per tussenkleur de waarde + `input`, bij het kiezen één `change`.
-// `window.__OPS__` zet alleen de structuur klaar, opent de dialoog en leest state.
 import type { Locator, Page } from '@playwright/test';
 import { expect, test } from './fixtures/ops';
 
@@ -24,8 +15,6 @@ async function openStructure(page: Page): Promise<{ typeId: string; valueId: str
 }
 
 const dialog = (page: Page) => page.getByRole('dialog');
-// Tekstvakken (rol textbox, het kleurveld telt mee) bij één type, één waarde en één veld: typenaam,
-// code, omschrijving, kleur, nieuw-type-invoer, veldnaam, nieuw-veld-invoer.
 const typeName = (page: Page) => dialog(page).getByRole('textbox').nth(0);
 const code = (page: Page) => dialog(page).getByPlaceholder(/^Code$/);
 const description = (page: Page) => dialog(page).getByPlaceholder(/^(Omschrijving|Description)$/);
@@ -57,7 +46,6 @@ test('codes & velden: code en omschrijving typen is één undo-stap per veld', a
   const before = await structure(page, ids);
 
   await retype(code(page), page, 'Kelder');
-  // Tijdens het typen verandert er nog niets in de store.
   expect(await structure(page, ids)).toEqual(before);
   await page.keyboard.press('Tab');
   let after = await structure(page, ids);
@@ -70,7 +58,6 @@ test('codes & velden: code en omschrijving typen is één undo-stap per veld', a
   expect(after.description).toBe('Kelderverdieping');
   expect(after.undo - before.undo).toBe(2);
 
-  // Dialoog dicht (Escape), dan Ctrl+Z: de omschrijving komt in één stap terug, daarna de code.
   await page.keyboard.press('Escape');
   await expect(dialog(page)).toHaveCount(0);
   await page.keyboard.press('ControlOrMeta+z');
@@ -99,7 +86,6 @@ test('codes & velden: slepen in de kleurkiezer is één undo-stap per gekozen kl
   expect(after.color).toBe('#445566');
   expect(after.undo - before.undo).toBe(1);
 
-  // Playwrights eigen invoer voor een kleurveld (`fill`: waarde + `input` + `change`) = één keuze.
   await color(page).fill('#aa0000');
   await expect.poll(() => structure(page, ids).then(s => s.color)).toBe('#aa0000');
   expect((await structure(page, ids)).undo - before.undo).toBe(2);
@@ -148,7 +134,6 @@ test('codes & velden: een waarde omhoog of omlaag zetten is één undo-stap en l
   expect(await order()).toEqual(['BG', 'OV']);
   const before = await undoCount();
 
-  // De bovenste kan niet omhoog, de onderste niet omlaag.
   await expect(dialog(page).getByRole('button', { name: /^(Waarde omhoog|Move value up)$/ }).first()).toBeDisabled();
   await expect(dialog(page).getByRole('button', { name: /^(Waarde omlaag|Move value down)$/ }).last()).toBeDisabled();
 

@@ -8,8 +8,6 @@ test('AutoSave staat bovenin, is voor een naamloos project uitgeschakeld en wiss
 
   const docA = await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
-    // Alleen testfixture: een al handmatig geautoriseerde FSA-handle. De interactie die we
-    // testen blijft de zichtbare schakelaar; geen echte picker in een headless browser.
     window.__OPS__!.store.setState({
       filePath: 'autosave-browser.ifc',
       fileHandle: {
@@ -26,7 +24,6 @@ test('AutoSave staat bovenin, is voor een naamloos project uitgeschakeld en wiss
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().autoSaveToFile)).toBe(true);
 
-  // De echte timer/write-route faalt; geen notificatiefixture en geen schoonmarkering.
   const notice = page.locator('.ops-toast').filter({ hasText: 'Auto-save failed: the existing project file is not writable.' });
   await expect(notice).toBeVisible({ timeout: 15_000 });
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().isDirty)).toBe(true);

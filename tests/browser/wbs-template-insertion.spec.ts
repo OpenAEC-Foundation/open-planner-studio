@@ -1,5 +1,3 @@
-// Knownbug 18: de hint moet dezelfde hiërarchie beschrijven als de echte invoegactie.
-// Nieuwe route: er bestond nog geen browserscenario voor het WBS-sjablonenmenu.
 import { expect, test } from './fixtures/ops';
 
 test('WBS-sjabloon: hint en invoegen als laatste subtaak of op rootniveau komen overeen', async ({ page, ops: _ops }) => {
@@ -47,7 +45,6 @@ test('WBS-sjabloon: hint en invoegen als laatste subtaak of op rootniveau komen 
         === tasks.find(task => task.name === 'Ingevoegde tak')!.id;
     }, fixture.parent)).toBe(true);
 
-    // Geen selectie is een aparte invoegstand; alleen de fixture verandert, de klik blijft echt.
     await page.evaluate(() => window.__OPS__!.store.setState({ selectedTaskIds: [], activeTaskId: null }));
     await menu.click();
     await expect(item).toBeVisible();

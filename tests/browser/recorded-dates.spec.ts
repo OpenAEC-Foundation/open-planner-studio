@@ -1,12 +1,3 @@
-// "Datums zoals opgeslagen" voor XER (laag 3) — de eerste browserdekking van de standaard-aan-modus
-// (her-check laag 3, bevinding 9). Echte gebruikersflow: een .xer via de ribbonknop Openen en de
-// bestandskiezer; daarna wordt gecontroleerd wat de gebruiker ZIET — de strook, de celtekst in de
-// tabel (mét de product-datumnotatie, precies de naad waar bevinding 1 zat) en de badge in het
-// eigenschappenpaneel — met `window.__OPS__` alleen om de taak-id's op te zoeken en het paneel/de
-// kolom aan te zetten. De fixture is dezelfde corpusloze orakel-fixture als in
-// `tests/planning/check-xer-recorded-times.ts`: T1 legt vroege datums vast die van onze
-// herberekening afwijken (⇒ de modus gaat vanzelf aan), T3 legt alleen het vroege paar vast
-// (⇒ laat-start/-einde en speling zijn "niet vastgelegd").
 import { externIfc } from '../fixtures/recordedDatesIfc';
 import type { Locator, Page } from '@playwright/test';
 import { expect, state, test } from './fixtures/ops';
@@ -58,11 +49,9 @@ async function openXerViaFileChooser(page: Page): Promise<void> {
 }
 
 test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, met "niet vastgelegd" in tabel en badge', async ({ page, ops: _ops }) => {
-  // Lange werkroute: XER, B5 geval 2, 5 en 6 achter elkaar.
   test.setTimeout(60_000);
   await openXerViaFileChooser(page);
 
-  // De modus gaat vanzelf aan (verse XER-import mét verschoven taken) en de strook zegt het.
   const strip = page.locator('[data-ops-recorded-dates-active]');
   await expect(strip).toBeVisible();
   await expect(strip).toContainText(/Primavera/);
@@ -80,9 +69,6 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   expect(ids.scheduleStale).toBe(false);
   expect((await state(page)).sequences).toHaveLength(1);
 
-  // Tabel: de late-start-kolom erbij (een productinstelling, via dezelfde actie als de kolomkiezer)
-  // en dan de CELTEKST lezen — met de product-datumnotatie, want dat is de naad waar een verzonnen
-  // late datum ("01-03-2026") stond in plaats van "Niet vastgelegd".
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   await expect(page.locator('[data-task-grid-surface-id="full-task-grid"] [role="grid"]')).toBeVisible();
   await page.evaluate(() => {
@@ -99,12 +85,9 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   });
   await expect(taskCell(page, ids.earlyOnly, 'task.time.lateStart')).toHaveText(/^(Niet vastgelegd|Not recorded)$/);
   await expect(taskCell(page, ids.earlyOnly, 'task.time.totalFloat')).toHaveText(/^(Niet vastgelegd|Not recorded)$/);
-  // De volledig vastgelegde taak toont gewoon P6's late start (10 januari 2026) in de datumnotatie.
   await expect(taskCell(page, ids.deviates, 'task.time.lateStart')).toHaveText(/10.01.2026|2026.01.10|01.10.2026/);
   await expect(taskCell(page, ids.deviates, 'task.time.lateStart')).not.toHaveText(/^(Niet vastgelegd|Not recorded)$/);
 
-  // Knownbug 183: dezelfde onbekende status in Bepalend én de relatiechips, in beide richtingen.
-  // De brug zet alleen de kolomvoorkeur; aanwijzen en springen blijven echte browserhandelingen.
   await page.evaluate(() => {
     const columns = window.__OPS__!.store.getState().taskGridSurfaces['full-task-grid'].columns;
     window.__OPS__!.store.getState().setTaskGridColumns('full-task-grid', [
@@ -134,20 +117,16 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   expect((await state(page)).sequences).toEqual(beforeJump.sequences);
   expect((await state(page)).undoDepth).toBe(beforeJump.undoDepth);
 
-  // Eigenschappenpaneel: de badge zegt per taak hetzelfde als de tabel, en noemt Primavera alleen
-  // omdat dit een XER-herkomst is.
   await page.evaluate(() => {
     window.__OPS__!.store.getState().setUI({ showPropertiesPanel: true, rightPanelCollapsed: false });
   });
   await taskCell(page, ids.earlyOnly, 'task.name').click();
-  // Besluit 4 (eigenaar 2026-10-19, optie 3): één oranje blok, de ontbrekende velden als derde regel.
   await expect(page.locator('[data-ops-task-recorded-dates="active"][data-ops-task-recorded-dates-missing]')).toBeVisible();
   await taskCell(page, ids.deviates, 'task.name').click();
   const activeBadge = page.locator('[data-ops-task-recorded-dates="active"]:not([data-ops-task-recorded-dates-missing])');
   await expect(activeBadge).toBeVisible();
   await expect(activeBadge).toContainText(/Primavera/);
 
-  // Knownbug 105: het paneel onderscheidt onbekende driving van een berekende lege lijst.
   const dependencies = page.locator('[data-ops-rail-panel="properties"] .dependency-list');
   const unknownDriving = dependencies.getByRole('img', {
     name: /^(Bepalende relaties onbekend zonder berekening\.|Driving relationships unknown without a calculation\.)$/,
@@ -156,7 +135,6 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   await expect(unknownDriving).toBeVisible();
   await expect(dependencies.locator('[data-icon="planning.driving"]')).toHaveCount(0);
 
-  // Echte bediening: richtingen aanzetten, selectie wisselen, dezelfde trace naar de Gantt meenemen.
   const beforeTrace = await state(page);
   await taskCell(page, ids.earlyOnly, 'task.name').click();
   await page.getByRole('button', { name: /^(Predecessors|Voorgangers)$/, exact: true }).click();
@@ -170,7 +148,6 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
     `[data-task-grid-surface-id="gantt-task-grid"] [data-grid-row-key="${id}"] [data-grid-column-id="task.name"]`,
   );
   await expect(ganttName(ids.earlyOnly).locator('..')).toHaveAttribute('data-grid-trace-role', 'successor-driving');
-  // De bestaande springknop in het taakpaneel verzet de focus; de trace volgt mee.
   await dependencies.locator('.dependency-wbs-link').click();
   await expect(ganttName(ids.deviates).locator('..')).toHaveAttribute('data-grid-trace-role', 'predecessor-driving');
   expect((await state(page)).selectedTaskIds).toEqual([ids.earlyOnly]);
@@ -180,23 +157,17 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
     return { mode: s.ui.traceMode, recorded: s.datesAsRecorded, unknown: s.cpmResult?.drivingUnknown };
   })).toEqual({ mode: 'both', recorded: true, unknown: true });
 
-  // Eindreview bevinding 6: de rapporten kennen de "niet vastgelegd"-cel niet; in de modus staat
-  // daarom boven elk rapport (hier het standaardtype, de Gantt-afdruk op het Rapport-tabblad) één melding die zegt dat je
-  // naar de datums uit het bestand kijkt. Buiten de modus is die melding weg.
   await page.getByRole('button', { name: /^(Report|Rapport)$/ }).click();
   const reportNote = page.locator('[data-report-recorded-dates-note]');
   await expect(reportNote).toBeVisible();
   await expect(reportNote).toContainText(/(opgeslagen|recorded)/);
 
-  // Herberekenen verlaat de modus: strook weg, en de kolom toont weer onze eigen, echte speling.
   await page.locator('[data-ops-recorded-dates-recalculate]').click();
   await expect(strip).toHaveCount(0);
   await expect(reportNote).toHaveCount(0);
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   await expect.poll(() => state(page).then(() => page.evaluate(() => window.__OPS__!.store.getState().datesAsRecorded))).toBe(false);
   await expect(taskCell(page, ids.earlyOnly, 'task.time.totalFloat')).not.toHaveText(/^(Niet vastgelegd|Not recorded)$/);
-  // De geplande start in maart blijft onder het P6-profiel een ondergrens. De voorganger in
-  // januari is daardoor bekend niet-driving: geen onbekend-badge of bliksem, wel de gewone trace.
   await expect(unknownDriving).toHaveCount(0);
   await expect(dependencies.locator('.dependency-wbs-link')).toHaveCount(1);
   await expect(dependencies.locator('[data-icon="planning.driving"]')).toHaveCount(0);
@@ -221,7 +192,6 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   await expect(tableRow(ids.deviates)).not.toHaveAttribute('data-grid-trace-role');
   expect((await state(page)).selectedTaskIds).toEqual([ids.earlyOnly]);
 
-  // B5 met de echte hooks: Ctrl+Z mag niet na de automatische berekentermijn verdwijnen.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: true }));
   const ownOldIfc = externIfc('b5-browser').replace('DATA;', "DATA;\n#900=IFCAPPLICATION($,'0.2','Open Planner Studio','OPS');");
   await openViaFileChooser(page, 'oud-minutenmodel.ifc', 'application/x-step', ownOldIfc);
@@ -254,8 +224,6 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   await expect.poll(() => page.evaluate(id => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.time.earlyStart, oldB.id))
     .toBe('2026-03-09T07:00');
 
-  // B5 geval 5: het echte bezettingsoverzicht mag een slapende open omzetting niet publiceren.
-  // Een tweede, moderne slaper bewijst dat de achtergrondhook daadwerkelijk doorrekent.
   const sleepingBefore = await page.evaluate(() => {
     const app = window.__OPS__!.store;
     const current = app.getState();
@@ -298,11 +266,6 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
       pending: s.minuteModelPending, stale: s.scheduleStale };
   })).toEqual({ start: '2026-03-16T07:00', mode: true, pending: true, stale: false });
 
-  // B5 geval 6 (spec §5.2): slapend herstel, Automatisch berekenen uit, eerst een bewerking en dan F5:
-  // twee events. Ctrl+Z geeft eerst de modus mét de bewerking, daarna de toestand van vóór de
-  // bewerking. Die tweede Ctrl+Z verlaat de modus zonder bewerking; `useExitRecordedDates` mocht dat
-  // niet als bewerking zien en doorrekenen (review ronde 1 van PR #559, deel B, punt 2: B sprong
-  // naar 9 maart en de omzettingsvlag ging uit). De brug zet alleen de fixture en leest de toestand.
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ autoCalcCPM: false }));
   await page.evaluate(() => {
     const app = window.__OPS__!.store;
@@ -334,7 +297,6 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   await page.waitForTimeout(300);
   const initial6 = await case6();
   expect(initial6).toMatchObject({ name: 'B', start: '2026-03-16T07:00', mode: false, pending: true, stale: true, events: 0 });
-  // Het bezettingsoverzicht uit geval 5 bedekt de tabel: sluit het resourcepaneel zoals een planner.
   await page.locator('div:has(> [data-ops-resources-view-toggle])').getByTitle(/^(Close|Sluiten)$/).click();
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   const case6Name = taskCell(page, initial6.id, 'task.name');
@@ -353,16 +315,10 @@ test('datums zoals opgeslagen: een XER met restverschillen opent in de modus, me
   expect(await case6()).toMatchObject({ name: 'B gewijzigd', start: '2026-03-16T07:00', pending: true, stale: false });
   await page.keyboard.press('ControlOrMeta+z');
   await expect.poll(async () => (await case6()).name).toBe('B');
-  // Ook na de uitgestelde hook (timer 0) en een korte wachttijd: niet doorgerekend.
   await page.waitForTimeout(300);
   expect(await case6()).toMatchObject({ name: 'B', start: '2026-03-16T07:00', mode: false, pending: true, stale: true });
 });
 
-// Eigenaarsbesluit 2026-09-09: "het moet altijd gaan zoals het nu bij XER werkt". Dezelfde
-// gebruikersflow met een Primavera P6 XML en een MS Project XML uit `tests/fixtures/
-// recordedTimesFormats.ts` (gedeeld met de headless check): openen via de bestandskiezer, de modus
-// gaat vanzelf aan, de strook kiest per herkomst de Primavera- of de neutrale tekst, en de kolom
-// laatste start zegt "Niet vastgelegd" voor de taak zonder late datums in het bestand.
 for (const variant of [
   { label: 'P6 XML', name: 'recorded.xml', content: P6XML_FIXTURE, primavera: true },
   { label: 'MS Project XML', name: 'recorded-mspdi.xml', content: MSPDI_FIXTURE, primavera: false },
@@ -406,7 +362,6 @@ for (const variant of [
     await expect(taskCell(page, ids.earlyOnly, 'task.time.lateStart')).toHaveText(/^(Niet vastgelegd|Not recorded)$/);
     await expect(taskCell(page, ids.full, 'task.time.lateStart')).toHaveText(/09.03.2026|2026.03.09|03.09.2026/);
 
-    // Herberekenen verlaat de modus, zoals bij XER.
     await page.locator('[data-ops-recorded-dates-recalculate]').click();
     await expect(strip).toHaveCount(0);
     await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().datesAsRecorded)).toBe(false);

@@ -1,27 +1,12 @@
 import type { Locator, Page } from '@playwright/test';
 import { expect, state, test } from './fixtures/ops';
 
-/**
- * Het Statusdatum-veld in het lint (Planning → Baselines & voortgang) met een statusdatum MÉT tijd.
- * MS Project bewaart de statusdatum op de standaard eindtijd (17:00) en zowel de MSPDI- als de
- * `.mpp`-lezer nemen die tijd over (`2026-07-06T17:00`); via IFC en MCP kan een uurproject hem ook
- * dragen. Het gedeelde datumveld kende alleen `JJJJ-MM-DD`: het toonde zo'n statusdatum leeg en wie
- * er alleen doorheen klikte of tabde wiste hem (een lege commit ⇒ `setStatusDate(undefined)`).
- *
- * Alle geteste handelingen gaan via echte muis-/toetsenbordevents. De dev-brug zet alleen de
- * fixture (de statusdatum, zoals een geopend bestand hem levert) en leest state.
- */
-
 const STATUS = '2026-07-06T17:00';
 
 async function statusDate(page: Page): Promise<string | undefined> {
   return page.evaluate(() => window.__OPS__!.store.getState().project.statusDate);
 }
 
-/** Zet de fixture-statusdatum en opent het Planning-tabblad via een echte klik. De fixture gaat via
- *  `setProject` (een projectgegeven zoals een geopend bestand het levert), niet via `setStatusDate`:
- *  die bundelt opeenvolgende statusdatumwijzigingen in één undo-stap (`coalesceKey`), waardoor de
- *  fixture en de geteste bewerking één stap zouden worden. */
 async function openStatusDateField(page: Page): Promise<{ group: Locator; order: string[] }> {
   const order = await page.evaluate((value) => {
     const s = window.__OPS__!.store.getState();
@@ -48,18 +33,11 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   const expected = expectedSegments(order, { day: '06', month: '07', year: '2026' });
   await expect.poll(() => segmentValues(group)).toEqual(expected);
 
-  // Smal venster: een veld kan niet tot een icoon krimpen, dus de groep klapt als geheel in tot één
-  // grote knop met ▾ en een popover (automatische inpassing). Geen los mini-icoontje naast velden op
-  // volle breedte, en geen gat: de vrijgekomen ruimte gaat terug naar labels.
   const size = page.viewportSize()!;
   const ribbonGroup = page.locator('[data-tour-anchor="ribbon-group:planning:baselines"]');
   const trigger = ribbonGroup.getByRole('button', { name: /^(Baselines & progress|Baselines & voortgang)$/ });
   const calc = page.locator('[data-ops-ribbon-item="calc"]');
   const scroller = page.locator('.ribbon-content-scroll');
-  // Lege ruimte rechts van de laatste groep. Grens 120 px: één stap van de automaat (één knop terug
-  // op volle grootte, eventueel met het groepslabel dat terugkomt) kost op deze tab 60 tot ongeveer
-  // 100 px; zo'n rest is onvermijdelijk. Een gat van 150 px of meer betekent dat de ruimte van de
-  // ingeklapte groep niet naar labels is gegaan.
   const freeSpace = () => scroller.evaluate(el => {
     const groups = el.querySelectorAll('.ribbon-group');
     return el.getBoundingClientRect().left + el.clientWidth - groups[groups.length - 1].getBoundingClientRect().right;
@@ -70,17 +48,12 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
     await expect(ribbonGroup).not.toHaveAttribute('data-ribbon-fully-mini', '');
     await expect(page.getByRole('group', { name: /^(Status date|Statusdatum)$/ })).toHaveCount(0);
     await expect(trigger).toBeVisible();
-    // De eerste groep (Bereken en de andere hoofdacties) houdt zijn labels zolang een veldengroep nog
-    // kan inklappen. Zonder die regel stond bij 1000 px de groep nog open en waren deze knoppen mini.
-    // Bij 760 px zijn alle veldengroepen al dicht; dan mag de eerste groep deels mini worden, maar
-    // Bereken zelf (de eerste knop) als laatste.
     await expect(calc.locator('.ribbon-btn-label')).toBeVisible();
     if (width >= 900) await expect(page.locator('.ribbon-group').first().locator('.ribbon-btn[data-ribbon-mini]')).toHaveCount(0);
     await expect.poll(() => scroller.evaluate(el => el.scrollWidth <= el.clientWidth + 1)).toBe(true);
     expect(await freeSpace(), `lege ruimte rechts bij ${width} px`).toBeLessThan(120);
   }
 
-  // De popover bevat dezelfde bediening en werkt: de statusdatum staat erin, de voortgangsmodus wisselt.
   await page.setViewportSize({ width: 900, height: size.height });
   await expect(ribbonGroup).toHaveAttribute('data-ribbon-collapsed', '');
   await trigger.click();
@@ -91,9 +64,6 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().project.progressMode)).toBe('PROGRESS_OVERRIDE');
   await expect(popoverField).toBeVisible();
 
-  // Weer breed terwijl de popover open is: hij blijft open (geen invoer kwijt midden in het werk), en
-  // het paneel schuift mee met zijn knop. Het lint verschuift de knop pas ná het resize-event; zonder
-  // nieuwe plaatsing bleef het paneel ruim 400 px links van de knop staan.
   const panel = page.locator('div[style*="position: fixed"]').filter({ has: popoverField });
   const horizontalOverlap = async () => {
     const [p, t] = [await panel.boundingBox(), await trigger.boundingBox()];
@@ -106,7 +76,6 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   await expect(ribbonGroup).toHaveAttribute('data-ribbon-collapsed', '');
   await expect.poll(async () => (await trigger.boundingBox())!.x).toBeGreaterThan(triggerXAt900 + 100);
   expect(await horizontalOverlap(), 'paneel staat onder zijn knop na verbreden').toBeGreaterThan(0);
-  // Na Escape staat de focus op de knop; pas als de focus weg is, staan de velden weer in het lint.
   await page.keyboard.press('Escape');
   await expect(popoverField).toHaveCount(0);
   await expect(trigger).toBeFocused();
@@ -116,8 +85,6 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   await expect(page.getByRole('group', { name: /^(Status date|Statusdatum)$/ })).toHaveCount(1);
   await expect.poll(() => segmentValues(group)).toEqual(expected);
 
-  // Smaller worden terwijl de focus in het datumveld staat: de groep klapt niet in en het veld houdt
-  // focus en halve invoer; na het verlaten klapt hij alsnog in.
   const daySegment = group.locator('input').nth(order.indexOf('day'));
   await daySegment.click();
   await page.keyboard.type('1');
@@ -132,35 +99,26 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   await page.setViewportSize(size);
   await expect(ribbonGroup).not.toHaveAttribute('data-ribbon-collapsed', '');
 
-  // De groepsbreedte hangt niet af van de waarde: de wisknop houdt ook zonder datum zijn plek.
-  // Anders klapte de groep bij een vaste vensterbreedte om door alleen invullen of wissen.
   const groupWidth = async () => (await ribbonGroup.boundingBox())!.width;
   const widthWithDate = await groupWidth();
   const clear = ribbonGroup.getByRole('button', { name: /^(Clear status date|Statusdatum leegmaken)$/ });
   await clear.click();
   await expect.poll(() => statusDate(page)).toBeUndefined();
-  await expect(clear).toHaveCount(0); // onzichtbaar en buiten de toegankelijkheidsboom
+  await expect(clear).toHaveCount(0);
   expect(await groupWidth()).toBe(widthWithDate);
-  // De wisknop is niet 70 px (de standaardbreedte van een kleine lintknop) maar alleen zijn icoon:
-  // anders bleef zonder datum een leeg vak van ruim 70 px tussen datum en voortgangsmodus staan.
   expect(await ribbonGroup.locator('.ribbon-btn.small[aria-hidden="true"]').evaluate(el => el.getBoundingClientRect().width)).toBeLessThan(30);
   await page.evaluate((value) => window.__OPS__!.store.getState().setProject({ statusDate: value }), STATUS);
   await expect(clear).toBeVisible();
 
-  // Toetsenbord: Enter op de ingeklapte knop zet de focus in het eerste veld van de popover, Tab
-  // blijft in de popover, Escape zet de focus terug op de knop.
   await page.setViewportSize({ width: 900, height: size.height });
   await expect(ribbonGroup).toHaveAttribute('data-ribbon-collapsed', '');
   await trigger.focus();
   await page.keyboard.press('Enter');
   await expect(popoverField).toBeVisible();
-  // Het paneel is de dialoog die `aria-haspopup="dialog"` op de knop belooft, met de groepsnaam.
   await expect(page.getByRole('dialog', { name: /^(Baselines & progress|Baselines & voortgang)$/ })).toBeVisible();
   await expect(popoverField.locator('input').first()).toBeFocused();
   for (let i = 0; i < 8; i++) await page.keyboard.press('Tab');
   expect(await panel.evaluate(el => el.contains(document.activeElement))).toBe(true);
-  // Wissen met het toetsenbord: de wisknop wordt onbedienbaar, dus de focus gaat naar het datumveld
-  // (niet naar body, buiten de popover).
   await panel.getByRole('button', { name: /^(Clear status date|Statusdatum leegmaken)$/ }).focus();
   await page.keyboard.press('Enter');
   await expect.poll(() => statusDate(page)).toBeUndefined();
@@ -169,9 +127,6 @@ test('lint: een statusdatum mét tijd staat in het Statusdatum-veld (niet leeg),
   await expect(popoverField).toHaveCount(0);
   await expect(trigger).toBeFocused();
 
-  // Een klik naast de popover sluit hem en bewaart een gewijzigde datum, net als verlaten met Tab.
-  // Die klik sluit op mousedown, vóór de browser de focus verplaatst: zonder eerst de focus uit het
-  // paneel te halen verdween het veld vóór zijn blur, en bleef de oude datum staan.
   await page.evaluate((value) => window.__OPS__!.store.getState().setProject({ statusDate: value }), STATUS);
   await trigger.click();
   await expect.poll(() => segmentValues(popoverField)).toEqual(expected);
@@ -187,7 +142,6 @@ test('lint: Statusdatum aanklikken en verlaten zonder wijziging laat hem exact s
   const depth = (await state(page)).undoDepth;
   const daySegment = group.locator('input').nth(order.indexOf('day'));
 
-  // Verlaten met Tab.
   await daySegment.click();
   await expect(daySegment).toBeFocused();
   await page.keyboard.press('Tab');
@@ -195,7 +149,6 @@ test('lint: Statusdatum aanklikken en verlaten zonder wijziging laat hem exact s
   expect(await statusDate(page)).toBe(STATUS);
   expect((await state(page)).undoDepth).toBe(depth);
 
-  // Verlaten met een klik ernaast (het label van het veld, niet focusbaar).
   await daySegment.click();
   await expect(daySegment).toBeFocused();
   await page.locator('.ribbon-info').filter({ hasText: /^(Status date|Statusdatum)$/ }).first().click();
@@ -210,7 +163,7 @@ test('lint: een andere dag typen in het Statusdatum-veld houdt het tijddeel (…
   const depth = (await state(page)).undoDepth;
   const daySegment = group.locator('input').nth(order.indexOf('day'));
 
-  await daySegment.click(); // selecteert het gevulde segment, typen vervangt
+  await daySegment.click();
   await page.keyboard.type('08');
   await page.keyboard.press('Enter');
   await expect.poll(() => statusDate(page)).toBe('2026-07-08T17:00');
