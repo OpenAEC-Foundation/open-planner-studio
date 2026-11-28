@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Mechanische eigendomspoort voor de Gantt-shell, coordinators en Canvas-renderers.
-// De TypeScript-AST voorkomt dat woorden in commentaar of strings als grenslek tellen. `--root`
-// laat de planningstest tijdelijke bronfixtures controleren zonder productiecode te wijzigen.
 import { existsSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -53,10 +50,6 @@ const tableSurfaceFile = resolve(root, 'src/components/task-grid/FullTaskGrid.ts
 const ganttRendererModule = withoutExtension(resolve(root, 'src/engine/renderer/GanttRenderer.ts'));
 const histogramRendererModule = withoutExtension(resolve(root, 'src/engine/renderer/HistogramRenderer.ts'));
 const ganttOptionsModule = withoutExtension(resolve(root, 'src/components/canvas/ganttRenderOptions.ts'));
-// De rijsleep is eigendom van de DOM-taakgrid (`ganttEventOwnership.rowdrag`). Het tijdlijncanvas
-// mag hem bereiken, maar uitsluitend via de brug — dat is de ENE plek waar die overdracht staat en
-// waar hij dus ook te vinden is als iemand hem later weer weghaalt. Een canvasbestand dat de hook
-// rechtstreeks importeert bouwt een tweede pad en omzeilt die vindbaarheid (review 2026-09-15).
 const rowDragHookModule = withoutExtension(resolve(root, 'src/components/panels/hooks/useTableRowDrag.ts'));
 const rowDragBridgeModule = withoutExtension(resolve(root, 'src/components/canvas/ganttRowDragBridge.ts'));
 const canvasRootModule = `${withoutExtension(resolve(root, 'src/components/canvas'))}/`;

@@ -1,24 +1,4 @@
 #!/usr/bin/env node
-// De CI-controle van een release (besluit eigenaar, 2026-10-31): de gate in release.yml test niets
-// dubbel, maar kijkt of de CI en de browserrun al groen zijn. De release-skill draait precies dit
-// script vóór de tag, zodat de release niet pas ná de onomkeerbare tag vastloopt.
-//
-//   node scripts/release-ci-check.mjs <commit-sha>            # de gate en stap 3 van de release-skill
-//   node scripts/release-ci-check.mjs --browser <commit-sha>  # alleen eis 2: de browsercontrole
-//
-// Twee eisen, allebei op GitHub gelezen met `gh api`:
-//   1. De `ci.yml`-pushrun op main op precies deze commit is klaar en `success`.
-//   2. De laatste browserrun op main sinds de laatste vrijdag 22:00 Europe/Amsterdam (gepland of
-//      handmatig) is `success` en staat op deze commit of een voorouder daarvan. Een eerdere groene
-//      run vervangt die vrijdagrun niet; een latere bewijsrun mag wel. Ook de browserjobs van poging 1
-//      moeten groen zijn: een rerun maakt een haperende test niet groen, en een run waarin die jobs
-//      zijn overgeslagen is geen browserrun.
-//
-// De gate, de release-skill en de reparatie gebruiken alle drie deze ene browsercontrole. Daarom
-// noemt de laatste regel de beoordeelde run: `BROWSERRUN=<id>`, leeg als er geen is.
-//
-// Exit 0 = groen. Anders exit 1 met een `::error::`-regel per probleem. Een andere foutcode, lege
-// uitvoer of onverwachte JSON van `gh` of `git` stopt ook: dit script gaat nooit stil door.
 import { execFileSync, spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -33,7 +13,6 @@ const localFormat = new Intl.DateTimeFormat('en-US', {
   year: 'numeric', month: 'numeric', day: 'numeric', hour: 'numeric', minute: 'numeric', second: 'numeric',
 });
 
-/** De weekdag en de kloktijd in Nederland, die laatste als getal alsof het UTC was. */
 function localClock(ms) {
   const part = Object.fromEntries(localFormat.formatToParts(ms).map(({ type, value }) => [type, value]));
   return {
@@ -42,7 +21,6 @@ function localClock(ms) {
   };
 }
 
-/** De laatste vrijdag 22:00 Nederlandse tijd op of vóór `now`, in milliseconden. */
 export function fridayEvening(now) {
   const { weekday, clock } = localClock(now);
   let target = clock - (clock % DAY_MS) - ((weekday + 2) % 7) * DAY_MS + 22 * HOUR_MS;
@@ -50,17 +28,14 @@ export function fridayEvening(now) {
   return target - (localClock(target).clock - target);
 }
 
-/** Een tekst per run, voor in een foutmelding. */
 const describe = run => `run ${run.id} (${run.event}, ${run.created_at})`;
 
-/** De runs van ci.yml uit een antwoord van `gh api`; faalt hard op iets anders dan een lijst. */
 function runsOf(api, path) {
   const runs = api(path)?.workflow_runs;
   if (!Array.isArray(runs)) throw new Error(`onverwachte uitvoer van gh api ${path}: geen workflow_runs`);
   return runs;
 }
 
-/** Eis 1. Geeft `{ ok, text }`. */
 export function checkPushRun({ sha, repo, api }) {
   const runs = runsOf(api, `repos/${repo}/actions/workflows/ci.yml/runs?head_sha=${sha}&event=push&branch=main&per_page=100`)
     .filter(run => run.head_sha === sha && run.event === 'push' && run.head_branch === 'main')
@@ -72,7 +47,6 @@ export function checkPushRun({ sha, repo, api }) {
   return { ok: true, text: `ci.yml-pushrun ${run.id} op ${sha} is groen` };
 }
 
-/** De jobs van poging 1; poging 1 telt, want een rerun verandert de conclusie van de run. */
 function firstAttemptJobs(api, repo, run) {
   const path = `repos/${repo}/actions/runs/${run.id}/attempts/1/jobs?per_page=100`;
   const jobs = api(path)?.jobs;
@@ -80,12 +54,10 @@ function firstAttemptJobs(api, repo, run) {
   return jobs;
 }
 
-/** De browserjobs die echt draaiden. Een overgeslagen matrixjob heet letterlijk `verify (${{ matrix.name }})`. */
 export function browserJobs(jobs) {
   return jobs.filter(job => BROWSER_JOB.test(job.name) && job.conclusion !== 'skipped');
 }
 
-/** Problemen met de uitkomst van een browserrun: alle shards 1..n aanwezig en groen, en `test` groen. */
 export function browserJobProblems(jobs) {
   const shards = browserJobs(jobs);
   const problems = [];
@@ -102,7 +74,6 @@ export function browserJobProblems(jobs) {
   return problems;
 }
 
-/** Eis 2, de ene browsercontrole. Geeft `{ ok, text, runId }`. `now` is in milliseconden. */
 export function checkBrowserRun({ sha, repo, now, api, isAncestor }) {
   const since = fridayEvening(now);
   const sinceIso = new Date(since).toISOString();
@@ -116,7 +87,7 @@ export function checkBrowserRun({ sha, repo, now, api, isAncestor }) {
     const stop = text => ({ ok: false, text, runId: run.id });
     if (run.status !== 'completed') return stop(`browserrun: ${describe(run)} is niet klaar (status ${run.status})`);
     const jobs = firstAttemptJobs(api, repo, run);
-    if (browserJobs(jobs).length === 0) continue; // Geen browserrun: de browserjobs zijn overgeslagen.
+    if (browserJobs(jobs).length === 0) continue;
     const problems = browserJobProblems(jobs);
     if (run.conclusion !== 'success') problems.unshift(`conclusie ${run.conclusion}`);
     if (problems.length) return stop(`laatste browserrun ${describe(run)}: ${problems.join('; ')}`);
@@ -128,7 +99,6 @@ export function checkBrowserRun({ sha, repo, now, api, isAncestor }) {
   return { ok: false, text: `geen browserrun sinds vrijdag ${sinceIso} (gepland of handmatig op main)`, runId: null };
 }
 
-/** `gh api`: elke andere foutcode, lege uitvoer of ongeldige JSON is een harde fout. */
 export function ghApi(path) {
   let out;
   try {
@@ -144,7 +114,6 @@ export function ghApi(path) {
   }
 }
 
-/** Exit 0 = voorouder of dezelfde commit, exit 1 = niet; elke andere uitkomst is een harde fout. */
 export function gitIsAncestor(ancestor, commit) {
   const res = spawnSync('git', ['merge-base', '--is-ancestor', ancestor, commit], { encoding: 'utf8' });
   if (res.status === 0) return true;

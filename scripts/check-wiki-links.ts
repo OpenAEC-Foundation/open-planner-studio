@@ -1,5 +1,3 @@
-// Alleen lezen: controleer een vooraf gegenereerde wiki. Dit script publiceert niets.
-// Vanuit de repo-root: node scripts/run-ts.mjs scripts/check-wiki-links.ts [map]
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { deadWikiLinks } from './lib/wiki-links';

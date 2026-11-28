@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-// Bouwt de headless kern (`src/core/`) als zelfstandig Node-pakket `@openaec/open-planner-core`
-// in `dist-core/`: één ESM-bundel zonder runtime-dependencies, typedeclaraties, een gegenereerde
-// package.json (versie = appversie, licentie = repolicentie), de licentieteksten, de licenties van
-// de meegebundelde dependencies (THIRD-PARTY-NOTICES.md) en een README.
-// Er wordt NIET gepubliceerd. Uitleg: docs/headless-kern.md.
-//
-//   npm run build:core              # → dist-core/
-//   node scripts/build-core.mjs --out <map>
-//
-// De bouw controleert ook de grens van de library mechanisch (zie FORBIDDEN_INPUTS in scripts/lib/headless-bundle.mjs): React, Tauri,
-// de app-singleton (`src/state/appStore.ts`), UI-componenten en de i18n-UI-config mogen niet in de
-// bundel zitten. Code die alleen achter een dynamische import of een React-hook leeft, wordt
-// vervangen door een stub die bij gebruik een duidelijke fout gooit.
 import esbuild from 'esbuild';
 import ts from 'typescript';
 import { copyFileSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -27,8 +14,6 @@ const outDir = resolve(outIdx >= 0 ? process.argv[outIdx + 1] : join(root, 'dist
 const appPkg = JSON.parse(readFileSync(join(root, 'package.json'), 'utf8'));
 export const CORE_PACKAGE_NAME = '@openaec/open-planner-core';
 
-// De grens (stubs voor React/Tauri/i18n-config, verboden inputs) en de licentie-afleiding delen we met
-// de headless MCP-server: scripts/lib/headless-bundle.mjs.
 const stubPlugin = headlessStubPlugin(root, CORE_PACKAGE_NAME);
 
 rmSync(outDir, { recursive: true, force: true });
@@ -63,8 +48,6 @@ if (leaks.length > 0) {
   process.exit(1);
 }
 
-// Typedeclaraties: alleen de publieke bestanden, per bestand (isolatedDeclarations-stijl). Een
-// declaratie mag uitsluitend naar `./api` verwijzen — anders lekt een intern type het contract in.
 const declarations = [['src/core/index.ts', 'index.d.ts'], ['src/core/api.ts', 'api.d.ts']];
 for (const [src, out] of declarations) {
   const text = readFileSync(join(root, src), 'utf8');
@@ -77,7 +60,6 @@ for (const [src, out] of declarations) {
     for (const d of diagnostics) console.error(`XX ${src}: ${ts.flattenDiagnosticMessageText(d.messageText, '\n')}`);
     process.exit(1);
   }
-  // `./api` → `./api.js`, zodat Node16/NodeNext-consumenten de declaratie vinden.
   const fixed = outputText.replace(/from '\.\/api'/g, "from './api.js'");
   const foreign = [...fixed.matchAll(/(?:from|import)\s*\(?\s*'([^']+)'/g)].map((m) => m[1]).filter((s) => s !== './api.js');
   if (foreign.length > 0) {
@@ -86,9 +68,6 @@ for (const [src, out] of declarations) {
   }
   writeFileSync(join(outDir, out), fixed);
 }
-// Licenties van de MEEGEBUNDELDE dependencies (afgeleid uit de metafile, niet uit een vaste lijst):
-// per pakket naam, versie, licentie en de volledige licentietekst uit node_modules. Een gebundeld
-// pakket zonder licentiebestand laat de bouw falen.
 let notices;
 try {
   notices = thirdPartyNotices(inputs);

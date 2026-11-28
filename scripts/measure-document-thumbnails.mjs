@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Alleen opt-in CI. Eén ongewijzigd harnas bedient beide exacte checkouts, achtereenvolgens op
-// dezelfde runner. Dev-modus met React StrictMode; geen productie- of algemene snelheidsclaim.
-// Tijdmeting zonder profiler; de uitvoeringscontrole volgt in een aparte browsercontext.
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -40,8 +37,6 @@ const report = {
 const save = () => writeFileSync(join(outputDir, 'result.json'), JSON.stringify(report, null, 2));
 save();
 
-// Canonieke serialisatie in de pagina bewaart ALLE documentvelden, ook undefined, Map en Set.
-// Geen wegfilteren van output. HTML bevat alle kaarttekst, attributen, kleuren, dirty/active en balken.
 async function snapshot(page) {
   return page.evaluate(async () => {
     const { capturePayload } = await import('/src/state/documentContract.ts');
@@ -65,9 +60,6 @@ async function snapshot(page) {
       domain: encode({
         activeDocumentId: s.activeDocumentId,
         documents: s.documents.map(entry => ({ ...entry, payload: entry.id === s.activeDocumentId ? capturePayload(s) : entry.payload })),
-        // De volledige DOCUMENT_FIELDS zijn hierboven opgenomen. Historie bevat opnieuw alle
-        // snapshots; registreer hier alleen de aantallen en volgorde, niet die dubbele data.
-        // Undo/redo wordt daarnaast via echte toetsen en volledige domeinsnapshots vergeleken.
         history: s.historyEvents.map(({ id, sequence, state, label }) => ({ id, sequence, state, label })),
         nextHistorySequence: s.nextHistorySequence,
       }),
@@ -105,8 +97,6 @@ async function fixture(page, size, documents) {
         const date = new Date(Date.UTC(2026, 8, 7 + (i === 0 ? 0 : 1 + i % 20) + d));
         const time = createDefaultTaskTime(date.toISOString().slice(0, 10), i === 7 ? 0 : 5 + i % 6);
         time.isCritical = i % 7 === 2;
-        // Opzettelijk identieke taak-ID's tussen documenten, met andere datums en kleuren.
-        // Het minutenmodel eist tijden op taakdatums, net als na laden en invoer.
         return normalizeTaskDates(buildNewTask({ name: `Document ${d} taak ${i}`, manuallyScheduled: true, isMilestone: i === 7 }, {
           id: `task-${i}`, parentId: null, parentTask: undefined, constructionMode: false, time,
         }), p);
@@ -171,7 +161,6 @@ async function edit(page, column, value, measure = false) {
 }
 
 async function calculate(page, expectedFinish) {
-  // Alleen gedragsbewijs, buiten de naamedit-/openingstijden: thumbnails volgen rekendatums.
   await page.keyboard.press('F5');
   await expect.poll(() => page.evaluate(() => window.__OPS__.store.getState().tasks[0].time.earlyFinish?.slice(0, 10)))
     .toBe(expectedFinish);
@@ -185,7 +174,6 @@ async function prepare(browser, url) {
   const errors = [];
   page.on('pageerror', e => errors.push(e.stack || e.message));
   page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
-  // Datum vast, timers en performance.now lopen gewoon. Alleen fixture-identiteit is deterministisch.
   await page.clock.setFixedTime(new Date('2026-09-07T12:00:00Z'));
   await page.addInitScript(() => {
     let seed = 71;
@@ -240,7 +228,6 @@ async function runTiming(browser, url, label, scenario) {
       recordSnapshot(label, scenario, `sample-${sample}`, await snapshot(page));
       await close(page);
     }
-    // Gedragsbewijs naast de tijdmeting: geometrie verandert na echte datumedit en herstelt na undo.
     await open(page);
     const before = await snapshot(page);
     await close(page);
@@ -292,13 +279,10 @@ async function runCoverage(browser, url, label, scenario) {
   const { page, context, errors } = await prepare(browser, url);
   try {
     await fixture(page, scenario.size, scenario.documents);
-    // Warm de thumbnailfunctie eenmaal op zodat de uitvoeringscontrole dezelfde functie kent.
     await open(page);
     await close(page);
     const cdp = await context.newCDPSession(page);
     await cdp.send('Profiler.enable');
-    // Gebruik tellerdelta's: binaire dekking levert geen herhaalbare aanroepdelta voor deze proef.
-    // De productvoorwaarde blijft wel/niet uitvoeren; het aantal ontwikkelrenders is geen contract.
     await cdp.send('Profiler.startPreciseCoverage', { callCount: true, detailed: false });
     const take = async phase => {
       const coverage = await cdp.send('Profiler.takePreciseCoverage');
@@ -310,8 +294,6 @@ async function runCoverage(browser, url, label, scenario) {
       scenario.coverage.push({ phase, count, covered, functions: matches });
       return covered;
     };
-    // Alleen een profilerkalibratie, buiten de tijdmeting en vóór de echte gebruikersroute.
-    // Beide directe aanroepen moeten zichtbaar zijn, ook nadat de eerste delta is gelezen.
     for (const phase of ['calibration-first', 'calibration-repeat']) {
       await page.evaluate(async () => {
         const { buildThumbnail } = await import('/src/utils/documents.ts');

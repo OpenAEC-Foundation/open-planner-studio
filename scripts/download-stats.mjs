@@ -1,58 +1,11 @@
 #!/usr/bin/env node
-// Downloadcijfers per besturingssysteem uit de GitHub Releases-API.
-//
-// GitHub telt per release-asset hoe vaak het gedownload is (`download_count`),
-// en omdat elk asset OS-specifiek is, is "hoe vaak en op welk OS" daaruit af te
-// leiden zónder één regel app-code en zónder iets van gebruikers te verzamelen.
-// Dit script haalt alle releases op, deelt de assets in en telt op.
-//
-// Wat de cijfers WEL en NIET zeggen — lees dit vóór je conclusies trekt:
-//
-// - Windows en macOS: de installer (`-setup.exe`, `.dmg`) en het updater-
-//   pakket (`.nsis.zip`, `.app.tar.gz`) zijn verschillende bestanden, dus
-//   verse installaties en in-app updates zijn daar wél te scheiden.
-// - Linux: `latest.json` verwijst voor de updater naar hetzelfde `.deb`/
-//   `.rpm`/`.AppImage` dat mensen ook handmatig downloaden. Die tellingen zijn
-//   dus install + update samen, niet te scheiden. Gemeten 2026-09-05 op de
-//   `platforms`-map van latest.json.
-// - De Snap Store loopt níét via GitHub: het `.snap`-asset hier is alleen de
-//   directe GitHub-download. Snap-installs staan in de Snapcraft-metrics.
-// - `latest.json` wordt bij elke opstart-check door de updater opgehaald; die
-//   telling is een ruwe maat voor "actieve desktopinstallaties × starts", geen
-//   download. Hij staat er los bij.
-// - `.sig`-bestanden worden overgeslagen: die download de updater erbij en
-//   tellen dus dubbel.
-//
-// Gebruik:
-//   node scripts/download-stats.mjs                 # tekstrapport
-//   node scripts/download-stats.mjs --format=markdown
-//   node scripts/download-stats.mjs --format=json
-//   node scripts/download-stats.mjs --repo owner/repo
-//
-// De Actions-workflow `download-stats.yml` publiceert de JSON-vorm bovendien naar de
-// `stats`-databranch (scripts/publish-stats-branch.sh), vaste leeslocatie:
-//   https://raw.githubusercontent.com/OpenAEC-Foundation/open-planner-studio/stats/downloads.json
-//
-// Zet `GITHUB_TOKEN` om de ratelimiet van 60 ongeauthenticeerde calls/uur te
-// vermijden; de Actions-workflow `download-stats.yml` doet dat automatisch.
 
 import { pathToFileURL } from 'node:url';
 
 export const DEFAULT_REPO = 'OpenAEC-Foundation/open-planner-studio';
 
-/** Vaste kolomvolgorde in alle rapporten. */
 export const OS_ORDER = Object.freeze(['windows', 'macos', 'linux']);
 
-/**
- * Deel één asset in op bestandsnaam.
- *
- * `role`:
- *   - `install`  — het bestand dat een mens downloadt om te installeren
- *   - `update`   — het pakket dat uitsluitend de in-app updater ophaalt
- *   - `both`     — Linux: hetzelfde bestand voor beide (zie kop)
- *   - `poll`     — `latest.json`, de updater-check
- *   - `ignore`   — handtekeningen en onbekende bestanden
- */
 export function classifyAsset(name) {
   const n = name.toLowerCase();
   if (n.endsWith('.sig')) return { os: null, role: 'ignore', kind: 'signature' };
@@ -73,11 +26,6 @@ function emptyOs() {
   return { install: 0, update: 0, both: 0, byKind: {} };
 }
 
-/**
- * Tel de assets van een lijst releases (vorm van de GitHub-API) op.
- * Drafts worden overgeslagen. Pre-releases krijgen een gemarkeerde rij per release,
- * maar tellen niet mee in de totalen en updater-checks.
- */
 export function aggregate(releases) {
   const totals = { windows: emptyOs(), macos: emptyOs(), linux: emptyOs() };
   let polls = 0;
@@ -115,17 +63,10 @@ export function aggregate(releases) {
   }
 
   perRelease.sort((a, b) => String(b.publishedAt).localeCompare(String(a.publishedAt)));
-  // `downloads` is het totaal zoals de app en de README-badge het tonen (installers plus de
-  // Linux-mengvorm, zonder updater-pakketten, `latest.json` en `.sig`). De shields-badge
-  // `github/downloads/total` telt wél alle assets mee en kwam zo bijna drie keer te hoog uit.
   const downloads = OS_ORDER.reduce((sum, os) => sum + userDownloads(totals[os]), 0);
-  // `schemaVersion` is het contract voor afnemers van `downloads.json` op de stats-branch
-  // (zie scripts/publish-stats-branch.sh): verhoog 'm bij elke wijziging aan deze vorm. Een
-  // extra veld zoals `downloads` breekt geen afnemer: de app-parser negeert onbekende velden.
   return { schemaVersion: 1, source: 'github-releases', repo: undefined, generatedAt: undefined, downloads, releases: perRelease, totals, polls, unknown };
 }
 
-/** Wat een gebruiker "downloads" noemt: installers plus de Linux-mengvorm, zonder updater-pakketten. */
 export function userDownloads(bucket) {
   return bucket.install + bucket.both;
 }
@@ -211,7 +152,6 @@ export function renderText(stats) {
   return lines.join('\n') + '\n';
 }
 
-/** Alle releases ophalen, gepagineerd (100 per pagina). */
 export async function fetchAllReleases(repo, { token = process.env.GITHUB_TOKEN, fetchImpl = fetch } = {}) {
   const headers = { Accept: 'application/vnd.github+json', 'User-Agent': 'ops-download-stats' };
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -232,7 +172,7 @@ function parseArgs(argv) {
   for (const a of argv) {
     if (a.startsWith('--format=')) opts.format = a.slice('--format='.length);
     else if (a.startsWith('--repo=')) opts.repo = a.slice('--repo='.length);
-    else if (a === '--repo') opts.repo = null; // volgende arg
+    else if (a === '--repo') opts.repo = null;
     else if (opts.repo === null) opts.repo = a;
     else throw new Error(`Onbekend argument: ${a}`);
   }

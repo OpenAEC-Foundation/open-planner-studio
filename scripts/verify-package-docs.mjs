@@ -1,13 +1,4 @@
 #!/usr/bin/env node
-// Verifieert de door Tauri in de Linux-binary ingesloten Help-assets. Tauri bundelt `frontendDist`
-// in de executable; daarom zijn docs niet als losse bestanden zichtbaar in de deb/Snap-bestandslijst.
-// Deze poort leest de echte executable bytes en zoekt elke bronasset als Tauri asset-pad op.
-//
-//   node scripts/verify-package-docs.mjs --binary /pad/naar/open-planner-studio
-//   node scripts/verify-package-docs.mjs --snap /pad/naar/open-planner-studio.snap
-//
-// `--docs-root` is alleen voor forensische controle van een historisch package tegen zijn exacte
-// bronboom; de CI gebruikt altijd de huidige `public/docs` uit dezelfde checkout.
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -53,12 +44,6 @@ if (!existsSync(manifestPath)) usage(`manifest ontbreekt: ${manifestPath}`);
 const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
 if (!Array.isArray(manifest.articles)) usage(`manifest bevat geen articles-array: ${manifestPath}`);
 
-// Talen = de taalmappen onder `public/docs` (niet de manifest-titels: die blijven nl + en, terwijl de
-// vertaalstraat er andere talen bij zet). `img/` is geen taal. nl en en zijn de bron en moeten er zijn;
-// een andere taal levert haar `index.json` en de artikelen die erin staan. Per taal tellen alleen de
-// manifest-artikelen die in de bron ook echt bestaan (drafts incluis: die zitten in public/docs en dus
-// ook in het package, de viewer verbergt ze). Afgeleid uit de boom zelf, zodat een historisch package
-// met `--docs-root` ook tegen zijn eigen boom klopt.
 const NON_LOCALE_DIRS = new Set(['img']);
 const localeDirs = readdirSync(docsRoot, { withFileTypes: true })
   .filter(entry => entry.isDirectory() && !NON_LOCALE_DIRS.has(entry.name))

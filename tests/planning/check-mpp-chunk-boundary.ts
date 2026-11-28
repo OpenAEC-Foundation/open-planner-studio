@@ -1,23 +1,3 @@
-/**
- * Chunk-poort (T11, T8-review-agenda stap 0-ter d): `src/services/mpp/` hoort UITSLUITEND lazy
- * geladen te worden — `vite.config.ts`'s `manualChunks` stopt alles onder dat pad in een eigen
- * `mpp-reader`-chunk, maar dat helpt niets als er ergens een STATISCHE `import … from
- * '@/services/mpp/…'` bestaat: Rollup volgt zo'n import gewoon mee de main-graf in en de chunk
- * laadt alsnog eager. T8's gate hiervoor was een handmatige `npm run build` + `grep` (stap 6);
- * dit bestand maakt daar een echte, herdraaibare poort van, zonder dat er gebouwd hoeft te
- * worden — een lexicale grep over `src/**​/*.ts(x)` met `node:fs`, geen esbuild/tsc nodig.
- *
- * Regel: elke regel onder `src/` die `@/services/mpp` bevat, moet (a) in
- * `src/services/formatRegistry.ts` staan, EN (b) een `await import(` op diezelfde regel dragen
- * (de dynamic import van de T8-registry-entry). Elke andere treffer — een statische
- * `import … from '@/services/mpp/…'`, of een treffer in een willekeurig ander bestand — is een
- * regressie: die zou de parser (CFB + fieldmaps, ruwweg de helft van de mpp-broncode qua omvang)
- * alsnog in de main chunk trekken.
- *
- * Bewust NIET meegenomen: `tests/` en `scripts/` — die importeren de mpp-module rechtstreeks
- * (headless tests tegen de lezer), wat prima is; testcode zit nooit in een browserbundel. Alleen
- * `src/` telt voor de chunk-grens.
- */
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -46,7 +26,7 @@ let checks = 0;
 let dynamicImportFound = false;
 
 for (const file of walk(SRC_ROOT)) {
-  const relPath = relative(join(HERE, '..', '..'), file); // bv. "src/services/formatRegistry.ts"
+  const relPath = relative(join(HERE, '..', '..'), file);
   const lines = readFileSync(file, 'utf8').split('\n');
   lines.forEach((line, idx) => {
     if (!line.includes(MARKER)) return;

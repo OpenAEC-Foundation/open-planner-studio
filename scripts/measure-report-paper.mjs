@@ -1,42 +1,3 @@
-// Snelheidsmeting van het Rapport-tabblad in een grote planning (issue #817, PR #847). Niet in CI,
-// niet in `verify`: een handmeting voor de bouwer en de review, zoals `measure:large-plans`.
-//
-// Gebruik (dev-server van deze worktree draait; adres uit de uitvoer van `npm run dev`):
-//
-//   node scripts/measure-report-paper.mjs --url http://localhost:<poort>/ [--out pad.json] [--rounds 3] [--profile pad]
-//
-// `--rounds n` loopt stap 2–5 n keer achter elkaar op dezelfde pagina (zonder herladen): zo zie je of een
-// handeling trager wordt naarmate je langer werkt. `--profile pad` neemt per ronde een CPU-profiel van de
-// hoofdthread tijdens de vier Speling-klikken (`pad-r<n>.cpuprofile`, te openen in Chrome DevTools) en drukt
-// de functies met de meeste eigen tijd af. Per handeling staat het JS-geheugen erbij (`heapMB`, zonder
-// opruimen), en per ronde het geheugen na opruimen (`heapAfterGcMB`) en het aantal User Timing-regels.
-//
-// Het plan (5000 taken, seed 0x5eed) komt uit `scripts/measure-large-plans-data.ts`; ontbreekt
-// `qa/report-paper/plan-5000.ifc`, dan maakt dit script het eerst. Standaarduitvoer:
-// `qa/report-paper/snelheid-<commit>.json`. Op aia09-mp50 onder `flock /tmp/ops-zwaar.lock`.
-//
-// Route (één keer laden, daarna in deze volgorde):
-//   1. open qa/report-paper/plan-5000.ifc (5000 taken, 139 bladen A3) op 1600×900, licht, nl;
-//   2. sprongen naar 70, 30, 90, 50, 10 en 70 % van het document (bladeren);
-//   3. op ±70 % (blad ±100): vier zoomstappen (+, −, −, +), dan "Hele blad";
-//   4. drie keer Kalenderdagen toevoegen (Enter in de kolomkiezer) en weghalen (× in de lijst);
-//   5. twee keer papier A2 ↔ A3 en twee keer de schakelaar Speling.
-//
-// Meetmethode: alles in de browser zelf, zonder vertraging van de automatisering.
-//   - Start = `event.timeStamp` van het klik- of toetsevent (een luisteraar in de capture-fase legt hem
-//     vast), bij een sprong `performance.now()` vlak voor `scrollTop` gezet wordt.
-//   - Eind = het tweede `requestAnimationFrame` nadat het nieuwe papier in de DOM staat: het eerste frame
-//     met het nieuwe papier is dan getekend (`rAF ×2`).
-//   - "Nieuw papier": bij een instelling (kolom, papier, schakelaar) een nieuwe opname op het papier
-//     (`data-rs-paper` op de bladenlijst verandert) én alle bladen in beeld met hun SVG; bij zoom en sprong
-//     alleen alle bladen in beeld met hun SVG (na zoom: ook de nieuwe zoomwaarde). De lus kijkt elk frame
-//     (`requestAnimationFrame`); het eerste frame waarin dat klopt, toont het nieuwe papier.
-//   - Per handeling ook het aantal frames waarin het blad in het midden van het beeld nog een skelet is.
-//   - De rekenstappen van de app (`ops-report:record`, `record-rows`, `svg`) staan er per handeling bij.
-//
-// Uitvoer: een tabel op stdout en een JSON-bestand (standaard qa/817-rapport/r4/snelheid.json).
-// Exitcode 0 als alles gemeten is; de oordelen (< 150 ms) staan in de JSON, niet in de exitcode.
-
 import { chromium } from 'playwright';
 import fs from 'node:fs';
 import os from 'node:os';
@@ -52,7 +13,6 @@ if (!BASE) {
 }
 const commit = (() => { try { return execSync('git rev-parse --short HEAD').toString().trim(); } catch { return 'onbekend'; } })();
 const OUT = arg('--out', path.join('qa', 'report-paper', `snelheid-${commit}.json`));
-// Het plan staat in `qa/` (niet in git): de dev-server opent het via `?open=` als bestand uit de worktree.
 const PLAN_DIR = path.join('qa', 'report-paper');
 const PLAN = `${PLAN_DIR}/plan-5000.ifc`;
 if (!fs.existsSync(PLAN)) {
@@ -75,7 +35,6 @@ await ctx.addInitScript(() => {
   localStorage.setItem('ops-locale', 'nl');
   localStorage.removeItem('ops-reportSettings');
 
-  // ---- In de pagina: de meter --------------------------------------------------------------------
   const viewport = () => document.querySelector('[data-rs-viewport]');
   const pagesInView = () => {
     const vp = viewport();
@@ -102,13 +61,8 @@ await ctx.addInitScript(() => {
     return best;
   };
   const drawn = n => !!n.querySelector('[data-report-page-svg]');
-  /** Het volgnummer van de opname die het papier toont (`data-rs-paper` op de bladenlijst). */
   const paperId = () => document.querySelector('[data-rs-paper]')?.getAttribute('data-rs-paper') ?? null;
 
-  /**
-   * Meet één handeling. `trigger`: 'click' | 'keydown' | 'now' (sprong). `needPaper`: wacht op een nieuwe
-   * `ops-report:paper`. `zoomFrom`: wacht tot de zoomwaarde anders is.
-   */
   window.__meet = {
     arm({ trigger, needPaper = false, zoomFrom = null, timeoutMs = 10000 }) {
       const paperBefore = paperId();
@@ -158,10 +112,8 @@ await ctx.addInitScript(() => {
 const page = await ctx.newPage();
 page.setDefaultTimeout(60000);
 page.on('pageerror', e => result.errors.push(String(e.message ?? e)));
-// Geheugen en profiel via het DevTools-protocol van de pagina zelf.
 const cdp = await ctx.newCDPSession(page);
 const heapMB = async () => Math.round((await cdp.send('Runtime.getHeapUsage')).usedSize / 1e5) / 10;
-/** DOM-knopen en luisteraars in de pagina (Blink-heap, buiten de JS-heap): blijven oude bladen hangen, dan groeit dit. */
 const domCounters = async () => {
   const c = await cdp.send('Memory.getDOMCounters');
   return { nodes: c.nodes, listeners: c.jsEventListeners, documents: c.documents };
@@ -170,7 +122,6 @@ let round = 1;
 
 const ready = async () => {
   await page.waitForFunction(() => document.querySelector('[data-rs-status]')?.getAttribute('data-busy') === 'false', null, { timeout: 120000 });
-  // Rust: laat bladen naast beeld en nagekomen werk eerst klaar zijn.
   await page.waitForTimeout(700);
 };
 const done = () => page.evaluate(() => window.__meetDone);
@@ -179,7 +130,6 @@ const record = async (key, value) => {
   (result.actions[key] ??= []).push(entry);
   console.log(`${key} r${round}`.padEnd(22), JSON.stringify(entry));
 };
-/** De functies met de meeste eigen tijd in een CPU-profiel (ms), samengevoegd per functie en plek. */
 const topSelf = (profile, n = 15) => {
   const byId = new Map(profile.nodes.map(node => [node.id, node]));
   const self = new Map();
@@ -207,7 +157,6 @@ try {
   console.log('geladen in', result.loadMs, 'ms');
 
   for (round = 1; round <= ROUNDS; round++) {
-    // 2. Bladeren: sprongen.
     for (const ratio of [0.7, 0.3, 0.9, 0.5, 0.1, 0.7]) {
       await page.evaluate(() => window.__meet.arm({ trigger: 'now' }));
       await page.evaluate(r => {
@@ -219,7 +168,6 @@ try {
       await ready();
     }
 
-    // 3. Zoom op ±70 %.
     for (const mode of ['in', 'out', 'out', 'in']) {
       const before = await page.locator('[data-rs-zoom="value"]').innerText();
       await page.evaluate(zoomFrom => window.__meet.arm({ trigger: 'click', zoomFrom }), before);
@@ -230,7 +178,6 @@ try {
     await page.locator('[data-rs-zoom="page"]').click();
     await ready();
 
-    // 4. Kalenderdagen toevoegen en weghalen.
     await openStep('columns');
     for (let i = 0; i < 3; i++) {
       await page.locator('[data-rs-add-column]').click();
@@ -246,7 +193,6 @@ try {
       await ready();
     }
 
-    // 5. Papier en schakelaar.
     await openStep('page');
     for (const size of ['A2', 'A3', 'A2', 'A3']) {
       await page.evaluate(() => window.__meet.arm({ trigger: 'click', needPaper: true }));
@@ -255,7 +201,6 @@ try {
       await ready();
     }
     await openStep('bars');
-    // Terug naar ±70 % van het document (A3 heeft na de wissel bovenaan blad 1 gezet).
     await page.evaluate(() => { const vp = document.querySelector('[data-rs-viewport]'); vp.scrollTop = (vp.scrollHeight - vp.clientHeight) * 0.7; });
     await ready();
     if (PROFILE) {
@@ -278,7 +223,6 @@ try {
       fs.mkdirSync(path.dirname(file), { recursive: true });
       fs.writeFileSync(file, JSON.stringify(profile));
       const top = topSelf(profile);
-      // Waar het geheugen van de vier klikken vandaan komt (toegewezen tijdens de klikken, ook wat al weer opgeruimd is).
       const { profile: heap } = await cdp.send('HeapProfiler.stopSampling');
       const alloc = new Map();
       const walk = (node, stack) => {
@@ -301,7 +245,6 @@ try {
     const end = { round, heapAfterGcMB: await heapMB(), dom: await domCounters(), entries };
     result.roundEnds.push(end);
     console.log('einde ronde', JSON.stringify(end));
-    // Volgende ronde vanaf hetzelfde beginpunt: bovenaan het document, Hele blad.
     await page.evaluate(() => { document.querySelector('[data-rs-viewport]').scrollTop = 0; });
     await ready();
   }
@@ -311,7 +254,6 @@ try {
 } finally {
   result.finished = new Date().toISOString();
   result.loadEnd = os.loadavg();
-  // Samenvatting per handeling: mediaan, maximum en of elke meting onder het doel bleef.
   result.summary = Object.fromEntries(Object.entries(result.actions).map(([key, list]) => {
     const ms = list.map(v => v.ms).sort((a, b) => a - b);
     return [key, {

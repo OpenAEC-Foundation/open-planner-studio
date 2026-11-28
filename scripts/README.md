@@ -641,6 +641,20 @@ Alle controles geven uitgang 0 als alles goed is, 1 als een bestand is afgekeurd
 ifcx-explorer is privé: in de job van controle 3 komt niets uit die repository in de log, in een artefact of in een
 cache.
 
+## Proeven en metingen bij het gebouwmodel (`scripts/proef/`, niet in `verify`)
+
+Deze scripts maken de vaste verwachtingen in `tests/planning/fixtures/` voor de IFC-checks, of meten. Ze bundelen elk
+alleen de gerichte code met esbuild en draaien die in een eigen Node-proces.
+
+| script | draaien | doet |
+|---|---|---|
+| `maak-main-pariteit.mjs` | `node scripts/proef/maak-main-pariteit.mjs [--uitvoer <map>]` | draait `tests/planning/ifcPariteitKern.ts` met `src/` van de vaste `BASIS` (`git archive`) en schrijft `tests/planning/fixtures/main-pariteit.json`, waartegen `check-ifc-foreign-pariteit.ts` vergelijkt; `--uitvoer` schrijft ook de bestanden die main per invoer schrijft (de gewone writer en de proefacties *Opslaan* en *Opslaan als*). Opnieuw maken als een invoerbestand verandert of na een bewuste wijziging van lezer of writer op main, met een nieuwe `BASIS` |
+| `maak-main-toets-trias.mjs` | `node scripts/proef/maak-main-toets-trias.mjs` | draait `trias` uit `tests/planning/ifcAppRoute.ts` met `src/` van dezelfde `BASIS` en schrijft per bestand de sha256 naar `tests/planning/fixtures/main-toets-trias.json`, voor `check-ifc-foreign-oude-eigen.ts` |
+| `maak-oude-kop-main.mjs` | `node scripts/proef/maak-oude-kop-main.mjs [basis=origin/main] [uitvoer=tests/planning/fixtures/oude-kop-main.json]` | meet `oldHeaderTable` (`tests/planning/ifcOudeKopVergelijking.ts`) met de code van die commit, voor `check-ifc-foreign-open.ts` |
+| `maak-oude-uitvoer.mjs` | `node scripts/proef/maak-oude-uitvoer.mjs [label …]` | schrijft per regel van `JOBS` een voorbeeld met lezer en writer van die tag of commit (`git archive` van `src/` en `public/examples/`, vaste klok, eventueel eerst een kleine wijziging) naar `tests/planning/fixtures/oude-tags/<label>-<voorbeeld>.ifc`; zonder label alle regels. Waarom deze tags: `docs/superpowers/evidence/2026-11-ifc-fase0.md` |
+| `meet-merge-heropenen.mjs` | `node scripts/proef/meet-merge-heropenen.mjs [--groot]` | meet de merge en het opnieuw openen op gegenereerde modellen van 5 en 10 MiB (`--groot`: alleen 10 MiB, met een duurwijziging) rond het voorbeeld `showcase-appartementencomplex.ifc` |
+| `meet-scanner.mjs` | `node scripts/proef/meet-scanner.mjs [--mb=50] [--browser=chromium,webkit] [--out=meting.json]` | meet scanner, indeling, de doelcontrole, de merge-writer en de sha256 op synthetische bestanden van de gevraagde groottes, in Node en met `--browser` ook in Playwright; de merge-writer meet het alleen in Node. Boven 50 MB alleen met `CI=true`, via de handmatige job in `ifc-foreign.yml`; exit 1 als een gevraagde meting mislukte of een verkeerde uitkomst gaf |
+
 ## Overig
 
 - `run-ts.mjs` — de TypeScript-runner waarmee de `.ts`-scripts hierboven draaien (esbuild → Node).

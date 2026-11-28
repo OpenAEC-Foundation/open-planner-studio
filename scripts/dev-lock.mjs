@@ -1,4 +1,3 @@
-// scripts/dev-lock.mjs
 import {
   openSync, writeSync, closeSync, fstatSync, statSync, readFileSync, unlinkSync, renameSync, linkSync,
 } from 'node:fs';
@@ -15,10 +14,9 @@ function sleepSync(ms) {
 
 function pidAlive(pid) {
   try { process.kill(pid, 0); return true; }
-  catch (e) { return e.code === 'EPERM'; } // bestaat wel, maar geen permissie
+  catch (e) { return e.code === 'EPERM'; }
 }
 
-/** Ruwe inhoud van het slot; null als het niet te lezen is (weg, geen rechten). */
 function readText(lockPath) {
   try { return readFileSync(lockPath, 'utf8'); } catch { return null; }
 }
@@ -43,21 +41,11 @@ function sameFile(a, b) {
   return Boolean(a && b && a.dev === b.dev && a.ino === b.ino);
 }
 
-/** Dezelfde inode, en sinds `before` niet beschreven (grootte en mtime gelijk). */
 function unchangedFile(path, before) {
   const after = statOrNull(path);
   return sameFile(after, before) && after.size === before.size && after.mtimeMs === before.mtimeMs;
 }
 
-/**
- * Vult een net met open('wx') aangemaakt slot. Lukt schrijven of sluiten niet
- * (ENOSPC, EFBIG, EIO, of een onvolledige schrijf), dan ruimen we ONS slot op en
- * gooien de fout door. Anders blijft een leeg of half slot staan dat iedereen als
- * levend ziet (incident 25-09: schijf vol, alle worktrees geblokkeerd).
- *
- * "Ons" betekent: het pad wijst nog naar de inode die wij aanmaakten. Zo vegen we
- * nooit een slot weg dat een ander intussen op hetzelfde pad heeft gezet.
- */
 function fillOwnLock(lockPath, fd, payload, write, close) {
   let own = null;
   try {
@@ -71,7 +59,7 @@ function fillOwnLock(lockPath, fd, payload, write, close) {
       );
     }
   } catch (e) {
-    try { close(fd); } catch { /* de schrijffout is de echte oorzaak */ }
+    try { close(fd); } catch { }
     removeOwnLock(lockPath, own);
     throw e;
   }
@@ -79,44 +67,13 @@ function fillOwnLock(lockPath, fd, payload, write, close) {
 }
 
 function removeOwnLock(lockPath, own) {
-  // Zonder fstat (faalt in de praktijk niet) is het pad vrijwel zeker nog van ons:
-  // we maakten het net aan en een leeg slot wordt pas na emptyAgeMs gestolen.
   if (own && !sameFile(statOrNull(lockPath), own)) return;
-  try { unlinkSync(lockPath); } catch { /* al weg */ }
+  try { unlinkSync(lockPath); } catch { }
 }
 
-/**
- * Atomair pidfile-slot. Returnt release(); throwt bij timeout met een levende houder.
- *
- * Verse claim = `open('wx')` (O_EXCL) → altijd precies één winnaar.
- *
- * Een verweesd slot (dode pid, of te oud onder allowAgeSteal) stelen is race-veilig
- * via claim-en-verifieer: `rename(lock → privé)` is atomair, dus bij N gelijktijdige
- * stelers verplaatst maar ÉÉN de inode (de rest krijgt ENOENT → her-lus). Vervolgens
- * verifiëren we dat we exact de beoordeelde dode holder grepen (`sameHolder`); greep
- * een refresh-race een ánder (mogelijk levend) slot, dan zetten we dat terug via
- * `link` (nooit overschrijven) i.p.v. het te klobberen. Een naïeve `unlink`+`open`
- * zou een net-gewonnen vers slot kunnen wegvegen → meerdere winnaars.
- *
- * Een leeg/half-geschreven slot (null holder) geldt als levend → niet stelen,
- * TENZIJ zijn mtime ouder is dan `emptyAgeMs`. Een levende maker schrijft direct
- * na open('wx') en ruimt bij een schrijffout zijn slot zelf op (fillOwnLock), dus
- * een leeg slot van een levend proces bestaat maar microseconden. Een ouder leeg
- * slot komt van een proces dat tussen open en schrijven stierf (of van oudere
- * code die bij een schrijffout niet opruimde). Dat geldt voor élk slot, ook bij
- * allowAgeSteal=false: die regel beschermt een trage allocator mét pid in het
- * slot, en een leeg slot identificeert geen allocator. Stelen gaat via dezelfde
- * claim-en-verifieer; de verificatie eist dezelfde inode, nog steeds onbeschreven
- * (grootte en mtime gelijk) en byte voor byte dezelfde inhoud.
- *
- * `write`/`close`/`now` zijn injecteerbaar voor tests.
- */
 export function acquireLock(lockPath, opts = {}) {
   const {
     allowAgeSteal = false, ageMs = 60000,
-    // Ruim boven de microseconden tussen open en schrijven, en onder de 15 s die
-    // withAllocLock wacht: wie achter een achtergebleven leeg slot wacht, komt er
-    // in dezelfde poging nog langs.
     emptyAgeMs = 10000,
     timeoutMs = 15000, sleepMs = 50,
     extra = {}, now = Date.now,
@@ -126,43 +83,38 @@ export function acquireLock(lockPath, opts = {}) {
   for (;;) {
     let fd = null;
     try {
-      fd = openSync(lockPath, 'wx'); // O_EXCL — de mutex
+      fd = openSync(lockPath, 'wx');
     } catch (e) {
       if (e.code !== 'EEXIST') throw e;
     }
     if (fd !== null) {
       fillOwnLock(lockPath, fd, JSON.stringify({ pid: process.pid, startedAt: now(), ...extra }), write, close);
-      return () => { try { unlinkSync(lockPath); } catch { /* al weg */ } };
+      return () => { try { unlinkSync(lockPath); } catch { } };
     }
     const raw = readText(lockPath);
-    const h = parseHolder(raw); // null → leeg/half/weg/onleesbaar: levend, behalve hieronder
+    const h = parseHolder(raw);
     const dead = h && typeof h.pid === 'number' && !pidAlive(h.pid);
     const aged = allowAgeSteal && h && typeof h.startedAt === 'number' && (now() - h.startedAt) > ageMs;
-    // Alleen een slot dat we WEL lazen en leeg of half bleek; een onleesbaar slot (rechten)
-    // bewijst niets. Stat NA het lezen: een slot dat daartussen vervangen werd, is vers.
     const emptySnap = raw !== null && h === null ? statOrNull(lockPath) : null;
     const orphanEmpty = emptySnap !== null && (now() - emptySnap.mtimeMs) > emptyAgeMs;
     if (dead || aged || orphanEmpty) {
       const mine = `${lockPath}.steal.${process.pid}.${stealSeq++}`;
       try {
-        renameSync(lockPath, mine); // atomair; slechts één steler verplaatst de inode
+        renameSync(lockPath, mine);
       } catch (e2) {
-        if (e2.code === 'ENOENT') continue; // andere steler/creator was ons voor
+        if (e2.code === 'ENOENT') continue;
         throw e2;
       }
       const exact = orphanEmpty
         ? unchangedFile(mine, emptySnap) && readText(mine) === raw
         : sameHolder(readHolder(mine), h);
       if (exact) {
-        try { unlinkSync(mine); } catch { /* al weg */ } // exact het beoordeelde slot → weggooien
+        try { unlinkSync(mine); } catch { }
       } else {
-        // Refresh-race: we grepen een ánder (mogelijk levend) slot, of het lege slot
-        // werd intussen alsnog gevuld. Zet het terug zónder een intussen vers-gemaakt
-        // slot te overschrijven (link faalt op EEXIST).
-        try { linkSync(mine, lockPath); } catch { /* slot al opnieuw geclaimd */ }
-        try { unlinkSync(mine); } catch { /* al weg */ }
+        try { linkSync(mine, lockPath); } catch { }
+        try { unlinkSync(mine); } catch { }
       }
-      continue; // her-lus: open('wx') kiest één winnaar
+      continue;
     }
     if (now() >= deadline) {
       throw new Error(`lock ${lockPath} vastgehouden door levende PID ${h?.pid ?? 'onbekend'} > ${timeoutMs}ms — afgebroken`);
@@ -171,7 +123,6 @@ export function acquireLock(lockPath, opts = {}) {
   }
 }
 
-/** Absoluut verankerd pad naar de gedeelde toewijzings-flock. */
 export function allocLockPath(root) {
   const gcd = execFileSync('git', ['rev-parse', '--git-common-dir'], {
     cwd: root, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'],
@@ -179,17 +130,12 @@ export function allocLockPath(root) {
   return join(resolve(root, gcd), 'ops-dev-alloc.lock');
 }
 
-/**
- * Serialiseert poort-toewijzing over alle worktrees. Kort vastgehouden.
- * allowAgeSteal=false: nooit een trage-maar-levende allocator bestelen.
- */
 export async function withAllocLock(root, fn) {
   const release = acquireLock(allocLockPath(root), { allowAgeSteal: false, timeoutMs: 15000 });
   try { return await fn(); }
   finally { release(); }
 }
 
-/** Per-worktree en per-lane runtime-slot voor proces-leven. */
 export function acquireNamedGuardLock(root, port, lane) {
   if (!/^[a-z][a-z0-9-]{0,31}$/.test(lane)) {
     throw new Error(`Ongeldige guard-lane identifier "${lane}"`);
@@ -210,7 +156,6 @@ export function acquireNamedGuardLock(root, port, lane) {
   }
 }
 
-/** Compatibiliteitswrapper voor de bestaande devlaunchers. */
 export function acquireGuardLock(root, port) {
   return acquireNamedGuardLock(root, port, 'dev');
 }
