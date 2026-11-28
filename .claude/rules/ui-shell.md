@@ -25,8 +25,8 @@ Tabbladen (`RibbonTab`): `file`, `start`, `planning`, `resources`, `beeld`, `ins
 (0481), een lintknop en zijn opdracht (0482), paneelschakelaars (0483), wanneer een lintknop uit staat (0484) en
 relatielijnen en balkdatums op Beeld (0485).
 
-**Besluiten in `src/components/panels/`** staan in `docs/adr/`: het bezettingsoverzicht (0690) en de export en
-sleepzone van het rapportpaneel (0691).
+**Besluiten in `src/components/panels/`** staan in `docs/adr/`: het bezettingsoverzicht (0690), de export en
+sleepzone van het rapportpaneel (0691) en de keuzes in het resourcepaneel (1140).
 
 Bij een smal venster maakt `useRibbonAutoFit` (`Ribbon.tsx`) lintknoppen van rechts naar links mini. Een lintgroep met invoervelden gebruikt `RibbonCollapsible` (`ribbonPrimitives.tsx`): die klapt als geheel in tot één grote knop met ▾ en popover, nadat de knoppen buiten de eerste groep mini zijn en vóór de knoppen van de eerste groep (zoals Bereken). Daarna zoekt de automaat de knoppenstand opnieuw, zodat de vrije ruimte terug gaat naar labels. Een groep met de focus erin of een open popover blijft in zijn stand. Animeer op `.ribbon-btn` geen maten; de automaat meet direct na het zetten van `data-ribbon-mini`. De keuzes die daarbij verrassen (geen React-state, wat de waarnemers zien, het `title` van een miniknop, de keuzelijst in een popover, het muiswiel) staan in `docs/adr/0870-lint-inpassing-keuzes-die-verrassen.md`.
 
