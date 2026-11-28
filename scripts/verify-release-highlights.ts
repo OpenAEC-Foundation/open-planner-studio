@@ -1,5 +1,3 @@
-// Taggebonden U4-poort: valideert dezelfde getypeerde catalogus die de dialoog rendert
-// én vergelijkt de bewaarde cijfers met reproduceerbare Git-metingen.
 import { execFileSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import { addedCodeLinesFromNumstat } from './lib/releaseStats';
