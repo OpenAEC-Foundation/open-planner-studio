@@ -1,17 +1,3 @@
-// M3 (Opus-review T15-iteratie-2, "UI-rimpel"): een taak met `isMilestone=true` ÉN een reële duur
-// ("mijlpaal-met-duur", T15 — MSP staat dit toe, zie CPMSolver.isZeroDurationMilestone) is voor de
-// PLANNING geen mijlpaal. GanttRenderer moet daarom hetzelfde onderscheid maken als de solver:
-//   1. `durationText` toont haar EIGEN duur, niet de hardgecodeerde "0d".
-//   2. de tekendispatch kiest `drawTaskBar` (een balk, `roundRect`), niet `drawMilestone` (een ruit,
-//      `moveTo`/`lineTo`/`fill`, GEEN `roundRect`) — dezelfde `roundRect`-detector als
-//      check-renderer-dateless.ts gebruikt om "hier is een balk getekend" vast te stellen.
-//   3. `getTaskBarBounds` (drag/resize-hittest) accepteert haar zoals elke andere balk-taak.
-// Ter controle draait een ECHTE (0-duur) mijlpaal in dezelfde scène mee: die moet het OUDE gedrag
-// behouden (durationText "0d", GEEN roundRect in haar rij). Sinds issue #691 verplaatst ook zij, maar alleen
-// rond haar ruit en zonder randen; op de x van de mijlpaal-met-duur-balk ligt die ruit niet.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -55,30 +41,14 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; roundRects: RRect[]; texts:
   return { ctx: ctx as unknown as CanvasRenderingContext2D, roundRects, texts };
 }
 
-// ── Scenario: een taak met echte duur, een mijlpaal-met-duur, en een ECHTE mijlpaal ──
-// Weekend-flake (gemeten op main): zowel `project.startDate` als `view.viewStartDate` defaulten op
-// "vandaag" (`defaults.ts`). Op een zaterdag/zondag schuift de solver de taak naar de eerstvolgende
-// werkdag (maandag) terwijl het view-origin op het weekend blijft staan — de balk verschuift dan
-// pixels naar rechts terwijl de hittest hieronder op een vaste x = TTW + 20 prikt. Vaste maandag
-// (in de stijl van de andere fixtures in dit bestand, bv. check-bar-colors.ts's '2026-01-05') maakt
-// de fixture dag-onafhankelijk: project- én view-start liggen op dezelfde, altijd-werkende dag.
 const FIXED_MONDAY = '2026-01-05';
 S().newProject();
 S().setProject({ startDate: FIXED_MONDAY });
 S().addTask({ name: 'Gewoon' });
 S().runCPM();
 
-// Datumonafhankelijkheid: `newProject()` legt de projectstart op "vandaag" vast, en `runCPM()`
-// laat de kalender die datum — als het toevallig een zaterdag/zondag is — naar de eerstvolgende
-// werkdag opschuiven (hier: 2026-09-05 valt op een zaterdag ⇒ earlyStart 2026-09-07). `view.
-// viewStartDate` blijft ondertussen op de ongeschoven "vandaag" staan, dus balk en viewport raken
-// uit elkaar en het vaste testpunt (TTW + 20) mist de balk — puur een testopzet-gebrek (bewezen:
-// groen op een doordeweekse "vandaag", rood op een weekend-"vandaag"), geen renderbug: de
-// GanttRenderer tekent de balk zelf correct op de kalender-geschoven datum. Fix: pin de
-// scenariodatums op een vaste maandag én zet `view.viewStartDate` daar expliciet op gelijk, zodat
-// het scenario nooit meer van de systeemklok/weekdag afhangt.
-const FIXED_START = '2026-01-05'; // maandag — bewust geen kalenderverschuiving nodig
-const FIXED_FINISH = '2026-01-09'; // vrijdag, 5 kalenderdagen verder (dag-modus, geen weekend ertussen)
+const FIXED_START = '2026-01-05';
+const FIXED_FINISH = '2026-01-09';
 const base: Task = {
   ...S().tasks[0],
   time: {
@@ -92,8 +62,6 @@ const base: Task = {
   },
 };
 
-// Mijlpaal-met-duur: isMilestone=true, scheduleDuration=5 (spant meerdere dagen, zichtbaar breed
-// genoeg voor een balk-roundRect). earlyStart/earlyFinish 5 dagen uit elkaar (dag-modus).
 const msWithDuration: Task = {
   ...base,
   id: 'ms-met-duur',
@@ -105,20 +73,17 @@ const msWithDuration: Task = {
     earlyFinish: base.time.earlyFinish || base.time.scheduleFinish,
   },
 } as Task;
-// Forceer een 5-dagen-venster ongeacht wat de solver voor de basistaak leverde, zodat de balk-
-// breedte niet toevallig 0 is.
 {
   const startIso = (msWithDuration.time.earlyStart || '').slice(0, 10);
   if (startIso) {
     const d = new Date(`${startIso}T00:00:00Z`);
-    d.setUTCDate(d.getUTCDate() + 7); // ruim voorbij een weekend, dag-modus
+    d.setUTCDate(d.getUTCDate() + 7);
     const finishIso = d.toISOString().slice(0, 10);
     msWithDuration.time.earlyFinish = finishIso;
     msWithDuration.time.scheduleFinish = finishIso;
   }
 }
 
-// Echte (0-duur) mijlpaal: controlecase, moet het bestaande gedrag behouden.
 const realMs: Task = {
   ...base,
   id: 'ms-echt',
@@ -134,9 +99,6 @@ const rows: ViewRow[] = [
 
 const W = 1200, H = 600, TTW = 0, ROWH = 28, HDRH = 60;
 const st = S();
-// viewStartDate expliciet gelijk aan FIXED_START (zie hierboven) — anders blijft dit veld op de
-// ongeschoven "vandaag" van newProject() staan en raken viewport en balk uit elkaar op een
-// weekend-"vandaag". (Dezelfde maandag als FIXED_MONDAY hierboven, waarop de projectstart staat.)
 const view = { ...st.view, scrollX: 0, scrollY: 0, viewStartDate: FIXED_START };
 
 const { ctx, roundRects } = makeCtx();
@@ -166,20 +128,12 @@ if (renderError === null) {
   const barTop = (i: number) => HDRH + i * ROWH;
   const inRow = (r: { y: number }, i: number) => r.y >= barTop(i) && r.y < barTop(i + 1);
 
-  // 1. Mijlpaal-met-duur (rij 1): roundRect getekend ⇒ drawTaskBar, niet drawMilestone.
   const msWithDurationBars = roundRects.filter(r => inRow(r, 1));
   ok('mijlpaal-met-duur (rij 1): balk (roundRect) getekend, niet een ruit', msWithDurationBars.length > 0);
 
-  // 2. Echte mijlpaal (rij 2): GEEN roundRect (drawMilestone tekent een ruit via moveTo/lineTo/fill).
   const realMsBars = roundRects.filter(r => inRow(r, 2));
   ok('echte mijlpaal (rij 2): GEEN balk-roundRect (blijft een ruit)', realMsBars.length === 0);
 
-  // 3. getTaskBarBounds: mijlpaal-met-duur is sleep-/resize-baar zoals elke balk-taak; de echte
-  //    mijlpaal heeft alleen een verplaatsgreep rond haar ruit (issue #691).
-  //    De x-coördinaat komt uit de balkgeometrie zelf en niet uit een vast getal: `newProject()`
-  //    zet project- én viewstart op vandaag, en valt vandaag in een weekend dan schuift de solver
-  //    de taak naar maandag, zodat de balk pas op x = 2 × zoom begint en een vaste x = 20 hem mist
-  //    (edge-zone 6). Zo stond CI op zaterdag 2026-09-05 rood terwijl hij op vrijdag groen was.
   const rowMidY = (i: number) => HDRH + i * ROWH + ROWH / 2;
   const rectWithDuration = renderer.getTaskBarRect('ms-met-duur');
   ok(`mijlpaal-met-duur: getTaskBarRect levert een balk (kreeg: ${JSON.stringify(rectWithDuration)})`, rectWithDuration !== null);

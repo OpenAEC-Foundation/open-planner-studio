@@ -1,18 +1,3 @@
-// Regressie voor de relatieregels. Twee generaties bewijs staan hier naast elkaar:
-//
-//   1. Een relatie MET een mijlpaal als eindpunt werd door de Gantt-hittest geweigerd, terwijl de
-//      solver mijlpalen volledig ondersteunt (spec 2026-08-14). Dit bestand verankert dat de regels
-//      ze toestaan — ONGEWIJZIGD sinds 2026-08-14.
-//   2. Een relatie MET een verzameltaak als eindpunt werd tot het eigenaarsbesluit van 2026-08-15
-//      ALTIJD geweigerd (spec 2026-08-14, §spookrelaties). Sinds `expandSummaryRelations`
-//      (`src/engine/scheduler/expandSummaryRelations.ts`) zulke relaties naar bladtaken doorrekent
-//      (MS Project-semantiek), is dat te grofmazig — alleen een relatie tussen een taak en zijn
-//      EIGEN (voor)ouder-samenvatting blijft geweigerd (`isAncestorRelation`), want die zou de
-//      expansie een directe cyclus (A→B én B→A) laten genereren. Dit bestand verankert de OMGEKEERDE
-//      uitkomst t.o.v. de oorspronkelijke spec: een gewoon verzameltaak-eindpunt MOET nu slagen.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 import type { Task } from '@/types/task';
 import type { Sequence } from '@/types/sequence';
 import { saveBranchAsWbsTemplate, listWbsTemplates, type WbsTemplate } from '@/utils/wbsTemplates';
@@ -30,26 +15,16 @@ function ok(label: string, cond: boolean): void {
   if (!cond) diffs.push(label);
 }
 
-// ── Minimale taak-stubs: de regels lezen alleen `id`, `childIds` en `parentId`. ──────────
 function task(id: string, childIds: string[] = [], parentId: string | null = null): Task {
   return { id, name: id, childIds, parentId } as unknown as Task;
 }
 
-// Boom voor de meeste checks:
-//   s
-//   ├── a   (leaf, gewoon kind van s)
-//   └── a2  (leaf, sibling van a — "cousin"-check: geen van beiden is voorouder van de ander)
 const leafA = task('a', [], 's');
 const leafA2 = task('a2', [], 's');
-const leafB = task('b'); // volledig los, geen ouder
+const leafB = task('b');
 const milestone = { ...task('m'), isMilestone: true } as Task;
 const summary = task('s', ['a', 'a2']);
 
-// Aparte, geneste boom voor de "kleinkind"-check, losstaand zodat hij de boom hierboven niet
-// door elkaar haalt:
-//   s3
-//   └── mid  (zelf ook een verzameltaak)
-//       └── g  (leaf, kleinkind van s3)
 const grandKind = task('g', [], 'mid');
 const mid = task('mid', ['g'], 's3');
 const summary3 = task('s3', ['mid']);
@@ -64,12 +39,10 @@ const FS = 'FINISH_START' as const;
 
 const lookup: TaskLookup = (id) => byId.get(id);
 
-// ── isSummaryTask ────────────────────────────────────────────────────────────
 ok('blad is geen verzameltaak', !isSummaryTask(leafA));
 ok('taak met kinderen is een verzameltaak', isSummaryTask(summary));
 ok('onbekende taak (undefined) is geen verzameltaak', !isSummaryTask(undefined));
 
-// ── isAncestorRelation ───────────────────────────────────────────────────────
 ok('blad→blad: geen voorouder-relatie', !isAncestorRelation(lookup, { predecessorId: 'a', successorId: 'b' }));
 ok('MIJLPAAL als voorganger: geen voorouder-relatie', !isAncestorRelation(lookup, { predecessorId: 'm', successorId: 'b' }));
 ok('gewoon verzameltaak-eindpunt (niet de eigen ouder): GEEN voorouder-relatie',
@@ -87,7 +60,6 @@ ok('twee ONGERELATEERDE siblings onder dezelfde ouder ("cousins"): GEEN vooroude
 ok('onbekend eindpunt: geen voorouder-relatie (er is niets om voorouder van te zijn)',
   !isAncestorRelation(lookup, { predecessorId: 'a', successorId: 'bestaat-niet' }));
 
-// ── relationVerdict ──────────────────────────────────────────────────────────
 const verdict = (p: string, s: string, seqs: Sequence[] = noSeqs) =>
   relationVerdict(lookup, seqs, { predecessorId: p, successorId: s, type: FS });
 
@@ -95,16 +67,12 @@ ok('blad→blad wordt toegestaan', verdict('a', 'b').ok);
 ok('mijlpaal→blad wordt toegestaan (regressie-anker, ongewijzigd sinds 2026-08-14)', verdict('m', 'b').ok);
 ok('blad→mijlpaal wordt toegestaan (regressie-anker, ongewijzigd sinds 2026-08-14)', verdict('a', 'm').ok);
 
-// Mutatiebewijs (uitgevoerd): met de VORIGE `relationVerdict` (die `isSummaryTask(pred) ||
-// isSummaryTask(succ)` nog als blokkerende voorwaarde had, vóór het eigenaarsbesluit van
-// 2026-08-15) gaven de volgende asserts `ok: false, reason: 'summary-endpoint'` — het exacte
-// tegenovergestelde van wat hier nu gepind staat.
 const summaryPredV = verdict('s', 'b');
 ok('verzameltaak als voorganger (naar een niet-verwante taak) wordt sinds 2026-08-15 TOEGESTAAN', summaryPredV.ok);
 const cousinsV = verdict('a', 'a2');
 ok('verzameltaak-EINDPUNT via een cousin-relatie blijft ook toegestaan (a2 is geen voorouder van a)', cousinsV.ok);
 
-const summaryAncestorV = verdict('a', 's'); // a is HIER een kind van s
+const summaryAncestorV = verdict('a', 's');
 ok('taak→eigen-ouder-samenvatting wordt geweigerd (dit ÍS de voorouder-relatie)', !summaryAncestorV.ok);
 ok('… met de voorouder-reden', !summaryAncestorV.ok && summaryAncestorV.reason === 'ancestor');
 const summaryAncestorMirrorV = verdict('s', 'a');
@@ -141,8 +109,6 @@ ok('ander PAAR met hetzelfde type blijft toegestaan',
 ok('ander PAAR met dezelfde opvolger blijft toegestaan',
   verdict('m', 'b', existing).ok);
 
-// Volgorde van de regels: een voorouder-relatie die óók een duplicaat is meldt het inhoudelijke
-// probleem, niet het duplicaat.
 const both: Sequence[] = [
   { id: 'seq2', predecessorId: 'a', successorId: 's', type: FS, lagDays: 0 },
 ];
@@ -150,7 +116,6 @@ const bothV = verdict('a', 's', both);
 ok('voorouder+duplicaat meldt de voorouder-reden i.p.v. het duplicaat',
   !bothV.ok && bothV.reason === 'ancestor');
 
-// ── Store-integratie: de slice-actie handhaaft dezelfde regels ────────────────
 const S = () => useAppStore.getState();
 
 S().newProject();
@@ -162,9 +127,6 @@ const mp = S().addTask({ name: 'Mijlpaal', isMilestone: true });
 ok('addTask met parentId gaf de ouder GEEN childIds-vermelding — dan is Fase geen verzameltaak en toetst de rest hieronder niets',
   S().tasks.find((t) => t.id === fase)?.childIds.includes(kind) === true);
 
-// Mutatiebewijs (uitgevoerd): met de VORIGE `relationVerdict` gaf `addSequence(fase, los)` hier
-// `null` (summary-endpoint) — de asserts hieronder waren dan `summaryId === null` i.p.v. `!== null`.
-// Zie de git-geschiedenis van dit bestand vóór het eigenaarsbesluit van 2026-08-15.
 const seqCountBefore = S().sequences.length;
 const summaryId = S().addSequence({ predecessorId: fase, successorId: los, type: FS, lagDays: 0 });
 ok('addSequence MAAKT een verzameltaak-relatie aan sinds 2026-08-15 (verwacht een id, geen weigering)',
@@ -173,14 +135,11 @@ ok('… en de relatie staat echt in de store',
   S().sequences.length === seqCountBefore + 1
   && S().sequences.some((e) => e.id === summaryId && e.predecessorId === fase && e.successorId === los));
 
-// Voorouder-relatie: Kind is de EIGEN bladafstammeling van Fase — dit blijft geweigerd.
 const seqCountAfterSummary = S().sequences.length;
 const ancestorId = S().addSequence({ predecessorId: kind, successorId: fase, type: FS, lagDays: 0 });
 ok('addSequence weigert een voorouder-relatie (kind → eigen ouder-samenvatting)', ancestorId === null);
 ok('… geen extra relatie erbij', S().sequences.length === seqCountAfterSummary);
 
-// Een geweigerde relatie (hier: de voorouder-relatie, ander type dan hierboven) mag geen undo-stap
-// achterlaten (zelfde regel als bij duplicaten, R3).
 const undoDepth = S().historyEvents.filter(event => event.state === 'applied').length;
 S().addSequence({ predecessorId: kind, successorId: fase, type: 'START_START', lagDays: 0 });
 ok('geweigerde (voorouder-)relatie duwt geen undo-snapshot', S().historyEvents.filter(event => event.state === 'applied').length === undoDepth);
@@ -190,8 +149,6 @@ ok('addSequence staat een MIJLPAAL als voorganger toe (regressie-anker, ongewijz
 ok('mijlpaal-relatie staat echt in de store',
   S().sequences.some((e) => e.id === msId && e.predecessorId === mp && e.successorId === los));
 
-// Een ANDERE voorganger dan `los`: Mijlpaal→Los bestaat al, dus Los→Mijlpaal zou een kring sluiten
-// en wordt sinds de kringtoets in de store-route terecht geweigerd (check-relation-routes.ts).
 const los2 = S().addTask({ name: 'Los 2' });
 const msSuccId = S().addSequence({ predecessorId: los2, successorId: mp, type: FS, lagDays: 0 });
 ok('addSequence staat een MIJLPAAL als opvolger toe (regressie-anker, ongewijzigd)', msSuccId !== null);
@@ -199,42 +156,27 @@ ok('addSequence staat een MIJLPAAL als opvolger toe (regressie-anker, ongewijzig
 const kindId = S().addSequence({ predecessorId: kind, successorId: los, type: FS, lagDays: 0 });
 ok('addSequence staat een SUBTAAK zonder eigen kinderen toe (gewoon een bladtaak)', kindId !== null);
 
-// ── pasteTasks: `relationVerdict` is de poort, niet alleen `addSequence` (docs/TODO.md, regel ~42) ──
-//
-// `copyTasks` filtert het klembord al tot relaties waarvan BEIDE eindpunten binnen de gekopieerde
-// deelboom vallen, en `pasteTasks` herbouwt diezelfde ouder/kind-structuur 1-op-1 onder de nieuwe
-// ids — dus een relatie die in de bron structureel geldig was (geen eigen-(voor)ouder, geen
-// zelfrelatie), kan door de plakplek zelf niet alsnog een ancestor-schending worden: de relatieve
-// boom tussen de gekopieerde taken verandert niet, alleen het aanhechtpunt erboven. Het reële risico
-// is dus niet "geldig in de bron, ongeldig door de plakplek", maar "al ongeldig in de bron, maar
-// nooit via `addSequence`/`relationVerdict` gecontroleerd" — exact het IFC-importpad, dat rechtstreeks
-// naar `s.sequences` schrijft zonder de add-route. Deze regressie zet zo'n "spookrelatie" rechtstreeks
-// in de store (net als een ongevalideerde import zou doen) en bewijst dat plakken hem niet opnieuw
-// aanmaakt, terwijl een gewone geldige relatie in dezelfde tak gewoon meekomt.
 S().newProject();
 const pOuder = S().addTask({ name: 'Ouder' });
 const pKind = S().addTask({ name: 'Kind', parentId: pOuder });
 const pSibling = S().addTask({ name: 'Sibling', parentId: pOuder });
-const pElders = S().addTask({ name: 'Elders' }); // los root-niveau, plakanker
+const pElders = S().addTask({ name: 'Elders' });
 
-// Geldige relatie via de normale route: Kind → Sibling (siblings, geen voorouder-conflict).
 const pValidSeqId = S().addSequence({ predecessorId: pKind, successorId: pSibling, type: FS, lagDays: 0 });
 ok('plak-fixture: geldige Kind→Sibling-relatie is aangemaakt', pValidSeqId !== null);
 
-// Spookrelatie rechtstreeks in de store gezet — zoals een IFC-import zou doen, buiten
-// `addSequence`/`relationVerdict` om. Kind → eigen Ouder is een ancestor-schending.
 useAppStore.setState((s) => {
   s.sequences.push({ id: 'ghost-seq-paste', predecessorId: pKind, successorId: pOuder, type: FS, lagDays: 0 });
 });
 ok('plak-fixture: spookrelatie staat in de store (buiten relationVerdict om)',
   S().sequences.some(e => e.id === 'ghost-seq-paste'));
 
-S().copyTasks([pOuder]); // kopieert Ouder + Kind + Sibling (met beide interne relaties)
+S().copyTasks([pOuder]);
 ok('plak-fixture: klembord bevat de hele tak', S().taskClipboard?.tasks.length === 3);
 ok('plak-fixture: klembord bevat beide interne relaties (copyTasks filtert niet op geldigheid)',
   S().taskClipboard?.sequences.length === 2);
 
-S().selectTask(pElders); // plakken als sibling van een los root-niveau-taak
+S().selectTask(pElders);
 const seqCountBeforePaste = S().sequences.length;
 const pasteRootIds = S().pasteTasks();
 ok('pasteTasks levert precies één nieuwe root op (Ouder)', pasteRootIds.length === 1);
@@ -253,13 +195,6 @@ ok('de geldige Kind→Sibling-relatie is meegeplakt met de nieuwe ids',
 ok('de spookrelatie (Kind→eigen Ouder) is NIET opnieuw aangemaakt onder de nieuwe ids',
   !!newKindId && !S().sequences.some(e => e.predecessorId === newKindId && e.successorId === newOuderId));
 
-// ── insertWbsTemplate: dezelfde poort voor het tak-uit-sjabloon-pad ───────────
-//
-// Een sjabloon is app-niveau data uit `localStorage` (`utils/wbsTemplates.ts`) — net als het
-// klembord kan hij relaties bevatten die nooit via `addSequence` zijn aangemaakt (handmatig bewerkt,
-// of afkomstig van een oudere/corrupte opslag). Zelfde bewijsvorm: een ancestor-schending tussen
-// sjabloon-lokale ids mag na het invoegen niet als echte relatie in de store staan, een gewone
-// geldige relatie in het sjabloon wel.
 S().newProject();
 const template: WbsTemplate = {
   id: 'tmpl-1',
@@ -271,9 +206,7 @@ const template: WbsTemplate = {
     { id: 'tSibling', parentId: 'tRoot', name: 'Sibling', description: '', taskType: 'CONSTRUCTION', isMilestone: false, durationDays: 2 },
   ],
   sequences: [
-    // Spookrelatie: Child → eigen Root (ancestor-schending), nooit via relationVerdict getoetst.
     { predecessorId: 'tChild', successorId: 'tRoot', type: FS, lagDays: 0 },
-    // Gewone geldige relatie: Child → Sibling (siblings, geen voorouder-conflict).
     { predecessorId: 'tChild', successorId: 'tSibling', type: FS, lagDays: 0 },
   ],
 };
@@ -295,7 +228,6 @@ ok('de geldige Child→Sibling-relatie is mee ingevoegd met de nieuwe ids',
 ok('de spookrelatie (Child→eigen Root) is NIET aangemaakt onder de nieuwe ids',
   !!newTemplateChildId && !S().sequences.some(e => e.predecessorId === newTemplateChildId && e.successorId === newTemplateRootId));
 
-// ── knownbugs #119: opslaan → opslag herlezen → invoegen bewaart de minutenlag ──
 const sourceTasks = S().tasks;
 const sourceRelation = S().sequences[0];
 const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
@@ -330,7 +262,6 @@ try {
         inserted.predecessorId !== relation.predecessorId && inserted.successorId !== relation.successorId);
     }
   }
-  // Procentuele lag blijft ook intact; een ontbrekend minutenveld blijft afwezig.
   templateStorage.clear();
   saveBranchAsWbsTemplate('Percentage bewaren', newTemplateRootId!, sourceTasks,
     [{ ...sourceRelation, lagDays: 0, lagPercent: 25 }]);
@@ -344,7 +275,6 @@ try {
   else Reflect.deleteProperty(globalThis, 'localStorage');
 }
 
-// Lookup-pariteit: dubbele ids, ongeldige eindpunten, levende drafts en vaste overslagvolgorde.
 {
   const base = { tasks: [
     task('root', ['a']), task('a', [], 'root'), task('a', [], 'b'), task('b'),
@@ -391,7 +321,6 @@ try {
     actual.sequences.some(r => r.predecessorId === 'b' && r.successorId === 'a'));
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  relation-rules: alle checks groen (${checks})`);
   process.exit(0);

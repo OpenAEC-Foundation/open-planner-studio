@@ -1,12 +1,3 @@
-// check-leveler-scope.ts — B1c-plan-2 taak 3: `scopeTaskIds` begrenst WAT er genivelleerd wordt.
-// Taken buiten de scope houden hun bestaande `levelingDelay` en tellen als VASTE LAST — precies wat
-// de verdeler nodig heeft om per poolitem te nivelleren zonder de rest van het document te
-// herschikken (spec §5, "scope-behoudend toepassen").
-//
-// Helperstijl gekopieerd uit `check-leveler-splits.ts` (task()/res()/assign()/stubCpmResult()).
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 import { levelResources, type LevelingOptions } from '@/engine/scheduler/ResourceLeveler';
 import { solveProject } from '@/engine/scheduler/solveProject';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
@@ -34,7 +25,6 @@ const PROJECT_CAL: WorkCalendar = {
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
 };
 
-/** Leaf-taak, zelfde veldvorm als `check-leveler-splits.ts`s `task()`. */
 function task(id: string, earlyStart: string, earlyFinish: string, durationDays: number, extra?: Partial<Task>): Task {
   return {
     id, name: id, description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -57,9 +47,6 @@ function assign(id: string, taskId: string, resourceId: string, unitsPerDay: num
   return { id, taskId, resourceId, unitsPerDay, curve: 'UNIFORM' };
 }
 
-/** Zelfde precedent als `check-leveler-splits.ts`s `stubCpmResult` — `levelResources` gebruikt hem
- *  alleen als fallback (`projectEndBefore`/foutuitgang); de echte baseline/PF/proef-solves rekenen
- *  op eigen `CPMSolver`-runs. */
 function stubCpmResult(projectEnd: string): CPMResult {
   return {
     tasks: new Map(), criticalPath: [], drivingSequenceIds: [], sequenceFreeFloat: {},
@@ -69,15 +56,6 @@ function stubCpmResult(projectEnd: string): CPMResult {
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 1 (scope-behoud + de controle zonder scope): resource R (cap 1). Taak A (prio 500, 1 wd,
-// ES ma 06-01) draagt AL `levelingDelay: 2` uit een eerdere nivellering ⇒ zij staat feitelijk op
-// wo 06-03. Taak B (prio 500, 1 wd, aanmaakvolgorde ná A) heeft een SNET-constraint die haar EIGEN
-// PF onvoorwaardelijk op wo 06-03 pint (onafhankelijk van A — geen relatie tussen A en B) — dat is
-// de enige manier om B's ECHTE PF op dezelfde dag als A's VERSCHOVEN positie te krijgen; zonder
-// constraint zou B's kale PF gewoon ma zijn (geen relatie met A) en zou er geen conflict optreden.
-// Scope = alleen B.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-scope: scope-behoud, delay buiten scope blijft vaste last (geval 1) --');
 {
   const taskA = task('a', '2026-06-01', '2026-06-01', 1, { priority: 500, levelingDelay: 2 });
@@ -97,10 +75,6 @@ console.log('-- leveler-scope: scope-behoud, delay buiten scope blijft vaste las
   eq("B wijkt om A heen — A stond op 06-03, dus B krijgt delay 1", r.delays['b'], 1);
   ok('geen onopgeloste conflicten', Object.keys(r.unresolved).length === 0);
 
-  // Controle: zonder scope-behoud zou A's delay in de baseline weggestript zijn (A start dan op
-  // haar eigen kale PF, ma 06-01), en B (die via haar SNET nog steeds op wo 06-03 wil) botst dan
-  // NERGENS met A — de twee zitten op verschillende dagen. Dat levert een AANTOONBAAR ander
-  // resultaat op dan de scoped run hierboven; dat verschil IS de regressie die dit geval pint.
   const noScopeOpts: LevelingOptions = { constrainToFloat: false };
   const rNoScope = levelResources(
     [taskA, taskB], [], [resourceR], assignments, PROJECT_CAL, [], cpmResult, noScopeOpts, legacyCpmOptions(),
@@ -109,21 +83,9 @@ console.log('-- leveler-scope: scope-behoud, delay buiten scope blijft vaste las
     JSON.stringify(rNoScope.delays) !== JSON.stringify(r.delays));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 2 (de spec-validatieplicht): `computePF` met behouden out-of-scope-delays. C (buiten
-// scope, draagt AL `levelingDelay: 3`) → FS → D (binnen scope, geen eigen delay). D's PF (zoals
-// `computePF` hem berekent op de `workTasks`-werkkopie) MOET C's door haar behouden delay
-// VERSCHOVEN vroege eind volgen, niet C's ongenivelleerde (delay-vrije) vroege eind. D heeft geen
-// resourceconflict nodig om dit te bewijzen: D krijgt een eigen resource-toewijzing op een
-// ruime resource zodat ze door de eligibility-lus loopt (en `computePF` dus ECHT aangeroepen
-// wordt) — de propagatie zelf komt uit de FS-relatie, niet uit resourcedruk.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- leveler-scope: computePF respecteert een behouden out-of-scope-delay (geval 2) --');
 {
   const taskC = task('c', '2026-06-01', '2026-06-01', 1, { priority: 500, levelingDelay: 3 });
-  // D's fixture-earlyStart is bewust een datum die NIET klopt met de geleverde planning (ma 06-01,
-  // dezelfde als C's ongeschoven start) — zodat de `shifts`-vergelijking (`cur !== tr`) altijd een
-  // echte wijziging ziet, ongeacht waar D in werkelijkheid landt.
   const taskD = task('d', '2026-06-01', '2026-06-01', 1, { priority: 500 });
   const sequences: Sequence[] = [
     { id: 'seq-cd', predecessorId: 'c', successorId: 'd', type: 'FINISH_START', lagDays: 0 },
@@ -140,9 +102,6 @@ console.log('-- leveler-scope: computePF respecteert een behouden out-of-scope-d
     r2.delays['d'], undefined);
   ok("D's start verschuift t.o.v. haar (bewust foute) fixture-earlyStart", r2.shifts['d'] !== undefined);
 
-  // Onafhankelijke referentie: draai `solveProject` op DEZELFDE relatie met C's `levelingDelay`
-  // al gezet, en lees D's earlyStart daaruit — dat is precies wat een correcte `computePF` had
-  // moeten opleveren (de propagatie via de FS-relatie, met C's behouden delay toegepast).
   const solvedTasks: Task[] = [
     { ...taskC, time: { ...taskC.time } },
     { ...taskD, time: { ...taskD.time } },
@@ -155,7 +114,6 @@ console.log('-- leveler-scope: computePF respecteert een behouden out-of-scope-d
     r2.shifts['d']?.newStart, expectedDStart);
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  leveler-scope: alle checks groen (${checks})`);
   process.exit(0);

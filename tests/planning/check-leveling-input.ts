@@ -1,6 +1,3 @@
-// Harde voorwaarden voor de nivelleer-motoretappe (onderzoek 2026-09-24 §8), corpusloos. Exit 0 = groen.
-// Mutanten: een bak-4-naam naar iets anders dan zijn eigen grootheid ⇒ rood (2a); een bak-2-naam in de
-// tabel opnemen ⇒ rood (2b); een terugval "onbekend ⇒ bronkolom" ⇒ rood (2c); hangende ids doorlaten ⇒ rood (1).
 import { readFileSync } from 'node:fs';
 import {
   isP6DialogDefaultLeveling, LEVELING_QUANTITIES, levelingPriorityQuantity, resolveLevelingPriority, resolveLevelingResources,
@@ -13,7 +10,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 
-// ── 1. Hangende resource-ids vallen eruit en komen terug om te melden ─────────────────────────
 {
   const got = resolveLevelingResources(
     { resources: [{ resourceId: 'r1', maxUnitsPerHour: 1 }, { resourceId: 'weg' }, { resourceId: 'r2' }] },
@@ -23,9 +19,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   eq('1b geen blok ⇒ leeg', resolveLevelingResources(undefined, new Set()), { resources: [], dangling: [] });
 }
 
-// ── 2. Gesloten mapping: elke bak-2/4-kolomnaam als sleutel ───────────────────────────────────
-// De namen komen mechanisch uit de broncode van de bakkenpoort (niet overgetypt), zodat een nieuwe
-// bak-naam hier vanzelf meedoet.
 const whitelistSource = readFileSync(new URL('./check-xer-field-whitelist.ts', import.meta.url), 'utf8');
 const bucket = (name: string): string[] => {
   const match = new RegExp(`export const ${name} = \\[([\\s\\S]*?)\\] as const`).exec(whitelistSource);
@@ -55,7 +48,6 @@ eq('2 bakken gevonden (6 bak-4, ≥ 10 bak-2)', [bak4.length, bak2.length >= 10]
     { keys: [{ quantity: 'earlyStart', direction: 'ASC' }, { quantity: 'activityPriority', direction: 'DESC' }], unmapped: ['restart_date'] });
 }
 
-// ── 3. P6-dialoogdefaults (MSPDI-exportmelding alleen bij afwijking) ──────────────────────────
 {
   const defaults = { preserveScheduledDates: true, levelAllResources: true, priority: [{ field: 'priority_type', direction: 'ASC' as const }] };
   eq('3a dialoogdefaults herkend', isP6DialogDefaultLeveling(defaults), true);

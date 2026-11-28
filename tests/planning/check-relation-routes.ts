@@ -1,30 +1,4 @@
 import './domStub';
-// Relaties over de routes heen (audit taakmutaties) — headless tegen de ECHTE Zustand-store.
-//
-// Dezelfde relatiehandeling kan via de Gantt (Shift-sleep + popover), de lintknop "Geselecteerde
-// taken koppelen", het relatiepaneel, de extensie-API (`api.data.addSequence`), het taakraster en MCP.
-// Deze batterij bewaakt dat die routes dezelfde grens trekken:
-//
-//   1. KRING (bevinding 2). Raster en MCP weigerden een relatie die een kring sluit al vooraf; de
-//      store-route (`addSequence`, waar Gantt, lint, paneel en extensie samenkomen) meldde "Relatie
-//      aangemaakt" en pas F5 liep vast op "Circular dependency". Nu toetst de store-route dezelfde
-//      kring vooraf, over de geëxpandeerde bladgraaf (een samenvattingseindpunt telt mee), en ALLEEN
-//      voor de kring die de nieuwe relatie zelf sluit: een al bestaande kring elders (bv. uit een
-//      import) blokkeert geen onschuldige relatie.
-//   2. HIËRARCHIE (bevinding 3). Een bestaande relatie kan door verhangen (inspringen, rij slepen,
-//      ouder kiezen in "Taak bewerken", MCP move_task) een relatie tussen een taak en zijn eigen
-//      (voor)ouder worden. Die telt dan niet meer mee — bewust bewaard, zoals bij een import — maar
-//      dat gebeurde stil, en daarna weigerde het taakraster ELKE relatiebewerking in het document
-//      (ook tussen ongerelateerde taken) met de tekst "eigen samenvattende taak". Nu meldt het
-//      verhangen hoeveel relaties niet meer meetellen, en telt het raster alleen de fouten die de
-//      bewerking zelf toevoegt.
-//   3. KRING DOOR VERHANGEN (rapport S4). Een relatie op een fase geldt voor elke taak in die fase.
-//      Hang je een taak onder een fase, dan kunnen haar relaties via die taak rondlopen (en bij
-//      uitspringen kan een relatie die niet meetelde weer gaan tellen). Elke verhangroute weigert
-//      zo'n NIEUWE kring nu vooraf — melding met de kring, geen wijziging, geen undo-stap — en
-//      meerdere taken tegelijk als geheel. Een al bestaande kring houdt niets tegen.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import { runGridMutation } from '@/state/gridTransaction';
 import {
@@ -61,7 +35,6 @@ const pairs = () => S().sequences.map(q => {
   return `${name(q.predecessorId)}→${name(q.successorId)}`;
 });
 
-/** Vers project zonder meldingen/history, zodat elk blok alleen zijn eigen effect ziet. */
 function fresh(): void {
   S().newProject();
   S().setProject({ startDate: '2026-03-02' });
@@ -76,7 +49,6 @@ function clearNotes(): void {
   useAppStore.setState(state => { state.ui.notifications = []; });
 }
 
-// ── 1. Kring via de store-route wordt vooraf geweigerd ───────────────────────────────────────
 {
   fresh();
   const a = S().addTask({ name: 'Grondwerk' });
@@ -87,7 +59,6 @@ function clearNotes(): void {
   clearNotes();
   const depth = undoDepth();
 
-  // Lintknop "Geselecteerde taken koppelen" (selectie B, A) — createRelationWithFeedback.
   eq('1.1 B→A sluit de kring: geen id', createRelationWithFeedback(b, a), null);
   eq('1.2 en geen tweede relatie', pairs(), ['Grondwerk→Fundering']);
   eq('1.3 geen loze undo-stap', undoDepth(), depth);
@@ -95,15 +66,12 @@ function clearNotes(): void {
     key: 'notifications.relationCycle', params: { cycle: 'Fundering → Grondwerk → Fundering' },
   }]);
 
-  // Gantt Shift-sleep-popover en relatiepaneel — createRelationDraftWithFeedback, ook met ander
-  // type en lag: de kring zit in de volgorde, niet in het type.
   clearNotes();
   eq('1.5 conceptroute (SS + lag) weigert dezelfde kring', createRelationDraftWithFeedback({
     predecessorId: b, successorId: a, type: 'START_START', lagDays: 2,
   }), null);
   eq('1.6 melding via hetzelfde kanaal', notes().map(n => n.key), ['notifications.relationCycle']);
 
-  // Extensie-API: `api.data.addSequence` roept rechtstreeks de store-actie aan (extensionApi.ts).
   eq('1.7 store-actie addSequence weigert de kring zelf', S().addSequence({
     predecessorId: b, successorId: a, type: 'FINISH_START', lagDays: 0,
   }), null);
@@ -112,13 +80,11 @@ function clearNotes(): void {
   S().runCPM();
   eq('1.9 F5 blijft rekenen (geen "Circular dependency")', S().cpmResult?.error, undefined);
 
-  // Geen valse treffer: een tweede type tussen hetzelfde paar in DEZELFDE richting is geen kring.
   ok('1.10 A→B SS naast A→B FS mag gewoon', S().addSequence({
     predecessorId: a, successorId: b, type: 'START_START', lagDays: 0,
   }) !== null);
 }
 
-// ── 2. Samenvattingseindpunt: de kring zit pas in de geëxpandeerde graaf (rapport S5) ─────────
 {
   fresh();
   const p = S().addTask({ name: 'Fase' });
@@ -136,14 +102,12 @@ function clearNotes(): void {
   eq('2.3 F5 blijft rekenen', S().cpmResult?.error, undefined);
 }
 
-// ── 3. Een al bestaande kring (bv. geïmporteerd) blokkeert geen onschuldige relatie ───────────
 {
   fresh();
   const x = S().addTask({ name: 'X' });
   const y = S().addTask({ name: 'Y' });
   const c = S().addTask({ name: 'C' });
   const d = S().addTask({ name: 'D' });
-  // Buiten de aanmaakroutes om, zoals een importer rechtstreeks naar `sequences` schrijft.
   useAppStore.setState(state => {
     state.sequences.push(
       { id: 'imp-xy', predecessorId: x, successorId: y, type: 'FINISH_START', lagDays: 0 },
@@ -159,9 +123,7 @@ function clearNotes(): void {
   });
 }
 
-// ── Hulpjes voor de rastercellen ─────────────────────────────────────────────────────────────
 const wbs = (id: string) => S().tasks.find(t => t.id === id)!.wbsCode;
-/** Zet de voorgangerscel van `taskId` via de echte gridtransactie; 'ok' of de foutcodes. */
 function gridPredecessors(taskId: string, tokens: readonly { id: string; lag?: string }[]): string {
   const intent: RelationSetIntent = {
     kind: 'relation-set', taskId, direction: 'predecessor',
@@ -175,7 +137,6 @@ function gridPredecessors(taskId: string, tokens: readonly { id: string; lag?: s
 }
 const hierarchyNotes = () => notes().filter(n => n.key === 'notifications.relationsExcludedByHierarchy');
 
-// ── 4. Inspringen onder de eigen voorganger (rapport S2): melding + raster blijft bruikbaar ────
 {
   fresh();
   const a = S().addTask({ name: 'Grondwerk' });
@@ -192,21 +153,16 @@ const hierarchyNotes = () => notes().filter(n => n.key === 'notifications.relati
     key: 'notifications.relationsExcludedByHierarchy', params: { count: 1 },
   }]);
 
-  // Het raster: een voorganger tussen twee taken die er niets mee te maken hebben.
   eq('4.4 raster: Steigerbouw als voorganger van Dakwerk mag', gridPredecessors(y, [{ id: x }]), 'ok');
   eq('4.5 en staat er', pairs().includes('Steigerbouw→Dakwerk'), true);
-  // De cel van Fundering zelf: de bestaande voorouder-relatie blijft staan terwijl er een bij komt,
-  // en haar lag is nog te wijzigen (zoals MCP update_dependencies dat al toestond).
   eq('4.6 raster: cel met de bestaande voorouder-relatie plus een nieuwe', gridPredecessors(b, [{ id: a }, { id: x }]), 'ok');
   eq('4.7 raster: lag van de bestaande voorouder-relatie wijzigen', gridPredecessors(b, [{ id: a, lag: '+2d' }, { id: x }]), 'ok');
   eq('4.8 de voorouder-relatie is dezelfde relatie gebleven, nu met lag', S().sequences
     .filter(q => q.predecessorId === a && q.successorId === b).map(q => q.lagDays), [2]);
-  // Een NIEUWE voorouder-relatie blijft geweigerd.
   const c = S().addTask({ name: 'Uitzetten', parentId: a });
   eq('4.9 raster: nieuwe relatie naar de eigen fase blijft geweigerd', gridPredecessors(c, [{ id: a }]), 'ancestor');
 }
 
-// ── 5. Een al bestaande kring blokkeert het raster niet meer; een nieuwe wel ──────────────────
 {
   fresh();
   const x = S().addTask({ name: 'X' });
@@ -225,7 +181,6 @@ const hierarchyNotes = () => notes().filter(n => n.key === 'notifications.relati
   eq('5.4 daarna geen kring meer', pairs().sort(), ['C→D', 'X→Y']);
 }
 
-// ── 6. Ook rij slepen en "Taak bewerken" (moveTask) melden het; een gewone verhanging niet ─────
 {
   fresh();
   const a = S().addTask({ name: 'A' });
@@ -233,7 +188,7 @@ const hierarchyNotes = () => notes().filter(n => n.key === 'notifications.relati
   const los = S().addTask({ name: 'Los' });
   S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
   clearNotes();
-  S().indentTasks([los]); // Los onder B: raakt geen relatie
+  S().indentTasks([los]);
   eq('6.1 verhangen zonder gevolgen voor relaties meldt niets', hierarchyNotes(), []);
   S().outdentTasks([los]);
 
@@ -245,23 +200,18 @@ const hierarchyNotes = () => notes().filter(n => n.key === 'notifications.relati
   eq('6.3 selectie slepen (moveTasksTo) meldt het', hierarchyNotes().map(n => n.params), [{ count: 1 }]);
   S().undo();
   clearNotes();
-  S().moveTask(a, b); // "Bovenliggende taak" in Taak bewerken / MCP move_task: A onder B
+  S().moveTask(a, b);
   eq('6.4 ouder kiezen (moveTask) meldt het, ook als de voorganger onder de opvolger gaat', hierarchyNotes().map(n => n.params), [{ count: 1 }]);
   clearNotes();
-  S().moveTask(los, b); // B was al samenvatting van A; de relatie telde al niet mee
+  S().moveTask(los, b);
   eq('6.5 een relatie die al niet meetelde, wordt niet opnieuw gemeld', hierarchyNotes(), []);
 }
 
-// ── 7. Verhangen dat via een fase een KRING maakt, wordt vooraf geweigerd (rapport S4) ────────
-// A, B, C met A→C en C→B. Hang B onder A en A wordt een fase: de relatie A→C geldt dan voor elke
-// taak in A, dus ook als B→C — samen met C→B een kring. Voorheen voerde elke verhangroute dat stil
-// uit en liep pas F5 vast ("Circular dependency"), waarna de hele planning bevroren was.
 const cycleNotes = () => notes().filter(n => n.key === 'notifications.hierarchyCycle');
 const parentName = (id: string) => {
   const parentId = S().tasks.find(t => t.id === id)!.parentId;
   return parentId ? S().tasks.find(t => t.id === parentId)!.name : null;
 };
-/** Het S4-uitgangspunt, doorgerekend en schoon (geen meldingen, niet gewijzigd). */
 function s4(extra: readonly string[] = []): Record<string, string> {
   fresh();
   const ids: Record<string, string> = {};
@@ -273,7 +223,6 @@ function s4(extra: readonly string[] = []): Record<string, string> {
   useAppStore.setState(state => { state.ui.notifications = []; state.isDirty = false; });
   return ids;
 }
-/** Na een geweigerde verhanging: niets gewijzigd, geen undo-stap, één melding die de kring noemt. */
 function expectRefused(label: string, depth: number, cycle: string, parents: Record<string, string | null>): void {
   for (const [name, parent] of Object.entries(parents)) {
     const id = S().tasks.find(t => t.name === name)!.id;
@@ -288,31 +237,26 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq(`${label}: F5 blijft rekenen`, S().cpmResult?.error, undefined);
 }
 {
-  // Inspringen: Alt+Shift+→, de lintknop en het contextmenu komen allemaal in `indentTasks`.
   let ids = s4();
   let depth = undoDepth();
   S().indentTasks([ids.Fundering]);
   expectRefused('7.1 inspringen', depth, 'Fundering → Keuring → Fundering', { Fundering: null });
 
-  // Rij slepen (ook de balk-naar-rij-sleep in de Gantt): één taak via `moveTaskTo`.
   ids = s4();
   depth = undoDepth();
   S().moveTaskTo(ids.Fundering, { parentId: ids.Grondwerk, childIndex: 0 });
   expectRefused('7.2 rij slepen', depth, 'Fundering → Keuring → Fundering', { Fundering: null });
 
-  // Selectie slepen: `moveTasksTo`.
   ids = s4();
   depth = undoDepth();
   S().moveTasksTo([ids.Fundering], { parentId: ids.Grondwerk, childIndex: 0 });
   expectRefused('7.3 selectie slepen', depth, 'Fundering → Keuring → Fundering', { Fundering: null });
 
-  // "Bovenliggende taak" in Taak bewerken (en MCP move_task): `moveTask`.
   ids = s4();
   depth = undoDepth();
   S().moveTask(ids.Fundering, ids.Grondwerk);
   expectRefused('7.4 ouder kiezen', depth, 'Fundering → Keuring → Fundering', { Fundering: null });
 
-  // Tegenproef: dezelfde verhanging zonder de relatie C→B maakt geen kring en gaat gewoon door.
   ids = s4();
   S().removeSequence(S().sequences.find(q => q.predecessorId === ids.Keuring)!.id);
   S().indentTasks([ids.Fundering]);
@@ -320,10 +264,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('7.6 zonder melding over een kring', cycleNotes(), []);
 }
 
-// ── 8. Meerdere taken tegelijk: de hele handeling wordt geweigerd, niet de helft ──────────────
-// Volgorde Grondwerk, Fundering, Steiger, Dak, Keuring. Inspringen van {Fundering, Dak}: Dak onder
-// Steiger is onschuldig, Fundering onder Grondwerk maakt de S4-kring. Half inspringen zou de
-// structuur onverwacht anders achterlaten dan de gebruiker vroeg: dus niets.
 {
   let ids = s4(['Steiger', 'Dak']);
   let depth = undoDepth();
@@ -338,16 +278,12 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   expectRefused('8.3 blok slepen', depth, 'Fundering → Keuring → Fundering', { Fundering: null, Dak: null });
 }
 
-// ── 9. Uitspringen kan óók een kring maken (gemeten) ─────────────────────────────────────────
-// Een relatie tussen een taak en haar eigen fase telt niet mee (ingesprongen, of geïmporteerd). Spring
-// je die taak weer uit, dan telt de relatie weer: Kozijnen → Casco geldt dan voor Metselwerk in Casco,
-// en met Metselwerk → Kozijnen erbij is dat een kring.
 {
   fresh();
   const casco = S().addTask({ name: 'Casco' });
   const kozijnen = S().addTask({ name: 'Kozijnen' });
   S().addSequence({ predecessorId: kozijnen, successorId: casco, type: 'FINISH_START', lagDays: 0 });
-  S().indentTasks([kozijnen]); // Kozijnen → Casco telt vanaf nu niet meer mee (melding, #207)
+  S().indentTasks([kozijnen]);
   const metselwerk = S().addTask({ name: 'Metselwerk', parentId: casco });
   ok('9.0 opzet: Metselwerk → Kozijnen binnen dezelfde fase mag', S().addSequence({
     predecessorId: metselwerk, successorId: kozijnen, type: 'FINISH_START', lagDays: 0,
@@ -360,7 +296,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   expectRefused('9.1 uitspringen', depth, 'Kozijnen → Metselwerk → Kozijnen', { Kozijnen: 'Casco' });
 }
 
-// ── 10. Een kring die er al was (bv. geïmporteerd) houdt een onschuldige verhanging niet tegen ──
 {
   fresh();
   const x = S().addTask({ name: 'X' });
@@ -380,10 +315,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   ok('10.3 (fase bestaat)', fase.length > 0);
 }
 
-// ── 11. Meerdere relaties tegelijk (issue #888): één undo-stap, weigeringen per relatie ──────────
-// Het paneel kan meerdere voorgangers of opvolgers in één keer leggen. Wat mag komt erbij als ÉÉN
-// undo-stap; wat geweigerd wordt (dubbel, kring — ook een kring met een eerdere relatie uit dezelfde
-// reeks) meldt zich zoals bij één relatie en houdt de rest niet tegen.
 {
   fresh();
   const a = S().addTask({ name: 'A' });
@@ -395,7 +326,7 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   const depth = undoDepth();
   const ids = createRelationsWithFeedback([
     { predecessorId: b, successorId: d, type: 'FINISH_START', lagDays: 2 },
-    { predecessorId: a, successorId: d, type: 'FINISH_START', lagDays: 0 }, // dubbel
+    { predecessorId: a, successorId: d, type: 'FINISH_START', lagDays: 0 },
     { predecessorId: c, successorId: d, type: 'START_START', lagDays: 0 },
   ]);
   eq('11.1 per relatie een id of null', ids.map(id => id === null ? null : 'id'), ['id', null, 'id']);
@@ -406,7 +337,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().undo();
   eq('11.6 één Ctrl+Z haalt ze allebei weg', pairs(), ['A→D']);
 
-  // Kring binnen de reeks: D → B is goed, daarna B → D zou de kring sluiten met de eerste.
   fresh();
   const p = S().addTask({ name: 'P' });
   const q = S().addTask({ name: 'Q' });
@@ -421,7 +351,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('11.8 kringmelding', notes().map(n => n.key), ['notifications.relationCycle']);
   eq('11.9 één undo-stap', undoDepth(), before + 1);
 
-  // Alles geweigerd ⇒ geen loze undo-stap.
   clearNotes();
   const none = createRelationsWithFeedback([{ predecessorId: q, successorId: p, type: 'FINISH_START', lagDays: 0 }]);
   eq('11.10 alles geweigerd: geen relatie', none, [null]);
@@ -429,11 +358,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('11.12 lege lijst doet niets', createRelationsWithFeedback([]), []);
 }
 
-// ── 12. Selectie als keten koppelen en toewijzen zoals in Primavera (issue #1000) ──────────────
-// MS Project koppelt met Ctrl+F2 alle geselecteerde taken als keten (Eind-Start), Primavera heeft
-// "Link Activities". De lintknop koppelde alleen precies twee taken. Nu: twee of meer, in de volgorde
-// op het scherm (niet die van klikken, review ronde 5), als ÉÉN undo-stap; een bestaande of verboden
-// schakel meldt zich en houdt de rest niet tegen. De sneltoets Ctrl+F2 doet hetzelfde.
 {
   fresh();
   const a = S().addTask({ name: 'A' });
@@ -443,7 +367,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().addSequence({ predecessorId: b, successorId: c, type: 'FINISH_START', lagDays: 0 });
   useAppStore.setState(state => { state.historyEvents = []; state.nextHistorySequence = 1; state.ui.notifications = []; });
   const depth = undoDepth();
-  // Volgorde van de rijen, niet van selecteren: D eerst gekozen, dan A, B, C ⇒ A → B → C → D.
   const ids = linkTasksInChain([d, a, b, c]);
   eq('12.1 per schakel een id of null', ids.map(id => id === null ? null : 'id'), ['id', null, 'id']);
   eq('12.2 de keten volgt het scherm, niet de klikvolgorde', pairs(), ['B→C', 'A→B', 'C→D']);
@@ -454,7 +377,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('12.6 één Ctrl+Z haalt de keten weg', pairs(), ['B→C']);
   eq('12.7 één taak koppelt niets', linkTasksInChain([a]), []);
 
-  // De sneltoets: Ctrl+F2 (Cmd+F2 op de Mac) met de gewone selectie.
   const shortcut = SHORTCUTS.find(entry => entry.id === 'edit.linkSelected');
   eq('12.8 Ctrl+F2 staat in het register', shortcut?.combo, { key: 'F2', mod: true });
   S().selectTask(a, false);
@@ -465,8 +387,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   shortcut?.run(S());
   eq('12.11 Ctrl+F2 koppelt de selectie als keten', pairs(), ['B→C', 'A→C', 'C→D']);
 
-  // Toewijzen zoals in Primavera: rechtsklik of lint ⇒ het relatiepaneel opent bij deze taak, met
-  // de richting al gekozen. Het paneel gaat aan en de rail klapt uit, ook als hij dicht was.
   S().setUI({ showPropertiesPanel: false, rightPanelCollapsed: true });
   requestRelationAssign(b, 'successor');
   eq('12.12 de taak is de selectie', [S().selectedTaskIds, S().activeTaskId], [[b], b]);
@@ -475,17 +395,10 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('12.14 het verzoek draagt taak en richting', S().ui.pendingRelationAssign, { taskId: b, direction: 'successor' });
   eq('12.15 toewijzen zelf verandert het document niet', pairs(), ['B→C', 'A→C', 'C→D']);
 
-  // Shift-klik op een balk (de store-route van de Gantt) zet het bereik in de volgorde van de
-  // lijst, net als Shift in de takenlijst: van onder naar boven selecteren gaf eerst de onderste
-  // taak en dan de rest van boven af, en de keten liep dan kriskras.
   S().selectTask(d, false);
   S().selectTask(b, false, true);
   eq('12.16 een Shift-bereik volgt de lijst, ook naar boven', S().selectedTaskIds, [b, c, d]);
-  // De tijdlijn geeft altijd de aangeklikte rij mee.
   const rowOf = (taskId: string) => ({ rowKey: S().viewRows.find(row => row.kind === 'task' && row.task.id === taskId)!.rowKey });
-  // Shift kiest precies het bereik vanaf het anker, zoals de takenlijst (`'extend'`) en een
-  // bestandsverkenner (rondes 13 en 14): een verkleind bereik laat de rest los, en Ctrl+F2 koppelt
-  // alleen wat gekozen is.
   S().selectTask(a, false, false, rowOf(a));
   S().selectTask(c, true, false, rowOf(c));
   S().selectTask(b, false, true, rowOf(b));
@@ -505,8 +418,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
     .map(q => [q.predecessorId, q.successorId]), [[a, b]]);
   S().undo();
 
-  // Review #1004: het bereik volgt de rijen OP HET SCHERM, niet de interne taakvolgorde. Een
-  // weggefilterde taak hoort er niet bij, en bij een aflopende sortering loopt de keten mee.
   S().setFilter({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'neq', value: 'B' });
   S().selectTask(c, false);
   S().selectTask(a, false, true);
@@ -518,7 +429,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('12.19 bij een aflopende sortering volgt het bereik het scherm', S().selectedTaskIds, [d, c, b]);
   S().setSort([]);
 
-  // Review #1004: Ctrl+F2 koppelt alleen als de takenlijst in beeld is, net als Delete en Ctrl+C.
   S().selectTask(a, false);
   S().selectTask(d, true);
   S().setUI({ activeRibbonTab: 'report' });
@@ -531,12 +441,9 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   ok('12.24 op Tabel mag Ctrl+F2', shortcut?.when?.() === true);
   S().setUI({ activeRibbonTab: 'start' });
 
-  // Review #1004: na Ongedaan kan de selectie naar een verdwenen taak wijzen. Toewijzen zet dan geen
-  // verzoek dat blijft hangen tot Opnieuw de taak terugbrengt.
   S().setUI({ pendingRelationAssign: null });
   requestRelationAssign('task-bestaat-niet', 'successor');
   eq('12.25 geen verzoek voor een taak die niet bestaat', S().ui.pendingRelationAssign, null);
-  // Aflopend op naam staat R boven Q en P: de keten loopt R → Q → P, wat de klikvolgorde ook was.
   const p = S().addTask({ name: 'P' });
   const q = S().addTask({ name: 'Q' });
   const r = S().addTask({ name: 'R' });
@@ -547,11 +454,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().setSort([]);
 }
 
-// ── 13. Het Gantt-bereik werkt op rijen, niet op taak-id's (review #1004, ronde 2) ──────────────
-// Bij groeperen op resource staat een taak in meer rijen, en een ingeklapte mijlpalenreeks is één
-// rij met meer taken. Shift-klik neemt de rijen tussen het anker en de AANGEKLIKTE rij, in de
-// volgorde op het scherm; daarna pas ontdubbelen. En een selectie met een taak die niet (meer) in
-// beeld staat, koppelt niet.
 {
   fresh();
   const a = S().addTask({ name: 'A' });
@@ -569,7 +471,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'desc' }]);
   const name = (id: string) => S().tasks.find(t => t.id === id)?.name;
   const shape = () => S().viewRows.map(row => (row.kind === 'task' ? name(row.task.id) : '|'));
-  // Op het scherm: | B A | D C B — B staat in beide ploegen.
   eq('13.0 B staat in twee rijen', shape(), ['|', 'B', 'A', '|', 'D', 'C', 'B']);
   S().selectTask(c, false);
   S().selectTask(b, false, true, { rowKey: S().viewRows[6].rowKey });
@@ -577,27 +478,21 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().selectTask(d, false);
   S().selectTask(b, false, true, { rowKey: S().viewRows[1].rowKey });
   eq('13.2 en naar de B-rij in ploeg 1, over de bandkop heen', S().selectedTaskIds.map(name), ['B', 'A', 'D']);
-  // Het anker is de rij waarop je klikte, niet het voorkomen van die taak dat het dichtst bij het
-  // eindpunt ligt (review #1004, ronde 3): B in ploeg 1, dan Shift op C → B A D C, zoals in Tabel.
   S().selectTask(b, false, false, { rowKey: S().viewRows[1].rowKey });
   eq('13.10 een Gantt-klik zet de aangeklikte rij als cursorrij', S().ui.gridActiveRowKey, S().viewRows[1].rowKey);
   S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
   eq('13.11 het bereik begint op de aangeklikte B-rij', S().selectedTaskIds.map(name), ['B', 'A', 'D', 'C']);
   eq('13.12 de cursorrij volgt de Shift-klik', S().ui.gridActiveRowKey, S().viewRows[5].rowKey);
-  // Ronde 4: een kader in de tijdlijn rond alleen de bovenste B maakt die rij het anker.
   S().selectTask(b, false, false, { rowKey: S().viewRows[6].rowKey });
   S().selectTasks([b], false, b, { rowKey: S().viewRows[1].rowKey, taskIds: [b] });
   eq('13.20 het kader zet zijn bovenste rij als anker', S().ui.selectionAnchor?.rowKey, S().viewRows[1].rowKey);
   S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
   eq('13.21 Shift na het kader begint op die rij', S().selectedTaskIds.map(name), ['B', 'A', 'D', 'C']);
-  // Shift begint bij de laatste klik zonder Shift, ook als die klik iets uitvinkte, zoals in de
-  // takenlijst (en een bestandsverkenner): B, Ctrl D aan, Ctrl D uit, Shift C ⇒ D en C.
   S().selectTask(b, false, false, { rowKey: S().viewRows[1].rowKey });
   S().selectTask(d, true, false, { rowKey: S().viewRows[4].rowKey });
   S().selectTask(d, true, false, { rowKey: S().viewRows[4].rowKey });
   S().selectTask(c, false, true, { rowKey: S().viewRows[5].rowKey });
   eq('13.22 na uitvinken begint Shift op de uitgevinkte rij', S().selectedTaskIds.map(name), ['D', 'C']);
-  // Met het anker op de ONDERSTE B (niet het eerste voorkomen): klik en kader.
   S().selectTask(b, false, false, { rowKey: S().viewRows[6].rowKey });
   S().selectTask(a, false, true, { rowKey: S().viewRows[2].rowKey });
   eq('13.24 Shift vanaf de onderste B naar A', S().selectedTaskIds.map(name), ['A', 'D', 'C', 'B']);
@@ -605,9 +500,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().selectTasks([b], false, b, { rowKey: S().viewRows[6].rowKey, taskIds: [b] });
   S().selectTask(a, false, true, { rowKey: S().viewRows[2].rowKey });
   eq('13.25 een kader rond de onderste B, dan Shift A', S().selectedTaskIds.map(name), ['A', 'D', 'C', 'B']);
-  // Ronde 6: de keten volgt het scherm, maar B staat hier vóór A (ploeg 1) en ná D en C (ploeg 2).
-  // Welke volgorde de planner bedoelt, ligt dan niet vast: geen keten, wel een melding. Taken die
-  // elk één blok rijen beslaan (A, D) koppelen gewoon.
   eq('13.27 A en D liggen vast', chainOrder(S().viewRows, [d, a])?.map(name), ['A', 'D']);
   eq('13.28 B voor én na D ligt niet vast', chainOrder(S().viewRows, [d, b]), null);
   clearNotes();
@@ -615,11 +507,9 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('13.29 dan legt Ctrl+F2 niets', linkTasksInChain([b, d]), []);
   eq('13.30 en meldt waarom', notes().map(n => n.key), ['notifications.relationChainOrderUnclear']);
   eq('13.31 er is geen relatie bijgekomen', S().sequences.length, chainBefore);
-  // Ronde 7: toewijzen voor de taak die al gekozen is, houdt haar rij als anker (de onderste B).
   S().selectTask(b, false, false, { rowKey: S().viewRows[6].rowKey });
   requestRelationAssign(b, 'successor');
   eq('13.38 toewijzen houdt de gekozen rij als anker', S().ui.selectionAnchor?.rowKey, S().viewRows[6].rowKey);
-  // Ronde 8: toewijzen via de rechtsklik op het ANDERE voorkomen kiest de taak op die rij.
   S().selectTask(b, false, false, { rowKey: S().viewRows[1].rowKey });
   requestRelationAssign(b, 'successor', S().viewRows[6].rowKey);
   eq('13.44 de rij van het rechtsklikmenu wordt het anker', S().ui.selectionAnchor?.rowKey, S().viewRows[6].rowKey);
@@ -630,8 +520,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().setSort([]);
   S().setGroup([]);
 
-  // Een selectie met een weggefilterde taak koppelt niet: het scherm toont A, C, maar de selectie
-  // is A, B, C. Lint en Ctrl+F2 gaan uit; anders ontstond stil A → B → C.
   S().selectTask(a, false);
   S().selectTask(b, true);
   S().selectTask(c, true);
@@ -644,9 +532,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   ok('13.6 en mag Ctrl+F2', shortcut?.when?.() === true);
 }
 
-// Ronde 6: na verwijderen begint Shift op de buurrij die de cursor kreeg, ook als die taak eerder in
-// een andere ploeg staat. Op het scherm | A D | B A C; B in ploeg 2 weg ⇒ de cursor op A in ploeg 2.
-// Shift op C is dan A, C (niet ook D uit ploeg 1), en de keten A → C.
 {
   fresh();
   const b = S().addTask({ name: 'B' });
@@ -674,8 +559,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   S().setGroup([]);
 }
 
-// Ronde 7: een schrijver die het anker niet kent (plakken, inklappen) laat het oude anker niet meer
-// gelden. Shift begint dan bij de actieve taak, niet bij een oude rij.
 {
   fresh();
   const g = S().addTask({ name: 'Grondwerk' });
@@ -696,8 +579,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   ok('13.41 Shift na plakken loopt van de kopie tot Ruwbouw', expectRange(S().selectedTaskIds)
     && S().selectedTaskIds.includes(copy) && !S().selectedTaskIds.includes(g));
 
-  // Inklappen tilt de selectie naar de fase; uitklappen laat de fase gekozen. Shift op Grondwerk gaat
-  // dan vanaf de fase, niet vanaf het oude anker op Fundering.
   const fase = S().addTask({ name: 'Fase' });
   S().moveTask(g, fase);
   S().moveTask(f, fase);
@@ -709,9 +590,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('13.43 Shift vanaf de fase neemt Fundering niet mee', [...S().selectedTaskIds].sort(), [fase, g].sort());
 }
 
-// Ronde 8: een anker dat ongeldig werd, komt niet terug als later dezelfde taken weer gekozen zijn.
-// Fase A met kind C, daarna B. A ingeklapt: A, Shift B. Uitklappen, Ctrl+A, inklappen (C gaat op in
-// A: weer A, B) en uitklappen. Shift op B gaat dan vanaf B, niet vanaf het oude anker A: C blijft eruit.
 {
   fresh();
   const a = S().addTask({ name: 'A' });
@@ -734,9 +612,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   eq('13.50 Shift na Ctrl+A begint voor beide oppervlakken bij de actieve taak', shiftAnchor(S())?.taskIds, [b]);
 }
 
-// Een ingeklapte mijlpalenreeks (#868) is één rij. Shift-klik op een groepsruitje neemt zijn
-// mijlpalen op hun plek in het bereik mee, niet achter de rest; een los ruitje alleen zichzelf, niet
-// de hele reeksrij (review Sol ronde 3 bij #868).
 {
   fresh();
   const zero = { durationUnit: 'days', scheduleDuration: 0 } as const;
@@ -757,8 +632,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   }
 }
 
-// Een reeksrij met een groepsruitje M1/M2 en een los ruitje M3, dan de taak Na (review #1004,
-// ronde 3). De store kent de ruitjes niet; de tijdlijn geeft de leden van het aangeklikte ruitje mee.
 {
   fresh();
   const zero = { durationUnit: 'days', scheduleDuration: 0 } as const;
@@ -788,14 +661,11 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
     eq('13.18 en weer samen uit', S().selectedTaskIds, [na]);
     S().selectTask(m1, false, false, diamond);
     eq('13.19 een gewone klik kiest het hele groepsruitje', S().selectedTaskIds, [m1, m2]);
-    // Een ander document (bv. een variant met dezelfde taak-id's en rijen) erft het anker niet.
     S().newDocument();
     eq('13.26 een documentwissel wist het Shift-anker', S().ui.selectionAnchor, null);
   }
 }
 
-// In een ingeklapte reeks staan de ruitjes op datum, niet in lijstvolgorde (review #1004, ronde 11):
-// lijst Midden, Vroeg, Laat; getekend Vroeg, Midden, Laat.
 {
   fresh();
   const on = (date: string) => ({
@@ -822,7 +692,6 @@ function expectRefused(label: string, depth: number, cycle: string, parents: Rec
   }
 }
 
-// Sanity: de rasterroute is dezelfde als de publieke `runGridMutation`-export.
 ok('runGridMutation-export bestaat', typeof runGridMutation === 'function');
 
 if (diffs.length > 0) {
