@@ -1,11 +1,10 @@
 # Schil: stroken, tabstrip en rail, keuzes die verrassen
 
-De stroken onder het lint voor een modus (relatiemodus, splits-modus, datums zoals opgeslagen) hebben geen kruisje en
-geen timer: een modus verandert wat slepen of rekenen doet, dus de strook verdwijnt alleen als de modus uit gaat
-(`DependencyModeNotice`, `SplitModeNotice`, `RecordedDatesNotice`; `NoticeStrip` zonder `onDismiss`). De
-splits-modus heeft geen bijschrift bij de knop of onder de Gantt; de strook is de enige uitleg van het gebaar. Een
-weigering (`StructureLockedNotice`) is rood en blijft tot het kruisje, omdat een weigering die vanzelf weggaat te
-missen is.
+In de gewone schil hebben de stroken onder het lint voor een modus (relatiemodus, splits-modus, datums zoals opgeslagen) geen kruisje
+en geen timer: een modus verandert wat slepen of rekenen doet, dus de strook verdwijnt alleen als de modus uit gaat
+(`DependencyModeNotice`, `SplitModeNotice`, `RecordedDatesNotice`; `NoticeStrip` zonder `onDismiss`). Bij de
+splits-modus is de strook de volledige uitleg van het gebaar. Een weigering (`StructureLockedNotice`) is rood en heeft
+geen timer, omdat een weigering die vanzelf weggaat te missen is.
 
 ## Gevolgen
 
@@ -19,11 +18,13 @@ missen is.
   en tooltip voor muis, touch en spraakbediening.
 - De sluitknop van een documenttab is een zuster van het element met `role="tab"`, geen kind
   (`DocumentTabControl`): zijn naam mag de toegankelijke tabnaam niet vervuilen.
-- Of de tabs pijlen nodig hebben, meet `needsScrollArrows` tegen de breedte zónder pijlen, en de pijlen verdwijnen pas
-  bij een marge vrije ruimte (`documentTabScroll.ts`); anders kan het verschijnen van de pijlen de uitkomst omkeren
+- Of de tabs pijlen nodig hebben, meet `measureOverflow` (`DocumentTabBar`) tegen de breedte zónder pijlen, en de pijlen
+  verdwijnen pas bij een marge vrije ruimte (`documentTabNeedsArrows` in `documentTabScroll.ts`); anders kan het verschijnen van de pijlen de uitkomst omkeren
   en flikkeren ze aan en uit.
 - Het doel van een lopende vloeiende pijlklik vervalt ook na `PENDING_SCROLL_MS` (`DocumentTabBar`), omdat WebKit het
   `scrollend`-event niet kent (uit het weggehaalde commentaar, niet nagegaan).
+- De statusbalk vouwt bij een andere breedte, tekstgrootte of letter opnieuw in dezelfde frame (`flushSync` in
+  `useStatusFold.ts`): anders staat er één frame overloop in beeld.
 - In de rechterrail (`RailPanel` in `RightRail.tsx`) staat het paneel met vaste hoogte op `flex: 0 1 auto` en hebben
   beide takken een `minHeight` van één kopbalk; de stapel krijgt met de waarschuwingssectie eronder een `minHeight`
   van één kopbalk per paneel. Zonder die klemmen knijpt een lage rail een paneel tot 0 px zonder dat iets dat
