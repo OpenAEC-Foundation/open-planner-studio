@@ -14,8 +14,9 @@ versie verliest een race op een trage runner, slaagt op kapotte code of meet iet
   (`extensions-storage.spec.ts`), krijgen hem dan nog. `ops-formatNoticeHidden` zet zij alleen als de sleutel
   ontbreekt; het init-script draait bij elke lading, en zo houdt een spec die de sleutel zelf zet
   (`format-notice.spec.ts`) zijn waarde na een herlaad.
-- `completeTour` (`fixtures/onboarding.ts`) klikt tot `ui.showTourOverlay` uit is en wacht na elke klik op een
-  andere kaarttitel; hij telt geen stappen en stuurt niet op een label. `TourOverlay` wacht per stap tot
+- `completeTour` (`fixtures/onboarding.ts`) klikt tot `ui.showTourOverlay` uit is en wacht na elke klik tot de
+  kaart een andere titel toont of de rondleiding dicht is, zodat ook de laatste klik zonder volgende kaart slaagt.
+  Hij telt geen stappen en stuurt niet op een label. `TourOverlay` wacht per stap tot
   `ANCHOR_WAIT_MS` op het anker en slaat de stap anders over, dus tussen twee stappen is de kaart even weg en
   kan het aantal stappen verschillen.
 - `resource-color-undo.spec.ts` speelt een sleep in de kleurkiezer na met `dragPicker`: een reeks `input`-events
@@ -36,15 +37,18 @@ versie verliest een race op een trage runner, slaagt op kapotte code of meet iet
 - `system-theme.spec.ts` toetst de spiegel vóór de eerste paint met een licht systeemthema: zonder
   `public/theme-prepaint.js` valt de eerste paint op de standaard donker, dus een donker systeem bewijst niets. De
   test eist eerst dat `light|light` in het spoor staat; een leeg spoor zou de filtercheck daarna vacuüm laten slagen.
-- `smoke.spec.ts` houdt de modules van Backstage en Help 1,5 s tegen, zodat een klik op Bestand vóórdat een apart
-  geladen deel binnen is in de waargenomen tussenbeelden valt, en de laadstand van Help echt te zien is.
+- `smoke.spec.ts` houdt `Backstage.tsx` en `HelpPanel.tsx` 1,5 s tegen, met twee aparte effecten. `App` importeert
+  Backstage statisch, dus die vertraging valt in de appstart: de test wacht op de gestarte app en klikt pas dan op
+  Bestand, dat het al geladen Backstage toont; elk waargenomen tussenbeeld moet de werkruimte of een afgewerkt
+  Bestand zijn. `HelpPanel` laadt Backstage apart (`lazy`), dus na de klik op Help is de laadstand (`Laden…`) echt
+  te zien.
 - `title-bar.spec.ts` kiest vensterbreedtes ruim weg van de drempels van de containerqueries in `TitleBar.css`
   (400 px en 120 px). De middenruimte hangt af van de gemeten breedte van het linkercluster, en een iets ander
   lettertype in CI mag de uitkomst niet laten kantelen.
 - `report-studio.spec.ts` herkent de voetstrook in de PDF als een clip-rechthoek op de onderrand van het
-  printgebied die hoger is dan 15 pt en lager dan de halve pagina, niet aan een vaste hoogte: de strook is
-  `FOOTER_HEIGHT` maal de schaal (`printPreview.ts`), en die schaal hangt af van de breedte van het rapport.
-- `tutorial-steps.spec.ts` draait met `mode: 'parallel'`, met elke tutorial in elke taal als eigen test, zodat CI
-  ze over de shards kan verdelen.
+  printgebied die hoger is dan 15 pt en lager dan de halve pagina, niet aan een vaste hoogte. De hoogte gaat door
+  twee schalen: `makeMetrics` (`printPreview.ts`) vermenigvuldigt `FOOTER_HEIGHT` met de lettertypeschaal van het
+  rapport, en de PDF-pagineerder (`paginateVector.ts`) past daar de paginaschaal uit `tileLayout.ts` op toe, die bij
+  *Passend op breedte* van de breedte van het rapport afhangt.
 - `tutorials/runner.ts` codeert de beelden met de WebP-encoder van Chromium zelf, in een aparte lege pagina, en
   niet met een beeldbibliotheek: de generator heeft zo geen extra afhankelijkheid.
