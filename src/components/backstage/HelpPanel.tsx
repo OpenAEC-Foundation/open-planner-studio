@@ -1,23 +1,3 @@
-// In-app help/documentatie-viewer. Backstage-sectie (net als
-// `ExamplesSection` in Backstage.tsx) — GEEN aparte `RibbonTab`/`isFullPanel`-tak in App.tsx
-// (alleen Backstage-NavItem + F1, geen ribbon-knop). Manifest + artikelen
-// worden at-runtime gefetcht via `BASE_URL`, exact hetzelfde patroon als
-// `public/examples/manifest.json` (zie `ExamplesSection` hierboven in Backstage.tsx).
-//
-// Manifest v2 (ontwerp gebruikersdocumentatie §6, bijgesteld 2026-09-28; omgeschakeld in fase 4):
-// de artikelen staan per `kind` in de secties How-to · Uitleg · Referentie. De sectie Tutorials komt
-// niet uit het manifest maar uit het register
-// (`utils/helpArticleRegistry.ts`) dat een tutorialextensie vult: genummerd volgens de leerroute, met
-// Vorige/Volgende onder elke tutorial. `draft`-artikelen bestaan alleen in dev — in productie zijn ze
-// onvindbaar, ook via zoeken, een `docs://`-link, een alias of `openHelpArticle`. De regels zelf
-// staan puur in `utils/helpManifest.ts`.
-//
-// Talen (vertaalstraat, ontwerp `2026-10-09-vertaalstraat-design.md` §10): nl en en zijn de bron en
-// altijd compleet. Een andere taal heeft alleen de artikelen uit haar `public/docs/<taal>/index.json`
-// (die de straat genereert); een artikel dat daar niet in staat, leest Engels met een korte melding.
-// Richting en `lang` van tekst en titel volgen de taal van de getoonde tekst, niet de UI: een Engelse
-// terugval in een ar-interface blijft links-naar-rechts. Een verouderde vertaling toont de viewer
-// gewoon (besluit B2); de releasepoort zorgt dat een release alles actueel heeft.
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Icon } from '@/components/icons';
@@ -44,17 +24,11 @@ import { HELP_DOCS_LANG_KEY } from '@/utils/helpArticlePrompt';
 import { isSettingId } from '@/utils/settingIds';
 import { openSettingsAt } from '@/components/settings/openSettingsAt';
 
-// De documentatietaal wordt persistent los van de UI-taal bewaard, zodat een gebruiker de docs in
-// bv. Engels kan lezen terwijl de rest van de app in zijn eigen taal blijft. Het venster
-// Verbindingsgegevens leest dezelfde sleutel (`loadHelpArticlePrompt`).
 const DOCS_LANG_KEY = HELP_DOCS_LANG_KEY;
 
-// Drafts (nieuwe manifestartikelen in aanbouw) alleen in de dev-build; de productiebuild ziet ze nooit.
 const INCLUDE_DRAFTS = import.meta.env.DEV;
 
 
-/** Wat de viewer toont: het gevraagde doel (id of alias, eventueel met anker). `nonce` laat een
- *  tweede klik op hetzelfde anker opnieuw scrollen. */
 interface HelpSelection {
   id: string | null;
   anchor: string | null;
@@ -65,13 +39,11 @@ function isRegistered(a: HelpArticleMeta): a is RegisteredHelpArticle {
   return 'source' in a && 'body' in a;
 }
 
-/** Een opgehaald manifestartikel en de taal waarin het werkelijk binnenkwam (na een eventuele terugval). */
 interface LoadedArticle {
   text: string;
   lang: HelpDocLang;
 }
 
-/** De index van een docstaal: `undefined` = nog aan het laden, `null` = geen index (alles Engels). */
 interface IndexState {
   lang: HelpDocLang;
   index: HelpDocIndex | null;
@@ -83,24 +55,16 @@ export function HelpPanel() {
   const openExampleFromString = useAppStore(s => s.openExampleFromString);
   const setUI = useAppStore(s => s.setUI);
   const startQuestionOpen = useAppStore(s => s.ui.pendingActualStartQuestion !== null);
-  // "Lees meer"-diepe-link vanuit een melding of het eigenschappenpaneel
-  // (`openHelpArticle` in uiSlice.ts). Eenmalig-verzoek-patroon: lezen + direct weer op `null`.
   const pendingHelpArticleId = useAppStore(s => s.ui.pendingHelpArticleId);
-  // "Help › Tutorials" als terugval van de tutorialvraag: dezelfde eenmalig-verzoekvorm, maar voor
-  // een sectie van de inhoudsopgave in plaats van een artikel.
   const pendingHelpSection = useAppStore(s => s.ui.pendingHelpSection);
   const tocRef = useRef<HTMLElement>(null);
   const registered = useSyncExternalStore(subscribeRegisteredHelpArticles, getRegisteredHelpArticles);
 
-  // Taal-koppeling: standaard volgt de docstaal de UI-taal. De gebruiker kan de docstaal LOS van de UI
-  // vastzetten op een andere taal; die keuze is persistent in localStorage. Een bewaarde waarde die
-  // geen docstaal is, valt terug op Auto en wordt opgeruimd.
   const [docsLangOverride, setDocsLangOverride] = useState<HelpDocLang | null>(() => {
     const saved = readLocal(DOCS_LANG_KEY);
-    if (saved !== null && !isHelpDocLang(saved)) removeLocal(DOCS_LANG_KEY, 'start'); // opruimen, geen keuze
+    if (saved !== null && !isHelpDocLang(saved)) removeLocal(DOCS_LANG_KEY, 'start');
     return isHelpDocLang(saved) ? saved : null;
   });
-  // Een nieuwere docstaal in de opslag (de host na de start, #818, of een ander tabblad): overnemen.
   useStoredSettingRefresh(DOCS_LANG_KEY, () => {
     const saved = readLocal(DOCS_LANG_KEY);
     setDocsLangOverride(isHelpDocLang(saved) ? saved : null);
@@ -108,7 +72,6 @@ export function HelpPanel() {
   const uiDocs = resolveHelpDocLang(i18n.language, null);
   const { lang, fallback: uiLangFallback } = resolveHelpDocLang(i18n.language, docsLangOverride);
 
-  // '__auto__' = volg de UI-taal (override wissen); anders een docstaal vastzetten.
   const changeDocsLang = (value: string) => {
     if (value === '__auto__') {
       setDocsLangOverride(null);
@@ -128,27 +91,18 @@ export function HelpPanel() {
   const [search, setSearch] = useState('');
   const bodyRef = useRef<HTMLDivElement>(null);
 
-  // `target` = artikel-id of alias, eventueel met `#anker` (docs://-link, openHelpArticle).
   const navigate = useCallback((target: string) => {
     const { id, anchor } = splitHelpTarget(target);
     setSelection(prev => ({ id, anchor, nonce: prev.nonce + 1 }));
-    // Een nieuwe artikelkeuze vervangt een nog wachtend verzoek om Tutorials in beeld te brengen.
     setUI({ pendingHelpSection: null });
   }, [setUI]);
 
-  // Een "lees meer"-link zette `ui.pendingHelpArticleId`; selecteer dat
-  // artikel en consumeer het verzoek meteen (net als `pendingNewResource` elders). Volgorde-veilig
-  // t.o.v. de manifest-fetch hieronder: die zet de selectie alleen als er nog geen is (eerste
-  // zichtbare artikel als default), dus een al gezette `pendingHelpArticleId`-selectie overleeft een
-  // latere manifest-load. Werkt ook vóórdat het manifest binnen is — de alias- en draftresolutie
-  // gebeurt pas bij het tekenen, dus ná de manifest-fetch op het juiste artikel.
   useEffect(() => {
     if (!pendingHelpArticleId) return;
     navigate(pendingHelpArticleId);
     setUI({ pendingHelpArticleId: null });
   }, [pendingHelpArticleId, setUI, navigate]);
 
-  // Manifest ophalen (eenmalig).
   useEffect(() => {
     let cancelled = false;
     fetch(`${import.meta.env.BASE_URL}docs/manifest.json`)
@@ -166,12 +120,10 @@ export function HelpPanel() {
     return () => { cancelled = true; };
   }, []);
 
-  // Alleen de zichtbare manifestartikelen: een draft wordt in productie niet eens opgehaald.
   const manifestArticles = useMemo(
     () => (manifest ? visibleHelpArticles(manifest, INCLUDE_DRAFTS) : []),
     [manifest],
   );
-  // Geregistreerde (extensie-)tutorials, zonder id's die het manifest al gebruikt.
   const registeredArticles = useMemo(
     () => (manifest ? usableRegisteredArticles(manifest, registered) : []),
     [manifest, registered],
@@ -181,8 +133,6 @@ export function HelpPanel() {
     [manifestArticles, registeredArticles],
   );
 
-  // De index van de docstaal (contract C2): welke artikelen er in die taal zijn, met hun titel. nl en
-  // en hebben er geen (altijd compleet). Ontbreekt hij, dan leest alles Engels met de melding.
   useEffect(() => {
     if (isHelpSourceLang(lang)) { setIndexState({ lang, index: null }); return; }
     let cancelled = false;
@@ -196,12 +146,8 @@ export function HelpPanel() {
       .catch(() => { if (!cancelled) setIndexState({ lang, index: null }); });
     return () => { cancelled = true; };
   }, [lang]);
-  // `undefined` zolang de index van de huidige taal nog niet binnen is.
   const docIndex = indexState && indexState.lang === lang ? indexState.index : undefined;
 
-  // Alle artikelbodies voor de huidige taal ophalen (zonder apart zoekbestand); dit dient tegelijk
-  // als de zoekindex, client-side opgebouwd uit de gefetchte artikelen. Pas als de index binnen is:
-  // een artikel dat niet in de index staat, wordt meteen in het Engels opgehaald (geen 404-regen).
   useEffect(() => {
     if (manifestArticles.length === 0 || docIndex === undefined) return;
     let cancelled = false;
@@ -209,15 +155,9 @@ export function HelpPanel() {
     setFailedIds(new Set());
     void Promise.all(
       manifestArticles.map(a => {
-        // `fetchTextAsset` draagt de "bestaat dit echt?"-poort: status + SPA-fallback-body-sniff.
-        // Bewust GEEN content-type-check meer — de Tauri-webview labelt élk `.md`-bestand als
-        // `text/html` (onbekende extensie ⇒ MimeType::Html), waardoor een header-check in de
-        // uitgeleverde desktopbuild ALLE artikelen verwierp ("Artikel niet gevonden") terwijl de
-        // browserbuild het niet liet zien. Zie de toelichting in src/utils/textAsset.ts.
         const fetchLang = (l: HelpDocLang) =>
           fetchTextAsset(`${import.meta.env.BASE_URL}docs/${l}/${a.id}.md`).then(text => ({ text, lang: l }));
         const want = articleLang(a.id, lang, docIndex).lang;
-        // Val per artikel terug op EN als de tekst onverhoopt ontbreekt (verify:docs eist nl en en).
         return fetchLang(want)
           .catch(() => (want === 'en' ? Promise.reject(new Error('geen EN-fallback')) : fetchLang('en')))
           .then(loaded => ({ id: a.id, loaded, ok: true as const }))
@@ -240,28 +180,23 @@ export function HelpPanel() {
     return () => { cancelled = true; };
   }, [manifestArticles, lang, docIndex]);
 
-  // Geregistreerde artikelen (tutorials uit een extensie) bestaan alleen in nl en en.
   const registeredLang: HelpSourceLang = lang === 'nl' ? 'nl' : 'en';
 
-  // De taal waarin een artikel werkelijk getoond wordt: die bepaalt `lang`/`dir` en de taalmelding.
   const shownLangOf = useCallback((a: HelpArticleMeta): HelpDocLang => {
     if (isRegistered(a)) return registeredLang;
     return articles[a.id]?.lang ?? articleLang(a.id, lang, docIndex).lang;
   }, [articles, docIndex, lang, registeredLang]);
 
-  // De tekst van een artikel in de huidige docstaal: gefetcht (manifest) of meegeleverd (register).
   const bodyOf = useCallback((a: HelpArticleMeta): string | undefined => (
     isRegistered(a) ? a.body[registeredLang] : articles[a.id]?.text
   ), [articles, registeredLang]);
 
-  // Titel in de getoonde taal: nl/en uit het manifest, een andere taal uit haar index, anders Engels.
   const titleOf = useCallback((a: HelpArticleMeta) => {
     const shown = shownLangOf(a);
     if (!isRegistered(a) && !isHelpSourceLang(shown)) return docIndex?.[a.id]?.title ?? a.title.en;
     return a.title[shown] ?? a.title.en;
   }, [docIndex, shownLangOf]);
 
-  // Zoekindex: titel, koppen én de volledige artikeltekst.
   const searchIndex = useMemo(() => allArticles.map(a => {
     const body = bodyOf(a) ?? '';
     return { id: a.id, title: titleOf(a), headings: body ? extractHeadings(body) : [], body };
@@ -273,18 +208,12 @@ export function HelpPanel() {
     return new Set(searchIndex.filter(entry => helpArticleMatches(entry, query)).map(entry => entry.id));
   }, [query, searchIndex]);
 
-  // Zelfde open-flow als Backstage → Voorbeelden (`ExamplesSection.handleOpen` hierboven in
-  // Backstage.tsx): fetch → openExampleFromString → runCPM → terug naar het Start-tabblad.
   const handleOpenExample = useCallback(async (file: string) => {
     try {
       const res = await fetch(`${import.meta.env.BASE_URL}examples/${file}`);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const content = await res.text();
       await openExampleFromString(content, file, buildImportLabels(tCommon));
-      // Showcase-voorbeelden delen één demo-resourcebibliotheek: zelfde
-      // volgorde als Backstage → Voorbeelden (`ExamplesSection.handleOpen`). Deze aanroeper kent
-      // alleen de bestandsnaam (geen manifest-`category`) — de showcase-bestanden dragen allemaal het
-      // `showcase-`-voorvoegsel (zie `public/examples/manifest.json`), de basisvoorbeelden niet.
       if (file.startsWith('showcase-')) applyDemoLibraryToShowcaseProject();
       setUI({ activeRibbonTab: 'start' });
     } catch (err) {
@@ -292,20 +221,14 @@ export function HelpPanel() {
     }
   }, [openExampleFromString, setUI, tCommon]);
 
-  // Alias- en draftresolutie: een oud id opent het nieuwe artikel; een draft in productie (direct of
-  // via een alias) levert `null` op en dus "artikel niet gevonden".
   const selectedMeta = manifest && selection.id
     ? resolveHelpArticle(manifest, selection.id, INCLUDE_DRAFTS, registeredArticles)
     : null;
   const selectedId = selectedMeta?.id ?? null;
   const selectedContent = selectedMeta ? bodyOf(selectedMeta) : undefined;
   const selectedFailed = selectedId ? failedIds.has(selectedId) : false;
-  // De taal van de getoonde tekst. Wijkt die af van de gekozen docstaal (het artikel is in die taal
-  // er nog niet), dan volgt de melding — net als voor een UI-taal zonder docs.
   const selectedLang: HelpDocLang = selectedMeta ? shownLangOf(selectedMeta) : lang;
   const showLangFallback = uiLangFallback || (!!selectedMeta && selectedContent !== undefined && selectedLang !== lang);
-  // Besluit eigenaar 2026-10-12: een artikel in een andere taal dan nl of en krijgt altijd een melding,
-  // met knoppen om alleen de docs naar Engels of Nederlands te zetten.
   const showTranslatedNote = !showLangFallback && !!selectedMeta && selectedContent !== undefined
     && selectedLang !== 'nl' && selectedLang !== 'en';
   const showLangNote = showLangFallback || showTranslatedNote;
@@ -313,8 +236,6 @@ export function HelpPanel() {
   const tutorialRoute = useMemo(() => tutorialsInOrder(registeredArticles), [registeredArticles]);
   const neighbours = selectedMeta?.kind === 'tutorial' ? tutorialNeighbours(tutorialRoute, selectedMeta.id) : null;
 
-  // Afbeeldingen per bron: een manifestartikel uit `public/docs` met `{lang}` = de docstaal, een
-  // geregistreerd artikel via de resolver van zijn bron (bijv. de assets van de extensie).
   const resolveImage = useMemo(() => {
     const own = selectedMeta && isRegistered(selectedMeta) ? selectedMeta.resolveImage : undefined;
     return (src: string) => {
@@ -323,27 +244,21 @@ export function HelpPanel() {
     };
   }, [selectedMeta, selectedLang]);
 
-  // `project://`-links bestaan alleen in geregistreerde artikelen: hun bron (de extensie) opent het
-  // meegeleverde projectbestand als nieuw document.
   const openProject = selectedMeta && isRegistered(selectedMeta) ? selectedMeta.openProject : undefined;
 
   const renderedContent = useMemo(() => {
     if (!selectedContent) return null;
     return renderMiniMarkdown(selectedContent, {
       onNavigate: navigate,
-      // Lezen blijft mogelijk; voorbeeld-/tutorialprojecten zouden het actieve document verlaten.
       ...(!startQuestionOpen ? {
         onOpenExample: (f: string) => { void handleOpenExample(f); },
         ...(openProject ? { onOpenProject: openProject } : {}),
-        // `settings://<id>`: Backstage wisselt naar App-instellingen, op precies die instelling.
         onOpenSetting: (id: string) => { if (isSettingId(id)) openSettingsAt(id); },
       } : {}),
       resolveImage,
     });
   }, [selectedContent, navigate, handleOpenExample, resolveImage, openProject, startQuestionOpen]);
 
-  // Na een artikelwissel: naar het anker scrollen als de link er een had, anders naar boven. De
-  // scrollcontainer is `.backstage-main` (de omringende Backstage-sectie), niet het paneel zelf.
   useLayoutEffect(() => {
     const body = bodyRef.current;
     if (!body || !renderedContent) return;
@@ -358,9 +273,6 @@ export function HelpPanel() {
 
   const inSearch = (a: HelpArticleMeta) => !matchedIds || matchedIds.has(a.id);
 
-  // Wacht op de eerste artikellayout: die zet de gedeelde scrollcontainer hierboven nog naar
-  // boven. Ook een ontbrekend/mislukt/leeg artikel is klaar; wachten op renderedContent laat het
-  // verzoek dan eeuwig hangen. Een manifestfout beëindigt het verzoek zonder een sectie te tonen.
   useEffect(() => {
     if (pendingHelpSection !== 'tutorials') return;
     if (!manifestError) {
@@ -427,7 +339,6 @@ export function HelpPanel() {
             <option value="__auto__">
               {tMenu('backstage.helpDocsLangAuto')} ({LANGUAGE_LABELS[uiDocs.lang][1]})
             </option>
-            {/* Alle docstalen: een taal zonder (volledige) vertaling toont per artikel Engels met de melding. */}
             {HELP_DOC_LANGS.map(l => (
               <option key={l} value={l}>{LANGUAGE_LABELS[l][1]}</option>
             ))}
@@ -440,15 +351,10 @@ export function HelpPanel() {
           <div className="backstage-empty">{tMenu('backstage.helpLoading')}</div>
         ) : (
           <>
-            {/* Tutorials (leerroute, uit het register) · How-to · Uitleg · Referentie. Tutorials staan er
-                ALTIJD: zonder geregistreerde tutorial wijst de sectie de weg naar de catalogus (de
-                tutorialvraag na de eerste rondleiding verwijst naar "Help › Tutorials"). */}
             {HELP_KINDS.map(kind => {
               if (kind === 'tutorial') {
                 const list = tutorialRoute.filter(inSearch);
                 if (list.length > 0) return renderTocSection('kind-tutorial', tMenu('backstage.helpKind.tutorial'), list, true);
-                // Geen tutorial geregistreerd: wijs de weg naar de catalogus (niet tijdens zoeken).
-                // Platformbouw (#311): geen catalogus, dus ook geen lege Tutorials-sectie met installeerknop.
                 if (!EXTENSIONS_ENABLED || tutorialRoute.length > 0 || query) return null;
                 return (
                   <div className="help-toc-layer" key="kind-tutorial" data-help-section="kind-tutorial">
@@ -502,9 +408,6 @@ export function HelpPanel() {
                 {tMenu('backstage.helpTutorialStep', { number: tutorialNumber, total: tutorialRoute.length })}
               </p>
             )}
-            {/* Richting en taal volgen de getoonde tekst: een ar-artikel loopt rechts-naar-links, een
-                Engelse terugval in een ar/fa-interface links-naar-rechts (anders springen leestekens en
-                lijsten naar de verkeerde kant). De taalmelding erboven volgt de UI. */}
             <div
               className="help-article-body"
               ref={bodyRef}
