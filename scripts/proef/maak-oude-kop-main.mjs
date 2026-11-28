@@ -1,6 +1,4 @@
 #!/usr/bin/env node
-// #916: de gemaakte-koppentabel vers meten met productcode van een opgegeven main-commit.
-// node scripts/proef/maak-oude-kop-main.mjs [basis=origin/main] [uitvoer=tests/planning/fixtures/oude-kop-main.json]
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
