@@ -1,21 +1,8 @@
-// Contrastpoort voor de thema's (huisstijl fase B). Regel van de eigenaar (2026-10-29): geen enkel
-// kleurpaar wordt slechter dan op main. Deze check rekent elk paar uit zoals de app het tekent en
-// toetst het aan een drempel in `theme-contrast-thresholds.json`: de waarde op main, of een waarde
-// die de eigenaar bewust aanvaardt (veld `reden`). Zo kan een latere update van de OpenAEC-tokens
-// (`scripts/style-tokens.py --tag …`) geen contrast stil verlagen.
-//
-// Hoe: de check leest `src/styles/openaec-tokens.css` en de themablokken uit `globals.css`, legt ze
-// in cascadevolgorde op elkaar per thema, lost `var()` op en geeft de uitkomst aan het echte
-// `readGanttPalette` (via de getComputedStyle-stub). Contrast is WCAG 2.x; een halfdoorzichtige
-// kleur wordt eerst op zijn ondergrond gemengd. Op 2026-10-29 gaf een meting in de browser
-// (getComputedStyle en het echte `readGanttPalette` in de draaiende app) dezelfde 226 getallen;
-// `tests/browser/theme-render.spec.ts` bewaakt dat de cascade in de browser zo uitvalt.
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { barLabelColor, doneBarTones, readGanttPalette } from '@/engine/renderer/themePalette';
 
-// Gebundeld draait dit vanuit een tijdelijke map; de checks starten in de repo-root (run.sh).
 const read = (rel: string) => readFileSync(resolve(process.cwd(), rel), 'utf8');
 const tokensCss = read('src/styles/openaec-tokens.css');
 const globalsCss = read('src/styles/globals.css');
@@ -27,8 +14,6 @@ let failures = 0;
 let checks = 0;
 const fail = (msg: string) => { failures++; console.log(`XX ${msg}`); };
 
-// ── CSS: blokken op selector, in bronvolgorde ─────────────────────────────────────────────────
-/** Alle custom properties uit het eerste blok waarvan de selectorlijst precies `selector` is. */
 function block(css: string, selector: string): Record<string, string> {
   const re = /([^{}]+)\{([^{}]*)\}/g;
   for (const m of css.matchAll(re)) {
@@ -60,7 +45,6 @@ function themeVars(theme: 'light' | 'dark' | 'high-contrast'): Record<string, st
   return Object.fromEntries(Object.entries(raw).map(([k, v]) => [k, resolveVar(v)]));
 }
 
-// ── Kleur en contrast ────────────────────────────────────────────────────────────────────────
 type RGBA = [number, number, number, number];
 function parse(color: string): RGBA {
   const c = color.trim();
@@ -73,8 +57,6 @@ function parse(color: string): RGBA {
   if (rgb) return [+rgb[1], +rgb[2], +rgb[3], rgb[4] === undefined ? 1 : +rgb[4]];
   throw new Error(`kleur niet te lezen: ${color}`);
 }
-/** Mengt een (halfdoorzichtige) kleur op een dichte ondergrond, afgerond op hele kanaalwaarden
- *  zoals de browser het tekent. */
 function over(fg: string, bg: string): string {
   const f = parse(fg), b = parse(bg);
   const mix = [0, 1, 2].map(i => Math.round(f[i] * f[3] + b[i] * (1 - f[3])));
@@ -92,7 +74,6 @@ function ratio(fg: string, bg: string): number {
   return Math.round(((l1 + 0.05) / (l2 + 0.05)) * 100) / 100;
 }
 
-// ── De paren (dezelfde lijst als de browsermeting in de PR) ──────────────────────────────────
 function pairs(theme: 'light' | 'dark' | 'high-contrast'): Map<string, number> {
   const v = themeVars(theme);
   const g0 = globalThis as unknown as { getComputedStyle: unknown };
@@ -136,9 +117,6 @@ function pairs(theme: 'light' | 'dark' | 'high-contrast'): Map<string, number> {
   for (const [n, s] of Object.entries(surf)) if (!s.includes('gradient')) add(A, `tekst op ${n}`, v['--theme-text'], s);
   for (const n of ['kaart', 'kop/verzonken vlak', 'werkruimte', 'veld']) add(A, `secundaire tekst op ${n}`, v['--theme-text-dim'], surf[n]);
   for (const n of ['kaart', 'kop/verzonken vlak']) add(A, `gedempte tekst op ${n}`, v['--theme-text-muted'], surf[n]);
-  // Schil (review Sol r1, PR #721): niet-actieve linttab, lintlabels (statusdatum, zoomniveau) en de naam van
-  // een niet-actief document dragen secundaire tekst (Ribbon.css, DocumentChrome.css). Op main lag de
-  // documentbalk op --theme-ribbon-tab-bg; een verloop (hoog contrast) heeft geen enkel getal en valt weg.
   const schil: Record<string, string | undefined> = {
     lint: v['--theme-ribbon-content-bg'], linttabs: v['--theme-ribbon-tab-bg'],
     documentbalk: v['--theme-docbar-bg'] ?? v['--theme-ribbon-tab-bg'],
@@ -182,7 +160,6 @@ for (const t of THRESHOLDS) {
   if (got === undefined) { fail(`${t.theme} ${t.group} "${t.name}": paar bestaat niet meer`); continue; }
   if (got < t.min) fail(`${t.theme} ${t.group} "${t.name}": ${got.toFixed(2)} < drempel ${t.min.toFixed(2)}${t.reden ? ` (${t.reden})` : ''}`);
 }
-// Elk gemeten paar heeft een drempel: een nieuw paar zonder drempel is een vergeten toets.
 for (const [theme, m] of Object.entries(measured)) {
   for (const key of m.keys()) {
     checks++;

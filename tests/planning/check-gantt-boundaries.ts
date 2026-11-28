@@ -1,7 +1,3 @@
-// Negatieve bewijstest voor de mechanische Gantt-eigendomsgrens.
-//
-// De echte repository moet groen zijn, woorden in commentaar en strings mogen niets activeren, en
-// syntactisch echte grenslekken moeten per eigenaar een gerichte melding en exitcode != 0 geven.
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
@@ -57,7 +53,6 @@ const cleanRoot = fixture({
   ].join('\n'),
   'src/engine/renderer/GanttRenderer.ts': "import { barGeometry } from './barGeometry';\nexport class GanttRenderer {}\n",
   'src/components/task-grid/FullTaskGrid.tsx': 'export function FullTaskGrid() { return <table />; }\n',
-  // De brug is de ENE canvaszijdige plek die de rijsleep mag kennen; hier moet de import dus mogen.
   'src/components/canvas/ganttRowDragBridge.ts': [
     "import type { TableRowDragCandidate } from '@/components/panels/hooks/useTableRowDrag';",
     'export type Starter = (candidate: TableRowDragCandidate) => void;',

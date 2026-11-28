@@ -1,7 +1,3 @@
-// Dev-only Gantt-testnaad: de browserdriver mag canvasgeometrie alleen LEZEN uit de echte
-// renderer. Deze check verankert daarom eerst de reverse locator tegen dezelfde balkgeometrie en
-// hit-test die het product gebruikt. Geen pixelgolden en geen gekopieerde datum→x-formule.
-
 const globals = globalThis as unknown as Record<string, unknown>;
 globals.document = { documentElement: {} };
 globals.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -106,7 +102,6 @@ renderer.render();
 
 ok('onbekend taak-id levert geen fictieve rechthoek', renderer.getTaskBarRect('bestaat-niet') === null);
 ok('datumloze taak levert geen fictieve sleeprechthoek', renderer.getTaskBarRect(dateless.id) === null);
-// Issue #691: een ruit is verplaatsbaar, dus de testnaad levert zijn greepvlak; het midden ervan is body.
 const milestoneRect = renderer.getTaskBarRect(milestone.id);
 ok('mijlpaal levert een greepvlak rond de ruit', milestoneRect !== null);
 if (milestoneRect) {
@@ -154,7 +149,6 @@ if (rect) {
   const point = taskBarPoint(healthy.id, 'body', 'primary');
   ok('bodypunt wordt van canvas-CSS naar client-X omgerekend', point?.x === 100 + centerX);
   ok('bodypunt wordt van canvas-CSS naar client-Y omgerekend', point?.y === 200 + centerY);
-  // Stukkenteller (wachtpunt voor browsertests die splits via de store zetten, PR #177).
   ok('ongesplitste getekende balk telt één stuk', taskSegmentCount(healthy.id, 'primary') === 1);
   ok('taak zonder getekende balk telt geen stukken', taskSegmentCount(dateless.id, 'primary') === null);
   unregister();

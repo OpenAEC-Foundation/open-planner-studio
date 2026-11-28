@@ -1,22 +1,3 @@
-// Relatiepijlen worden op de canvasrand geknipt vóór het tekenen — prestatiemeting rehab-2 (2026-10-07).
-//
-// AANLEIDING. Op rehab-2.xer (6.978 taken, 10.730 relaties) kostte elke scroll- of zoomstap ±1 s
-// rasteren (`ProduceCanvasResource` 0,8–1,8 s per frame); `setLineDash` als no-op haalde 93 % weg.
-// De verticale cull hield terecht elke pijl die het beeld KRUIST, maar gaf zijn volle route door:
-// een relatie tussen rij 100 en rij 6.000 is dan ±165.000 px lang, en het streeppatroon werd over
-// die hele lengte berekend. Nu knipt `strokeArrowPath` elk segment op de canvas (plus marge) en
-// tekent alleen het zichtbare stuk; het streeppatroon loopt door via `lineDashOffset` = de
-// afgelegde lengte tot het knippunt, zodat het beeld identiek blijft.
-//
-// Wat dit pint:
-//  A. Op ±7.000 taken / ±10.000 relaties ligt GEEN getekend pijlpunt verder dan de marge buiten
-//     de canvas, en de totale getekende pijllengte blijft begrensd (algoritme, geen tijdmeting).
-//  B. Streepfase: een geknipte lange pijl begint met `lineDashOffset` = booglengte van het
-//     weggeknipte stuk, en elk getekend punt ligt op de ongeknipte route (gemeten op een canvas dat
-//     groot genoeg is om niets te knippen).
-//  C. Na de pijlenlaag staat `lineDashOffset` weer op 0 (latere lagen strepen vanaf het begin).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
@@ -93,7 +74,6 @@ const lengthOf = (pts: number[]) => {
   return len;
 };
 
-/** Booglengte langs `route` tot punt (x, y), of null als het punt niet op de route ligt. */
 function arcLengthTo(route: number[], x: number, y: number): number | null {
   let acc = 0;
   for (let i = 2; i < route.length; i += 2) {
@@ -107,9 +87,8 @@ function arcLengthTo(route: number[], x: number, y: number): number | null {
   return null;
 }
 
-const MARGIN = 32; // ruimer dan de rendermarge: de toets is "niet ver buiten", niet de exacte marge
+const MARGIN = 32;
 
-// ── A. Op schaal ────────────────────────────────────────────────────────────────────────────────
 {
   const big = createLargeSchedule({ assignmentsPerTask: 1 });
   const counts = countsOf(big);
@@ -120,7 +99,6 @@ const MARGIN = 32; // ruimer dan de rendermarge: de toets is "niet ver buiten", 
     (S().cpmResult?.drivingSequenceIds.length ?? 0) > 0 && (S().cpmResult?.drivingSequenceIds.length ?? 0) < S().sequences.length);
   const W = 1600, H = 900;
   for (const [label, scrollY, zoom] of [['midden', 3_500 * 28, 20], ['boven', 0, 8], ['onder', 6_500 * 28, 40]] as const) {
-    // Venster op de taken die op deze hoogte staan: de eerste taakrij in beeld, tien dagen ervoor.
     const rows = S().viewRows;
     const firstRow = rows.slice(Math.floor(scrollY / 28)).find(r => r.kind === 'task' && !!r.task.time.earlyStart);
     const anchor = firstRow?.kind === 'task' ? firstRow.task.time.earlyStart.slice(0, 10) : '2026-01-05';
@@ -138,13 +116,11 @@ const MARGIN = 32; // ruimer dan de rendermarge: de toets is "niet ver buiten", 
     ok(`A ${label}: ook gestreepte pijlen`, strokes.some(s => s.dash.length > 0));
     ok(`A ${label}: geen getekend pijlpunt ver buiten de canvas`, outside.length === 0, `${outside.length}× bv. ${outside.slice(0, 3).join(' ')}`);
     const total = strokes.reduce((sum, s) => sum + lengthOf(s.pts), 0);
-    // Elke getekende run ligt binnen de (canvas + marge); per run hoogstens een paar keer de omtrek.
     ok(`A ${label}: totale getekende pijllengte begrensd`, total <= strokes.length * 2 * (W + H + 4 * MARGIN), `${total.toFixed(0)} px over ${strokes.length} strokes`);
     ok(`A ${label}: lineDashOffset na de pijlenlaag terug op 0`, finalOffset === 0, String(finalOffset));
   }
 }
 
-// ── B. Streepfase bij knippen ─────────────────────────────────────────────────────────────────────
 {
   S().newProject();
   S().setProject({ startDate: '2026-03-02' });
@@ -153,17 +129,14 @@ const MARGIN = 32; // ruimer dan de rendermarge: de toets is "niet ver buiten", 
   S().addSequence({ predecessorId: ids[0], successorId: ids[299], type: 'FINISH_START', lagDays: 3 });
   S().runCPM();
   const fullH = 50 + 300 * 28 + 100;
-  // Niets driving ⇒ gestreept; een canvas dat alles bevat ⇒ niets geknipt (de referentieroute).
   const full = render({ width: 1600, height: fullH, scrollY: 0, zoom: 20, driving: [], viewStartDate: '2026-02-23' });
   ok('B referentie: één ongeknipte gestreepte pijl', full.strokes.length === 1 && full.strokes[0].dash.length > 0 && full.strokes[0].offset === 0,
     JSON.stringify(full.strokes.map(s => ({ n: s.pts.length, off: s.offset, dash: s.dash }))));
   const route = full.strokes[0]?.pts ?? [];
-  // Dezelfde pijl in een venster halverwege: zowel begin als eind vallen buiten beeld.
   const clipped = render({ width: 1600, height: 500, scrollY: 150 * 28, zoom: 20, driving: [], viewStartDate: '2026-02-23' });
   ok('B geknipt: precies één run in beeld', clipped.strokes.length === 1, String(clipped.strokes.length));
   const run = clipped.strokes[0];
   if (run && route.length) {
-    // Terug naar referentiecoördinaten: dezelfde scroll-verschuiving.
     const shift = 150 * 28;
     const pts = run.pts.map((v, i) => (i % 2 === 1 ? v + shift : v));
     const onRoute = pts.every((_, i) => i % 2 === 1 || arcLengthTo(route, pts[i], pts[i + 1]) !== null);

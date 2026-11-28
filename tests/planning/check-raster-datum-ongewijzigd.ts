@@ -1,17 +1,3 @@
-// Een ongewijzigde datum in de tabel laat het moment staan (aanval a08 na #600, BLOKKEERT 1).
-//
-// De tabel toont een datum volgens B4: zonder tijd op een dagrand. Die tekst was ook de bewerk- en
-// kopieertekst. Bij bevestigen las de store de kale datum met één vaste kant, en dat gaf soms een ander
-// moment dan de cel had:
-//  - kalendertijd-taak van 1 d, handmatig, ma 1 jun 00:00 tot di 2 jun 00:00. Gepland einde toont
-//    "01-06-2026"; Enter zonder wijziging schreef ma 1 jun 00:00 (D3-exclusief), de hele dag was weg;
-//  - P6: FINISH-mijlpaal op 07:00 ging naar 16:00, START-mijlpaal op 16:00 naar 07:00 (D7).
-// Nu: een ongewijzigde datum geeft het opgeslagen moment terug (`parseGridEditorText`), en een nieuwe
-// einddatum zonder tijd is het einde van die dag zoals de tabel het toont (`normalizeTaskDateInput`).
-// Een nieuwe datum zonder tijd bij een mijlpaal houdt D7 (open besluit van de eigenaar; hier vastgepind
-// zodat een wijziging bewust gebeurt).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { builtInProfile } from '@/engine/scheduler/conventions/registry';
@@ -37,7 +23,6 @@ function eq(label: string, got: unknown, want: unknown): void {
   if (a !== b) diffs.push(`${label}: verwacht ${b}, kreeg ${a}`);
 }
 
-// De standaardkalender van B4: ma–vr 07:00–12:00 + 13:00–16:00.
 const blocks = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
 const standard: WorkCalendar = {
   id: 'std', name: 'Standaard', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7, workEndHour: 16,
@@ -64,7 +49,6 @@ function fixture(profile: Profile) {
     callbacks: { onCommitEdit: (_target, intents) => S().runGridMutation(intents) },
   });
   const cell = (id: string, column: string) => adapter().getCell(id, taskColumnId(column))!;
-  /** De echte rastercommit; zonder `text` de bewerktekst van de cel, ongewijzigd. */
   const commit = (id: string, column: string, text?: string) => {
     const a = adapter();
     const columnId = taskColumnId(column);
@@ -74,10 +58,8 @@ function fixture(profile: Profile) {
   return { S, of, adapter, cell, commit };
 }
 
-/** Wat van een taak telt voor "er verandert niets": de tijden en de beperkingen. */
 const snapshot = (t: Task) => JSON.stringify({ time: t.time, constraint: t.constraint, constraint2: t.constraint2, deadline: t.deadline });
 
-// ── 1. Kalendertijd-taak, handmatig gepland: Gepland einde en Einde ongewijzigd bevestigen ─────────
 for (const profile of ['ops', 'p6', 'msproject'] as const) {
   const f = fixture(profile);
   const id = f.S().addTask({ name: 'Kalendertijd handmatig' });
@@ -99,13 +81,11 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   const reopened = readIFC(writeIFC(buildWriteIFCInput(f.S(), 'planOnly'))).tasks.find(t => t.name === 'Kalendertijd handmatig')!;
   eq(`${profile} 1h na IFC opslaan en lezen: einde di 2 jun 00:00`, reopened.time.scheduleFinish, '2026-06-02T00:00');
 
-  // De gedeelde leesfunctie (bewerken én plakken): de getoonde tekst geeft het opgeslagen moment terug.
   const a = f.adapter();
   const descriptor = a.descriptorsById.get(taskColumnId('task.time.scheduleFinish'))!;
   eq(`${profile} 1i plakken: "01-06-2026" leest terug als het opgeslagen moment`,
     parseGridEditorText(descriptor, '01-06-2026', f.of(id), a.context, 'dmy'), { ok: true, value: '2026-06-02T00:00' });
 
-  // ── 2. Een nieuwe einddatum zonder tijd: het einde van die dag zoals de tabel het toont (B4) ──────
   eq(`${profile} 2a "03-06-2026" typen in Gepland einde: ok`, f.commit(id, 'task.time.scheduleFinish', '03-06-2026'), { ok: true });
   eq(`${profile} 2b einde wo 3 jun 24:00 = do 4 jun 00:00`, f.of(id).time.scheduleFinish, '2026-06-04T00:00');
   eq(`${profile} 2c de cel toont wat er getypt is`, f.cell(id, 'task.time.scheduleFinish').text, '03-06-2026');
@@ -113,7 +93,6 @@ for (const profile of ['ops', 'p6', 'msproject'] as const) {
   eq(`${profile} 2e einde wo 3 jun 12:00`, f.of(id).time.scheduleFinish, '2026-06-03T12:00');
 }
 
-// ── 3. P6: een mijlpaal op de andere dagrand dan zijn soort ─────────────────────────────────────────
 for (const kind of ['START', 'FINISH'] as const) {
   const f = fixture('p6');
   const at = kind === 'START' ? '2026-06-01T16:00' : '2026-06-01T07:00';
@@ -129,18 +108,13 @@ for (const kind of ['START', 'FINISH'] as const) {
   eq(`p6 ${kind} 3f niets veranderd`, snapshot(f.of(id)), before);
   f.S().runCPM();
   eq(`p6 ${kind} 3g na herberekenen: hetzelfde moment`, f.of(id).time.earlyStart, at);
-  // De datum opnieuw typen is ook "ongewijzigd": de cel toonde precies die datum.
   eq(`p6 ${kind} 3h "1-6-2026" typen: ok`, f.commit(id, 'task.time.start', '1-6-2026'), { ok: true });
   eq(`p6 ${kind} 3i niets veranderd`, snapshot(f.of(id)), before);
 
-  // Een NIEUWE datum zonder tijd houdt D7 (open besluit): FINISH ⇒ einde van de werkdag, START ⇒ begin.
   eq(`p6 ${kind} 3j "02-06-2026" typen op Gepland begin: ok`, f.commit(id, 'task.time.scheduleStart', '02-06-2026'), { ok: true });
   eq(`p6 ${kind} 3k nieuwe datum volgt D7`, f.of(id).time.scheduleStart, kind === 'FINISH' ? '2026-06-02T16:00' : '2026-06-02T07:00');
 }
 
-// ── 4. OPS: een losse mijlpaal zonder soort staat aan het einde van de werkdag (B6) ─────────────────
-// Vastgepind, geen reproductie: vóór de fix las de invoer "01-06-2026" hier als 07:00 (D7 zonder soort),
-// maar 07:00 is de projectstart, dus de getypte start gaf geen anker. Nu komt 16:00 zelf terug.
 {
   const f = fixture('ops');
   const id = f.S().addTask({ name: 'Losse mijlpaal', isMilestone: true });
@@ -156,7 +130,6 @@ for (const kind of ['START', 'FINISH'] as const) {
   eq('ops 4e na herberekenen: hetzelfde moment', f.of(id).time.earlyStart, at);
 }
 
-// ── 5. Een gewone taak en een beperking: ongewijzigd blijft ongewijzigd ─────────────────────────────
 {
   const f = fixture('ops');
   const id = f.S().addTask({ name: 'Dagtaak' });

@@ -1,6 +1,3 @@
-// De naamkolom-opties van het rapport (afkappen aan/uit + sliderbreedte) zijn rapportvoorkeuren in
-// ops-reportSettings. Deze batterij bewaakt de defaults (byte-identiek aan het oude gedrag), de
-// round-trip door de echte opslagroute en het klemmen van een geprutste breedte.
 import './domStub';
 import { DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings } from '@/utils/reportSettings';
 import { NAME_COLUMN_WIDTH_DEFAULT, NAME_COLUMN_WIDTH_MAX, NAME_COLUMN_WIDTH_MIN } from '@/services/print/printPreview';

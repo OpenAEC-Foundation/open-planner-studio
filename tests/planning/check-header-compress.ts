@@ -1,28 +1,3 @@
-// Header-regressiebatterij (issue #21 punt 5, vervolg): vóór deze fix toonde de datumregel
-// (header) delen ZWART/onleesbaar zodra `compressNonWorkdays` AAN stond en de gebruiker ver
-// genoeg had gescrold — `drawTimelineHeader` berekende zijn zichtbare-datumbereik
-// (`startDate`/`endDate`) via de kalenderdag-aanname `scrollX/zoom` (1 kalenderdag = 1
-// zoom-kolom), wat alleen klopt op de ONgecomprimeerde as. Onder compressie "kost" elke
-// overgeslagen niet-werkdag 0 px maar telde in de oude formule als 1 kalenderdag mee, dus het
-// berekende bereik liep bij toenemende scrollX steeds verder ACHTER op het werkelijk zichtbare
-// venster — bij genoeg scroll viel de tick-loop stil vóórdat hij het canvas bereikte: een
-// (deels of geheel) LEGE headerband. Zie ook `docs/superpowers/werkdagen-as-ontwerp.md` §4.1.
-//
-// Fix: `startDate`/`endDate` via de as-index (`this.axis.dayIndexOf`/`dateAtIndex`) i.p.v. de
-// kalenderdag-aanname; de dag-tier stapt onder compressie bovendien over werkdag-AS-INDICES
-// (`drawWorkdayTierLabels`) i.p.v. kalenderdagen, zodat nooit twee dag-labels op dezelfde x
-// landen (elke as-index is per constructie een andere echte werkdag).
-//
-// Deze batterij bewijst:
-//   1. (compressie AAN) over een zoom×scrollX-raster: de dag-rij dekt het volledige zichtbare
-//      canvas (geen vroegtijdig afbrekende tick-loop — het exacte, headless waargenomen defect),
-//      en geen twee labels in dezelfde header-rij landen op (nagenoeg) dezelfde x.
-//   2. (compressie UIT) de as-index-gebaseerde `startDate`/`endDate`-herleiding is ALGEBRAÏSCH
-//      identiek aan de oude `addCalendarDays(viewStart, floor(scrollX/zoom)±1)`-formule — het
-//      niet-gecomprimeerde pad blijft dus byte-identiek (ontwerp-eis §10).
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {}, createElement: () => ({ getContext: () => null }) };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -40,7 +15,6 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   if (actual !== expected) diffs.push(`${label}: kreeg ${JSON.stringify(actual)}, verwacht ${JSON.stringify(expected)}`);
 }
 
-// ── Opnemende 2D-context-stub: registreert elke fillText met (x, y, tekstbreedte) ───────────
 interface TextOp { x: number; y: number; text: string; width: number }
 function makeCtx(): { ctx: CanvasRenderingContext2D; ops: TextOp[] } {
   const ops: TextOp[] = [];
@@ -64,14 +38,10 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; ops: TextOp[] } {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, ops };
 }
 
-// ── Scenario: kalender MET NL-feestdagen (meerdaagse blokken zoals Kerst) + een lange taak,
-// zodat de zichtbare periode altijd weekends én feestdagblokken bevat. ───────────────────────
 const S = () => useAppStore.getState();
 S().newProject();
 const cal = createDefaultCalendar(2026);
 if (cal.holidays.length === 0) {
-  // Bouwmodus kan afhankelijk van localStorage-status leeg zijn in Node — forceer een
-  // realistisch meerdaags blok zodat het scenario hoe dan ook niet-triviale compressie test.
   cal.holidays.push(
     { name: 'Kerst', startDate: '2026-12-25', endDate: '2026-12-27' },
     { name: 'Nieuwjaar', startDate: '2027-01-01', endDate: '2027-01-01' },
@@ -84,7 +54,7 @@ S().updateTask(ta.id, { time: { ...S().tasks[0].time, scheduleStart: '2026-01-01
 S().runCPM();
 
 const W = 1200, H = 600, TTW = 0, HEADER_H = 44;
-const VIEW_START = '2026-11-15'; // vóór het Kerst/Nieuwjaar-blok, zodat het in het venster valt
+const VIEW_START = '2026-11-15';
 
 function renderHeaderOps(
   zoom: number,
@@ -111,9 +81,6 @@ function renderHeaderOps(
   return ops.filter((o) => o.y < HEADER_H);
 }
 
-// G1: de uren- en kwartierkeuze bestond in de instellingen, maar de schermheader gaf
-// `false` hardcoded door aan `pickTiers`. Daardoor kon geen enkel zoomniveau ooit tijdlabels
-// onder een dag tonen. Op de fijnste kwartierstand moeten de beide concrete labels zichtbaar zijn.
 {
   const ops = renderHeaderOps(4000, 0, false, true);
   const labels = new Set(ops.map(op => op.text));
@@ -123,7 +90,6 @@ function renderHeaderOps(
   if (!labels.has('00:15')) diffs.push('kwartierheader ontbreekt: 00:15 is niet zichtbaar op de fijnste kwartierstand');
 }
 
-// ── 1. Compressie AAN: geen stapeling binnen een rij + volle canvas-dekking van de dag-rij ──
 const ZOOMS = [8, 15, 26, 45, 60, 100];
 const SCROLLS = [0, 500, 1500, 3000, 6000, 10000, 25000];
 
@@ -131,8 +97,6 @@ for (const zoom of ZOOMS) {
   for (const scrollX of SCROLLS) {
     const ops = renderHeaderOps(zoom, scrollX, true);
 
-    // Geen twee labels in dezelfde rij (afgeronde y) op (nagenoeg) dezelfde x — dat was het
-    // hypothetische stapelingsmechanisme; blijft als regressiebewaking staan.
     const byY = new Map<number, TextOp[]>();
     for (const op of ops) {
       const ry = Math.round(op.y);
@@ -154,20 +118,12 @@ for (const zoom of ZOOMS) {
       }
     }
 
-    // Dag-rij (onderste rij, de grootste afgeronde y) moet — als hij bestaat — het canvas
-    // vrijwel volledig dekken (rechterrand ≥ canvasWidth - zoom - labelmarge). Dít is het
-    // exacte, headless waargenomen defect: vóór de fix stopte de dag-rij bij hoge scrollX ver
-    // vóór de rechterrand (of verdween helemaal — 0 dag-ops bij scrollX=3000+ in de diagnose).
     const dayY = Math.max(...ops.map((o) => Math.round(o.y)));
     const dayOps = ops.filter((o) => Math.round(o.y) === dayY);
     checks++;
     if (dayOps.length === 0) {
       diffs.push(`dag-rij ontbreekt volledig: z=${zoom} sx=${scrollX} (${ops.length} header-ops totaal)`);
     } else {
-      // Marge ruim genoeg voor één ontbrekende laatste kolom van de onderste rij (die bij lage
-      // zoom 'week' i.p.v. 'day' kan zijn, dus geschaald op zoom mét een vloer) — maar veel te
-      // krap om het pre-fix defect te maskeren (dat liet de rij honderden pixels, of het HELE
-      // canvas, ongedekt: zie de diagnose-sweep in `diag-header-compress.ts`).
       const maxX = Math.max(...dayOps.map((o) => o.x));
       const margin = Math.max(zoom * 4, 150);
       checks++;
@@ -181,13 +137,6 @@ for (const zoom of ZOOMS) {
   }
 }
 
-// ── 2. Compressie UIT: de as-index-gebaseerde startDate/endDate (`axisViewStartIdx + …`) moet
-// ALGEBRAÏSCH identiek zijn aan de oude `addCalendarDays(viewStart, floor(scrollX/zoom)±1)`-
-// formule — de exacte byte-identiek-eis uit werkdagen-as-ontwerp.md §10 voor het niet-
-// gecomprimeerde pad. Rechtstreeks getoetst op de `CalendarAxis` (waar `GanttRenderer` op
-// terugvalt zodra `compressNonWorkdays` uit staat, zie `resolveGanttAxis`): `dayIndexOf(origin)`
-// moet exact 0 zijn, en `dateAtIndex(0 + n)` moet exact `addCalendarDays(origin, n)` teruggeven
-// voor elke `n` die de header-berekening daadwerkelijk gebruikt. ──────────────────────────────
 const ORIGIN = new Date(VIEW_START + 'T00:00:00.000Z');
 for (const zoom of ZOOMS) {
   for (const scrollX of SCROLLS) {
@@ -205,9 +154,6 @@ for (const zoom of ZOOMS) {
     eq(`startDate as-index vs oude formule z=${zoom} sx=${scrollX}`, axisStart.getTime(), oldStart.getTime());
     eq(`endDate as-index vs oude formule z=${zoom} sx=${scrollX}`, axisEnd.getTime(), oldEnd.getTime());
 
-    // En de daadwerkelijke render moet, met compressie uit, hetzelfde aantal/positie header-ops
-    // opleveren als een tweede render met identieke opts (determinisme — geen per-call drift
-    // door de nieuwe as-instantiatie in de constructor, zie workdayAxis.ts §2.5-commentaar).
     const first = renderHeaderOps(zoom, scrollX, false);
     const second = renderHeaderOps(zoom, scrollX, false);
     checks++;
@@ -221,7 +167,6 @@ for (const zoom of ZOOMS) {
   }
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  header-compress: alle checks groen (${checks})`);
   process.exit(0);

@@ -1,13 +1,3 @@
-// Audit 2026-09-26 — undo-coalescing over een tussenliggende rasterbewerking heen.
-//
-// De taakraster-commit (`commitPreparedGridMutation`) neemt zijn history-event op buiten de
-// store-runtime om en reset de coalesce-marker dus niet. Een tweede gekeyde mutatie ná zo'n
-// celbewerking (bv. de statusdatum opnieuw zetten, of het naamveld verder typen) schreef daarom de
-// `after` van het OUDERE event over met een toestand mét die celbewerking: één undo draaide dan beide
-// terug, en redo gaf de celbewerking terug maar verloor de tweede gekeyde waarde. Nu coalescet de
-// runtime alleen zolang het marker-event nog het laatst opgenomen event is.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import './domStub';
 import { createAppStore } from '@/state/appStore';
 import type { CellEditIntent } from '@/types/taskGrid';
@@ -44,7 +34,6 @@ S().redo();
 S().redo();
 eq('drie keer redo herstelt alles, niets verloren', names(), ['A2', 'B-raster']);
 
-// Zonder tussenliggend event blijft coalescen gewoon werken (één undo-stap voor het hele gebaar).
 const before = S().historyEvents.length;
 S().updateTask(a, { name: 'A3' }, { coalesceKey: 'typen:A2' });
 S().updateTask(a, { name: 'A4' }, { coalesceKey: 'typen:A2' });

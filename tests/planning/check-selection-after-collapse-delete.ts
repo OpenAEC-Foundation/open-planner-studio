@@ -1,15 +1,3 @@
-// Selectie na in-/uitklappen en verwijderen (issue #899) — headless tegen de ECHTE store.
-//
-// Melding: klapt de planner een samenvatting in of verwijdert hij een taak, dan sprong de selectie
-// naar de bovenste rij. Afspraak:
-//  - Inklappen verbergt een geselecteerde taak ⇒ de selectie gaat naar de zichtbare ouder (de
-//    ingeklapte samenvatting), zodat je op dezelfde plek blijft. Een taak die al onzichtbaar was
-//    (filter) blijft ongemoeid.
-//  - Verwijderen van de hele selectie ⇒ de taak die nu op dezelfde plek staat (eronder); was het de
-//    laatste rij, dan de taak erboven. Dat is dezelfde regel als de celcursor van het raster
-//    (`reconcileGridSelection`: de oude positie op de dichtstbijzijnde rij).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -24,7 +12,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   }
 };
 
-/** Fase P (a, b, c), fase Q (d, met subfase Q1 (e)), losse taak f. Geeft naam → id. */
 function build(): Record<string, string> {
   S().newProject();
   const ids: Record<string, string> = {};
@@ -44,7 +31,6 @@ const nameOf = (id: string | null) => S().tasks.find(t => t.id === id)?.name ?? 
 const sel = () => ({ selected: S().selectedTaskIds.map(nameOf), active: nameOf(S().activeTaskId) });
 const visible = () => S().viewRows.flatMap(r => r.kind === 'task' ? [r.task.name] : []);
 
-// ── 1) Inklappen van de ouder van de geselecteerde taak ⇒ de ouder wordt geselecteerd. ──
 let ids = build();
 eq('uitgangspunt: alles zichtbaar', visible(), ['P', 'a', 'b', 'c', 'Q', 'd', 'Q1', 'e', 'f']);
 S().selectTask(ids.b);
@@ -53,24 +39,20 @@ eq('inklappen P met b geselecteerd ⇒ P', sel(), { selected: ['P'], active: 'P'
 S().toggleCollapse(ids.P);
 eq('uitklappen laat P geselecteerd', sel(), { selected: ['P'], active: 'P' });
 
-// Diep verborgen: e onder Q1 onder Q; Q inklappen ⇒ Q (de zichtbare voorouder), niet Q1.
 S().selectTask(ids.e);
 S().toggleCollapse(ids.Q);
 eq('inklappen Q met e geselecteerd ⇒ Q', sel(), { selected: ['Q'], active: 'Q' });
 
-// Inklappen van een fase ELDERS laat de selectie staan.
 ids = build();
 S().selectTask(ids.f);
 S().toggleCollapse(ids.P);
 eq('inklappen P met f geselecteerd ⇒ f blijft', sel(), { selected: ['f'], active: 'f' });
 
-// Meervoudige selectie: verborgen leden vallen samen op hun ouder, zichtbare blijven; volgorde stabiel.
 ids = build();
 S().selectTasks([ids.a, ids.f, ids.c], false, ids.c);
 S().toggleCollapse(ids.P);
 eq('a, f, c met P ingeklapt ⇒ P, f; actief P', sel(), { selected: ['P', 'f'], active: 'P' });
 
-// Alles inklappen (lint/contextmenu) loopt via collapseTasks: dezelfde regel.
 ids = build();
 S().selectTask(ids.e);
 S().collapseAll();
@@ -80,7 +62,6 @@ S().selectTask(ids.d);
 S().collapseTasks([ids.Q]);
 eq('collapseTasks([Q]) met d geselecteerd ⇒ Q', sel(), { selected: ['Q'], active: 'Q' });
 
-// ── 2) Verwijderen ⇒ de taak op dezelfde plek (eronder), anders erboven. ──
 ids = build();
 S().selectTask(ids.b);
 S().deleteTask(ids.b);
@@ -91,42 +72,32 @@ S().selectTask(ids.f);
 S().deleteTask(ids.f);
 eq('laatste rij f verwijderd ⇒ e (erboven)', sel(), { selected: ['e'], active: 'e' });
 
-// Een samenvatting met kinderen: de hele boom gaat weg, de volgende zichtbare rij is Q.
 ids = build();
 S().selectTask(ids.P);
 S().deleteTask(ids.P);
 eq('P met kinderen verwijderd ⇒ Q', sel(), { selected: ['Q'], active: 'Q' });
 
-// Bulk (Delete-toets/lint): b, c en d over een fasegrens ⇒ de eerste overgebleven rij onder b: Q
-// (die staat na het verwijderen direct onder a).
 ids = build();
 S().selectTasks([ids.b, ids.c, ids.d], false, ids.b);
 S().deleteTasksBulk(S().selectedTaskIds);
 eq('b, c, d verwijderd ⇒ Q', sel(), { selected: ['Q'], active: 'Q' });
 
-// Blijft er een deel van de selectie over, dan blijft dat deel staan (geen buurtaak erbij).
 ids = build();
 S().selectTasks([ids.a, ids.f], false, ids.a);
 S().deleteTask(ids.a);
 eq('a verwijderd uit {a, f} ⇒ f', sel(), { selected: ['f'], active: 'f' });
 
-// Verwijderen van een taak die NIET geselecteerd is, laat de selectie staan.
 ids = build();
 S().selectTask(ids.c);
 S().deleteTask(ids.a);
 eq('a verwijderd met c geselecteerd ⇒ c', sel(), { selected: ['c'], active: 'c' });
 
-// De enige taak verwijderd ⇒ lege selectie (niets om naartoe te gaan).
 S().newProject();
 const only = S().addTask({ name: 'x', isMilestone: false, parentId: null, time: createDefaultTaskTime('2026-06-01', 1) });
 S().selectTask(only);
 S().deleteTask(only);
 eq('enige taak verwijderd ⇒ leeg', sel(), { selected: [], active: null });
 
-// ── 3) Review #947: de buur moet NA het verwijderen zichtbaar zijn, niet alleen nog bestaan. ──
-// Filter "naam bevat match": zichtbaar zijn match A, P (als ouder van match B) en match B. Na het
-// verwijderen van B valt P weg (C past niet). De selectie mag dus niet op de verborgen P landen —
-// een tweede Verwijderen zou P met het verborgen kind C wissen.
 {
   S().newProject();
   const add = (name: string, parentId: string | null = null) => S().addTask({
@@ -145,8 +116,6 @@ eq('enige taak verwijderd ⇒ leeg', sel(), { selected: [], active: null });
   S().setFilter(null);
 }
 
-// ── 4) Review #947: in een groepering staat een taak meer dan eens. Vertrekpunt is de rij van de
-// celcursor (ui.gridActiveRowKey), niet het eerste voorkomen van het taak-id. ──
 {
   S().newProject();
   const add = (name: string) => S().addTask({
@@ -164,7 +133,6 @@ eq('enige taak verwijderd ⇒ leeg', sel(), { selected: [], active: null });
   S().setGroup([{ field: { src: 'resource' }, dir: 'asc' }]);
   eq('groep: A onder R1 en onder R2', visible(), ['A', 'B', 'A', 'C']);
   const rowsOfA = S().viewRows.filter(row => row.kind === 'task' && row.task.id === a).map(row => row.rowKey);
-  // De cursor staat op A onder R2 (tweede voorkomen).
   S().selectTask(a);
   S().setUI({ gridActiveRowKey: rowsOfA[1] });
   S().deleteTasksBulk([a]);
@@ -172,9 +140,6 @@ eq('enige taak verwijderd ⇒ leeg', sel(), { selected: [], active: null });
   S().setGroup([]);
 }
 
-// ── 5) Review #947 ronde 3: A en C allebei onder R1–R4. Verdwijnt A uit alle vier de groepen, dan
-// schuift de oude cursorplek een groep op. De store geeft daarom de gekozen buurRIJ door
-// (ui.gridActiveRowKey), niet alleen de taak: C onder R3, niet C onder R4. ──
 {
   S().newProject();
   const add = (name: string) => S().addTask({
@@ -200,8 +165,6 @@ eq('enige taak verwijderd ⇒ leeg', sel(), { selected: [], active: null });
   S().setGroup([]);
 }
 
-// ── 6) Review #947 ronde 4: groeperen op WBS. Verwijderen hernummert, dus de buur C krijgt een andere
-// groep en rijsleutel (WBS 3 → 2). Ze blijft zichtbaar en moet de buur blijven. ──
 {
   S().newProject();
   const add = (name: string) => S().addTask({
@@ -221,9 +184,6 @@ eq('enige taak verwijderd ⇒ leeg', sel(), { selected: [], active: null });
   S().setGroup([]);
 }
 
-// ── 7) Review #947 ronde 5: Resource → WBS, met onder R1 de band van C ingeklapt. Na verwijderen van B
-// onder R2 krijgt C WBS 2 en verschijnt ze ook weer onder R1. De buurrij blijft die in de groep van
-// de cursor: C onder R2, niet het eerste voorkomen (R1). ──
 {
   S().newProject();
   const add = (name: string) => S().addTask({

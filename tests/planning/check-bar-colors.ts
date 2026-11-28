@@ -1,15 +1,4 @@
 import { ensureCustomBarVisible } from '@/engine/renderer/resourcePalette';
-/**
- * Resourcepalet + kleurtoewijzing (#21 punt 1-nieuw) — regressiebatterij.
- *
- * Bewaakt: palet-uniekheid, grijswaarden-onderscheid (lictheid), hash-stabiliteit (zelfde id →
- * zelfde kleur, onafhankelijk van volgorde), auto-toewijzing "eerste vrije kleur", en dat de
- * hash-fallback nooit data muteert (pure functie). Printvriendelijkheid = onderling
- * onderscheidbaar óók in grijswaarden: elke paletkleur moet een eigen lichtheidscel hebben.
- */
-// readGanttPalette leest CSS-vars van het document; headless bestaat dat niet. De stub laat elke
-// var leeg, zodat het palet op zijn ingebouwde fallbacks terugvalt — precies de BRAND-waarden die
-// we hier willen pinnen. Moet vóór de import staan die hem gebruikt.
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -23,15 +12,10 @@ let failures = 0;
 const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
 const ok = (cond: boolean, msg: string) => { if (!cond) fail(msg); };
 
-// 1. Palet: 12 unieke hex-kleuren, allemaal geldig #rrggbb.
 ok(RESOURCE_PALETTE.length === 12, `paletlengte 12, gekregen ${RESOURCE_PALETTE.length}`);
 ok(new Set(RESOURCE_PALETTE).size === RESOURCE_PALETTE.length, 'paletkleuren uniek');
 ok(RESOURCE_PALETTE.every(c => /^#[0-9A-Fa-f]{6}$/.test(c)), 'paletkleuren zijn #rrggbb-hex');
 
-// 2. Grijswaarden: relatieve lichtheid (perceptueel benaderd via 0.2126R+0.7152G+0.0722B) moet
-//    per kleur in een eigen band van 1/12 breed vallen — anders zijn twee kleuren in grijswaard
-//    niet uit elkaar te houden. 12 banden over [0,1] is ruim genoeg voor een palet dat dit als
-//    ontwerpeis meekreeg.
 const lum = (hex: string): number => {
   const r = parseInt(hex.slice(1, 3), 16) / 255;
   const g = parseInt(hex.slice(3, 5), 16) / 255;
@@ -41,13 +25,10 @@ const lum = (hex: string): number => {
 const bands = new Set(RESOURCE_PALETTE.map(c => Math.floor(lum(c) * 12)));
 ok(bands.size >= 10, `grijswaarden-banden: minimaal 10 van 12 onderscheidbaar, gekregen ${bands.size}`);
 
-// 3. Hash: deterministisch, verdelend en volgorde-onafhankelijk.
 ok(paletteColorForId('res-1') === paletteColorForId('res-1'), 'hash deterministisch');
-// Verspreid over het palet: 50 ids mappen niet op 1 of 2 kleuren.
 const spread = new Set(Array.from({ length: 50 }, (_, i) => paletteColorForId(`r${i}`)));
 ok(spread.size >= 6, `hash verspreid (>= 6 van 12 over 50 ids), gekregen ${spread.size}`);
 
-// 4. resourceDisplayColor: eigen kleur wint, hash-fallback voor kleurloos, geen mutatie.
 const res = { id: 'x', name: 'X', type: 'LABOR' as const, description: '', maxUnits: 1 };
 ok(resourceDisplayColor({ ...res, color: '#123456' }) === '#123456', 'eigen kleur wint');
 ok(resourceDisplayColor(res) === paletteColorForId('x'), 'kleurloos → hash-fallback');
@@ -55,30 +36,17 @@ const probe = { ...res };
 resourceDisplayColor(probe);
 ok(!('color' in probe) || probe.color === undefined, 'hash-fallback muteert de resource niet');
 
-// 5. nextFreePaletteColor: eerste vrije kleur; alles bezet → hergebruik cyclisch (palet < resources).
 ok(nextFreePaletteColor([]) === RESOURCE_PALETTE[0], 'leeg veld → eerste kleur');
 const taken = RESOURCE_PALETTE.slice(0, 5).map(c => ({ id: c, name: c, type: 'LABOR' as const, description: '', maxUnits: 1, color: c }));
 ok(nextFreePaletteColor(taken) === RESOURCE_PALETTE[5], 'eerste vijf bezet → zesde kleur');
 
-// 6. Geen paletkleur gelijk aan de kritiek-roodtint — de rode rand voor kritieke taken moet
-//    visueel vrij blijven. Scherm en papier staan sinds het kleurherstel van 18-09-2026 weer op
-//    dezelfde hex, maar blijven apart gedefinieerd, dus we halen ze ALLEBEI bij de bron op in
-//    plaats van één literal te pinnen die toevallig met beide samenvalt: verandert er morgen één,
-//    dan moet deze check dat zien en niet groen blijven staan op een verouderd hexje.
 const SCHERM_KRITIEK = readGanttPalette().critical;
 const PRINT_KRITIEK = PRINT_PALETTE.critical;
 ok(!RESOURCE_PALETTE.includes(SCHERM_KRITIEK), `palet vermijdt kritiek-rood scherm (${SCHERM_KRITIEK})`);
 ok(!RESOURCE_PALETTE.includes(PRINT_KRITIEK), `palet vermijdt kritiek-rood print (${PRINT_KRITIEK})`);
-// En pin dat ze vandaag inderdaad allebei op de verzadigde merkhex staan — anders zegt de
-// bovenstaande controle wel iets waars maar over de verkeerde kleur.
 ok(SCHERM_KRITIEK === '#DC2626', `schermkritiek is #DC2626, kreeg ${SCHERM_KRITIEK}`);
 ok(PRINT_KRITIEK === '#DC2626', `printkritiek is #DC2626, kreeg ${PRINT_KRITIEK}`);
 
-// 6b. Donker thema: `ensureThemeVisible` licht te donkere resourcekleuren op, en kan een paletkleur
-//     daarmee ONBEDOELD richting kritiek-rood duwen — een botsing die stap 6 (letterlijke
-//     gelijkheid) niet ziet. Bewaakt als bekende ondergrens, niet als ideaal: red-700 (#B91C1C)
-//     wordt #e03232 en houdt dan nog RGB-afstand 17. Zakt een paletkleur daar ooit ONDER, dan is
-//     de rode kritiek-rand echt niet meer te onderscheiden en moet die kleur wijken.
 const rgbOf = (hex: string): [number, number, number] => {
   const h = hex.replace('#', '');
   return [parseInt(h.slice(0, 2), 16), parseInt(h.slice(2, 4), 16), parseInt(h.slice(4, 6), 16)];
@@ -95,7 +63,6 @@ for (const kleur of RESOURCE_PALETTE) {
     `donker thema: ${kleur} wordt ${donker}, afstand ${d} tot kritiek-rood ${SCHERM_KRITIEK} (min ${MIN_AFSTAND_DONKER})`);
 }
 
-// ── barColors: modi, segmenten, randen (#21, ontwerp §4) ───────────────────────────────────────
 import { computeBarColors } from '@/services/print/barColors';
 import type { BarPalette } from '@/services/print/barColors';
 import {
@@ -152,8 +119,6 @@ const CTX: BarColorContext = {
 };
 const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => ({ ...CTX, assignments });
 
-// 7. critical-modus (default): huidige gedrag ongewijzigd — kritiek rood, bijna-kritiek oranje,
-//    rest blauw.
 {
   const crit = computeBarColors(mkTask('t1', { time: mkTime({ isCritical: true }) }), { mode: 'critical' }, CTX, PAL);
   ok(crit.kind === 'solid' && crit.fill === PAL.critical, 'critical-modus: kritieke taak rood');
@@ -163,7 +128,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(plain.kind === 'solid' && plain.fill === PAL.normal, 'critical-modus: gewone taak blauw');
 }
 
-// Eigen kleuren voor elk van de drie statussen.
 {
   const selection = { mode: 'critical', colors: { critical: '#112233', nearCritical: '#223344', normal: '#112233' } } as const;
   for (const [task, expected] of [
@@ -176,7 +140,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   }
 }
 
-// Eigen kleuren blijven zichtbaar op een lichte of donkere achtergrond.
 {
   const light = ensureCustomBarVisible('#ffffff', false);
   const dark = ensureCustomBarVisible('#000000', true);
@@ -184,7 +147,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(dark !== '#000000', 'donkere kleur wordt zichtbaar op een donkere achtergrond');
 }
 
-// Eén eigen kleur mag de standaard van de overige statussen niet veranderen.
 {
   const selection = { mode: 'critical', colors: { normal: '#005500' } } as const;
   const critical = computeBarColors(mkTask('critical', { time: mkTime({ isCritical: true }) }), selection, CTX, PAL);
@@ -193,7 +155,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(near.kind === 'solid' && near.fill === PAL.nearCritical, 'bijna-kritiek blijft standaard bij alleen eigen normaal');
 }
 
-// 8. Task.color is inert: dezelfde taakuitkomst in iedere overgebleven modus, ongeacht legacydata.
 {
   const modes = [
     { mode: 'critical' } as const,
@@ -207,7 +168,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   }
 }
 
-// 9. auto-modus: hash op taak-id, stabiel, onafhankelijk van positie; kritieke taak krijgt rode rand.
 {
   const a = computeBarColors(mkTask('t5'), { mode: 'auto' }, CTX, PAL);
   const b = computeBarColors(mkTask('t5'), { mode: 'auto' }, CTX, PAL);
@@ -219,7 +179,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(plainAuto.kind === 'solid' && plainAuto.outline === undefined, 'auto-modus: niet-kritieke taak → géén rand');
 }
 
-// 10. Alle Group-categorieën: sleutel/label/kleur, ontbrekende waarde en verwijderde-veldterugval.
 {
   const task = mkTask('cat', {
     wbsCode: '1.2', taskType: 'CONSTRUCTION', activityCodes: { discipline: 'elektra' },
@@ -256,7 +215,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(sameA.kind === 'solid' && sameB.kind === 'solid' && sameA.fill === sameB.fill, 'zelfde categoriewaarde → zelfde kleur');
 }
 
-// 11. Resource als categorie: segmenten naar inzet, expliciete/hashkleur, neutrale lege waarde.
 {
   const asg = [mkAsg('t7', 'r1', 1), mkAsg('t7', 'r2', 3)];
   const seg = computeBarColors(
@@ -282,7 +240,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   );
   ok(critSeg.kind !== 'solid' || critSeg.outline === PAL.critical, 'resource-modus: kritiek → rode rand (solid)');
   if (critSeg.kind === 'segments') ok(critSeg.outline === PAL.critical, 'resource-modus: kritiek → rode rand (segments)');
-  // Eén resource → solide die ene kleur (géén segmenten-ruis).
   const single = computeBarColors(
     mkTask('t10b'), { mode: 'category', field: { src: 'resource' } },
     withAssignments([mkAsg('t10b', 'r2', 2)]), PAL,
@@ -290,7 +247,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(single.kind === 'solid' && single.fill === '#222222', 'resource-modus met 1 resource → solide kleur');
 }
 
-// 12. Smalbalk-fallback + zichtbare legenda-uniekheid.
 {
   const asg = [mkAsg('t11', 'r1', 1), mkAsg('t11', 'r2', 1)];
   const narrow = computeBarColors(
@@ -310,7 +266,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
     'legenda dedupliceert zichtbare bladtaken in first-appearance-volgorde');
 }
 
-// 13. Mijlpalen volgen critical/auto/categorie; ontbrekende categoriewaarde wordt grijs.
 {
   const ms = mkTask('t12', { isMilestone: true });
   const c = computeBarColors(ms, { mode: 'critical' }, CTX, PAL);
@@ -328,7 +283,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(mauto.kind === 'solid' && mauto.fill === paletteColorForId('t14b'), 'mijlpaal auto-modus → hash-kleur');
 }
 
-// 12b. ensureThemeVisible (#21 user-bevinding: donker palet onzichtbaar op donker scherm).
 {
   const lum = (hex: string): number => {
     const r = parseInt(hex.slice(1, 3), 16) / 255;
@@ -336,22 +290,15 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
     const b = parseInt(hex.slice(5, 7), 16) / 255;
     return 0.2126 * r + 0.7152 * g + 0.0722 * b;
   };
-  // Licht thema: identiteit (palet is op papier/licht ontworpen).
   ok(ensureThemeVisible('#1E293B', false) === '#1E293B', 'themazichtbaar: licht thema = identiteit');
-  // Donker thema, al licht genoeg: identiteit.
   ok(ensureThemeVisible('#FBBF24', true) === '#FBBF24', 'themazichtbaar: lichte kleur ongewijzigd');
-  // Donker thema, te donker: verlicht naar >= 0.34, hue blijft herkenbaar (niet-grijs blijft verzadigd),
-  // en deterministisch.
   const lifted = ensureThemeVisible('#1E293B', true);
   ok(lum(lifted) >= 0.33, `themazichtbaar: verlicht boven de minimum-lichtheid (got ${lifted} l=${lum(lifted).toFixed(2)})`);
   ok(lifted !== '#1E293B', 'themazichtbaar: donkere kleur wordt daadwerkelijk aangepast');
   ok(ensureThemeVisible('#1E293B', true) === lifted, 'themazichtbaar: deterministisch');
-  // Alle paletkleuren zijn in het donkere thema zichtbaar (>= 0.33): geen enkel accent valt meer weg.
   ok(RESOURCE_PALETTE.every(c => lum(ensureThemeVisible(c, true)) >= 0.33), 'themazichtbaar: heel het palet zichtbaar op donker');
 }
 
-// 13. Store-integratie (#21, B7): addResource wijst automatisch de eerste vrije paletkleur toe;
-//     een expliciet meegegeven kleur blijft staan.
 {
   const g = globalThis as unknown as Record<string, unknown>;
   if (!g.getComputedStyle) g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -369,9 +316,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(r3.color === nextFreePaletteColor([r1, r2]), `addResource: derde resource slaat de bezette kleuren over (got ${r3.color})`);
 }
 
-// 11. Eigen werkcategorieën (issue #856): elk een eigen sleutel, naam en kleur — niet de kleur van
-//     "Overig". De kleur is die van de werksoort zelf (bewaard in bibliotheek en IFC, besluit
-//     21 november 2026); de toekenning bewaakt `check-custom-task-type-colors.ts`.
 {
   const TYPE_FIELD = { src: 'builtin', key: 'taskType' } as const;
   const custom = [
@@ -392,7 +336,6 @@ const withAssignments = (assignments: ResourceAssignment[]): BarColorContext => 
   ok(asbest.key !== meubel.key, 'twee eigen categorieën met dezelfde kleur houden elk een eigen legendaregel');
   const got = [asbest, groen, meubel].map(v => v.color);
   ok(got.join() === custom.map(t => t.color).join(), `eigen categorie krijgt haar bewaarde kleur, precies (kreeg ${got.join(', ')})`);
-  // Een id dat niet (meer) in de catalogus staat, valt terug op "Overig" — geen lege naam.
   const orphan = valueOf(mkTask('x5', { taskType: 'USERDEFINED', customTaskTypeId: 'ctt-weg' }));
   ok(orphan.key === other.key && orphan.label === 'Overig', 'onbekende eigen categorie ⇒ Overig');
 }

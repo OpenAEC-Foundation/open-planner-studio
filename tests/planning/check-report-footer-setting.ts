@@ -1,7 +1,3 @@
-// Voet op elke pagina (issue #113): rapportvoorkeur in ops-reportSettings, naast de kopherhaling.
-// Bewaakt de default (aan — een uitgedeeld vel zonder legenda is onleesbaar), de round-trip door
-// de echte opslagroute en de tolerantie voor een ontbrekende of geprutste waarde (per veld terug op
-// de default; een opslag van vóór deze optie krijgt dus stil de nieuwe default en verliest niets).
 import './domStub';
 import { DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings } from '@/utils/reportSettings';
 

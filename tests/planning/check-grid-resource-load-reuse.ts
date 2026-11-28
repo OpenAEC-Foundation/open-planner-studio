@@ -1,23 +1,3 @@
-// Een rasterbewerking die de resourcebelasting niet raakt, rekent haar niet opnieuw uit —
-// prestatiemeting rehab-2 (2026-10-07).
-//
-// AANLEIDING. `prepareGridMutation` riep na ELKE celbewerking `computeReliableResourceLoad` aan,
-// ook bij een naamwijziging: 0,75 s per bewerking op rehab-2.xer (52.640 toewijzingen). Nu wordt
-// het vorige resultaat hergebruikt als (a) resources, toewijzingen, kalenders en het CPM-resultaat
-// dezelfde objecten zijn en (b) elke gewijzigde taak alleen sleutels uit
-// `RESOURCE_LOAD_NEUTRAL_TASK_KEYS` wijzigt.
-//
-// Wat dit pint:
-//  1. De lijst zelf (exact; een wijziging is een bewuste, geteste keuze).
-//  2. De belastingmotor leest GEEN van die sleutels (proxy op elke taak) — de lijst kan dus niet
-//     stil een veld bevatten dat de belasting wél bepaalt.
-//  3. Elk veld buiten de lijst dat de belasting bepaalt (duur, datums, kalender, splits, contour,
-//     mijlpaal, structuur) leidt tot herberekening: de beslisfunctie zegt "niet hergebruiken". Een
-//     veld dat opnieuw wordt geschreven met dezelfde inhoud (de naamcel schrijft `time` mee) niet.
-//  4. Via de echte store: een naam- en notitiebewerking houdt hetzelfde resultaat-object; een
-//     duurbewerking levert een nieuw resultaat dat gelijk is aan een verse berekening.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStore } from '@/state/appStore';
 import { computeReliableResourceLoad, computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
@@ -36,13 +16,11 @@ const ok = (label: string, cond: boolean, detail = '') => {
   if (!cond) fails.push(`${label}${detail ? `: ${detail}` : ''}`);
 };
 
-// ── 1. De lijst ────────────────────────────────────────────────────────────────────────────────────
 ok('1 neutrale taaksleutels exact vastgelegd',
   JSON.stringify([...RESOURCE_LOAD_NEUTRAL_TASK_KEYS].sort()) === JSON.stringify([
     'activityCodes', 'color', 'customFields', 'deadline', 'description', 'externalLinks', 'name', 'notes', 'priority', 'wbsCode',
   ]), JSON.stringify([...RESOURCE_LOAD_NEUTRAL_TASK_KEYS].sort()));
 
-// ── 2. De motor leest geen neutrale sleutel ────────────────────────────────────────────────────────
 const project = createLargeSchedule({ tasks: 600, assignmentsPerTask: 3, sequences: 600 });
 {
   const read = new Set<string>();
@@ -58,7 +36,6 @@ const project = createLargeSchedule({ tasks: 600, assignmentsPerTask: 3, sequenc
   ok('2 de proxy zag de motor echt lezen (anders pint 2 niets)', read.has('time') && read.has('id'), [...read].join(', '));
 }
 
-// ── 3. De beslisfunctie ───────────────────────────────────────────────────────────────────────────
 {
   const base = { tasks: project.tasks, assignments: project.assignments, resources: project.resources,
     calendar: project.calendar, calendars: [] as typeof project.calendar[], cpmResult: null,
@@ -84,8 +61,6 @@ const project = createLargeSchedule({ tasks: 600, assignmentsPerTask: 3, sequenc
     ['status', { status: t.status }],
   ];
   for (const [label, patch] of loadAffecting) {
-    // `status` met dezelfde waarde is een nieuw object-veld maar referentie-gelijk ⇒ hergebruik mag;
-    // alle andere hierboven zijn nieuwe waarden ⇒ herberekenen.
     const want = label === 'status';
     ok(`3d ${label} ⇒ ${want ? 'hergebruiken (zelfde waarde)' : 'herberekenen'}`, resourceLoadInputsUnchanged(base, withTask(patch)) === want);
   }
@@ -97,13 +72,11 @@ const project = createLargeSchedule({ tasks: 600, assignmentsPerTask: 3, sequenc
   ok('3h nieuwe resourcelijst ⇒ herberekenen', !resourceLoadInputsUnchanged(base, { ...base, resources: project.resources.slice() }));
   ok('3i nieuwe projectkalender ⇒ herberekenen', !resourceLoadInputsUnchanged(base, { ...base, calendar: { ...project.calendar } }));
   ok('3j nieuwe kalenderlijst ⇒ herberekenen', !resourceLoadInputsUnchanged(base, { ...base, calendars: [] }));
-  // De belasting leest de maatconventie van het profiel: een ander profiel of andere opties ⇒ herberekenen.
   ok('3l ander rekenprofiel ⇒ herberekenen', !resourceLoadInputsUnchanged(base,
     { ...base, project: { schedulingProfile: { baseId: 'p6', id: 'p6', name: 'P6', overrides: {} } } }));
   ok('3m andere projectopties ⇒ herberekenen', !resourceLoadInputsUnchanged(base, { ...base, project: { schedulingOptions: {} } }));
 }
 
-// ── 4. Via de store ───────────────────────────────────────────────────────────────────────────────
 {
   const store = createAppStore();
   const S = () => store.getState();

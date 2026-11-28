@@ -1,15 +1,3 @@
-// Export-guard-checks (bevinding K7) — headless tegen de ECHTE Zustand-store.
-//
-// Waarom deze batterij bestaat: exports schrijven `task.time.earlyStart` — de CPM-uitvoer — naar
-// derden die datums contractueel lezen. `autoCalcCPM` staat standaard UIT, dus zonder guard ging
-// een verouderde planning het bestand in. Bij een cyclus houdt `runCPM` de planning nu expliciet
-// verouderd: `task.time` bevat immers nog de oude waarden. De foutcontrole blijft daarnaast een
-// noodzakelijke tweede vangrail voor een directe, duidelijke exportfout.
-//
-// `exportAs` breekt bij een cyclus af VÓÓR de eerste await (en dus vóór `saveFileDialog`), zodat
-// dit pad headless te draaien is zonder bestandsdialoog.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import { exportGoesToRecents, exportSplitsLostNotice, withPlanOnlyExportSentence } from '@/state/slices/fileSlice';
 import type { NotifyInput } from '@/state/slices/types';
@@ -34,7 +22,6 @@ const truthy = (label: string, got: boolean) => {
   if (!got) diffs.push(`${label}: verwacht waar, kreeg onwaar`);
 };
 
-// ── 1. Stale planning wordt vóór de export doorgerekend ──────────────────────
 S().newProject();
 S().setProject({ name: 'K7', startDate: '2031-05-05' });
 const a = S().addTask({ name: 'A' });
@@ -49,36 +36,27 @@ S().runCPM();
 const bNa1 = S().tasks.find(t => t.id === b)?.time.earlyStart;
 truthy('1 opzet: B heeft een berekende startdatum', !!bNa1);
 
-// Muteer zonder door te rekenen: de planning is nu verouderd.
 setDur(a, 20);
 truthy('2 mutatie zet scheduleStale', S().scheduleStale === true);
 const bVoorExport = S().tasks.find(t => t.id === b)?.time.earlyStart;
 eq('3 B draagt nog de OUDE datum zolang er niet gerekend is', bVoorExport, bNa1);
 
-// De guard in exportAs moet nu zelf runCPM draaien.
-await S().exportAs('csv').catch(() => undefined); // dialoog faalt headless; de guard draait ervóór
+await S().exportAs('csv').catch(() => undefined);
 truthy('4 export heeft de planning doorgerekend (scheduleStale weg)', S().scheduleStale === false);
 const bNaExport = S().tasks.find(t => t.id === b)?.time.earlyStart;
 truthy('5 B is opgeschoven door de langere voorganger', bNaExport !== bVoorExport);
 
-// ── 2. Cyclus: export weigert, en meldt waaróm ───────────────────────────────
 S().newProject();
 const c1 = S().addTask({ name: 'C1' });
 const c2 = S().addTask({ name: 'C2' });
 S().addSequence({ predecessorId: c1, successorId: c2, type: 'FINISH_START', lagDays: 0 });
-// De store-route weigert een kring vooraf; een kring komt nog wel binnen zoals een importer hem
-// schrijft: rechtstreeks in `sequences`.
 useAppStore.setState(s => {
   s.sequences.push({ id: 'seq-kring', predecessorId: c2, successorId: c1, type: 'FINISH_START', lagDays: 0 });
 });
 S().runCPM();
 truthy('6 opzet: de solver meldt een cyclus', !!S().cpmResult?.error);
-// De mislukte solve houdt de planning verouderd: geen oude datums als actuele uitkomst tonen.
 eq('7 scheduleStale blijft na de cyclus true', S().scheduleStale, true);
 
-// Bewust met try/catch: ZONDER de guard loopt `exportAs` door naar `saveFileDialog`, en die
-// klapt headless op `window is not defined`. Dat is precies de regressie die we willen zien —
-// maar dan als leesbare afwijking in plaats van een stacktrace die de rest van de batterij meesleurt.
 let res: { ok: boolean; error?: string };
 try {
   res = await S().exportAs('csv');
@@ -89,7 +67,6 @@ eq('8 export geweigerd bij een cyclus', res.ok, false);
 truthy('9 de weigering draagt de cyclus-melding',
   res.ok === false && typeof res.error === 'string' && res.error.length > 0);
 
-// ── 3. Schone planning: export gaat gewoon door ──────────────────────────────
 S().newProject();
 const d1 = S().addTask({ name: 'D1' });
 S().addTask({ name: 'D2' });
@@ -99,13 +76,6 @@ const okRes = await S().exportAs('csv').catch(() => ({ ok: true as const }));
 truthy('11 schone planning wordt niet geweigerd', okRes.ok === true);
 truthy('12 taak bestaat nog (guard muteert niets onnodigs)', !!S().tasks.find(t => t.id === d1));
 
-// ── 4. Alleen echte projectbestanden komen in Recente bestanden ──────────────
-// Eindreview 2026-09-12, bevinding 5: `exportAs` deed onvoorwaardelijk `pushRecent`, dus
-// `<project>-voortgang.xlsx` belandde in Recente bestanden — waar één klik de OPENroute start
-// die het invulblad als project probeert te lezen en met een foutmelding eindigt. De regel zit in
-// `exportGoesToRecents`; die is los exporteerbaar juist zodat dit zonder bestandsdialoog toetsbaar
-// is. De lijst hieronder is met de hand geschreven vanuit "kan de app dit terug openen als
-// project?", niet uit de implementatie teruggelezen.
 const recentsVerwacht: Record<ExportFormat, boolean> = {
   ifc: true,
   csv: true,
@@ -117,18 +87,9 @@ const recentsVerwacht: Record<ExportFormat, boolean> = {
 for (const [format, want] of Object.entries(recentsVerwacht) as [ExportFormat, boolean][]) {
   eq(`13 recents-regel voor '${format}'`, exportGoesToRecents(format), want);
 }
-// Vangnet tegen een NIEUW exportformaat dat stil aan de recents wordt toegevoegd: de tabel
-// hierboven moet elke `ExportFormat` noemen. `EXPORT_FORMATS` is de registry die de exportlijst
-// voedt, dus een nieuw formaat verschijnt daar en valt hier meteen door de mand.
 eq('14 de recents-tabel dekt elk geregistreerd exportformaat',
   EXPORT_FORMATS.map(m => m.format).filter(f => !(f in recentsVerwacht)), []);
 
-// ── 5. Verlies van onderbrekingen naar MSPDI/P6 wordt gemeld (issue #146) ──────
-// MS Project en P6 kennen een onderbreking alleen als urenverdeling van een toewijzing. Een taak met
-// `splitGaps` maar ZONDER contour gaat daar dus zonder onderbreking heen — dat mag niet alleen in de
-// console staan (spec, verwerkte critreview bevinding 5). `exportSplitsLostNotice` is de ene regel
-// die `exportAs` na een geslaagde export toepast; los exporteerbaar zodat dit zonder bestandsdialoog
-// toetsbaar is, net als `exportGoesToRecents` hierboven.
 S().newProject();
 const sp = S().addTask({ name: 'Gesplitst' });
 const setSpDur = (id: string, d: number) => {
@@ -147,23 +108,15 @@ for (const format of ['mspdi', 'p6'] as ExportFormat[]) {
     severity: 'info', messageKey: 'notifications.exportSplitsLost', params: { count: 1 },
   });
 }
-// IFC draagt de onderbreking (native formaat); de voortgangsbladen kennen geen stukken. CSV verliest
-// hem wél maar valt bewust (nog) buiten deze melding, die over MS Project/P6 gaat — zie docs/TODO.md.
 for (const format of ['ifc', 'csv', 'progress-xlsx'] as ExportFormat[]) {
   eq(`17 ${format}: geen melding`, exportSplitsLostNotice(format, S().tasks), null);
 }
-// Mét contour schrijven beide writers de onderbreking als spreiding mee ⇒ geen verlies, geen melding.
-// De contourinhoud doet er voor deze regel niet toe (de writers kijken alleen óf er één is).
 const metContour: Task[] = S().tasks.map(t => (t.id === sp
   ? { ...t, timephasedContours: [{ resourceUid: null, periods: [] }] as unknown as Task['timephasedContours'] }
   : t));
 eq('18 mspdi: taak met contour ⇒ geen melding', exportSplitsLostNotice('mspdi', metContour), null);
 eq('19 p6: taak met contour ⇒ geen melding', exportSplitsLostNotice('p6', metContour), null);
 
-// Knownbug 1740: de zin "alleen de planning" bij een export naar een ander formaat vanuit een document met een gebouwmodel.
-// De route zelf (vijf meldingen, download, vreemde inhoud zonder gebouwmodel, gewoon document) toetst
-// `check-ifc-document-save.ts`; hier de regel zonder bestandsdialoog: zonder andere melding een eigen melding, anders een
-// regel onder de laatste, met een eigen samenvouwsleutel.
 {
   const first: NotifyInput = { severity: 'info', messageKey: 'notifications.savedViaDownload', params: { name: 'x.csv' }, dedupeKey: 'saved-via-download' };
   const loss: NotifyInput = { severity: 'info', messageKey: 'notifications.exportDataLoss', params: { format: 'CSV' }, dedupeKey: 'verlies' };
@@ -182,7 +135,6 @@ eq('19 p6: taak met contour ⇒ geen melding', exportSplitsLostNotice('p6', metC
   eq('33 zonder gebouwmodel en zonder melding: niets', withPlanOnlyExportSentence('csv', false, [null]), []);
 }
 
-// Bestandsnaamdelen volgen de taal; zonder UI-initialisatie blijft headless export bruikbaar.
 eq('20 headless voortgang heeft Engelse terugval', exportFileSuffix('progress'), 'progress');
 eq('21 headless bibliotheek heeft Engelse terugval', exportFileSuffix('library'), 'library');
 await i18next.init({ lng: 'nl', fallbackLng: 'en', resources: { nl: { menu: nlMenu }, en: { menu: enMenu } } });
@@ -195,7 +147,6 @@ await i18next.changeLanguage('fr');
 eq('26 ontbrekende vertaling valt terug op Engels', exportFileSuffix('progress'), 'progress');
 eq('27 ontbrekende bibliotheekvertaling valt terug op Engels', exportFileSuffix('library'), 'library');
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  export-guard-check: alle checks groen (${checks})`);
   process.exit(0);

@@ -1,4 +1,3 @@
-// B2 is de vaste iconenfamilie, ook met een oude opgeslagen keuze of ontwikkel-URL.
 import './domStub';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -36,5 +35,4 @@ assert.match(renderToStaticMarkup(createElement(Icon, { id: 'task.add', size: 14
 assert.equal(toIconId('task.add'), 'task.add');
 assert.equal(toIconId('onbekend'), undefined);
 console.log(`B2 standaard: ${ICON_IDS.length} iconen, twee maten en oude opgeslagen keuzes gecontroleerd.`);
-// Net als de andere rendererchecks expliciet afsluiten na alle assertions.
 process.exit(0);

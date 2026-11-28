@@ -1,21 +1,3 @@
-// Taakbalk met voortgang: het voltooide deel is bleek en grijs, de rest houdt zijn basiskleur.
-//
-// Bewaakt `doneBarTones` (themePalette.ts) en `paintProgressBarPiece` (barPaint.ts), de ene
-// tekenregel van scherm (GanttRenderer) en afdruk/PDF (printPreview):
-//   1. voor elke tint die de renderer kan tekenen — merktinten, float-pad-tinten, trace-tinten,
-//      het resourcepalet (ook na `ensureThemeVisible` in het donkere thema) en eigen extreme
-//      kleuren — is het grijs vrijwel neutraal ("uitgegrijsd") en haalt het gedempte label erop
-//      minstens LABEL_MIN_CONTRAST;
-//   2. op de verzadigde merktinten verschilt het grijs duidelijk van de basiskleur (de grens
-//      voltooid/te doen moet in één oogopslag te zien zijn);
-//   3. de tekenregel: geen voortgang = één vlak in de basiskleur; deels = eerst de kleur, die
-//      precies SEAM px onder het grijs doorloopt (tegen een naad), dan het grijs tot de EXACTE,
-//      niet-afgeronde voortgangsgrens (afronden liet het grijs bij schuiven verspringen); de kleur
-//      heeft daar rechte hoeken, zodat er geen kleur onder de ronde hoeken van het grijs ligt
-//      (dat liet een gekleurd randje doorschemeren); voltooid = één grijs vlak.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -24,11 +6,8 @@ import { readGanttPalette, contrastRatio, doneBarTones, GANTT_TRACE_COLORS } fro
 import { RESOURCE_PALETTE, ensureThemeVisible } from '@/engine/renderer/resourcePalette';
 import { paintProgressBarPiece, type BarPainter } from '@/engine/renderer/barPaint';
 
-/** Ondergrens gedempt label op het grijs (WCAG AA, normale tekst). */
 const LABEL_MIN_CONTRAST = 4.5;
-/** Bovengrens kleurigheid (max − min van r,g,b) van het grijs. */
 const GREY_MAX_CHROMA = 40;
-/** Ondergrens kleurigheidsverschil tussen merktint en grijs. */
 const MIN_CHROMA_DROP = 100;
 
 let checks = 0;
@@ -49,12 +28,10 @@ const TINTEN: string[] = [
   ...p.floatPathTints,
   ...Object.values(GANTT_TRACE_COLORS),
   ...RESOURCE_PALETTE,
-  // Hoog-contrast-balktinten (globals.css) en eigen extreme kleuren uit projectdata.
   '#FF6B6B', '#60A5FA', '#D9A6FF',
   '#000000', '#0B0B0B', '#1E293B', '#808080', '#F5F5F5', '#FFFFFF', '#FFFF00',
 ];
 
-// ── 1: elke tint, licht én donker thema ─────────────────────────────────────
 for (const dark of [false, true]) {
   for (const raw of TINTEN) {
     const base = ensureThemeVisible(raw, dark);
@@ -67,7 +44,6 @@ for (const dark of [false, true]) {
 }
 ok('niet-hex basiskleur valt terug op het kale grijs', /^#[0-9a-f]{6}$/i.test(doneBarTones('var(--x)', false).fill));
 
-// ── 2: merktinten springen duidelijk uit het grijs ──────────────────────────
 for (const dark of [false, true]) {
   for (const base of [p.critical, p.normal, p.milestone, p.hammock]) {
     const drop = chroma(base) - chroma(doneBarTones(base, dark).fill);
@@ -75,7 +51,6 @@ for (const dark of [false, true]) {
   }
 }
 
-// ── 3: de tekenregel ─────────────────────────────────────────────────────────
 interface Shape { x: number; w: number; fill: string; r: readonly number[] }
 function record(paint: (d: BarPainter) => void): Shape[] {
   const shapes: Shape[] = [];
@@ -109,7 +84,6 @@ const piece = (progressX: number, roundLeft = true, roundRight = true) =>
     half.length === 2 && Math.abs(half[0].x - 149.4) < 1e-9 && half[0].x + half[0].w === 200);
   ok('deels: kleur alleen rechts rond, grijs alleen links rond',
     half.length === 2 && JSON.stringify(half[0].r) === '[0,4,4,0]' && JSON.stringify(half[1].r) === '[4,0,0,4]');
-  // Schuiven: de grens schuift mee met de balk, sub-pixel en zonder sprongen.
   const shifted = record(d => paintProgressBarPiece(d, 100.3, 200.3, 0, 20, 4, BASE, 150.7, false));
   ok('schuiven: grijs schuift exact mee (breedte blijft 50,4)',
     shifted.length === 2 && Math.abs(shifted[1].w - 50.4) < 1e-9);
@@ -128,7 +102,6 @@ const piece = (progressX: number, roundLeft = true, roundRight = true) =>
     inner.every(s => s.r.every(r => r === 0)));
 }
 
-// ── Uitslag ─────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  bar-progress: alle checks groen (${checks})`);
   process.exit(0);

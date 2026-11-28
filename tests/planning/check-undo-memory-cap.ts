@@ -1,11 +1,3 @@
-// Audit 2026-09-26 — geheugenplafond voor Ongedaan maken (eigenaarsbesluit 2026-09-28).
-//
-// Elke undo-stap houdt de objecten vast die hij veranderde. Een bewerking met herberekening
-// vervangt alle taakdatums en het hele `cpmResult`: gemeten ≈ 3 MB per stap op 2000 taken, dus tot
-// honderden MB bij honderd stappen. Nu vallen boven een geschatte 200 MB de oudste stappen weg, met
-// altijd de nieuwste tien per scope. Kleine projecten merken niets.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { createBatchTransactions } from '@/state/runtime/createBatchTransactions';
@@ -39,7 +31,6 @@ function chain(n: number) {
 }
 const newestFirst = (events: readonly SessionHistoryEvent[]) => [...events].sort((l, r) => r.sequence - l.sequence);
 
-// 1. Klein project: honderd stappen blijven er honderd (het plafond raakt niets).
 {
   const { S, ids } = chain(50);
   for (let k = 0; k < 120; k++) S().updateTask(ids[1], { name: `n${k}` } as never);
@@ -47,9 +38,6 @@ const newestFirst = (events: readonly SessionHistoryEvent[]) => [...events].sort
     `kreeg ${S().historyEvents.length}`);
 }
 
-// 2. Het standaardplafond op de echte registratiegrens (`appendSessionHistoryEvent`), met stappen
-//    van elk ~5 MB geschat (een `cpmResult` van 4000 taken). Echte stappen van die omvang kosten
-//    per stuk een herberekening (~0,3 s op 2000 taken); de snoei leest alleen de omvang.
 {
   const heavy = { tasks: [], cpmResult: { tasks: { size: 4000 } } };
   const light = { tasks: [], cpmResult: null };
@@ -67,7 +55,6 @@ const newestFirst = (events: readonly SessionHistoryEvent[]) => [...events].sort
   ok('standaardplafond: de nieuwste stappen blijven', events.at(-1)!.sequence === 60 && events[0].sequence === 61 - expected);
 }
 
-// 3. De snoei zelf: een snede in de tijd, met de ondergrens per scope.
 {
   const { S, setDuration } = chain(300);
   for (let k = 0; k < 30; k++) { setDuration(k + 2); S().runCPM(); }
@@ -83,8 +70,6 @@ const newestFirst = (events: readonly SessionHistoryEvent[]) => [...events].sort
   ok('opslagvolgorde blijft behouden', keptMin.every((e, i, a) => i === 0 || events.indexOf(a[i - 1]) < events.indexOf(e)));
 }
 
-// 4. Een open bewerkingssessie (taakdialoog) blijft volledig: Annuleren moet alles terug kunnen
-//    draaien. Ook het vreemde event dat midden in de sessie landde blijft (geen gat).
 {
   const heavy = { tasks: [], cpmResult: { tasks: { size: 4000 } } };
   const light = { tasks: [], cpmResult: null };
@@ -99,8 +84,6 @@ const newestFirst = (events: readonly SessionHistoryEvent[]) => [...events].sort
     `kreeg ${kept.length} vanaf ${kept[0]?.sequence}`);
 }
 
-// 5. Een op een andere manier gesloten sessie (`endHistorySession`) laat geen sleutel achter die de
-//    ondergrens pint (review 2026-09-28: 61 stappen bleven staan in plaats van 10).
 {
   const { S, setDuration } = chain(20);
   const mark = S().historyMark();
@@ -110,7 +93,6 @@ const newestFirst = (events: readonly SessionHistoryEvent[]) => [...events].sort
   ok('afgesloten sessie: geen sleutel meer', S().historyEvents.every((e) => e.sessionKey === undefined));
   ok('afgesloten sessie: snoei houdt de ondergrens aan', pruneSessionHistory(S().historyEvents, 1).length === MIN_SESSION_HISTORY_EVENTS_PER_SCOPE,
     `kreeg ${pruneSessionHistory(S().historyEvents, 1).length}`);
-  // Een nieuwe mark ruimt ook een vergeten sleutel op.
   const m2 = S().historyMark();
   setDuration(40);
   void m2;
@@ -119,7 +101,6 @@ const newestFirst = (events: readonly SessionHistoryEvent[]) => [...events].sort
   ok('nieuwe mark: vorige sleutel weg', S().historyEvents.every((e) => e.sessionKey === undefined));
 }
 
-// 6. Baselines tellen mee in de schatting (review 2026-09-28: ~175× te laag).
 {
   const { S } = chain(2000);
   const before = S().historyEvents.length;

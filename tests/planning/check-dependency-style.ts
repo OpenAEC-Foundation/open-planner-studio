@@ -1,30 +1,3 @@
-/**
- * Relatielijn-stijl in het GEËXPORTEERDE rapport — regressiebatterij (issue #56).
- *
- * ACHTERGROND. Het scherm (`GanttRenderer.drawDependencyArrows`) tekent relaties volgens de
- * P6-conventie: doorgetrokken = bepalend (driving), gestreept = niet-bepalend, rood zodra een
- * BEPALENDE relatie twee kritieke taken verbindt. Het rapport (`printPreview.drawDependencies`)
- * deed daar niets van: het zette één vaste grijstint BUITEN de lus, riep `setLineDash` nooit aan en
- * las `seq.type` helemaal niet — élke relatie werd als FS vanaf de voorganger-FINISH getekend, ook
- * een SS. Netto: de export gooide de betekenis weg (informatieverlies, geen cosmetiek) en gaf een
- * SS-relatie feitelijk verkeerd weer.
- *
- * Deze batterij draait `renderReport` met een opnemende Draw2D — dus dezelfde renderer die zowel de
- * raster-preview als de vector-PDF voedt — en bewaakt de eigenschappen die samen de bug uitsluiten:
- *
- *   1. KLEUR per relatie volgt (driving ∧ beide kritiek ∧ showCritical), niet "alles grijs".
- *      Inclusief de discriminator die een naïeve fix betrapt: een relatie tussen twee KRITIEKE
- *      taken die NIET bepalend is hoort grijs+gestreept te zijn, niet rood.
- *   2. LIJNSTIJL: gestreept ⇔ niet-bepalend, en het patroon schaalt mee met de rapport-lettergrootte.
- *   3. SS-GEOMETRIE: een START_START-relatie vertrekt van de LINKERrand van de voorgangerbalk en
- *      loopt daar naar LINKS weg; FS/FF/SF vertrekken van de rechterrand naar rechts.
- *   4. DASH-RESET: ná de relaties tekenen de kopstrook en de tabel hun lijnen met dezelfde Draw2D.
- *      Blijft het patroon staan, dan wordt het halve rapport gestreept.
- *   5. TERUGVAL: zonder `drivingSequenceIds` (nog niet gerekend / cyclus) is álles neutraal
- *      doorgetrokken — byte-identiek aan het gedrag van vóór de fix.
- *   6. LEGENDA: de regel die de twee lijnstijlen verklaart verschijnt precies dán wanneer er
- *      relaties én bindend-informatie zijn, en komt uit de vertaallaag (geen hardgecodeerde tekst).
- */
 import { renderReport, PrintOptions } from '@/services/print/printPreview';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import { PRINT_PALETTE } from '@/engine/renderer/themePalette';
@@ -40,18 +13,13 @@ import { legacyCpmOptions } from './legacySolveOptions';
 let failures = 0;
 const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
 const ok = (msg: string) => console.log(`   ${msg}`);
-/** Print een samenvattende OK-regel alleen als er sinds `mark` niets is gefaald — anders leest een
- *  rode run als "alles klopt" met een paar XX-regels ertussen. */
 const okSince = (mark: number, msg: string) => { if (failures === mark) ok(msg); };
 
-// ── Fixture ─────────────────────────────────────────────────────────────────────────────────────
 const calendar: WorkCalendar = {
   id: 'cal', name: 'std', description: '',
   workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
 };
 
-// Vast anker (geen `new Date()`): de batterij draait ook in de tijdzone-matrix en mag niet van de
-// dag van uitvoering afhangen.
 const iso = (o: number) => {
   const d = new Date(Date.UTC(2026, 5, 1) + o * 86400000);
   return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
@@ -72,8 +40,6 @@ const mk = (id: string, name: string, startOff: number, dur: number): Task => ({
 const seqOf = (id: string, p: string, s: string, type: Sequence['type']): Sequence =>
   ({ id, predecessorId: p, successorId: s, type, lagDays: 0 });
 
-/** Bouwt de planning EN rekent hem door met de echte solver, zodat `drivingSequenceIds` en
- *  `isCritical` echte rekenresultaten zijn en geen met de hand verzonnen vlaggen. */
 function buildFixture() {
   const tasks: Task[] = [
     mk('t1', 'Voorbereiding', 0, 5),
@@ -84,13 +50,13 @@ function buildFixture() {
     mk('t6', 'Nutsaansluitingen', 18, 3),
   ];
   const sequences: Sequence[] = [
-    seqOf('s1', 't1', 't2', 'FINISH_START'),   // bepalend + beide kritiek  ⇒ ROOD DOORGETROKKEN
-    seqOf('s2', 't2', 't3', 'FINISH_START'),   // bepalend + beide kritiek  ⇒ ROOD DOORGETROKKEN
-    seqOf('s3', 't3', 't4', 'FINISH_START'),   // bepalend + beide kritiek  ⇒ ROOD DOORGETROKKEN
-    seqOf('s4', 't1', 't5', 'START_START'),    // SS, bepalend, niet kritiek ⇒ GRIJS DOORGETROKKEN
-    seqOf('s5', 't5', 't4', 'FINISH_START'),   // niet-bepalend             ⇒ GRIJS GESTREEPT
-    seqOf('s6', 't3', 't6', 'FINISH_FINISH'),  // FF, bepalend              ⇒ GRIJS DOORGETROKKEN
-    seqOf('s7', 't1', 't4', 'FINISH_START'),   // BEIDE KRITIEK maar niet-bepalend ⇒ GRIJS GESTREEPT
+    seqOf('s1', 't1', 't2', 'FINISH_START'),
+    seqOf('s2', 't2', 't3', 'FINISH_START'),
+    seqOf('s3', 't3', 't4', 'FINISH_START'),
+    seqOf('s4', 't1', 't5', 'START_START'),
+    seqOf('s5', 't5', 't4', 'FINISH_START'),
+    seqOf('s6', 't3', 't6', 'FINISH_FINISH'),
+    seqOf('s7', 't1', 't4', 'FINISH_START'),
   ];
   const cpm = new CPMSolver(tasks, sequences, calendar, [], legacyCpmOptions()).solve();
   if (cpm.error) throw new Error('fixture: CPM-fout ' + cpm.error);
@@ -98,7 +64,6 @@ function buildFixture() {
   return { tasks, sequences, cpm };
 }
 
-// ── Opnemende Draw2D ────────────────────────────────────────────────────────────────────────────
 interface StrokeEv { pts: [number, number][]; color: string; dash: number[]; lw: number; seq: number }
 interface RectEv { x: number; y: number; w: number; h: number; seq: number }
 interface TextEv { text: string; seq: number }
@@ -135,8 +100,6 @@ function record(options: PrintOptions) {
     measureText(t) { return { width: measure(t) }; },
   };
   const dims = renderReport(() => d2d, tasks, sequences, calendar, 'P', options);
-  // Relatielijnen zijn de ENIGE stroke-paden met ≥3 punten: raster-, kolom-, rand- en today-lijnen
-  // zijn allemaal rechte segmenten van 2 punten, net als de legenda-lijntjes.
   const deps = strokes.filter(s => s.pts.length >= 3);
   return { strokes, deps, bars, texts, dims, cpm, tasks, sequences };
 }
@@ -148,7 +111,6 @@ function labelsOf(over: Partial<Record<string, string>> = {}): NonNullable<Print
     legend: { ...j.legend, ...over },
     tableHeaders: j.tableHeaders,
     today: j.today, statusDate: j.statusDateLabel ?? 'Statusdatum',
-    // Projectkop: hier niet onder test (zie check-print-report §13); 'd' = de nl/en-dag-afkorting.
     projectStart: j.projectStart, projectEnd: j.projectEnd, projectDuration: j.projectDuration, daySuffix: 'd',
   };
 }
@@ -163,13 +125,10 @@ function optionsFor(over: Partial<PrintOptions> = {}): PrintOptions {
   } as PrintOptions;
 }
 
-// ── 1. Kleur en lijnstijl per relatie ───────────────────────────────────────────────────────────
 console.log('-- relatielijnen: kleur en lijnstijl volgen bepalend/kritiek --');
 {
   const base = buildFixture();
   const driving = base.cpm.drivingSequenceIds;
-  // De fixture is alleen zinvol als de solver werkelijk de bedoelde mix oplevert; anders test de
-  // batterij stilletjes niets meer (bv. na een wijziging in de driving-definitie).
   for (const [id, want] of [['s1', true], ['s3', true], ['s5', false], ['s7', false]] as const) {
     if (driving.includes(id) !== want) fail(`fixture-aanname: ${id} driving=${driving.includes(id)}, verwacht ${want}`);
   }
@@ -180,7 +139,6 @@ console.log('-- relatielijnen: kleur en lijnstijl volgen bepalend/kritiek --');
   if (deps.length !== sequences.length) {
     fail(`aantal relatielijnen ${deps.length}, verwacht ${sequences.length}`);
   } else {
-    // De lus in `drawDependencies` loopt in volgorde van `sequences`, dus index i ↔ sequences[i].
     const verwacht: Record<string, { color: string; gestreept: boolean }> = {
       s1: { color: PRINT_PALETTE.critical, gestreept: false },
       s2: { color: PRINT_PALETTE.critical, gestreept: false },
@@ -205,7 +163,6 @@ console.log('-- relatielijnen: kleur en lijnstijl volgen bepalend/kritiek --');
   }
 }
 
-// ── 2. `showCritical` uit ⇒ geen enkele rode relatielijn ────────────────────────────────────────
 console.log('-- relatielijnen: volgen de "kritiek pad tonen"-schakelaar --');
 {
   const { cpm } = buildFixture();
@@ -213,11 +170,9 @@ console.log('-- relatielijnen: volgen de "kritiek pad tonen"-schakelaar --');
   const rood = deps.filter(d => d.color === PRINT_PALETTE.critical);
   if (rood.length > 0) fail(`showCritical=false levert nog ${rood.length} rode relatielijn(en)`);
   else ok('showCritical=false ⇒ alle relatielijnen neutraal (geen rood tussen blauwe balken)');
-  // De streepjes blijven wél: bepalend-zijn staat los van het kritieke pad.
   if (!deps.some(d => d.dash.length > 0)) fail('showCritical=false wist ook de streepjes — die horen te blijven');
 }
 
-// ── 3. Terugval zonder berekening: alles neutraal doorgetrokken ─────────────────────────────────
 console.log('-- relatielijnen: terugval zonder drivingSequenceIds --');
 {
   const { deps, texts } = record(optionsFor());
@@ -229,18 +184,15 @@ console.log('-- relatielijnen: terugval zonder drivingSequenceIds --');
   }
 }
 
-// ── 4. SS-geometrie: vertrekken vanaf de juiste balkrand, in de juiste richting ─────────────────
 console.log('-- relatielijnen: ankerpunt en uitloop per relatietype --');
 {
   const { cpm } = buildFixture();
   const { deps, bars, sequences } = record(optionsFor({ drivingSequenceIds: cpm.drivingSequenceIds } as any));
-  // De eerste 6 roundRect-events zijn de taakbalken in `flatTasks`-volgorde (t1..t6); alle zes zijn
-  // gewone taken (geen mijlpaal/verzameltaak), en float/voortgang staan uit.
   const barT1 = bars[0];
   const idx = (id: string) => sequences.findIndex(s => s.id === id);
 
-  const ss = deps[idx('s4')];   // t1 → t5, START_START
-  const fs = deps[idx('s7')];   // t1 → t4, FINISH_START (zelfde voorganger!)
+  const ss = deps[idx('s4')];
+  const fs = deps[idx('s7')];
   if (!ss || !fs || !barT1) {
     fail('geometriecheck: relatielijnen of balk niet gevonden');
   } else {
@@ -252,12 +204,7 @@ console.log('-- relatielijnen: ankerpunt en uitloop per relatietype --');
     } else ok('FS ankert op de rechterrand (finish) van de voorgangerbalk');
     if (!(ss.pts[1][0] < ss.pts[0][0])) fail('SS: de stub loopt niet naar links weg van de balk (loopt de balk ín)');
     if (!(fs.pts[1][0] > fs.pts[0][0])) fail('FS: de stub loopt niet naar rechts weg van de balk');
-    // Issue #59 (rapport-pad): FINISH_FINISH landt op de opvolger-FINISH (rechterrand) ⇒ de kop wijst
-    // naar links ⇒ het laatste segment loopt naar links. Vóór de fix landde FF op de START en liep het
-    // laatste segment naar rechts (dezelfde default-als-FS-bug als op het scherm). Richtingstoets i.p.v.
-    // een exacte rand-x: het uiteinde valt óp de finish-rand, dus een `>`-assertie zou een valse treffer
-    // geven; de richting is de epsilon-vrije discriminator (gelijk aan check-arrow-routing.ts).
-    const ff = deps[idx('s6')];   // t3 → t6, FINISH_FINISH
+    const ff = deps[idx('s6')];
     if (!ff || ff.pts.length < 4) {
       fail('FF-geometriecheck (#59): relatielijn s6 niet gevonden of te kort');
     } else {
@@ -269,7 +216,6 @@ console.log('-- relatielijnen: ankerpunt en uitloop per relatietype --');
   }
 }
 
-// ── 5. Het dash-patroon schaalt mee met de rapport-lettergrootte ────────────────────────────────
 console.log('-- relatielijnen: streepjespatroon schaalt met de rapport-lettergrootte --');
 {
   const { cpm } = buildFixture();
@@ -287,18 +233,15 @@ console.log('-- relatielijnen: streepjespatroon schaalt met de rapport-lettergro
   okSince(mark, '90/100/110/125%: dash = [4k, 3k] — dezelfde verhouding tot de letter op elke schaal');
 }
 
-// ── 6. Dash-reset: de kopstrook en de tabel blijven ongestreept ─────────────────────────────────
 console.log('-- relatielijnen: dash-patroon lekt niet naar kopstrook/tabel --');
 {
   const { cpm } = buildFixture();
   const { strokes, deps, dims } = record(optionsFor({ drivingSequenceIds: cpm.drivingSequenceIds } as any));
-  // De laatste relatie in de fixture (s7) is niet-bepalend en zet dus een dash-patroon; precies het
-  // geval waarin een ontbrekende reset de rest van het rapport streept.
   const laatste = deps[deps.length - 1];
   if (!laatste || laatste.dash.length === 0) {
     fail('opzet: de laatste relatielijn hoort gestreept te zijn — zonder dat toetst deze sectie niets');
   } else {
-    const footerTop = dims.height - 50 * 1; // FOOTER_HEIGHT * k, k = 1
+    const footerTop = dims.height - 50 * 1;
     const lekken = strokes.filter(s =>
       s.seq > laatste.seq && s.dash.length > 0 && s.pts.every(p => p[1] < footerTop));
     if (lekken.length > 0) {
@@ -307,7 +250,6 @@ console.log('-- relatielijnen: dash-patroon lekt niet naar kopstrook/tabel --');
   }
 }
 
-// ── 7. Legenda-regel: aanwezig wanneer zinvol, en vertaald ──────────────────────────────────────
 console.log('-- legenda: één regel verklaart doorgetrokken vs. gestreept --');
 {
   const { cpm } = buildFixture();
@@ -332,8 +274,6 @@ console.log('-- legenda: één regel verklaart doorgetrokken vs. gestreept --');
   } else ok('relaties uit ⇒ geen lijnstijl-regel in de legenda');
 }
 
-// ── 8. Alle veertien talen hebben de nieuwe legenda-sleutel ─────────────────────────────────────
-// (`verify:i18n` bewaakt dit ook, maar dan pas op suiteniveau; hier faalt hij bij de functie zelf.)
 console.log('-- legenda: sleutel aanwezig in de bronvertaling --');
 {
   const val = (nl as any).legend?.relationStyle;

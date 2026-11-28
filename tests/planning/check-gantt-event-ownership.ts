@@ -1,6 +1,3 @@
-// Ownership-contract voor de Gantt-migratie: elke vastgelegde actie heeft precies
-// één actuele eigenaar. Task 15 verplaatst de linker acties naar DOM-grid/workspace
-// en de tijdlijngebaren naar timelinecanvas, zonder een tussenstand met dubbele listeners.
 import {
   ganttEventOwnership,
   type GanttAction,
@@ -66,17 +63,6 @@ if (/useRowDrag|startRowDrag|rowDragState/.test(canvasSource) || fs.existsSync(o
   diffs.push('canvas-rijsleep bestaat nog naast de DOM-grid-eigenaar');
 }
 
-// De KETEN als positieve eis, naast de negatieve checks hierboven.
-//
-// Een verticale sleep op een BALK wordt overgedragen aan de rijsleep van de DOM-grid. Die keten is
-// op 2026-08-31 al eens ongemerkt geknapt: `useBarDrag` hield zijn `onVerticalBodyDrag`-callback,
-// maar de coördinator gaf hem niet meer mee, en het gebaar was weg zonder dat één poort rood werd.
-// Een negatieve check ("het canvas bezit geen rijsleep") kán dat ook niet zien — die wordt juist
-// groener naarmate er méér verdwijnt. Vandaar deze lijst: elke schakel moet aanwezig zijn.
-//
-// Dit is een structurele tripwire, geen gedragsbewijs: het gedrag zelf staat in
-// `tests/browser/gantt-drag-undo.spec.ts`. Verdwijnt hier een symbool, dan is het gebaar zeker
-// stuk; staat het er, dan zeggen deze checks alleen dat de bedrading er nog is.
 const delegationChain: ReadonlyArray<{ file: string; needs: readonly string[] }> = [
   {
     file: 'src/components/canvas/ganttRowDragBridge.ts',
@@ -102,8 +88,6 @@ for (const link of delegationChain) {
   const source = fs.readFileSync(absolute, 'utf8');
   for (const symbol of link.needs) {
     checks++;
-    // Woordgrenzen, geen deeltekst: `onVerticalBodyDragXX` is niet `onVerticalBodyDrag`. Met een
-    // `includes` glipt een hernoeming er ongemerkt langs, en dan bewaakt deze lijst precies niets.
     if (!new RegExp(`\\b${symbol}\\b`).test(source)) {
       diffs.push(`${link.file}: '${symbol}' ontbreekt — de overdracht van de verticale balksleep is verbroken`);
     }

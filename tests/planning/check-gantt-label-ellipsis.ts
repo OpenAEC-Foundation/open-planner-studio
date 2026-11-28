@@ -1,22 +1,3 @@
-// U2 — balklabels met een echte ellips in plaats van een harde clip-snede.
-//
-// De taaknaam op een balk werd getekend binnen een `clip()`-rechthoek. Paste hij niet, dan viel hij
-// midden in een letter weg ("Sheet pil") zonder enig teken dat er meer stond — en `fillText`'s
-// maxWidth is geen alternatief, want die KNIJPT de glyphs samen. `GanttRenderer.ellipsize` zoekt nu
-// binair met `measureText` de langste prefix die mét "…" past.
-//
-// Sinds oktober 2026 staat een naam die niet in de balk past RECHTS achter de balk, voorbij de knik
-// van de eigen uitgaande relatie, volledig tot OUTSIDE_MAX px en pas daarna met een ellips
-// (GanttRenderer `drawOutsideBarName`).
-//
-// Een samenvattingstaak (fase) draagt zijn naam ALTIJD rechts achter de balk, ook als hij erin zou
-// passen, en nooit op de balk zelf (issue #729).
-//
-// Deze check draait de ECHTE renderer met een opnemende ctx-stub (measureText = 6 px per teken, het
-// bestaande stubpatroon) en controleert per balk welke string er daadwerkelijk de `fillText` in ging.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -35,9 +16,7 @@ function ok(label: string, cond: boolean): void {
   if (!cond) diffs.push(label);
 }
 
-const CHAR_W = 6; // zelfde measureText-stub als de andere renderer-checks
-/** Gelijk aan ARROW_STUB + OUTSIDE_LABEL_GAP en OUTSIDE_LABEL_MAX in GanttRenderer: de naam begint
- *  voorbij de knik van de eigen uitgaande relatie. */
+const CHAR_W = 6;
 const OUTSIDE_GAP = 8 + 6;
 const OUTSIDE_MAX = 260;
 
@@ -64,8 +43,7 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; texts: TextCall[] } {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, texts };
 }
 
-// ── Scène: twee balken van dezelfde breedte, één korte en één veel te lange naam ──
-const FIXED_START = '2026-01-05'; // maandag
+const FIXED_START = '2026-01-05';
 const FIXED_FINISH = '2026-01-09';
 const KORT = 'Fundering';
 const LANG = 'Sheet piling installation along the northern excavation boundary';
@@ -83,7 +61,6 @@ const time = {
 const kort: Task = { ...S().tasks[0], id: 'kort', name: KORT, time } as Task;
 const lang: Task = { ...S().tasks[0], id: 'lang', name: LANG, time } as Task;
 
-// Samenvattingen met dezelfde datums: een korte naam die IN de balk zou passen, en een lange.
 const sumKort: Task = { ...kort, id: 'sum-kort', isSummary: true } as Task;
 const sumLang: Task = { ...lang, id: 'sum-lang', isSummary: true } as Task;
 
@@ -117,16 +94,11 @@ const rectLang = renderer.getTaskBarRect('lang');
 ok('opzet: beide balken hebben een geometrie', rectKort !== null && rectLang !== null);
 
 if (rectKort && rectLang) {
-  // De balken zijn even breed (zelfde datums/zoom); `drawTaskBar` tekent zijn label op x1 + 6.
   const breedte = rectLang.right - rectLang.left;
   ok(`opzet: balk breed genoeg (>40 px) — is ${breedte}`, breedte > 40);
-  // De beschikbare labelruimte is precies `width - 10` (tussen tekststart x1+6 en cliprand x1+width-4).
   const maxW = breedte - 10;
-  // Het lange label past van geen kant: dat is de hele opzet van deze check.
   ok('opzet: de lange naam past niet in de balk', LANG.length * CHAR_W > maxW);
 
-  // De samenvattingen dragen dezelfde namen en x-posities. Alleen de eigen rij bewijst dat
-  // de gewone taak haar label heeft; de fase twee rijen lager mag dat niet overnemen (#473).
   const kortTeksten = texts.filter(rijY(rectKort));
   const langTeksten = texts.filter(rijY(rectLang));
   const labelKort = kortTeksten.find((t) => Math.abs(t.x - (rectKort.left + 6)) < 0.001 && t.text.startsWith('Fund'));
@@ -140,7 +112,6 @@ if (rectKort && rectLang) {
     ok('korte naam blijft ONGEWIJZIGD (geen ellips)', labelKort.text === KORT);
   }
   if (labelLang) {
-    // De naam is langer dan OUTSIDE_MAX: pas dáár komt een ellips, niet op de balkbreedte.
     ok('opzet: de lange naam is breder dan de maximale labelbreedte', LANG.length * CHAR_W > OUTSIDE_MAX);
     ok('lange naam eindigt op een ellips', labelLang.text.endsWith('…'));
     ok(
@@ -148,17 +119,12 @@ if (rectKort && rectLang) {
       labelLang.text.length * CHAR_W <= OUTSIDE_MAX,
     );
     ok(`lange naam is veel langer dan wat in de balk paste (${labelLang.text.length * CHAR_W} > ${maxW})`, labelLang.text.length * CHAR_W > maxW);
-    // Maximaal benut: één teken erbij zou niet meer passen.
     const eenMeer = labelLang.text.slice(0, -1) + LANG.charAt(labelLang.text.length - 1) + '…';
     ok('ellips benut de beschikbare breedte maximaal', eenMeer.length * CHAR_W > OUTSIDE_MAX);
-    // En het BEGIN van de naam blijft staan — dat was juist het leesprobleem.
     ok('het begin van de naam blijft leesbaar', LANG.startsWith(labelLang.text.slice(0, -1)));
   }
 }
 
-// ── Samenvatting: naam altijd achter de balk, nooit erop (issue #729) ──────────
-// `getTaskBarRect` geeft bewust niets voor een samenvatting (niet sleepbaar). Die tekent met dezelfde
-// `barGeometry` als een taakbalk; met dezelfde datums ligt hij dus recht onder 'kort', 2 en 3 rijen lager.
 ok('opzet: geen sleeprechthoek voor een samenvatting', renderer.getTaskBarRect('sum-kort') === null);
 const rijOnder = (r: { left: number; right: number; top: number; bottom: number }, n: number) =>
   ({ ...r, top: r.top + n * ROWH, bottom: r.bottom + n * ROWH });
@@ -168,7 +134,6 @@ if (rectKort && rectLang) {
   const rectSumLang = rijOnder(rectKort, 3);
   const teksten = (r: { top: number; bottom: number }) => texts.filter(rijY(r));
   const fmt = (r: { top: number; bottom: number }) => JSON.stringify(teksten(r).map(t => [t.text.slice(0, 12), t.x]));
-  // Zelfde datums als de gewone taak 'kort', waar de korte naam wél in de balk staat.
   ok('opzet: de korte naam zou in de samenvattingsbalk passen', KORT.length * CHAR_W <= (rectSumKort.right - rectSumKort.left) - 10);
 
   const kortTeksten = teksten(rectSumKort);
@@ -187,12 +152,6 @@ if (rectKort && rectLang) {
   ok('samenvatting lang: geen naam op de balk', !langTeksten.some(t => t.x < rectSumLang.right));
 }
 
-// ── Hammock: naam altijd achter de dunne balk, ook bij een smalle balk en bij de canvasrand ──
-// Een hammock tekende zijn naam vroeger OP de dunne balk en alleen bij een balk breder dan 40 px.
-// Nu staat hij rechts achter de balk (`drawOutsideBarName`). Is daar te weinig ruimte, dan schuift de
-// naam tegen de rechterrand van het canvas, over het eind van de balk; hij verdwijnt niet en springt
-// niet naar links. Ook klik, dubbelklik en tooltip herkennen de naam (`getTaskNameAt`), zonder dat de
-// sleep- of relatiegreep groter wordt.
 {
   const tijd = (start: string, finish: string) => ({
     ...time,
@@ -233,13 +192,11 @@ if (rectKort && rectLang) {
     const fmt2 = (r: { top: number; bottom: number }) => JSON.stringify(opRij(r).map(t => [t.text, t.x]));
     const midY = (r: { top: number; bottom: number }) => (r.top + r.bottom) / 2;
 
-    // Smal: vroeger geen naam (balk ≤ 40 px), nu volledig achter de balk.
     ok(`hammock smal: opzet balk ≤ 40 px (${rSmal.right - rSmal.left})`, rSmal.right - rSmal.left <= 40);
     const smalTeksten = opRij(rSmal);
     ok(`hammock smal: precies één naam, rechts achter de balk (${fmt2(rSmal)})`,
       smalTeksten.length === 1 && smalTeksten[0].text === NAAM && Math.abs(smalTeksten[0].x - (rSmal.right + OUTSIDE_GAP)) < 0.001);
 
-    // Bij de rand: rechts te weinig ruimte, dus tegen de canvasrand, volledig, niet links van de balk.
     const randGevallen: [string, { left: number; right: number; top: number; bottom: number }][] = [
       ['hammock bij de rand', rRand], ['hammock voorbij de rand', rVoorbij], ['samenvatting bij de rand', { ...rSum, right: rRand.right }],
     ];
@@ -253,17 +210,13 @@ if (rectKort && rectLang) {
       ok(`${label}: naam begint niet links van de balk (${fmt2(r)})`, t.length === 1 && (r === rVoorbij || t[0].x + naamW > r.right));
     }
 
-    // Interactie: de naam hoort bij de taak voor selectie, openen en tooltip …
     const naamX = rSmal.right + OUTSIDE_GAP + naamW / 2;
     ok('naam-hittest: midden van de naam geeft de hammock', r2.getTaskNameAt(naamX, midY(rSmal))?.id === 'ham-smal');
     ok('naam-hittest: voorbij de naam geeft niets', r2.getTaskNameAt(rSmal.right + OUTSIDE_GAP + naamW + 5, midY(rSmal)) === null);
     ok('naam-hittest: de naam op de randbalk telt ook', r2.getTaskNameAt(SMAL_W - 10, midY(rRand))?.id === 'ham-rand');
     ok('naam-hittest: de naam van de samenvatting telt ook', r2.getTaskNameAt(SMAL_W - 10, midY(rSum))?.id === 'sum-rand');
-    // … maar wordt geen sleep- of relatiegreep.
     ok('naam is geen sleepgreep', r2.getTaskBarBounds(naamX, midY(rSmal)) === null);
     ok('naam is geen relatiegreep', r2.getRelationSourceAt(naamX, midY(rSmal)) === null);
-    // Alleen het tekstvlak telt (body 11 px: een halve lettergrootte + 1 px boven en onder het
-    // midden), niet de hele rij. Boven en onder de naam is de randbalk weer gewoon een greep.
     for (const dy of [-10, 10]) {
       const kant = dy < 0 ? 'boven' : 'onder';
       ok(`naam-hittest: ${kant} de tekst geeft niets`, r2.getTaskNameAt(SMAL_W - 10, midY(rRand) + dy) === null);
@@ -272,9 +225,6 @@ if (rectKort && rectLang) {
     }
     ok('naam-hittest: net binnen het tekstvlak telt wel', r2.getTaskNameAt(SMAL_W - 10, midY(rRand) + 6)?.id === 'ham-rand');
   }
-  // ── Groeperen op resource: dezelfde taak staat in twee rijen, elk met een eigen naam. Beide
-  // namen moeten werken, niet alleen de laatst getekende (review #842, ronde 4). Twee rijen per
-  // taak: een randbalk (naam over de balk) en een smalle balk (naam naast de balk).
   {
     const dubbelRows: ViewRow[] = [
       { kind: 'task', rowKey: 'res-a/ham-rand', task: hamRand, depth: 1, dimmed: false },
@@ -297,7 +247,6 @@ if (rectKort && rectLang) {
       headerHeight: HDRH,
     });
     r3.render();
-    // `getTaskBarRect` geeft het EERSTE voorkomen (rij 0 en 1); het tweede ligt twee rijen lager.
     const randA = r3.getTaskBarRect('ham-rand');
     const smalA = r3.getTaskBarRect('ham-smal');
     ok('resourcegroepen: opzet, beide balken hebben een geometrie', randA !== null && smalA !== null);
@@ -312,8 +261,6 @@ if (rectKort && rectLang) {
     }
   }
 
-  // ── Balk links buiten beeld, met spelingsband nog in beeld: de balk blijft in de tekenronde, maar
-  // de naam gaat mee naar links. Hij blijft niet los aan de linkerrand staan (review #842, ronde 4).
   {
     const links: Task = {
       ...lang, id: 'links',
@@ -344,11 +291,9 @@ if (rectKort && rectLang) {
     }
   }
 
-  // De eerste scène tekende geen naam ver weg: daar herkent de hittest ook niets.
   ok('naam-hittest: lege rij geeft niets', renderer.getTaskNameAt(5, HDRH + ROWH * 10) === null);
 }
 
-// ── Uitslag ─────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  gantt-label-ellipsis: alle checks groen (${checks})`);
   process.exit(0);

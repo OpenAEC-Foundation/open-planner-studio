@@ -1,10 +1,3 @@
-// Plakken van een rasterkopie in een andere planning (issue #900) — headless tegen de ECHTE store.
-//
-// Kopieert het raster (de kolommen), dan gaan de taken ook naar het app-brede takenklembord, met de
-// celtekst en de planning erbij. Het raster plakt die taken alleen in een ANDERE planning en alleen
-// zolang het systeemklembord nog die tekst bevat. Anders plakt het celwaarden zoals voorheen.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { pastesGridTaskCopy } from '@/state/slices/selectionSlice';
@@ -37,8 +30,6 @@ eq('andere planning, Windows-regeleinden ⇒ taken',
   pastesGridTaskCopy(S().taskClipboard, text.replace(/\n/g, '\r\n'), b), true);
 eq('andere planning, andere tekst (Excel) ⇒ celwaarden', pastesGridTaskCopy(S().taskClipboard, 'Uit Excel', b), false);
 
-// Kopiëren buiten het raster (Gantt, contextmenu) vervangt het klembord zonder herkomst: dan plakt het
-// raster weer celwaarden, ook als het systeemklembord nog de oude rastertekst heeft.
 const other = S().addTask({ name: 'Elders' });
 S().copyTasks([other]);
 eq('kopie buiten het raster ⇒ geen herkomst', S().taskClipboard?.fromGrid ?? null, null);

@@ -1,17 +1,3 @@
-/**
- * Rapport met gecomprimeerde werkdagen-as (issue #21 punt 2).
- *
- * Het scherm-Gantt en het rapport hebben ieder een renderer, maar de rapport-preview en de
- * vector-PDF delen wél `renderReport`. Deze test zet die echte tekenroutine achter een opnemende
- * Draw2D en bewaakt de twee zichtbare gevolgen van "alleen werkdagen tonen":
- *
- * - vrijdag → maandag beslaat twee getoonde werkdagkolommen, niet vier kalenderdagkolommen;
- * - de getoonde kolommen van oneven weken krijgen de rapport-weekbandkleur.
- *
- * Verwijder `compressNonWorkdays` uit de rapport-as, of teken de weekband niet: beide assertions
- * falen op echte getekende geometrie. Daardoor dekt de test tegelijk de raster-preview en de
- * vector-PDF, die dezelfde renderer gebruiken.
- */
 import { renderReport, type PrintOptions } from '@/services/print/printPreview';
 import { PRINT_PALETTE } from '@/engine/renderer/themePalette';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
@@ -76,12 +62,9 @@ function renderCompressedReport() {
 const { rects, bars, dims } = renderCompressedReport();
 const weekBand = (PRINT_PALETTE as typeof PRINT_PALETTE & { gridWeekBand?: string }).gridWeekBand;
 
-// De zichtbare activiteitbalk is bij vaste 20 px/kolom twee werkdagkolommen breed: vr + ma.
 const taskBar = bars.find(bar => bar.color === PRINT_PALETTE.normal && bar.h > 10);
 expect('vrijdag tot maandag is twee werkdagkolommen breed', taskBar?.w === 40, `kreeg ${taskBar?.w}px`);
 
-// Een rapportband dekt de hele Gantt-chart (niet slechts één alternatieve taakrij) en komt voor
-// bij de opgevulde datumrange rond de fixture, die meerdere oneven weken bevat.
 const chartHeight = dims.height - dims.headerHeight - 50;
 const bands = rects.filter(rect =>
   rect.color === weekBand

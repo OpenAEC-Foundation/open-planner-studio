@@ -1,16 +1,3 @@
-// check-short-hour-task-load.ts — een urentaak korter dan één werkdag draagt belasting.
-//
-// `distributeUnits` gaf voor een duur strikt tussen 0 en 1 werkdag een LEGE array terug. Een
-// urentaak van 5 uur op een 8-urige dag (`scheduleDuration` 0,625) boekte daardoor niets in het
-// histogram, telde niet mee voor overbezetting en bestond niet voor de nivelleerder — tenzij de
-// toewijzing toevallig opgeslagen werk of een eigen contour had (die lagen in `assignmentDayUnits`
-// boekten wél 0,625). Nu valt het hele werk op die ene dag, als fractie: inzet × duur.
-//
-// Drie groepen: (a) `distributeUnits` zelf, (b) `computeResourceLoad` (histogram + overbezetting),
-// (c) `levelResources` ziet het conflict tussen twee korte urentaken en lost het op.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 import { distributeUnits, computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import { levelResources } from '@/engine/scheduler/ResourceLeveler';
 import type { CPMResult } from '@/engine/scheduler/CPMSolver';
@@ -34,7 +21,6 @@ const PROJECT_CAL: WorkCalendar = {
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
 };
 
-/** Urentaak van `minutes` werkminuten die op één dag valt (8-urige dag ⇒ duur = minuten / 480). */
 function hourTask(id: string, day: string, minutes: number, extra?: Partial<Task>): Task {
   return {
     id, name: id, description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -67,9 +53,6 @@ function stubCpmResult(projectEnd: string): CPMResult {
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (a) distributeUnits: 0 < D < 1 ⇒ één slot met inzet × D; D = 0 blijft leeg.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- short-hour-task-load: distributeUnits --');
 eq('5 uur op een 8-urige dag, inzet 1 ⇒ [0,625]', distributeUnits(1, 0.625), [0.625]);
 eq('4 uur, inzet 2 ⇒ [1]', distributeUnits(2, 0.5), [1]);
@@ -79,9 +62,6 @@ eq('fractionele inzet blijft exact (0,5 × 0,25)', distributeUnits(0.5, 0.25), [
 eq('D = 1 ongewijzigd', distributeUnits(1, 1), [1]);
 eq('D = 0 (mijlpaal) levert niets', distributeUnits(1, 0), []);
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (b) computeResourceLoad: de korte urentaak staat in het histogram en telt mee voor overbezetting.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- short-hour-task-load: histogram en overbezetting --');
 {
   const kraan = res('r-kraan', 1);
@@ -102,9 +82,6 @@ console.log('-- short-hour-task-load: histogram en overbezetting --');
   eq('en de kraan is die dag overbezet', r2.overallocatedDays['r-kraan'] ?? [], ['2026-06-01']);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (c) levelResources: het conflict tussen twee korte urentaken wordt gezien en opgelost.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- short-hour-task-load: nivelleren --');
 {
   const kraan = res('r-kraan-lvl', 1);
@@ -121,7 +98,6 @@ console.log('-- short-hour-task-load: nivelleren --');
   eq('er blijft geen onopgelost conflict over', Object.keys(result.unresolved), []);
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  short-hour-task-load: alle checks groen (${checks})`);
   process.exit(0);

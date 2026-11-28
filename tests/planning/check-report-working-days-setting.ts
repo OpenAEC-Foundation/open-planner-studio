@@ -1,5 +1,3 @@
-// De werkdagen-as van een rapport is een eigen rapportvoorkeur, niet een afgeleide van de
-// scherminstelling. Deze batterij bewaakt de default én de round-trip door de echte opslagroute.
 import './domStub';
 import { DEFAULT_REPORT_SETTINGS, loadReportSettings, patchReportSettings } from '@/utils/reportSettings';
 

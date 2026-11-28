@@ -1,36 +1,3 @@
-// De SVG-backend van het rapportpapier (issue #817). Bewaakt:
-//  1. Dezelfde tekenopdrachten: `SvgRecordingDraw2D` neemt van `renderReport` precies de opdrachten op
-//     die een opnemende Draw2D (de canvas-API, zoals de canvas- en de PDF-backend die krijgen) ziet:
-//     zelfde soort, volgorde, kleur, plek, tekst, letter en lijnstijl. Tekst schuift naar de
-//     alfabetische basislijn met de basislijnafstand van de letter (zoals de PDF-backend).
-//  2. Dezelfde bladen als de PDF: het papier gebruikt dezelfde tegelinvoer en dezelfde tweede render
-//     voor een smallere voet als `paginateVectorToPdfBytes`.
-//  3. Een blad als SVG: viewBox in punten, per venster een geneste <svg> met de bron-viewBox, alleen de
-//     opdrachten van dat blad, het paginanummer zoals de PDF; tekst ge-escapet.
-//  4. Klikbare delen: kop, kolommen, balken en voet liggen waar de render ze tekent; een klik in de
-//     tabel weet de kolom.
-//  5. Papier = PDF, ook in het afkappen: dezelfde opname naar SVG (met de meting van het papier) en naar
-//     de echte vector-PDF (`paginateVectorToPdfBytes` met de ingebedde TTF's), met kolombreedtes zoals het
-//     paneel ze meet. Per tekstitem dezelfde tekst ná het afkappen, op dezelfde plek en basislijn. Geen
-//     datum wordt in de PDF afgekapt. Voor #817 mat het papier met het canvas van de browser; dat rondt
-//     bij kleine letters af (9 november 2026: "Stakeholder management" 115 tegen 109,0 in de PDF), dus
-//     het papier kapte namen af die de PDF voluit toonde, en de PDF kapte datums af ("30-03-2027 0…").
-//     Let op: de opgenomen grenzen van het papier en de plaatsing in de PDF komen uit dezelfde meting. Of de
-//     browser de tekst ook zo breed tekent (met dezelfde letter), meet deze check niet; een Arabische naam
-//     in een systeemletter bleef hier groen terwijl hij over de kolom liep (review Sol #847). Dat bewaakt
-//     `tests/browser/report-studio.spec.ts`: de getekende tekst (`getBBox`) tegen de getekende kolomlijn.
-//  6. Alleen de rijen van de bladen in beeld: het papier tekent bij een klik alleen de rijen van de
-//     bladen die gevraagd worden (`createReportPaperRecorder`, rijvenster in `renderReport`). Elk blad uit
-//     zo'n gedeeltelijke opname is byte voor byte gelijk aan hetzelfde blad uit de volledige opname, met
-//     dezelfde bladindeling.
-//  7. Vaste schaal begint op de passende breedte: dezelfde bladindeling als "Op de breedte", ook als die
-//     breedte onder 1 px per dag ligt (vroeger klemde het tabblad op 1 en sprong A4 staand van 2 naar 6
-//     pagina's, en 5000 taken van 139 naar 695).
-//  8. De letter per teken in een tekst met Arabisch is die van de browser: Noto voor elk teken uit de
-//     `unicode-range` van Noto dat Noto heeft, de rapportletter voor de rest; in elk stuk van de tekst en in
-//     beide richtingen. De browser kiest per teken, niet per bidi-run. Gaf de shaping-kern een spatie in
-//     het Latijnse deel van "Fase 1 أعمال … en afstemming" de rapportletter, dan tekende de browser hem in
-//     Noto en liep de naam bij Carlito ruim 4 px de volgende kolom in (review Sol #847, ronde 2).
 import './domStub';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -64,8 +31,6 @@ const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
 const ok = (cond: boolean, msg: string) => { if (!cond) fail(msg); };
 const near = (a: number, b: number, eps = 0.011) => Math.abs(a - b) <= eps;
 
-// De echte meting van het papier: de lettermaten uit de gevendorde TTF's, samengesteld zoals de app dat
-// doet (`loadReportTextMetrics` → `assembleReportMeasureFonts`), dezelfde als de vector-PDF.
 const ttf = (rel: string) => new Uint8Array(readFileSync(join(ROOT, rel)));
 const FONT_DIR = 'src/services/pdf/fonts';
 const INTER: ReportFontFiles = { regular: ttf(`${FONT_DIR}/Inter-Regular.ttf`), bold: ttf(`${FONT_DIR}/Inter-Bold.ttf`) };
@@ -76,7 +41,6 @@ const interFonts: ReportMeasureFonts = assembleReportMeasureFonts(fkCreate, INTE
 const carlitoFonts: ReportMeasureFonts = assembleReportMeasureFonts(fkCreate, CARLITO, { interFallback: INTER, arabic: ARABIC, baseDir: 'ltr' });
 const metrics: SvgTextMetrics = createReportTextMetrics(interFonts);
 
-// ── Opnemende Draw2D die dezelfde regels van de canvas-API volgt ───────────────────────────────
 type Expected =
   | { k: 'rect'; x: number; y: number; w: number; h: number; paint: string; lw?: number; dash: string }
   | { k: 'path'; bbox: [number, number, number, number]; paint: string; lw?: number; dash: string }
@@ -154,7 +118,6 @@ function compare(label: string, expected: Expected[], rec: SvgRecordingDraw2D): 
   }
 }
 
-// ── Fixture: het echte voorbeeldproject ────────────────────────────────────────────────────────
 const project = readIFC(readFileSync(join(ROOT, 'public/examples/03-kantoorgebouw-zuidas.ifc'), 'utf8'));
 const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
   showCritical: true, showFloat: true, showDeps: true, showWeekends: true, showLegend: true,
@@ -168,7 +131,6 @@ const baseOptions = (over: Partial<PrintOptions> = {}): PrintOptions => ({
 const renderWith = (options: PrintOptions) => (mk: (w: number, h: number) => Draw2D) =>
   renderReport(mk, project.tasks, project.sequences, project.calendar, project.project.name, options);
 
-// ── 1. Dezelfde tekenopdrachten ────────────────────────────────────────────────────────────────
 const variants: [string, PrintOptions][] = [
   ['standaard', baseOptions()],
   ['A4 staand, vaste schaal', baseOptions({ paperSize: 'A4', orientation: 'portrait', autoFit: false, customZoom: 30 })],
@@ -176,7 +138,6 @@ const variants: [string, PrintOptions][] = [
   ['met eigen kolom', baseOptions({ tableColumns: [
     { key: 'task.name', builtin: 'name' }, { key: 'x.kolom', header: 'Eigen <kop>', align: 'center', cells: new Map([[project.tasks[0].id, 'a & b']]) },
   ] })],
-  // Een andere rapportletter (#770): het papier neemt dezelfde fontstack op als canvas en PDF.
   ['letter Carlito', baseOptions({ fontFamily: reportFontStack('carlito') })],
 ];
 for (const [label, options] of variants) {
@@ -192,14 +153,12 @@ for (const [label, options] of variants) {
   compare(label, ops, svg);
 }
 
-// ── 2. Dezelfde bladen als de PDF ──────────────────────────────────────────────────────────────
 for (const [label, options, rh, rf] of [
   ['één kolom', baseOptions(), true, true],
   ['tijdlijn over 3', baseOptions({ timelineColumns: 3, paperSize: 'A4' }), true, true],
   ['zonder herhaling', baseOptions({ timelineColumns: 2 }), false, false],
 ] as [string, PrintOptions, boolean, boolean][]) {
   const paper = recordReportPaper(project.tasks, project.sequences, project.calendar, project.project.name, options, rh, rf, metrics);
-  // De weg van `paginateVectorToPdfBytes`, met de keuzes die `buildGanttReportPdf` meegeeft.
   const tile = ganttTileOptions(options, rh, rf);
   const firstPass = renderWith(options)(() => new SvgRecordingDraw2D(1, 1, metrics));
   let layout = computeTileLayout(reportTileInput(firstPass, tile));
@@ -218,7 +177,6 @@ for (const [label, options, rh, rf] of [
   }
 }
 
-// ── 3. Een blad als SVG ────────────────────────────────────────────────────────────────────────
 {
   const carlito = recordReportPaper(project.tasks, project.sequences, project.calendar, project.project.name,
     baseOptions({ fontFamily: reportFontStack('carlito') }), true, true, metrics);
@@ -240,8 +198,6 @@ for (const [label, options, rh, rf] of [
   ok(label.text === `1 / ${total}` && svg0.includes(`>1 / ${total}</text>`), 'blad: paginanummer zoals de PDF');
   ok(svg0.includes('Bouw &amp; &lt;Co&gt; "BV"') && !svg0.includes('<Co>'), 'blad: tekst ge-escapet');
   ok(svg0.includes(`<rect width="${r2(layout.pageWidthPt)}" height="${r2(layout.pageHeightPt)}" fill="#ffffff"/>`), 'blad: wit papier, ook in donker thema');
-  // Het papier op het scherm zet de letterregels één keer in het document (`embedFontStyle: false`) en bewaart
-  // de vensterinhoud van kop en voet (`windowCache`); het blad blijft verder hetzelfde.
   const bare = reportPageSvg(recording, layout, 0, { pageLabelFont: '8px InterPDF, sans-serif', embedFontStyle: false });
   ok(svg0.includes('<style>') && !bare.includes('<style>') && bare === svg0.replace(/<style>[^<]*<\/style>/, ''),
     'blad: zonder eigen <style> verder gelijk');
@@ -251,7 +207,6 @@ for (const [label, options, rh, rf] of [
   ok(cached[0] === svg0 && cached[1] === svg0 && cached[2] === reportPageSvg(recording, layout, 1, { pageLabelFont: '8px InterPDF, sans-serif' }) && windowCache.size > 0,
     `blad: met bewaarde vensters dezelfde bladen (${windowCache.size} vensters bewaard)`);
 
-  // Alleen de opdrachten van het blad: blad 2 (tweede tijdlijnkolom) heeft andere balken dan blad 1.
   const body0 = windows.find(w => w.srcY > 0 && w.dstY === layout.bodyTopPt)!;
   const inBody = opsInWindow(recording, body0.srcX, body0.srcY, body0.srcX + body0.srcW, body0.srcY + body0.srcH);
   const brute = recording.ops.map((op, i) => [op, i] as const)
@@ -263,13 +218,10 @@ for (const [label, options, rh, rf] of [
   ok(svg1 !== svg0 && svg1.includes(`>2 / ${total}</text>`), 'blad 2: eigen inhoud en nummer');
   ok(!reportPageSvg(recording, layout, total, {}).includes('<svg x='), 'blad buiten bereik: geen vensters');
 
-  // RTL: links/rechts-anker draait om, midden blijft.
   const textOp: SvgOp = { k: 'text', x: 1, y: 2, text: 'a', font: 0, fill: '#000', anchor: 'start', b: [0, 0, 1, 1] };
   ok(opToSvg(textOp, 'f', true).includes('text-anchor="end"') && !opToSvg(textOp, 'f', false).includes('text-anchor'), 'rtl: start wordt end');
   ok(opToSvg({ ...textOp, anchor: 'middle' }, 'f', true).includes('text-anchor="middle"'), 'rtl: midden blijft midden');
 
-  // Samenvoegen: opeenvolgende lijnen met dezelfde stijl en dekkende rechthoeken met dezelfde kleur
-  // worden één <path>; volgorde, doorzichtige kleuren en andere stijlen blijven apart.
   const line = (d: string, stroke = '#cccccc', lw = 1): SvgOp => ({ k: 'path', d, stroke, lw, b: [0, 0, 1, 1] });
   const box = (x: number, w: number, fill = '#ff0000'): SvgOp => ({ k: 'rect', x, y: 0, w, h: 2, fill, b: [0, 0, 1, 1] });
   const merged = opsToSvg([line('M0 0L1 0'), line('M0 1L1 1'), line('M0 2L1 2', '#000000'), textOp, box(0, 1), box(1, 1)], 'f');
@@ -280,13 +232,11 @@ for (const [label, options, rh, rf] of [
   ok(opsToSvg([line('M0 0L1 0', 'rgba(0,0,0,0.5)'), line('M0 1L1 1', 'rgba(0,0,0,0.5)')], 'f').length === 2,
     'samenvoegen: doorzichtige lijnen blijven los (overlap zou donkerder worden)');
   ok(opsToSvg([line('M0 0L1 0', '#cccccc', 1), line('M0 1L1 1', '#cccccc', 2)], 'f').length === 2, 'samenvoegen: andere lijndikte blijft los');
-  // Per kleurreeks: dun en dik om en om in één kleur geeft één pad per dikte, in de volgorde van eerste voorkomen.
   const run = opsToSvg([line('M0 0L1 0', '#cccccc', 1), line('M0 1L1 1', '#cccccc', 2), line('M0 2L1 2', '#cccccc', 1), textOp,
     line('M0 3L1 3', '#cccccc', 1)], 'f');
   ok(run.length === 4 && run[0].startsWith('<path d="M0 0L1 0M0 2L1 2"') && run[1].includes('stroke-width="2"') && run[2].startsWith('<text'),
     `samenvoegen: één kleurreeks, één pad per dikte; tekst breekt de reeks (${run.length}: ${run[0]})`);
 
-  // Afknippen op het venster (`clipOpToWindow`): binnen het venster blijft elk pixel gelijk.
   {
     const clip = (op: SvgOp) => clipOpToWindow(op, 0, 0, 100, 50);
     const rect = clip({ k: 'rect', x: -100, y: 10, w: 300, h: 10, fill: '#ff0000', b: [-100, 10, 200, 20] });
@@ -303,7 +253,6 @@ for (const [label, options, rh, rf] of [
     ok(grid?.k === 'path' && grid.d === 'M50 -5L50 55', `afknippen: rasterlijn over 10.000 px ingekort tot het venster (${grid?.k === 'path' ? grid.d : grid})`);
     ok(clip({ k: 'path', d: 'M50 -100L50 0', stroke: '#cccccc', lw: 1, b: [49.5, -100, 50.5, 0], pts: [[50, -100, 50, 0]] }) === null,
       'afknippen: een lijn die alleen de bovenrand raakt, valt weg (platte uiteinden tekenen daar niets)');
-    // Gestreepte relatielijn met een hoek: begin op een hele periode van het oude begin, de hoek blijft.
     const dep = clip({ k: 'path', d: 'M-1000 10L50 10L50 1000', stroke: '#000000', lw: 1, dash: '6 4', b: [-1000.5, 9.5, 50.5, 1000], pts: [[-1000, 10, 50, 10, 50, 1000]] });
     const depD = dep?.k === 'path' ? dep.d : '';
     const startX = Number(/^M(-?[\d.]+) /.exec(depD)?.[1]);
@@ -312,7 +261,6 @@ for (const [label, options, rh, rf] of [
     ok(dep?.k === 'path' && dep.pts === undefined, 'afknippen: een afgeknipte lijn draagt geen oude punten meer');
   }
 
-  // Letterklassen: dezelfde letter geeft overal dezelfde klasse; één regel per letter plus de vaste tekstregel.
   {
     const font = 'bold 9px InterPDF, sans-serif';
     ok(reportFontClass(font) === reportFontClass(font) && reportFontClass(font) !== reportFontClass('9px InterPDF, sans-serif'),
@@ -328,7 +276,6 @@ for (const [label, options, rh, rf] of [
   const negRect = rec.ops[0];
   ok(negRect?.k === 'rect' && negRect.x === 1 && negRect.w === 1, 'samenvoegen: de opname zet een negatieve breedte recht (geen gat door de draairichting)');
 
-  // ── 4. Klikbare delen ────────────────────────────────────────────────────────────────────────
   const regions = reportPaperRegions(paper.result, layout, 0);
   const ids = regions.regions.map(r => r.id);
   ok(['header', 'columns', 'chart', 'footer'].every(id => ids.includes(id as never)), `delen: kop, kolommen, balken en voet op blad 1 (${ids.join(',')})`);
@@ -355,10 +302,8 @@ for (const [label, options, rh, rf] of [
     'blad 2: de balken beginnen na de herhaalde tabelstrook');
 }
 
-// ── 5. Papier = PDF, ook in het afkappen ─────────────────────────────────────────────────────────
 {
   interface DrawnText { text: string; font: string }
-  /** Een Draw2D die elke `fillText` noteert en verder alles aan de echte backend doorgeeft. */
   const noteTexts = <T extends object>(target: T, notes: DrawnText[]): T => new Proxy(target, {
     get(t, prop) {
       if (prop === 'fillText') {
@@ -373,8 +318,6 @@ for (const [label, options, rh, rf] of [
     set(t, prop, value) { return Reflect.set(t, prop, value, t); },
   });
 
-  // Het paneel meet de kolommen op de koppen en cellen van dít rapport, met de meting van het papier
-  // (`useStudioPrintOptions`), en geeft ze door als `columnWidths` (en bij "Volledig" de naambreedte).
   const studioOptions = (fonts: ReportMeasureFonts, tasks: Task[], over: Partial<PrintOptions>, fullNames: boolean): PrintOptions => {
     const m = createReportTextMetrics(fonts);
     const options = baseOptions(over);
@@ -389,8 +332,6 @@ for (const [label, options, rh, rf] of [
     return { ...options, columnWidths, taskNameColumnWidth };
   };
 
-  // Lastige namen: een lange naam, de pijl die Inter met GSUB tot één teken maakt, een teken dat Carlito
-  // mist (komt uit Inter), en Arabisch (door de shaping-kern).
   const carlitoMissing = [0x2300, 0x2316, 0x2192, 0x2264, 0x2713].find(cp => !carlitoFonts.regular.hasGlyphForCodePoint(cp) && interFonts.regular.hasGlyphForCodePoint(cp));
   const leaves = project.tasks.filter(t => t.childIds.length === 0);
   const renamed = new Map<string, string>([
@@ -416,8 +357,6 @@ for (const [label, options, rh, rf] of [
     const paper = recordReportPaper(tasks, project.sequences, project.calendar, project.project.name, options, repeat, repeat, m);
     const svgTexts = paper.recording.ops.filter((op): op is Extract<SvgOp, { k: 'text' }> => op.k === 'text');
 
-    // De echte vector-PDF, met dezelfde keuzes als `buildGanttReportPdf`. De laatste render telt (een
-    // smallere herhaalde voet geeft een tweede render, net als op het papier).
     const passes: { notes: DrawnText[]; d2d?: PdfVectorDraw2D }[] = [];
     await paginateVectorToPdfBytes(
       (make, footerLayoutWidth) => {
@@ -461,7 +400,6 @@ for (const [label, options, rh, rf] of [
     }
     ok(textDiffs === 0, `${label}: ${textDiffs} tekst(en) anders afgekapt op papier dan in de PDF: ${textExamples.join(' · ')}`);
     ok(placeDiffs === 0, `${label}: ${placeDiffs} tekst(en) op een andere plek of basislijn: ${placeExamples.join(' · ')}`);
-    // Datums horen in de PDF nooit afgekapt te zijn: het paneel meet hun kolom op dezelfde maat.
     const cutDates = last.notes.filter(t => /^\d{2}-\d{2}-/.test(t.text) && t.text.endsWith('…'));
     ok(cutDates.length === 0, `${label}: ${cutDates.length} afgekapte datum(s) in de PDF (${cutDates.slice(0, 3).map(t => t.text).join(', ')})`);
     if (label.startsWith('standaard')) {
@@ -472,9 +410,7 @@ for (const [label, options, rh, rf] of [
   }
 }
 
-// ── 6. Alleen de rijen van de bladen in beeld ────────────────────────────────────────────────────
 {
-  // Een groter plan: het voorbeeld zes keer, met eigen id's, ouders en relaties (±340 rijen, veel bladen).
   const copies = 6;
   const bigTasks: Task[] = [];
   const bigSequences = [];
@@ -485,7 +421,6 @@ for (const [label, options, rh, rf] of [
     }
     for (const q of project.sequences) bigSequences.push({ ...q, id: id(q.id), predecessorId: id(q.predecessorId), successorId: id(q.successorId) });
   }
-  // Een relatie van de eerste naar de laatste taak: een lange lijn door alle bladen heen.
   bigSequences.push({ ...project.sequences[0], id: 'lang', predecessorId: bigTasks[1].id, successorId: bigTasks[bigTasks.length - 1].id });
   const cases: [string, PrintOptions, boolean][] = [
     ['A3 liggend', baseOptions(), true],
@@ -518,9 +453,7 @@ for (const [label, options, rh, rf] of [
       }
     }
     ok(diffs === 0, `${label}: ${diffs} van ${total} bladen anders dan in de volledige opname. ${firstDiff.join('')}`);
-    // Een groep bladen in één keer, daarna komt elk blad uit die ene opname.
     const fresh = createReportPaperRecorder(bigTasks, bigSequences, project.calendar, project.project.name, options, repeat, repeat, metrics, [0]);
-    // Bladen naast elkaar delen hun rijen; tel dus per bladrij (rij 1 tot en met de laatste).
     const secondRow = fresh.layout.cols;
     ok(fresh.layout.rows >= 3, `${label}: de proef heeft minstens drie bladrijen (${fresh.layout.rows})`);
     const batch = fresh.recordingFor([secondRow, total - 1]);
@@ -531,7 +464,6 @@ for (const [label, options, rh, rf] of [
   }
 }
 
-// ── 7. Vaste schaal begint op de passende breedte ───────────────────────────────────────────────
 {
   const cases: [string, PrintOptions][] = [
     ['A4 staand', baseOptions({ paperSize: 'A4', orientation: 'portrait' })],
@@ -558,15 +490,12 @@ for (const [label, options, rh, rf] of [
   ok(fixedScaleStartDayWidth(0.000_1) === REPORT_MIN_DAY_WIDTH, 'vaste schaal: nooit onder de kleinste breedte per dag');
 }
 
-// ── 8. De letter per teken in een tekst met Arabisch: zoals de browser kiest ───────────────────────
 {
   const ranges = ARABIC_REPORT_UNICODE_RANGE.split(',')
     .map(r => r.trim().replace(/^U\+/i, '').split('-').map(h => parseInt(h, 16)));
   const inNotoRange = (cp: number) => ranges.some(([a, b = a]) => cp >= a && cp <= b);
   const names = [
     'Fase 1 أعمال البناء en afstemming met de gemeente over de bouwlogistiek en bereikbaarheid van de bouwplaats',
-    // Cijfers, ASCII-leestekens, een gedachtestreepje, aanhalingstekens, een harde spatie en het
-    // beletselteken: Noto mist de streepjes, aanhalingstekens en het beletselteken (dan de rapportletter).
     'Fase 2.3 – أعمال (البناء) 50% \u201Cgereed\u201D\u00A0…',
     'أعمال البناء والتشييد وإدارة الموارد ومتابعة التنفيذ',
   ];

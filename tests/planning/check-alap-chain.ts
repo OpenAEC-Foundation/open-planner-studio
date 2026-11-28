@@ -1,10 +1,3 @@
-// Audit 2026-09-26 — ALAP-keten (eigenaarsbesluit: alle rekenprofielen).
-//
-// `applyAlap` liep de taken in voorwaartse volgorde. Een ALAP-voorganger mat haar vrije speling dan
-// tegen een nog niet verschoven ALAP-opvolger: van A→B→einde kwam alleen B laat, A bleef vooraan
-// staan. MS Project en P6 zetten de hele keten laat. Nu opvolgers eerst: elke schakel sluit aan.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -33,14 +26,12 @@ const fs = (p: string, s: string): Sequence => ({ id: `${p}-${s}`, predecessorId
 const day = (v: unknown) => String(v).slice(0, 10);
 
 for (const base of ['ops', 'p6', 'msproject'] as const) {
-  // Het profiel sleutelt op `baseId` (review 2026-09-28: met `base` draaiden alle drie de rondes als ops).
   const opts = { schedulingOptions: effectiveSchedulingOptions({ schedulingProfile: { baseId: base, id: base, name: '', overrides: {} } }) };
 
   checks++;
   if (base === 'p6' && opts.schedulingOptions.p6AlapPositionedFromSuccessors !== true) diffs.push('p6-profiel niet actief (C14 uit)');
   if (base !== 'p6' && opts.schedulingOptions.p6AlapPositionedFromSuccessors === true) diffs.push(`${base}-profiel heeft C14 aan`);
 
-  // Keten van twee: X (10 dagen, 1–12 juni) drijft EINDE; A→B→EINDE zijn beide ALAP.
   {
     const r = new CPMSolver(
       [mk('A', 2, true), mk('B', 2, true), mk('X', 10), mk('END', 1)],
@@ -53,7 +44,6 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
     eq(`${base} keten2: EINDE beweegt niet`, day(t('END').earlyStart), '2026-06-15');
   }
 
-  // Keten van drie: C→D→E→EINDE sluit schakel voor schakel aan tegen EINDE.
   {
     const r = new CPMSolver(
       [mk('C', 1, true), mk('D', 1, true), mk('E', 1, true), mk('X', 10), mk('END', 1)],
@@ -63,8 +53,6 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
     eq(`${base} keten3: E, D, C`, ['E', 'D', 'C'].map((id) => day(t(id).earlyStart)), ['2026-06-12', '2026-06-11', '2026-06-10']);
   }
 
-  // Een gewone (niet-ALAP) opvolger S van D blijft vroeg staan; D heeft dan geen vrije speling en
-  // blijft staan, en C dus ook (zero free float, geen totale speling).
   {
     const r = new CPMSolver(
       [mk('C', 1, true), mk('D', 1, true), mk('S', 1), mk('X', 10), mk('END', 1)],
@@ -75,9 +63,6 @@ for (const base of ['ops', 'p6', 'msproject'] as const) {
   }
 }
 
-// Gemengd (review 2026-09-28): een gewone ALAP-voorganger (dagkalender) vóór een ALAP-taak op een
-// uurkalender. Onder P6 valt die tweede onder C14 (`positionAlapFromSuccessors`); in één
-// achterwaartse doorloop meet de voorganger al tegen de verschoven C14-taak.
 {
   const BAND = [{ start: 480, end: 960 }];
   const HOURS = { ...CAL, id: 'uren', workTime: { byWeekday: { 1: BAND, 2: BAND, 3: BAND, 4: BAND, 5: BAND, 6: [], 7: [] } } } as WorkCalendar;

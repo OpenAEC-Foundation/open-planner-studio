@@ -1,7 +1,3 @@
-// Tabel-overhaul Task 1: iedere zichtbare rij heeft een stabiele occurrence-key. De hostile
-// fixture gebruikt bewust een taak-id die gelijk is aan de rauwe sleutel van een geneste
-// resourceband. Een groepskey (JSON-array) en taak-occurrencekey (JSON-object) mogen daardoor
-// nooit botsen. Deze check draait de echte computeViewRows- en storeselectieroutes.
 import './domStub';
 import * as visibleRows from '@/engine/view/visibleRows';
 import * as viewSlice from '@/state/slices/viewSlice';
@@ -86,14 +82,11 @@ const ctx: ViewContext = {
   noneLabel: '(geen)',
 };
 
-// Boommodus: de domein-id is al occurrence-veilig en blijft exact de rowKey.
 {
   const rows = visibleRows.computeViewRows([task('boom-a'), task('boom-b')], opts(), ctx);
   eq('01 boomtaken gebruiken exact task.id als rowKey', rows.map(row => row.rowKey), ['boom-a', 'boom-b']);
 }
 
-// Geneste resourcegroepering: dezelfde taak komt in twee banden voor. De taak-id is bewust gelijk
-// aan de raw key van de tweede band om een simpele stringconcatenatie/ongecodeerde key te breken.
 const hostileTaskId = 'Ploeg B';
 const groupedTask = task(hostileTaskId, 'Fundering');
 const resources: Resource[] = [
@@ -126,9 +119,6 @@ ok('04 dezelfde taak in twee resourcebanden moet twee verschillende rowKeys hebb
 ok('05 hostile task-id/raw-groupkeycase houdt alle task- en group-rowKeys uniek',
   new Set(groupedRows.map(row => row.rowKey)).size === groupedRows.length);
 
-// Onderscheidende raw-path-fixture: de ontbrekende activity-codewaarde heeft als rauwe sleutel
-// NONE_RAWKEY, terwijl de zichtbare groepslabel door vertaling `(geen)` is. Alleen de rauwe waarde
-// mag in de taakoccurrence-key belanden.
 {
   const rawPathTask = task('raw-path-task');
   const rawPathCtx: ViewContext = {
@@ -161,7 +151,6 @@ if (typeof focusOccurrenceApi.resolveFirstVisibleFocusOccurrence !== 'function')
     { taskId: hostileTaskId, rowKey: expectedTaskKeys[0], rowIndex: 2 });
 }
 
-// Een occurrence-range omvat beide zichtbare taakrijen; de afgeleide domeinselectie dedupliceert id.
 if (typeof occurrenceApi.taskRowsInRange !== 'function' || typeof occurrenceApi.uniqueTaskIds !== 'function') {
   ok('07 occurrence-range/deduplicatieprimitive ontbreekt', false);
 } else {
@@ -172,7 +161,6 @@ if (typeof occurrenceApi.taskRowsInRange !== 'function' || typeof occurrenceApi.
     occurrenceApi.uniqueTaskIds(rangeRows), [hostileTaskId]);
 }
 
-// De echte Ctrl/Cmd+A-route moet dezelfde domeindeduplicatie toepassen.
 {
   const S = () => useAppStore.getState();
   S().newProject();
@@ -188,8 +176,6 @@ if (typeof occurrenceApi.taskRowsInRange !== 'function' || typeof occurrenceApi.
   eq('09b selectedTaskIds bewaakt deduplicatie ook op de box/range-setter', S().selectedTaskIds, [taskId]);
 }
 
-// Collapse verwijdert het actieve voorkomen. De cursor houdt zijn oude absolute rijindex als
-// nabijheidsanker en kiest de dichtstbijzijnde overgebleven taakrij. Zonder taakrij wordt hij leeg.
 if (typeof occurrenceApi.normalizeTaskRowCursor !== 'function') {
   ok('10 cursor-normalisatieprimitive ontbreekt', false);
 } else {
@@ -215,9 +201,6 @@ if (typeof occurrenceApi.normalizeTaskRowCursor !== 'function') {
     occurrenceApi.normalizeTaskRowCursor(filteredRows, normalized), null);
 }
 
-// Als occurrence A verdwijnt en de dichtstbijzijnde taakrij van taak B is, moeten de actieve
-// cursor én de echte domeinselectie naar B. TaskPropertiesPanel gebruikt selectedTaskIds[0] als
-// zijn enige taakdoel; deze store-assert bewaakt dus dezelfde bron zonder een nieuwe UI-harnaslaag.
 {
   const S = () => useAppStore.getState();
   S().newProject();
@@ -256,8 +239,6 @@ if (typeof occurrenceApi.normalizeTaskRowCursor !== 'function') {
     eq('15 TaskPropertiesPanel-doel volgt via zijn echte selectedTaskIds-bron logisch taak B',
       S().tasks.find(candidate => candidate.id === S().selectedTaskIds[0])?.id, taskB);
 
-    // Dezelfde occurrence mag na een ingevoegde eerdere band een andere absolute index hebben.
-    // Omdat taskId gelijk blijft, mag dit een bestaande meervoudige domeinselectie niet reduceren.
     S().addTask({ name: '0 — eerdere band' });
     const shiftedRows = visibleRows.computeViewRows(S().tasks, opts(cursorGrouping), ctx);
     S().selectTasks([taskA, taskB], false);
@@ -272,8 +253,6 @@ if (typeof occurrenceApi.normalizeTaskRowCursor !== 'function') {
   }
 }
 
-// Een corrupte `parentId`-kring (A ↔ B) boven een matchend blad liet de ouderwandeling van het filter
-// eindeloos rondlopen. De ouders komen nog steeds gedimd mee, precies één keer.
 {
   const leaf = { ...task('blad'), parentId: 'kring-a' } as Task;
   const a = { ...task('kring-a'), parentId: 'kring-b', childIds: ['blad', 'kring-b'] } as Task;
@@ -287,8 +266,6 @@ if (typeof occurrenceApi.normalizeTaskRowCursor !== 'function') {
     [['blad', false], ['kring-a', true], ['kring-b', true]]);
 }
 
-// 168: de boomwandeling volgt childIds (anders dan WBS-nummering), sorteert per siblinggroep
-// en bezoekt verborgen nakomelingen. Een dubbele verwijzing, kring en ontbrekend kind blijven veilig.
 {
   const root = { ...task('wortel'), childIds: ['b', 'a', 'weg', 'b'] };
   const a = { ...task('a'), parentId: root.id, childIds: ['klein', root.id] };

@@ -43,8 +43,6 @@ function close(label: string, actual: number, expected: number, tolerance = 1e-8
 const origin = new Date('2026-08-24T00:00:00.000Z');
 const target = new Date(origin.getTime() + 2.5 * MS_PER_DAY);
 
-// De positionele hot-pathfuncties behouden byte-identiek de formule; alleen de naam van het
-// derde argument wordt semantisch `chartOriginX`.
 for (const [chartOriginX, zoom, scrollX] of [
   [0, 30, 0],
   [317, 7.5, -125],
@@ -131,15 +129,11 @@ equal('workdayAxis gebruikt chartOriginX', /chartOriginX:\s*number/.test(workday
 equal('workdayAxis noemt de oude oorsprong niet meer', /taskTableWidth/.test(workdayAxisSource), false);
 equal('SharedAxisInput gebruikt chartOriginX', /interface SharedAxisInput[\s\S]*?chartOriginX:\s*number/.test(renderOptionsSource), true);
 
-// Task 16B: ieder timelinecanvas heeft een lokale oorsprong 0. Randpunten zijn inclusief x=0 en
-// exclusief x=width; geen enkele gesture mag nog een DOM-paneelbreedte van canvas-x aftrekken.
 equal('timeline x=0 is geldig', isTimelineCanvasX(0, 640), true);
 equal('timeline x=width-1 is geldig', isTimelineCanvasX(639, 640), true);
 equal('timeline x=-1 is ongeldig', isTimelineCanvasX(-1, 640), false);
 equal('timeline x=width is ongeldig', isTimelineCanvasX(640, 640), false);
 
-// Echte renderer-hit-tests op beide uiterste geldige pixels. De taak begint exact op de lokale
-// oorsprong en loopt voorbij de rechterrand, zodat x=0 een resize-rand is en width-1 de balkbody.
 const globalRecord = globalThis as unknown as Record<string, unknown>;
 globalRecord.document = { documentElement: {} };
 globalRecord.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -179,8 +173,6 @@ equal('relatiebron raakt x=0', edgeRenderer.getRelationSourceAt(0, rowMidY)?.id,
 equal('relatiebron raakt x=width-1', edgeRenderer.getRelationSourceAt(639, rowMidY)?.id, edgeTask.id);
 equal('relatiebron weigert x=width', edgeRenderer.getRelationSourceAt(640, rowMidY), null);
 
-// Kaderselectie (`getRowsInYRange`): een band geheel boven de eerste rij raakt geen rij, ook als de
-// rij-index ver negatief wordt (review #1004, ronde 18: `slice` telde een negatief einde van achteren).
 const bandRenderer = new GanttRenderer({} as CanvasRenderingContext2D, {
   ...edgeOptions,
   rows: Array.from({ length: 8 }, (_, i) => ({
@@ -198,8 +190,6 @@ equal('primaire gedeelde as begint letterlijk op 0',
   /buildSharedAxis\(\{[\s\S]*?chartOriginX:\s*0\b/.test(ganttViewportCoordinatorSource), true);
 equal('timelinehooks trekken geen paneel- of tabelbreedte af', /taskTableWidth|leftPanelWidth/.test(timelineHookSources), false);
 
-// Task 16C: zoomankers, splitverhoudingen en DOM-scrollrange rekenen uitsluitend binnen de echte
-// timelinebreedte. Hoge scroll en beide uiterste cursorpixels bewaken de oude datum-onder-cursor.
 deepEqual('zoom op x=0 behoudt de datum onder de cursor',
   computeTimelineZoom(30, 60, 900, 0, 400), { zoom: 60, scrollX: 1800 });
 deepEqual('zoom op x=width-1 behoudt de datum onder de cursor',
@@ -221,11 +211,6 @@ equal('fitpaden geven de werkelijk gemeten paneelbreedte door',
   /computeFitToProject\([^\n]*rect\.width\s*-/.test(`${ganttCanvasSource}\n${zoomSources}`), false);
 equal('splitlayout trekt de splitter vóór de ratioverdeling af',
   (ganttCanvasSource.match(/splitPanePrimaryWidthCss\(splitView\.ratio, SPLIT_RATIO_BAR_WIDTH\)/g) ?? []).length, 2);
-// De primaire balk begint lokaal op nul, of pas na de splittergrijpzone als die over dit pane ligt
-// (eigenaarscheck 2026-10-20, PR #362). Inzet en spacer horen bij elkaar: de spacer is de volledige
-// tijdlijn-contentbreedte (alleen boven de browser-elementgrens geschaald, `scrollbarScale`) MIN
-// precies de inzet van de balk. Zo blijft het schuifbereik van de balk gelijk aan dat van de kaart;
-// een andere paneelaftrek is niet toegestaan.
 equal('primaire scrollbar begint lokaal op nul of na de splittergrijpzone',
   /data-testid="gantt-hscroll"\n\s*className="[^"]*"\n\s*style=\{\{\s*left:\s*primaryHScrollInset\.left,\s*right:\s*primaryHScrollInset\.right,/.test(ganttCanvasSource)
     && /left:\s*splitterOnLeft \? GANTT_WORKSPACE_SPLITTER_GRIP : 0/.test(ganttCanvasSource), true);
@@ -236,8 +221,6 @@ equal('primaire scrollbar gebruikt de volledige timeline-contentbreedte min alle
 equal('omrekening balk <-> scrollX rekent met de pane-breedte, niet met de (ingezette) balk',
   (ganttViewportCoordinatorSource.match(/scrollbarRangeRatio\([^)]*hScrollViewportWidth\((?:el|element)\)\)/g) ?? []).length, 4);
 
-// Task 16D: het histogram is een full-width workspacebaan. Alleen zijn resourcekiezer heeft een
-// semantische linkerbreedte; de datumplot begint exact op die breedte en deelt de primaire view.
 const histogramAxis = buildSharedAxis({
   calendar,
   compressNonWorkdays: false,
@@ -270,9 +253,6 @@ equal('histogramdatumhit raakt de eerste plotpixel', histogram.dayAt(350, 10), '
 equal('histogram gebruikt pickerWidth als chartOriginX', histogram.dateAtX(350), '2026-08-24');
 equal('histogramcode kent alleen de semantische pickerWidth', /taskTableWidth/.test(histogramSource), false);
 
-// G13: in ar/fa spiegelt de werkruimte — de takenlijst, en dus de kiezer, staat RECHTS. De tijdplot
-// blijft ltr en begint dan op x = 0, zodat zijn dagas samenvalt met die van de tijdlijn (die in rtl
-// links van de takenlijst begint). Eén indeling (`histogramLayout`) voor as, tekenen en hit-test.
 deepEqual('plotinsets ltr: kiezer links', histogramPlotInsets(350, 'left'), { left: 350, right: 0 });
 deepEqual('plotinsets rtl: kiezer rechts', histogramPlotInsets(350, 'right'), { left: 0, right: 350 });
 deepEqual('plotinsets zonder kant = ltr', histogramPlotInsets(350), { left: 350, right: 0 });
@@ -281,7 +261,6 @@ deepEqual('indeling ltr', histogramLayout(1000, 350, 'left'),
 deepEqual('indeling rtl', histogramLayout(1000, 350, 'right'),
   { picker: { left: 650, right: 1000 }, plot: { left: 0, right: 650 } });
 
-/** Canvas-stub die de tekenaanroepen van de renderer vastlegt (geen DOM nodig). */
 function recordingContext(): { ctx: CanvasRenderingContext2D; calls: string[] } {
   const calls: string[] = [];
   const ctx = new Proxy({}, {
@@ -297,7 +276,6 @@ function recordingContext(): { ctx: CanvasRenderingContext2D; calls: string[] } 
 function sideRenderer(side: HistogramPickerSide, ctx: CanvasRenderingContext2D): HistogramRenderer {
   return new HistogramRenderer(ctx, {
     series: {
-      // 24 aug = eerste plotdag; 27/28 okt = dag 64/65 (x 640 en 650 bij zoom 10 in rtl).
       load: { '2026-08-24': 1, '2026-10-27': 1, '2026-10-28': 1 },
       capacity: { '2026-08-24': 1, '2026-10-27': 1, '2026-10-28': 1 },
       overSet: new Set<string>(),
@@ -334,8 +312,6 @@ function sideRenderer(side: HistogramPickerSide, ctx: CanvasRenderingContext2D):
   equal('rtl: datumhit weigert de eerste kiezerpixel (ook met belasting eronder)', rtl.dayAt(650, 10), null);
 }
 
-// Wat er getekend wordt volgt dezelfde indeling: kiezerachtergrond, plotclip, scheidingslijn op de
-// eerste plotpixel aan de kiezerkant (onder de lijn van de werkruimtesplitter), staaf op 24 aug.
 for (const [side, pickerRect, plotClip, separator, bar] of [
   ['left', 'fillRect(0,0,350,120)', 'rect(350,0,650,120)', 'moveTo(350.5,0)', 'fillRect(351,'],
   ['right', 'fillRect(650,0,350,120)', 'rect(0,0,650,120)', 'moveTo(649.5,0)', 'fillRect(1,'],

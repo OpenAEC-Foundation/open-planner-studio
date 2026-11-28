@@ -1,24 +1,3 @@
-/**
- * Iconen: nooit helemaal oranje door de kleur van de plek (review van Sol op #765, ronde 1, 2 november 2026).
- *
- * Grijs is de basis, oranje het accent (regel van Ethan, 2 november 2026; Blueprint `docs/iconen.md`, "Grijs en
- * oranje"). `Icon` tekent de hoofdkleur in `currentColor` en het accent in `--icon-accent` (oranje). Geeft een plek
- * het icoon de oranje tekstkleur, dan zijn beide oranje en is het hele icoon oranje.
- * `tests/browser/icon-orange.spec.ts` meet dat op het scherm, maar komt niet bij elke plek (bijvoorbeeld Herstellen,
- * een beschikbare update of een hover). Deze check leest de broncode:
- *  1. Geen `<Icon …>` met `text-accent` of `var(--theme-accent)` in zijn eigen attributen.
- *  2. Geen element met `text-accent` (ook `hover:text-accent`) of `color: … var(--theme-accent)` in zijn eigen
- *     attributen dat een `<Icon …>` zonder eigen kleur bevat.
- *  3. Geen CSS-regel die de tekst oranje maakt op een klasse die in de code op een `<Icon …>` staat, of op een
- *     element dat een `<Icon …>` zonder eigen kleur bevat.
- *  4. Geen CSS-regel die het icoon zelf oranje maakt: een selector die op `svg`, `path` of `.oa-icon` eindigt, met
- *     `color`, `fill` of `stroke` in oranje. Zo'n regel wint ook van een eigen kleur of een statuskleur (ronde 2:
- *     `.ops-note > svg` maakte `status.info` helemaal oranje).
- * Oranje is elke kleur die via `var()` op de accentkleur uitkomt: `--oa-accent`, `--theme-accent` (en hun hover- en
- * pressed-tint), een eigen variabele die daarop uitkomt (zoals `--icon-accent` of `--theme-active`), en ook een
- * accentkleur als terugvalwaarde (`var(--ops-note-accent, var(--theme-accent))`).
- * Eigen kleur: een `text-…`-klasse of `color` in `style` op het icoon, of een statuskleur (`semantic`) in de tekening.
- */
 import './domStub';
 import fs from 'node:fs';
 import path from 'node:path';
@@ -47,7 +26,6 @@ function walk(dir: string, ext: string): string[] {
 
 interface Tag { name: string; start: number; openEnd: number; end: number; open: string }
 
-/** Einde van de openingstag die op `start` begint (het teken na `>`), met accolades en strings overgeslagen. */
 function openingEnd(text: string, start: number): number {
   let depth = 0;
   let quote = '';
@@ -79,7 +57,6 @@ function tagAt(text: string, start: number): Tag | null {
   return { name, start, openEnd, end: text.length, open };
 }
 
-/** De tag waarvan de openingstag `index` bevat. */
 function enclosingTag(text: string, index: number): Tag | null {
   for (let i = text.lastIndexOf('<', index); i >= 0; i = text.lastIndexOf('<', i - 1)) {
     const tag = tagAt(text, i);
@@ -96,7 +73,6 @@ function hasOwnColour(iconOpen: string): boolean {
   return !!id && !!(B2_ICONS as Record<string, { semantic?: string }>)[id]?.semantic;
 }
 
-/** Iconen binnen `tag` zonder `color` in een eigen `style`. */
 function styledOrNot(text: string, tag: Tag): string[] {
   const out: string[] = [];
   const inner = /<Icon\b/g;
@@ -108,7 +84,6 @@ function styledOrNot(text: string, tag: Tag): string[] {
   return out;
 }
 
-/** Iconen binnen `tag` zonder eigen kleur. */
 function bareIcons(text: string, tag: Tag): string[] {
   const out: string[] = [];
   const inner = /<Icon\b/g;
@@ -126,8 +101,6 @@ const styles = walk(path.join(root, 'src'), '.css').map(file => ({
   file: path.relative(root, file), text: fs.readFileSync(file, 'utf8').replace(/\/\*[\s\S]*?\*\//g, ''),
 }));
 
-// Welke variabelen op de accentkleur uitkomen: de accenttokens, en elke eigen variabele die er (ook via een andere
-// variabele) naar wijst.
 const accentVars = new Set(['--oa-accent', '--oa-accent-hover', '--oa-accent-pressed', '--theme-accent', '--theme-accent-hover']);
 const varsIn = (value: string) => [...value.matchAll(/var\(\s*(--[\w-]+)/g)].map(m => m[1]);
 const isAccent = (value: string) => varsIn(value).some(name => accentVars.has(name));
@@ -140,7 +113,6 @@ for (let grown = true; grown;) {
   }
 }
 
-/** Oranje als tekstkleur in een inline `style`: `color: '…var(--theme-accent)…'`, ook als terugvalwaarde. */
 function accentStyle(open: string): boolean {
   for (const m of open.matchAll(/\bcolor:\s*((?:(?!,\s*['"]?[\w-]+['"]?\s*:)[^}\n])*)/g)) {
     if (isAccent(m[1])) return true;
@@ -148,7 +120,6 @@ function accentStyle(open: string): boolean {
   return false;
 }
 
-// 1 en 2: oranje in de code zelf.
 let checked = 0;
 for (const { file, text } of sources) {
   const tags = /<([A-Za-z][\w.]*)\b/g;
@@ -164,7 +135,6 @@ for (const { file, text } of sources) {
   }
 }
 
-// 3 en 4: oranje uit een CSS-regel.
 interface CssRule { cls: string; rule: string; onIcon: boolean }
 const cssRules: CssRule[] = [];
 const ICON_TAIL = /^(?:svg|path|\.oa-icon)(?![\w-])/;
@@ -173,13 +143,10 @@ for (const { file, text } of styles) {
     const decls = [...rule[2].matchAll(/(?:^|;)\s*(color|fill|stroke)\s*:\s*([^;]+)/g)].filter(d => isAccent(d[2]));
     if (!decls.length) continue;
     for (const selector of rule[1].split(',')) {
-      // Regels voor de Lucide-stand (zonder B2, #844) gelden niet als B2 aan staat.
       const compounds = selector.trim().split(/\s*[\s>+~]\s*/).filter(Boolean);
       const last = compounds[compounds.length - 1] ?? '';
       const onIcon = ICON_TAIL.test(last) || /\.oa-icon(?![\w-])/.test(last) || compounds.slice(0, -1).some(c => ICON_TAIL.test(c));
-      // Alleen `color` erft door naar het icoon; `fill` en `stroke` tellen alleen op het icoon zelf.
       if (!onIcon && !decls.some(d => d[1] === 'color')) continue;
-      // De klasse van de plek: de laatste samengestelde selector met een klasse die niet `oa-icon` is.
       const cls = [...compounds].reverse().map(c => [...c.matchAll(/\.([A-Za-z][\w-]*)/g)].map(m => m[1]).find(n => n !== 'oa-icon' && !n.startsWith('oa-icon--')))
         .find(Boolean);
       if (cls) cssRules.push({ cls, rule: `${file}: ${selector.trim()}`, onIcon });
@@ -194,7 +161,6 @@ for (const { cls, rule, onIcon } of cssRules) {
       const tag = enclosingTag(text, m.index);
       if (!tag || !/className=/.test(tag.open)) continue;
       if (tag.name === 'Icon') { fail(`${file}:${line(text, tag.start)}: <Icon className="${cls}"> wordt oranje door ${rule}`); continue; }
-      // Een regel op het icoon zelf wint van een eigen tekstkleur en van een statuskleur; alleen `style` gaat voor.
       const icons = onIcon ? styledOrNot(text, tag) : bareIcons(text, tag);
       if (icons.length) fail(`${file}:${line(text, tag.start)}: .${cls} (${rule}) maakt ${icons.join(', ')} helemaal oranje`);
     }

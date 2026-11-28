@@ -1,22 +1,3 @@
-// Gantt-cull-regressie: de SPELING-BAND mag niet verdwijnen zolang hij zichtbaar is.
-//
-// Bug (gerapporteerd, gereproduceerd): `drawTaskBar` cullde op de extent van de BALK
-// (`x2 < 0`), terwijl de speling-band ná de balk doorloopt tot `x2 + floatWidth`.
-// Zodra de balk links buiten beeld schoof verdween daardoor ook een band die nog honderden
-// pixels in beeld stond.
-//
-// Deze batterij draait de ECHTE GanttRenderer met een opnemende 2D-context-stub en toetst per
-// horizontale scrollpositie de invariant:
-//
-//     band getekend  ⟺  rechterrand van de band ligt nog op/voorbij de lokale oorsprong 0
-//
-// De verwachte bandpositie wordt zelf-gekalibreerd op scrollX=0 (bandpositie schuift 1:1 met
-// scrollX), dus de test blijft kloppen als zoom/kalender/lay-out veranderen.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
-// ── DOM-stubs (vóór het instantiëren): de renderer leest themakleuren via
-//    getComputedStyle(document.documentElement); zonder stub gooit dat in Node.
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -33,7 +14,6 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   if (actual !== expected) diffs.push(`${label}: kreeg ${JSON.stringify(actual)}, verwacht ${JSON.stringify(expected)}`);
 }
 
-// ── Opnemende 2D-context-stub ────────────────────────────────────────────────
 interface Rect { x: number; w: number; fill: string }
 function makeCtx(): { ctx: CanvasRenderingContext2D; rects: Rect[] } {
   const rects: Rect[] = [];
@@ -55,12 +35,9 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; rects: Rect[] } {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, rects };
 }
 
-// De stub geeft fillStyle letterlijk terug (geen canvas-normalisatie naar rgba()), en met de
-// lege getComputedStyle-stub valt de float-kleur terug op de hardcoded default.
-const FLOAT_FILL = '#05966940'; // readGanttPalette-fallback voor --theme-bar-float, 25% dekking (onder de arcering)
+const FLOAT_FILL = '#05966940';
 const isFloat = (fill: string) => fill.toUpperCase() === FLOAT_FILL.toUpperCase();
 
-// ── Scenario: één taak met speling naast een langere kritieke taak ───────────
 S().newProject();
 S().addTask({ name: 'Kort (speling)' });
 S().addTask({ name: 'Lang (kritiek)' });
@@ -85,7 +62,6 @@ if (!(floatTask.time.totalFloat > 0)) {
 checks++;
 if (floatTask.time.isCritical) diffs.push('opzet: speling-taak is kritiek — scenario ongeldig');
 
-// ── Renderen per scrollX ─────────────────────────────────────────────────────
 const W = 1200, H = 600, TTW = 0;
 function bandAt(scrollX: number, showFloatBand?: boolean): { x: number; right: number } | null {
   const { ctx, rects } = makeCtx();
@@ -106,13 +82,11 @@ function bandAt(scrollX: number, showFloatBand?: boolean): { x: number; right: n
   return fl.length ? { x: fl[0].x, right: fl[0].x + fl[0].w } : null;
 }
 
-// Kalibreer op scrollX = 0: daar staat de band gegarandeerd volledig in beeld.
 const base = bandAt(0);
 checks++;
 if (!base) {
   diffs.push('kalibratie: geen speling-band getekend bij scrollX=0 — renderer/scenario klopt niet');
 } else {
-  // De band schuift 1:1 mee met scrollX ⇒ verwachte rechterrand = base.right - scrollX.
   for (let scrollX = 0; scrollX <= 480; scrollX += 30) {
     const verwachtZichtbaar = base.right - scrollX >= TTW;
     const getekend = bandAt(scrollX) !== null;
@@ -124,14 +98,10 @@ if (!base) {
   }
 }
 
-// ── #130: de toggle ──────────────────────────────────────────────────────────
-// Ontbreekt de optie of staat hij op `true`, dan tekent de renderer als vanouds; `false` laat de
-// band weg — óók bij scrollX=0, waar hij gegarandeerd in beeld zou staan.
 eq('showFloatBand ontbreekt: band getekend', bandAt(0) !== null, true);
 eq('showFloatBand=true: band getekend', bandAt(0, true) !== null, true);
 eq('showFloatBand=false: band NIET getekend', bandAt(0, false), null);
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  gantt-float-cull: alle checks groen (${checks})`);
   process.exit(0);

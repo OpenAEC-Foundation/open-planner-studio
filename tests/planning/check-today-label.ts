@@ -1,29 +1,3 @@
-/**
- * Het "vandaag"-label in de printkopstrook — regressiebatterij.
- *
- * ACHTERGROND (waarom deze check bestaat). Het label werd getekend op `chartTop - m.s(2)`, vóór
- * `drawTimelineHeader`. Dat leverde twee tegengestelde defecten op, precies omdat de twee Draw2D-
- * backends een verschillende z-orde hebben:
- *
- *   - RASTER (canvas-preview): `drawTimelineHeader` schildert als eerste zijn hele kopstrook-band
- *     over. Het label lag binnen die band en werd dus onzichtbaar weggepoetst. Met het Engelse
- *     'Today' viel dat niemand op — dat woord heeft geen enkele staartletter, dus er bleef ook geen
- *     stukje over dat onder de band uitstak.
- *   - VECTOR (PDF-export, het echte exportpad): daar gaan alle vormen in één Form-XObject en wordt
- *     ALLE tekst daarná geëmit (`PdfVectorDraw2D.operators` vs `.texts`). Het label overleefde er
- *     dus wél — en landde pal op het dagcijfer van vandaag. Empirisch: "Vand29ag", "To29y".
- *
- * De fix zet het label in `drawTimelineHeader` zelf, op exact de baseline van de dagcijfers, en laat
- * de dagcijfers die eronder vallen weg. Dat is een GEOMETRISCHE oplossing, en dus de enige die in
- * beide backends identiek landt: wegdekken met een vlakje kan in de PDF principieel niet, want een
- * rechthoek belandt daar altijd onder de tekst.
- *
- * Deze check draait `renderReport` met een opnemende Draw2D en bewaakt de drie eigenschappen die
- * samen de bug uitsluiten, over een raster van talen × papierformaten × lettergroottes:
- *   1. het label wordt getekend NA de kopstrook-overschildering (anders: onzichtbaar in raster);
- *   2. het label overlapt geen enkel dagcijfer (anders: botsing in de PDF);
- *   3. het label blijft binnen het chartgebied (niet over de bevroren tabelkolom, niet van de pagina).
- */
 import { renderReport, PrintOptions } from '@/services/print/printPreview';
 import type { Draw2D, TextAlign, TextBaseline } from '@/services/pdf/draw2d';
 import type { Task } from '@/types/task';
@@ -41,12 +15,9 @@ const LOCALES: Record<string, Record<string, any>> = { nl, en, fr, ar, ja, pl };
 let failures = 0;
 const fail = (msg: string) => { console.log(`   XX ${msg}`); failures++; };
 
-// ── Opnemende Draw2D ────────────────────────────────────────────────────────────────────────────
 interface TextEv { text: string; x: number; y: number; align: TextAlign; baseline: TextBaseline; font: string; w: number; seq: number; }
 interface RectEv { x: number; y: number; w: number; h: number; seq: number; }
 
-/** Benadert de tekstbreedte deterministisch (geen canvas in Node). Beide backends meten de echte
- *  glyph-advances; voor een overlaptest is een monotone benadering voldoende én stabieler. */
 function fontSizeOf(font: string): number {
   const m = /(\d+(?:\.\d+)?)px/.exec(font);
   return m ? parseFloat(m[1]) : 10;
@@ -75,14 +46,12 @@ function record(tasks: Task[], calendar: WorkCalendar, options: PrintOptions) {
   return { texts, rects, dims };
 }
 
-/** Horizontale [links, rechts] van een tekst-event, rekening houdend met de uitlijning. */
 function span(e: TextEv): [number, number] {
   if (e.align === 'center') return [e.x - e.w / 2, e.x + e.w / 2];
   if (e.align === 'right') return [e.x - e.w, e.x];
   return [e.x, e.x + e.w];
 }
 
-// ── Fixture ─────────────────────────────────────────────────────────────────────────────────────
 const calendar: WorkCalendar = {
   id: 'cal', name: 'std', description: '',
   workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
@@ -113,7 +82,6 @@ function labelsOf(loc: string): NonNullable<PrintOptions['labels']> {
     legend: j.legend,
     tableHeaders: j.tableHeaders,
     today: j.today, statusDate: j.statusDateLabel ?? 'Statusdatum',
-    // Projectkop: hier niet onder test (zie check-print-report §13); 'd' = de nl/en-dag-afkorting.
     projectStart: j.projectStart, projectEnd: j.projectEnd, projectDuration: j.projectDuration, daySuffix: 'd',
   };
 }
@@ -127,13 +95,11 @@ function optionsFor(loc: string, paper: 'A4' | 'A3' | 'A2' | 'A1', scale: number
   } as PrintOptions;
 }
 
-// ── 1. Het label overleeft de kopstrook-overschildering, botst niet, en blijft binnen beeld ─────
 console.log('-- vandaag-label: zichtbaarheid, botsing en begrenzing --');
 
 for (const loc of Object.keys(LOCALES)) {
   for (const paper of ['A4', 'A3', 'A2', 'A1'] as const) {
     for (const scale of [90, 100, 125]) {
-      // Korte spanne ⇒ hoge zoom ⇒ de dagcijfers wórden getekend; dat is het botsingsgeval.
       const { texts, rects, dims } = record([task('t1', -3, 3)], calendar, optionsFor(loc, paper, scale));
       const tag = `${loc}/${paper}/${scale}%`;
       const expect = LOCALES[loc].today as string;
@@ -143,10 +109,6 @@ for (const loc of Object.keys(LOCALES)) {
 
       const [l0, l1] = span(label);
 
-      // (1) geen enkel gevuld vlak dat ná het label komt mag het label overdekken — anders poetst
-      //     de raster-backend hem weg (de vector-backend niet, en dán lopen preview en export uit
-      //     elkaar). Vlakken die het label horizontaal missen (zoals de overschildering van de
-      //     bevroren tabelkolom) tellen niet mee: die raken hem simpelweg niet.
       const eraser = rects.find(r =>
         r.seq > label.seq
         && r.y < label.y && label.y < r.y + r.h
@@ -157,7 +119,6 @@ for (const loc of Object.keys(LOCALES)) {
            + `en is in de raster-preview dus onzichtbaar`);
       }
 
-      // (2) geen enkel dagcijfer op dezelfde baseline mag horizontaal overlappen.
       const dayNums = texts.filter(t => t !== label && /^\d{1,2}$/.test(t.text) && Math.abs(t.y - label.y) < 1);
       for (const dn of dayNums) {
         const [d0, d1] = span(dn);
@@ -167,7 +128,6 @@ for (const loc of Object.keys(LOCALES)) {
         }
       }
 
-      // (3) binnen het chartgebied: niet over de bevroren tabelkolom, niet van de pagina af.
       if (l0 < dims.tableWidth - 0.5) fail(`${tag}: label steekt links van de tabelkolom uit (${l0.toFixed(1)} < ${dims.tableWidth.toFixed(1)})`);
       if (l1 > dims.width + 0.5) fail(`${tag}: label steekt rechts van de pagina uit (${l1.toFixed(1)} > ${dims.width.toFixed(1)})`);
     }
@@ -175,7 +135,6 @@ for (const loc of Object.keys(LOCALES)) {
 }
 console.log(`   ${Object.keys(LOCALES).length} talen × 4 papierformaten × 3 lettergroottes gecontroleerd`);
 
-// ── 2. Klemmen aan de randen: vandaag ver links resp. ver rechts van het venster ────────────────
 console.log('-- vandaag-label: klemmen aan de chartranden --');
 for (const [naam, t] of [['verleden (vandaag rechts)', task('t1', -60, -1)], ['toekomst (vandaag links)', task('t1', 1, 60)]] as const) {
   const { texts, dims } = record([t], calendar, optionsFor('fr', 'A4', 100));
@@ -187,16 +146,13 @@ for (const [naam, t] of [['verleden (vandaag rechts)', task('t1', -60, -1)], ['t
 }
 console.log('   beide randgevallen binnen het chartgebied');
 
-// ── 3. Geen vandaag-lijn in beeld ⇒ ook geen label ─────────────────────────────────────────────
 console.log('-- vandaag-label: buiten het venster ⇒ niet tekenen --');
 {
-  // Project ver in het verleden: vandaag valt buiten de tijdas, dus er hoort geen label te staan.
   const { texts } = record([task('t1', -4000, -3900)], calendar, optionsFor('nl', 'A4', 100));
   if (texts.some(e => e.text === LOCALES.nl.today)) fail('label wordt getekend terwijl vandaag buiten het venster valt');
   else console.log('   correct weggelaten');
 }
 
-// ── 4. Het label loopt door de vertaallaag (geen hardgecodeerde string) ────────────────────────
 console.log('-- vandaag-label: vertaald, niet hardgecodeerd --');
 {
   const gezien = new Set<string>();

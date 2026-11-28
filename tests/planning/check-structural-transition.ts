@@ -1,22 +1,3 @@
-// Structuurovergangen met toewijzingen (audit taakmutaties §6) — headless tegen de ECHTE store, via
-// dezelfde store-acties en contextmenufuncties die de UI aanroept.
-//
-// WORDT MIJLPAAL: paneel-vinkje en dialoog gingen via `updateTask(taskMilestoneTransition(...))`
-// zonder toets — een taak met toewijzingen werd een mijlpaal met een onzichtbare toewijzing zonder
-// belasting, een fase werd een ruit. Raster en MCP weigerden dat al. Nu weigeren alle routes met de
-// gedeelde regel `milestoneRefusal` en een melding.
-//
-// WORDT FASE (eigenaarsbesluit "B met melding"): inspringen, verhangen, rij slepen, een subtaak of
-// sjabloon toevoegen liet de toewijzing op de nieuwe fase staan (belasting 0). Met de vaste keuze
-// `'move'` (extensies, en het gedrag van B–E hieronder) verhuist ze naar de eerste nieuwe subtaak die
-// haar mag dragen, in dezelfde undo-stap, met een melding; kan dat niet schoon, dan weigert de hele
-// handeling. Een mijlpaal die kinderen krijgt verliest zijn mijlpaalvlag.
-//
-// VRAAG (eigenaarsbesluit 2026-10-17, "altijd vragen", sectie F): zonder vaste keuze vraagt de store
-// eerst (`ui.pendingPhaseAssignmentQuestion`) en verandert er niets tot het antwoord: Annuleren,
-// Verwijderen of Verplaatsen, als één undo-stap.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domShim';
 import i18next from 'i18next';
 import { readFileSync } from 'node:fs';
@@ -48,7 +29,6 @@ const assignmentsOf = (id: string) => S().assignments.filter(a => a.taskId === i
 const load = (resourceId: string) => Object.values(
   (S().resourceLoadResult?.load?.[resourceId] ?? {}) as Record<string, number>,
 ).reduce((sum, value) => sum + value, 0);
-/** Meldingen sinds `from`, als [sleutel, params]. */
 const noticesSince = (from: number) => S().ui.notifications.slice(from).map(n => [n.messageKey, n.params ?? {}]);
 const noticeMark = () => S().ui.notifications.length;
 
@@ -60,7 +40,6 @@ function fresh(): void {
 function resource(name: string): string {
   return S().addResource({ name, type: 'LABOR', description: '', maxUnits: 1 });
 }
-/** Taak `L` met één toewijzing (resource R, 0,5 eenheid/dag, voorlading) en een losse opvolger `N`. */
 function leafWithAssignment() {
   fresh();
   const L = S().addTask({ name: 'Metselen' });
@@ -76,7 +55,6 @@ const namedNotices: NotifyInput[] = [];
 const collectionNotices: NotifyInput[] = [];
 const largerCollectionNotices: NotifyInput[] = [];
 
-// ── A. Wordt mijlpaal ───────────────────────────────────────────────────────────────────────────
 {
   const { L } = leafWithAssignment();
   const P = S().addTask({ name: 'Fase' });
@@ -84,7 +62,6 @@ const largerCollectionNotices: NotifyInput[] = [];
   const X = S().addTask({ name: 'Los' });
   S().runCPM();
 
-  // Paneel/dialoog-patch via `updateTask`: de store weigert zelf ook (vangnet voor extensies).
   let before = undoDepth(); let mark = noticeMark();
   S().updateTask(L, taskMilestoneTransition(task(L), true));
   eq('A1 updateTask: taak met toewijzing wordt GEEN mijlpaal', task(L).isMilestone, false);
@@ -100,8 +77,6 @@ const largerCollectionNotices: NotifyInput[] = [];
   eq('A2 updateTask: melding', noticesSince(mark), [['notifications.milestoneRefusedSummary', { task: 'Fase' }]]);
   eq('A2 updateTask: geen undo-stap', undoDepth(), before);
 
-  // Contextmenu over een selectie: de toegestane taak wisselt, de rest blijft, één undo-stap.
-  // (Meldingen eerst leeg: dezelfde weigerreden vouwt anders samen in de melding van A1/A2.)
   useAppStore.setState((s) => { s.ui.notifications = []; });
   S().selectTasks([L, P, X], false, X);
   before = undoDepth(); mark = noticeMark();
@@ -115,21 +90,17 @@ const largerCollectionNotices: NotifyInput[] = [];
     ['notifications.milestoneRefusedSummary', { task: 'Fase' }],
   ]);
 
-  // Raster: fase ⇒ mijlpaal weigert nu ook (toewijzingen weigerde het al).
   const grid = S().runGridMutation([{
     kind: 'cell-edit', taskId: P, columnId: 'task.isMilestone' as CellEditIntent['columnId'],
     route: 'task-milestone', value: true,
   }]);
   eq('A4 raster: fase ⇒ mijlpaal geweigerd', grid.ok ? 'ok' : grid.errors.map(e => e.code), ['milestoneUnavailable']);
 
-  // Een gewone taak blijft gewoon omzetbaar (regressie).
   const Y = S().addTask({ name: 'Oplevering' });
   S().updateTask(Y, taskMilestoneTransition(task(Y), true));
   eq('A5 gewone taak wordt wél mijlpaal', [task(Y).isMilestone, task(Y).time.scheduleDuration], [true, 0]);
 }
 
-// Een gemengde bulkactie: twee weigeringen per reden, naast één toegestane taak. Aantallen
-// slaan op de groep met dezelfde reden; namen, toewijzingen en één undo-stap blijven behouden.
 {
   fresh();
   const R = resource('Ploeg');
@@ -161,7 +132,6 @@ const largerCollectionNotices: NotifyInput[] = [];
   S().undo();
   eq('A6 bulk: undo zet de geslaagde omzetting terug', task(allowed).isMilestone, false);
 
-  // CLDR-one is bij Russisch óók 21: zelfs dan is een verzameling een telling, geen taaknaam.
   for (let i = 0; i < 19; i++) {
     const id = S().addTask({ name: `Extra ${i}` });
     S().assignResource(id, R, 1);
@@ -177,7 +147,6 @@ const largerCollectionNotices: NotifyInput[] = [];
     [leaves.every(id => !task(id).isMilestone), S().assignments.length], [true, 21]);
 }
 
-// ── B. Wordt fase: de toewijzing verhuist naar de eerste nieuwe subtaak ──────────────────────────
 type Route = { label: string; run: (ids: { L: string; N: string }) => void };
 const MOVE = { phaseAssignments: 'move' } as const;
 const routes: Route[] = [
@@ -207,7 +176,6 @@ for (const route of routes) {
     [task(N).parentId, S().assignments.find(a => a.id === assignmentId)?.taskId], [null, L]);
 }
 
-// addTask(parentId) — "Subtaak toevoegen" in het contextmenu, en de extensie-API.
 {
   const { L, R, assignmentId } = leafWithAssignment();
   const before = undoDepth();
@@ -218,7 +186,6 @@ for (const route of routes) {
   eq('B addTask(parentId): belasting klopt', load(R), 2.5);
 }
 
-// Selectie slepen: de eerste nieuwe subtaak die toewijzingen MAG dragen (geen mijlpaal).
 {
   const { L, N, assignmentId } = leafWithAssignment();
   const M = S().addTask({ name: 'Keuring', isMilestone: true });
@@ -227,7 +194,6 @@ for (const route of routes) {
     S().assignments.find(a => a.id === assignmentId)?.taskId, N);
 }
 
-// Sjabloon invoegen onder L: een enkele bladwortel neemt de toewijzing over.
 {
   const { L, assignmentId } = leafWithAssignment();
   const leafTemplate: WbsTemplate = {
@@ -238,7 +204,6 @@ for (const route of routes) {
   eq('B insertWbsTemplate: bladwortel krijgt de toewijzing', S().assignments.find(a => a.id === assignmentId)?.taskId, root);
 }
 
-// Meerdere taken worden in één handeling fase: elk apart, één undo-stap, één melding.
 {
   fresh();
   const R1 = resource('Metselaar');
@@ -257,9 +222,7 @@ for (const route of routes) {
   eq('B selectie inspringen: één samenvattende melding', noticesSince(mark), [['notifications.assignmentsMovedToSubtasks', { count: 2 }]]);
 }
 
-// ── C. Weigeren als het niet schoon kan ──────────────────────────────────────────────────────────
 {
-  // Alleen een mijlpaal wordt het nieuwe kind ⇒ nergens heen ⇒ weigeren, niets gewijzigd.
   fresh();
   const L = S().addTask({ name: 'Metselen' });
   S().assignResource(L, resource('Metselaar'), 1);
@@ -272,15 +235,13 @@ for (const route of routes) {
   eq('C1 geen undo-stap', undoDepth(), before);
   eq('C1 melding', noticesSince(mark), [['notifications.phaseRefusedNoAssignableChild', { phase: 'Metselen' }]]);
 
-  // "Mijlpaal als subtaak toevoegen": ook geweigerd, addTask geeft '' terug.
   const count = S().tasks.length;
-  useAppStore.setState((s) => { s.ui.notifications = []; }); // zelfde fase ⇒ zou samenvouwen met C1
+  useAppStore.setState((s) => { s.ui.notifications = []; });
   before = undoDepth(); mark = noticeMark();
   const id = S().addTask({ name: 'Nieuwe mijlpaal', isMilestone: true, parentId: L }, MOVE);
   eq('C2 addTask mijlpaal onder L: geweigerd', [id, S().tasks.length, undoDepth()], ['', count, before]);
   eq('C2 melding', noticesSince(mark).map(n => n[0]), ['notifications.phaseRefusedNoAssignableChild']);
 
-  // Een tak (fase met kinderen) als enige nieuwe kind: evenmin een bladtaak ⇒ weigeren.
   const branch: WbsTemplate = {
     id: 'tpl2', name: 'Tak', createdAt: '2026-01-01', sequences: [],
     tasks: [
@@ -292,7 +253,6 @@ for (const route of routes) {
   eq('C3 sjabloon-tak onder L: geweigerd', [S().insertWbsTemplate(branch, L, MOVE), S().tasks.length], [null, beforeCount]);
 }
 {
-  // De eerste nieuwe subtaak heeft dezelfde resource al ⇒ één resource per taak ⇒ weigeren.
   const { L, R, N, assignmentId } = leafWithAssignment();
   S().assignResource(N, R, 1);
   const before = undoDepth(); const mark = noticeMark();
@@ -305,7 +265,6 @@ for (const route of routes) {
   }]]);
 }
 
-// ── D. Een mijlpaal krijgt kinderen ⇒ mijlpaalvlag eraf, anders tekent de Gantt een ruit ──────────
 {
   fresh();
   const M = S().addTask({ name: 'Oplevering', isMilestone: true, milestoneKind: 'FINISH', mandatory: true });
@@ -318,7 +277,6 @@ for (const route of routes) {
   eq('D melding', noticesSince(mark), [['notifications.milestoneClearedOnPhase', { phase: 'Oplevering' }]]);
 }
 
-// Twee mijlpalen krijgen in één actie kinderen; een gewone nieuwe fase telt niet mee.
 {
   fresh();
   const milestones: string[] = [];
@@ -339,8 +297,6 @@ for (const route of routes) {
   eq('D2 undo herstelt beide mijlpalen', milestones.map(id => task(id).isMilestone), [true, true]);
 }
 
-// Regressie 171: toets de werkelijk gemaakte meldingen door i18next, inclusief Engelse terugval.
-// In zh/ja/ko/lo kan CLDR geen naamvorm kiezen; de semantische sleutel moet de naam behouden.
 {
   const readCommon = (lang: string) => JSON.parse(readFileSync(new URL(`../../src/i18n/locales/${lang}/common.json`, import.meta.url), 'utf8')) as Record<string, unknown>;
   const en = readCommon('en');
@@ -359,7 +315,6 @@ for (const route of routes) {
     eq(`${lang}: 21 blijft een telling, ook als CLDR one selecteert`,
       largerCollectionNotices.map(render).map((text, i) => text !== largerCollectionNotices[i].messageKey && !/Metselen|Extra|\{\{/.test(text)), [true]);
     if (['nl', 'en', 'zh', 'ja', 'ko', 'lo'].includes(lang)) {
-      // In een enkele other-vorm kan het getal niet door een vaste uitgeschreven één/twee verdwijnen.
       eq(`${lang}: de tellingen zelf blijven zichtbaar`,
         [counts.every(text => text.includes('2')), largerCollectionNotices.map(render).every(text => text.includes('21'))], [true, true]);
     }
@@ -389,9 +344,6 @@ for (const route of routes) {
   }
 }
 
-// ── E. Samen met de relatiemelding van #207 (verhangen maakt een relatie tot voorouder-relatie) ───
-// Inspringen onder de eigen voorganger doet beide tegelijk: de toewijzing verhuist én de relatie
-// L → N telt niet meer mee. Beide meldingen, en toch één undo-stap die alles terugzet.
 {
   const { L, N, assignmentId } = leafWithAssignment();
   S().addSequence({ predecessorId: L, successorId: N, type: 'FINISH_START', lagDays: 0 });
@@ -409,9 +361,7 @@ for (const route of routes) {
 }
 
 
-// ── F. Zonder vaste keuze: eerst de vraag (eigenaarsbesluit 2026-10-17, "altijd vragen") ─────────
 const question = () => S().ui.pendingPhaseAssignmentQuestion;
-/** Alles wat een annulering ongemoeid moet laten. */
 const fingerprint = () => JSON.stringify({
   tasks: S().tasks.map(t => [t.id, t.parentId, t.childIds, t.resourceIds, t.isMilestone]),
   assignments: S().assignments.map(a => [a.id, a.taskId, a.resourceId]),
@@ -419,7 +369,6 @@ const fingerprint = () => JSON.stringify({
   dirty: S().isDirty,
 });
 {
-  // F1 Inspringen vraagt eerst en verandert niets.
   const { L, N, assignmentId } = leafWithAssignment();
   const before = fingerprint(); const mark = noticeMark();
   S().indentTasks([N]);
@@ -431,15 +380,12 @@ const fingerprint = () => JSON.stringify({
   eq('F1 geen melding', noticesSince(mark), []);
   eq('F1 de vraag is modaal (hasBlockingDialogOpen)', hasBlockingDialogOpen(S().ui), true);
 
-  // F2 Annuleren: vraag weg, er verandert niets.
   S().answerPhaseAssignmentQuestion(null);
   eq('F2 annuleren: vraag weg', question(), null);
   eq('F2 annuleren: niets veranderd', fingerprint(), before);
-  // Een tweede antwoord zonder open vraag is een no-op (dubbelklik).
   S().answerPhaseAssignmentQuestion('move');
   eq('F2 antwoord zonder vraag: no-op', fingerprint(), before);
 
-  // F3 Verplaatsen: zoals vroeger, één undo-stap, en geen melding die de keuze herhaalt.
   const depth = undoDepth(); const mark3 = noticeMark();
   S().indentTasks([N]);
   S().answerPhaseAssignmentQuestion('move');
@@ -451,7 +397,6 @@ const fingerprint = () => JSON.stringify({
   eq('F3 één Ctrl+Z zet alles terug', [task(N).parentId, S().assignments.find(a => a.id === assignmentId)?.taskId], [null, L]);
 }
 {
-  // F4 Verwijderen: de fase krijgt haar kind, haar toewijzingen verdwijnen; één undo-stap.
   const { L, N, R, assignmentId } = leafWithAssignment();
   const depth = undoDepth();
   S().moveTaskTo(N, { parentId: L, childIndex: 0 });
@@ -466,7 +411,6 @@ const fingerprint = () => JSON.stringify({
     [task(N).parentId, S().assignments.find(a => a.id === assignmentId)?.taskId, task(L).resourceIds], [null, L, [R]]);
 }
 {
-  // F5 Dezelfde resource op de subtaak: verplaatsen kan niet (geblokkeerd), verwijderen wel.
   const { L, N, R, assignmentId } = leafWithAssignment();
   S().assignResource(N, R, 1);
   const own = assignmentsOf(N)[0].id;
@@ -480,7 +424,6 @@ const fingerprint = () => JSON.stringify({
     [task(N).parentId, S().assignments.some(a => a.id === assignmentId), S().assignments.map(a => a.id)], [L, false, [own]]);
 }
 {
-  // F6 Alleen een mijlpaal als nieuw kind: verplaatsen kan nergens heen.
   fresh();
   const L = S().addTask({ name: 'Metselen' });
   S().assignResource(L, resource('Metselaar'), 1);
@@ -491,7 +434,6 @@ const fingerprint = () => JSON.stringify({
   eq('F6 verwijderen: mijlpaal onder L, geen toewijzing', [task(M).parentId, S().assignments.length], [L, 0]);
 }
 {
-  // F7 Een selectie maakt twee fases: één vraag, per fase de resources; de keuze geldt voor allebei.
   fresh();
   const R1 = resource('Metselaar');
   const R2 = resource('Tegelzetter');
@@ -501,7 +443,7 @@ const fingerprint = () => JSON.stringify({
   const N2 = S().addTask({ name: 'Kitten' });
   S().assignResource(L1, R1, 1);
   S().assignResource(L2, R2, 1);
-  S().assignResource(N2, R2, 1); // N2 heeft Tegelzetter al ⇒ verplaatsen bij L2 kan niet
+  S().assignResource(N2, R2, 1);
   const depth = undoDepth();
   S().indentTasks([N1, N2]);
   eq('F7 één vraag met twee fases, alleen de tweede geblokkeerd',
@@ -512,7 +454,6 @@ const fingerprint = () => JSON.stringify({
   eq('F7 één undo-stap', undoDepth(), depth + 1);
 }
 {
-  // F8 Subtaak toevoegen: `addTask` geeft '' en vraagt; het antwoord maakt de taak alsnog.
   const { L, assignmentId } = leafWithAssignment();
   const count = S().tasks.length; const depth = undoDepth();
   const id = S().addTask({ name: 'Nieuwe taak', parentId: L });
@@ -524,7 +465,6 @@ const fingerprint = () => JSON.stringify({
   eq('F8 één undo-stap', undoDepth(), depth + 1);
 }
 {
-  // F9 Sjabloon invoegen: `null` en de vraag; Verwijderen voegt het sjabloon in zonder toewijzing.
   const { L } = leafWithAssignment();
   const tpl: WbsTemplate = {
     id: 'tpl3', name: 'Los', createdAt: '2026-01-01', sequences: [],
@@ -535,7 +475,6 @@ const fingerprint = () => JSON.stringify({
   eq('F9 verwijderen: sjabloon onder L, geen toewijzing', [task(L).childIds.length, S().assignments.length], [1, 0]);
 }
 {
-  // F10 De taakdialoog vraagt vóór het opslaan met dezelfde proef.
   const { L, N } = leafWithAssignment();
   const leaf = { name: 'Voegen', isMilestone: false, hasChildren: false };
   eq('F10 vraag bij een andere ouder',
@@ -544,23 +483,19 @@ const fingerprint = () => JSON.stringify({
   eq('F10 nieuwe mijlpaal onder L: geblokkeerd',
     phaseAssignmentQuestionForTaskDialog(S(), null, L, { name: 'M', isMilestone: true, hasChildren: false })?.items[0].blocked,
     { kind: 'noAssignableChild' });
-  // Een taak zonder toewijzing die fase wordt: geen vraag, gewoon doen.
   const Y = S().addTask({ name: 'Leeg' });
   const X = S().addTask({ name: 'Los' });
   S().indentTasks([X]);
   eq('F10 geen toewijzing op de nieuwe fase ⇒ geen vraag, gewoon gedaan', [question(), task(X).parentId], [null, Y]);
 }
 {
-  // F12 De vraag is verouderd zodra taken of toewijzingen intussen veranderen (review #374): het
-  // antwoord doet dan niets. Probe van de review: de vraag noemt Metselaar, een undo zet intussen
-  // een tweede toewijzing (Opperman) terug; "Verwijderen" mocht die niet meenemen.
   const { L, N, assignmentId } = leafWithAssignment();
   S().assignResource(L, resource('Opperman'), 1);
   const opperman = assignmentsOf(L).find(a => a.id !== assignmentId)!.id;
   S().unassignResource(opperman);
   S().indentTasks([N]);
   eq('F12 vraag noemt alleen Metselaar', question()?.items[0].resourceNames, ['Metselaar']);
-  S().undo(); // Opperman terug, terwijl de vraag open staat (sneltoetsen zijn dicht; dit is het vangnet)
+  S().undo();
   const before = fingerprint(); const mark = noticeMark();
   S().answerPhaseAssignmentQuestion('remove');
   eq('F12 verouderd antwoord: vraag weg, niets gedaan', [question(), fingerprint()], [null, before]);
@@ -568,8 +503,6 @@ const fingerprint = () => JSON.stringify({
   eq('F12 melding via het ene kanaal', noticesSince(mark).map(n => n[0]), ['notifications.phaseQuestionOutdated']);
 }
 {
-  // F14 Een wijziging die de vraag niet raakt (F5, een andere taak) houdt de keuze geldig (review #374:
-  // het vangnet mocht een keuze niet stil weggooien na F5).
   const { L, N, assignmentId } = leafWithAssignment();
   const X = S().addTask({ name: 'Los' });
   S().indentTasks([N]);
@@ -582,8 +515,6 @@ const fingerprint = () => JSON.stringify({
   eq('F14 geen verouderd-melding', noticesSince(mark).map(n => n[0]).filter(k => k === 'notifications.phaseQuestionOutdated'), []);
 }
 {
-  // F13 Taak bewerken vraagt met de vorm van het CONCEPT (review #374).
-  // a) Mijlpaal ⇒ gewone taak met een nieuwe ouder: verplaatsen kan wél.
   fresh();
   const L = S().addTask({ name: 'Metselen' });
   S().assignResource(L, resource('Metselaar'), 1);
@@ -596,7 +527,6 @@ const fingerprint = () => JSON.stringify({
   eq('F13a opgeslagen: onder L, toewijzing op M, geen mijlpaal',
     [task(M).parentId, assignmentsOf(M).length, assignmentsOf(L).length, task(M).isMilestone], [L, 1, 0, false]);
 
-  // b) Gewone taak ⇒ mijlpaal met een nieuwe ouder: verplaatsen kan niet; verwijderen slaat alles op.
   fresh();
   const L2 = S().addTask({ name: 'Metselen' });
   S().assignResource(L2, resource('Metselaar'), 1);
@@ -611,7 +541,6 @@ const fingerprint = () => JSON.stringify({
   eq('F13b geen weigermelding', noticesSince(mark).map(n => n[0]).filter(k => String(k).includes('phaseRefused')), []);
 }
 {
-  // F11 Verricht werk (actuals) op de toewijzing: verplaatsen houdt het, verwijderen niet.
   const { L, N, assignmentId } = leafWithAssignment();
   useAppStore.setState((s) => { s.assignments.find(a => a.id === assignmentId)!.actualWorkMinutes = 480; });
   S().indentTasks([N]);

@@ -1,12 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// De Tabel toont Start en Einde uit DEZELFDE bron als Gantt, paneel en tooltip (`shownStart`/
-// `shownFinish`), en een bewerking verzet alleen iets bij een ECHTE wijziging (audit "weergaven",
-// bevinding 2). Tegen de echte store, de echte grid-adapter en de echte commitgrens van de
-// celeditor (`commitTaskCellEditorValue` → `runGridMutation`), zoals `FullTaskGrid` die gebruikt.
-//
-// Vóór de fix stonden `task.time.scheduleStart`/`scheduleFinish` (de invoerankers) in de
-// standaardset: de Tabel toonde voor een taak met een voorganger andere datums dan de Gantt-balk,
-// en "Gepland einde" van een automatisch geplande taak accepteerde een waarde die na F5 niets deed.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { createTaskGridAdapter, type TaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
@@ -45,7 +36,6 @@ function ok(label: string, condition: boolean): void {
 const S = () => useAppStore.getState();
 const task = (id: string): Task => S().tasks.find(candidate => candidate.id === id)!;
 
-/** Het raster zoals `FullTaskGrid` het bouwt: dezelfde domeininput, de store als commitdoel. */
 function adapter(): TaskGridAdapter {
   const s = S();
   const engine = new CalendarEngine(s.calendar);
@@ -78,7 +68,6 @@ function cell(taskId: string, column: string) {
   return adapter().getCell(rowKey(taskId), taskColumnId(column));
 }
 
-/** Typen in de celeditor en Enter: exact de commitgrens van `TaskCellEditor`. */
 function type(taskId: string, column: string, text: string) {
   return commitTaskCellEditorValue({
     adapter: adapter(),
@@ -88,7 +77,6 @@ function type(taskId: string, column: string, text: string) {
   });
 }
 
-/** `2026-06-17` → `17-06-2026`, de dmy-notatie van de editor. */
 const dmy = (iso: string) => `${iso.slice(8, 10)}-${iso.slice(5, 7)}-${iso.slice(0, 4)}`;
 
 function setup(): { a: string; b: string } {
@@ -102,7 +90,6 @@ function setup(): { a: string; b: string } {
   return { a, b };
 }
 
-// ── 1. De standaardset toont de getoonde datums; de invoerankers blijven kiesbaar ────────────────
 {
   const defaults = createDefaultTaskGridPreferences({ projectId: 'p', activityCodeTypeIds: [], customFieldDefIds: [] });
   const ids = defaults.surfaces['full-task-grid'].columns.map(column => column.id as string);
@@ -114,7 +101,6 @@ function setup(): { a: string; b: string } {
   ok('Geplande start/einde blijven kiesbare kolommen', registry.has('task.time.scheduleStart') && registry.has('task.time.scheduleFinish'));
 }
 
-// ── 2. Start/Einde = de datum van de Gantt-balk, ook als een voorganger de taak verschuift ──────
 {
   const { b } = setup();
   const tb = task(b);
@@ -125,7 +111,6 @@ function setup(): { a: string; b: string } {
   eq('Einde-cel: tekst = getoonde datum', cell(b, 'task.time.finish')?.text, dmy(shownFinish(tb)));
 }
 
-// ── 3. Start bewerken schrijft het anker alleen bij een echte wijziging ─────────────────────────
 {
   const { a, b } = setup();
   const before = task(b).time.scheduleStart;
@@ -146,7 +131,6 @@ function setup(): { a: string; b: string } {
   eq('Start-cel van A na F5 toont de nieuwe datum', cell(a, 'task.time.start')?.text, '03-06-2026');
 }
 
-// ── 4. Einde bewerken verandert na F5 de planning (automatisch geplande taak) ────────────────────
 {
   const { b } = setup();
   const start = shownStart(task(b));
@@ -171,7 +155,6 @@ function setup(): { a: string; b: string } {
   eq('Einde vóór de start: planning onaangeroerd', shownFinish(task(b)), "2026-06-17T16:00");
 }
 
-// ── 5. "Gepland einde" is alleen-lezen voor niet-handmatige taken, met een duidelijke reden ────
 {
   const { b } = setup();
   const finishCell = cell(b, 'task.time.scheduleFinish');
@@ -184,7 +167,6 @@ function setup(): { a: string; b: string } {
   eq('Gepland einde typen: reden = niet handmatig gepland', !typed.ok && typed.error.message, 'taskGrid.validation.scheduleFinishNotManual');
   eq('Gepland einde typen: niets gewijzigd', task(b).time.scheduleFinish, before);
 
-  // Handmatig geplande taak: het ingevoerde einde IS de planning en blijft dus bewerkbaar.
   const m = S().addTask({ name: 'Handmatig', manuallyScheduled: true, time: { scheduleDuration: 3 } as Task['time'] });
   S().runCPM();
   eq('Gepland einde (handmatig): bewerkbaar', cell(m, 'task.time.scheduleFinish')?.readOnly, false);
@@ -193,7 +175,6 @@ function setup(): { a: string; b: string } {
   S().runCPM();
   eq('Gepland einde (handmatig) na F5 = ingevoerde datum', shownFinish(task(m)), "2026-06-12T16:00");
 
-  // Einde van een handmatige taak schrijft hetzelfde anker.
   const viaFinish = type(m, 'task.time.finish', '15-06-2026');
   eq('Einde (handmatig): commit slaagt', viaFinish.ok, true);
   eq('Einde (handmatig): schrijft het ingevoerde einde', task(m).time.scheduleFinish, "2026-06-15T16:00");
@@ -201,7 +182,6 @@ function setup(): { a: string; b: string } {
   eq('Einde (handmatig) na F5 = ingevoerde datum', shownFinish(task(m)), "2026-06-15T16:00");
 }
 
-// ── 6. Afgeleide datums (verzameltaak) zijn alleen-lezen, geen dode invoer ──────────────────────
 {
   const { a } = setup();
   const phase = S().addTask({ name: 'Fase' });
@@ -211,7 +191,6 @@ function setup(): { a: string; b: string } {
   eq('Start van een verzameltaak: alleen-lezen', cell(phase, 'task.time.start')?.readOnly, true);
 }
 
-// ── 7. Urentaak: Einde zet de duur in werkminuten ───────────────────────────────────────────────
 {
   S().newProject();
   S().setProject({ startDate: '2026-06-01', name: 'Uren' });
@@ -232,13 +211,6 @@ function setup(): { a: string; b: string } {
   eq('Urentaak Einde na F5 = ingevoerde tijd', shownFinish(task(h)), '2026-06-02T10:00');
 }
 
-// ── 8–11. Werkelijke datums (eigenaarsbesluit 2026-10-12, optie 1) ──────────────────────────────
-// "Zoals Primavera. Een taak die klaar is, staat op de dagen waarop hij echt gebeurde. Een taak die
-// bezig is, begint op de dag waarop hij echt begon. Dat blijft zo, ook na opnieuw berekenen. Je kunt
-// dan voor zo'n taak geen nieuwe begindatum meer intypen." Een XER met een voltooide taak (C1,
-// fysiek %), een lopende (L1) en een niet-gestarte opvolger (N1); statusdatum ma 02-03 08:00.
-// Onder het P6-profiel zet A19 de rekenstart van L1 op de statusdatum en C5 die van C1 ook; onder
-// OPS pint de solver de rekenstart op de werkelijke start. De GETOONDE datums zijn in beide gelijk.
 function actualsCalendar(): string {
   const day = (n: number) => `(0||${n}()(${n >= 2 && n <= 6 ? '(0||0(s|08:00|f|17:00)())' : ''}))`;
   return `(0||CalendarData()((0||DaysOfWeek()(${[1, 2, 3, 4, 5, 6, 7].map(day).join('')}))(0||Exceptions()())))`;
@@ -285,14 +257,12 @@ for (const profile of ['p6', 'ops'] as const) {
   const c1 = byCode('C1');
   const l1 = byCode('L1');
   const n1 = byCode('N1');
-  // De rekendatums verschillen per profiel (motor ongewijzigd) …
   if (profile === 'p6') {
     eq('8.P6 rekenstart van de lopende taak = statusdatum (A19)', l1.time.earlyStart, '2026-03-02T08:00');
     ok('8.P6 rekenstart van de voltooide taak ≠ werkelijke start (C5)', c1.time.earlyStart !== c1.time.actualStart);
   } else {
     eq('8.OPS rekenstart van de lopende taak = werkelijke start', l1.time.earlyStart, '2026-02-23T08:00');
   }
-  // … de GETOONDE datums niet.
   eq(`8.${tag} voltooid: Start = werkelijke start`, shownStart(c1), '2026-01-05T08:00');
   eq(`8.${tag} voltooid: Einde = werkelijk einde`, shownFinish(c1), '2026-01-16T17:00');
   eq(`8.${tag} lopend: Start = werkelijke start`, shownStart(l1), '2026-02-23T08:00');
@@ -302,13 +272,11 @@ for (const profile of ['p6', 'ops'] as const) {
   eq(`8.${tag} Tabel-kolom Einde (voltooid) = werkelijk einde`, cell(c1.id, 'task.time.finish')?.value, '2026-01-16T17:00');
   eq(`8.${tag} Tabel-kolom Start (lopend) = werkelijke start`, cell(l1.id, 'task.time.start')?.value, '2026-02-23T08:00');
   eq(`8.${tag} kolom Vroegste start blijft de rekenstart`, cell(l1.id, 'task.time.earlyStart')?.value, l1.time.earlyStart);
-  // Na herberekenen blijft het zo.
   S().runCPM();
   eq(`8.${tag} na F5: getoonde datums ongewijzigd`,
     [shownStart(byCode('C1')), shownFinish(byCode('C1')), shownStart(byCode('L1'))],
     ['2026-01-05T08:00', '2026-01-16T17:00', '2026-02-23T08:00']);
 
-  // ── 9. Bewerken: Start van een gestarte en Einde van een voltooide taak zijn alleen-lezen ──
   eq(`9.${tag} predicaten`, [startIsActual(c1), finishIsActual(c1), startIsActual(l1), finishIsActual(l1), startIsActual(n1)],
     [true, true, true, false, false]);
   eq(`9.${tag} Start lopend: alleen-lezen`, cell(l1.id, 'task.time.start')?.readOnly, true);
@@ -323,14 +291,12 @@ for (const profile of ['p6', 'ops'] as const) {
   eq(`9.${tag} typen in Einde (voltooid) wordt geweigerd`, type(c1.id, 'task.time.finish', '23-01-2026').ok, false);
   ok(`9.${tag} geweigerd typen verandert niets (geen anker, geen constraint)`, JSON.stringify(S().tasks) === before);
   eq(`9.${tag} gedeelde helper: de getoonde werkelijke start is geen nieuw anker`, startAnchorAfterEdit(l1, shownStart(l1)), undefined);
-  // Taak bewerken → Opslaan met het (alleen-lezen) startveld: geen stil anker.
   const anchorBefore = byCode('L1').time.scheduleStart;
   saveTaskDialog({ editingTaskId: l1.id, draft: { ...byCode('L1'), name: 'Lopend (hernoemd)' }, startDate: shownStart(byCode('L1')) });
   eq(`9.${tag} Taak bewerken → Opslaan: naam opgeslagen`, byCode('L1').name, 'Lopend (hernoemd)');
   eq(`9.${tag} Taak bewerken → Opslaan: anker ongewijzigd`, byCode('L1').time.scheduleStart, anchorBefore);
   eq(`9.${tag} Taak bewerken → Opslaan: geen constraint`, byCode('L1').constraint, l1.constraint);
 
-  // ── 10. Basislijn en afwijking volgen de getoonde datums; het koppelanker de rekendatum ──
   S().saveBaseline('BL');
   const bl = S().baselines[S().baselines.length - 1]!;
   eq(`10.${tag} basislijn: lopende taak met haar werkelijke start`, bl.tasks.find(t => t.taskId === l1.id)?.start, '2026-02-23T08:00');
@@ -343,9 +309,6 @@ for (const profile of ['p6', 'ops'] as const) {
   eq(`10.${tag} extern koppelanker = rekenstart (voedt een andere berekening)`, sourceAnchorDate(link, byCode('L1')), computedStart(byCode('L1')));
 }
 
-// ── 11. Verzameltaak: de fasebalk omsluit elk kind ─────────────────────────────────────────────
-// Zonder statusdatum kan een niet-gestart kind vóór de werkelijke start van een gestart broertje
-// liggen. De fase begint dan op het vroegste van beide, niet op haar (opgerolde) werkelijke start.
 {
   S().newProject();
   S().setCalendar({ ...S().calendar, workDays: [1, 2, 3, 4, 5], holidays: [] } as WorkCalendar);

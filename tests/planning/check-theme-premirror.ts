@@ -1,31 +1,3 @@
-/**
- * Contract-check voor de pre-paint-themaspiegel (issue #61, #818).
- *
- * `public/theme-prepaint.js` is een klein klassiek script dat `index.html` blokkerend in `<head>` laadt.
- * Het zet vóór de eerste React-paint alvast `data-theme` op `<html>`, om de thema-flits te voorkomen die
- * zou ontstaan als de eerste paint op de CSS-default valt en pas ná mount naar het echte thema omklapt.
- * Tot #818 stond het inline in `index.html`; de Content-Security-Policy van de SuperCloud laat geen
- * inline script toe, dus het staat nu in `public/` (Vite kopieert het en zet het pad op de `base`).
- * Het script is bewust een HANDKOPIE van `THEME_MIGRATION`/`initTheme()` (`src/utils/settingsStore.ts`)
- * en van `siteHostTheme()` (`src/services/fileAccess/siteHostPreferences.ts`): het draait vóórdat er
- * enige JS-module geladen is, dus het kan die functies niet importeren.
- *
- * Deze check bewaakt:
- * - `index.html` heeft geen inline script en laadt `/theme-prepaint.js` als klassiek script in `<head>`;
- * - de `map`-literal in het script is sleutel-voor-sleutel gelijk aan `THEME_MIGRATION`, de `oaTheme`-map
- *   aan `OA_THEME_FOR`, de `hostThemes`-lijst aan `SITE_HOST_THEMES`;
- * - het GEDRAG: het script draait in een `vm`-context met een nepvenster (host, parent, Tauri,
- *   localStorage) en geeft per geval hetzelfde thema als `peekTheme()` in TS.
- *
- * Bewuste, gedocumenteerde uitzondering: het script lost een `'system'`-uitkomst ná de mapping-lookup
- * nóg één stap verder op naar een concreet `'dark'`/`'light'` via `prefers-color-scheme` (het kan geen
- * React-state lezen, dus het moet meteen een concreet thema neerzetten). `peekTheme()` laat `'system'`
- * juist onopgelost staan — de resolutie gebeurt daar pas later via `resolveUITheme()`
- * (`src/utils/theme.ts`). De gedragsvergelijking hieronder past daarom `resolveUITheme` toe op de
- * TS-kant.
- *
- * Draait via run.sh. Exit 0 = alles groen, exit 1 = minstens één afwijking.
- */
 import fs from 'node:fs';
 import path from 'node:path';
 import vm from 'node:vm';
@@ -46,12 +18,8 @@ function check(name: string, cond: boolean): void {
 const indexHtmlPath = path.join(process.cwd(), 'index.html');
 const indexHtmlSource = fs.readFileSync(indexHtmlPath, 'utf8');
 const prepaintPath = path.join(process.cwd(), 'public/theme-prepaint.js');
-// De variabelenaam `indexHtml` blijft voor de bestaande regexen hieronder; de inhoud is nu het script.
 const indexHtml = fs.readFileSync(prepaintPath, 'utf8');
 
-// --- index.html: geen inline script, wel het externe pre-paint-script in <head> ---------------------
-// Commentaar weg tot er niets meer verandert (één ronde kan een nieuw `<!--` overlaten), dan elk
-// scripttag, ongeacht hoofdletters of iets extra in de sluittag (`</script foo>`).
 function withoutComments(html: string): string {
   let previous: string;
   let current = html;
@@ -79,18 +47,12 @@ check(
   !/var\s+map\s*=/.test(indexHtmlSource),
 );
 
-// Extract de object-literal na `var map = ` t/m de afsluitende `};`. Bewust een niet-gretige
-// match op het EERSTE `};` ná de opening — de literal bevat zelf geen geneste `{...}` (platte
-// string→string-map), dus dat is hier veilig.
 const mapMatch = /var\s+map\s*=\s*(\{[\s\S]*?\});/.exec(indexHtml);
 check('theme-prepaint.js: de pre-paint-themamap (`var map = {...}`) is gevonden', mapMatch !== null);
 
 let indexHtmlMap: Record<string, string> = {};
 if (mapMatch) {
   try {
-    // De literal bestaat uitsluitend uit string-sleutels en string-waarden (geen functies, geen
-    // externe referenties) — een geïsoleerde Function-evaluatie van precies dát fragment is hier
-    // veilig, en veel minder broos dan een handmatige key/value-regex-parser.
     // eslint-disable-next-line @typescript-eslint/no-implied-eval -- geïsoleerde literal, zie boven
     indexHtmlMap = new Function(`"use strict"; return (${mapMatch[1]});`)() as Record<string, string>;
   } catch (err) {
@@ -108,15 +70,13 @@ check(
 );
 
 for (const key of migrationKeys) {
-  if (!(key in indexHtmlMap)) continue; // al gemeld door de sleutel-gelijkheidscheck hierboven
+  if (!(key in indexHtmlMap)) continue;
   check(
     `sleutel '${key}': theme-prepaint.js geeft '${indexHtmlMap[key]}', THEME_MIGRATION geeft '${THEME_MIGRATION[key]}'`,
     indexHtmlMap[key] === THEME_MIGRATION[key],
   );
 }
 
-// De tweede spiegel: OPS-thema → `data-oa-theme` (OpenAEC-tokens 0.4). Zonder dit attribuut
-// tekenen de brugblokken in globals.css bij de eerste paint met de verkeerde tokens (een flits).
 const oaMatch = /var\s+oaTheme\s*=\s*(\{[^}]*\});/.exec(indexHtml);
 check('theme-prepaint.js: de pre-paint-map naar data-oa-theme (`var oaTheme = {...}`) is gevonden', oaMatch !== null);
 if (oaMatch) {
@@ -133,8 +93,6 @@ check(
   /setAttribute\('data-oa-theme'/.test(indexHtml),
 );
 
-// De onbekende-sleutel-default moet in beide 'dark' zijn — dat staat niet IN de map, dus los
-// vastgezet door de bronnen zelf te grepen op hun fallback-uitdrukking.
 check(
   "theme-prepaint.js: de initiële/fallback-waarde van `theme` is 'dark'",
   /var\s+theme\s*=\s*'dark'/.test(indexHtml),
@@ -147,11 +105,10 @@ check(
       'utf8',
     );
     const occurrences = (src.match(/THEME_MIGRATION\[saved\]\s*\?\?\s*'dark'/g) ?? []).length;
-    return occurrences === 2; // initTheme() én peekTheme()
+    return occurrences === 2;
   })(),
 );
 
-// --- De themalijst van de host -----------------------------------------------------------------------
 const hostMatch = /var\s+hostThemes\s*=\s*(\[[^\]]*\]);/.exec(indexHtml);
 check('theme-prepaint.js: de lijst `var hostThemes = [...]` is gevonden', hostMatch !== null);
 if (hostMatch) {
@@ -163,16 +120,13 @@ if (hostMatch) {
   );
 }
 
-// --- Gedrag: het script in een vm-context tegen peekTheme() --------------------------------------------
 interface Scenario {
   name: string;
   saved?: string;
   own?: unknown;
   parent?: unknown;
-  /** De parent gooit bij het lezen (cross-origin). */
   parentThrows?: boolean;
   tauri?: boolean;
-  /** localStorage gooit bij elke toegang (opaque origin zonder shim). */
   storageThrows?: boolean;
   prefersDark?: boolean;
 }
@@ -200,8 +154,8 @@ function fakeStorage(saved: string | undefined, throws: boolean) {
   if (throws) return undefined;
   return {
     getItem: (key: string) => (key === 'ops-theme' && saved !== undefined ? saved : null),
-    setItem: () => { /* niet nodig */ },
-    removeItem: () => { /* niet nodig */ },
+    setItem: () => { },
+    removeItem: () => { },
   };
 }
 

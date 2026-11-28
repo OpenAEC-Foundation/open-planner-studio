@@ -1,17 +1,3 @@
-// Scherm = afdruk: een balk met momenten staat op papier op dezelfde momenten als op het scherm.
-//
-// AANLEIDING (aanval na #600, a09 en a11). Sinds F2 heeft elke taak momenten, maar de afdruk rekende elke
-// balk nog in hele dagen: `parseDate` haalde de tijd weg en `+ zoom` telde er een hele einddag bij. Twee
-// aansluitende halve dagen (A ma 07:00–11:00, B ma 11:00–16:00) werden op papier twee overlappende hele
-// dagen; een dag van 00:00 tot 00:00 op een 24-uurskalender werd twee dagen breed; een urentaak had
-// hetzelfde al. Scherm en afdruk delen nu één balkregel (`taskBarSpan`, `src/engine/renderer/barSpan.ts`):
-// met momenten van het startmoment tot het exclusieve eindmoment, alleen bij datums zonder tijd tot het
-// einde van de einddag.
-//
-// Deze batterij tekent met de ECHTE `GanttRenderer` (opnemende 2D-context) en de ECHTE `renderReport`
-// (opnemende Draw2D) en vergelijkt de balken, de fasebalk, de relatiepijl en een mijlpaal met een moment.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { GanttRenderer } from '@/engine/renderer/GanttRenderer';
@@ -46,7 +32,6 @@ const STD: WorkCalendar = {
   workTime: { byWeekday: { 1: BANDS, 2: BANDS, 3: BANDS, 4: BANDS, 5: BANDS, 6: [], 7: [] } },
 } as WorkCalendar;
 
-// ── Scherm: opnemende 2D-context, de balk komt uit `getTaskBarRect` ─────────────────────────────
 function renderScreen(tasks: Task[], zoom: number) {
   const noop = () => {};
   const ctx = new Proxy({
@@ -74,7 +59,6 @@ function renderScreen(tasks: Task[], zoom: number) {
   return { bar };
 }
 
-// ── Afdruk: opnemende Draw2D; de as begint zeven dagen vóór de vroegste taakdag (ma 1 juni) ────────
 interface Shape { x: number; y: number; w: number; h: number; color: string }
 interface Path { pts: { x: number; y: number }[]; color: string; kind: 'stroke' | 'fill' }
 function renderPrint(tasks: Task[], zoom: number, extra: Partial<PrintOptions> = {}) {
@@ -107,12 +91,9 @@ function renderPrint(tasks: Task[], zoom: number, extra: Partial<PrintOptions> =
     activityCodeTypes: [], customFieldDefs: [], dateNotation: 'dmy', timeNotation: '24h',
     ...extra,
   } as PrintOptions);
-  // Zonder tijdvenster (dat zou de relaties weglaten) zet de afdruk zeven dagen marge vóór de vroegste
-  // taakdag; alle scenario's hieronder beginnen op ma 1 juni.
   const origin = result.tableWidth + 7 * zoom;
   const body = (r: Shape) => r.x >= result.tableWidth - 0.5 && r.y >= result.headerHeight;
   const rowOf = (y: number) => Math.floor((y - result.headerHeight) / 24);
-  // Een taakbalk is het hoogste vlak in zijn rij; de fasehaak is het platte vlak van de fase.
   const barRects = rects.filter(r => body(r) && r.h > 8);
   const bar = (row: number) => {
     const r = barRects.find(b => rowOf(b.y) === row);
@@ -122,7 +103,6 @@ function renderPrint(tasks: Task[], zoom: number, extra: Partial<PrintOptions> =
     const r = rects.find(b => body(b) && b.h > 2 && b.h <= 8 && rowOf(b.y) === row && b.color === PRINT_PALETTE.summary);
     return r ? { x1: r.x - origin, x2: r.x + r.w - origin } : null;
   };
-  // Paden in chartcoördinaten: x vanaf ma 00:00, y vanaf de bovenkant van de eerste rij.
   const chart = (kind: Path['kind']) => paths
     .filter(p => p.kind === kind && p.pts[0].x >= result.tableWidth && p.pts[0].y >= result.headerHeight)
     .map(p => p.pts.map(q => ({ x: q.x - origin, y: q.y - result.headerHeight })));
@@ -137,7 +117,6 @@ function project(calendar: WorkCalendar): void {
   S().setCalendar(calendar);
 }
 
-// ── 1. Twee aansluitende halve dagen onder een fase (a09) ──────────────────────────────────────
 {
   project(STD);
   const P = S().addTask({ name: 'Fase' });
@@ -153,7 +132,6 @@ function project(calendar: WorkCalendar): void {
   const zoom = 240;
   const screen = renderScreen([t(A), t(B)], zoom);
   const printed = renderPrint(S().tasks, zoom);
-  // Rijvolgorde in de afdruk: fase, A, B.
   const pA = printed.bar(1);
   const pB = printed.bar(2);
   near('1a afdruk: A begint om 07:00', pA?.x1, (7 / 24) * zoom);
@@ -169,13 +147,10 @@ function project(calendar: WorkCalendar): void {
   const pP = printed.summary(0);
   near('1i afdruk: de fasebalk begint om 07:00', pP?.x1, (7 / 24) * zoom);
   near('1j afdruk: de fasebalk eindigt om 16:00, niet een dag later', pP?.x2, (16 / 24) * zoom);
-  // De FS-pijl vertrekt op het einde van A, niet op het einde van de dag.
-  // De pijl is het eerste pad met een knik (rasterlijnen zijn rechte lijnen van twee punten) dat in de rij van A begint.
   const arrow = printed.strokes.find(p => p.length >= 3 && Math.abs(p[0].y - printed.rowHeight * 1.5) < printed.rowHeight / 2);
   near('1k afdruk: de relatiepijl vertrekt op het einde van A', arrow?.[0].x, (11 / 24) * zoom);
 }
 
-// ── 2. Een volle dag op een 24-uurskalender (a11) ──────────────────────────────────────────────
 {
   project({ ...STD, workDays: [1, 2, 3, 4, 5, 6, 7], workStartHour: 0, workEndHour: 24, hoursPerDay: 24, workTime: undefined } as WorkCalendar);
   const C = S().addTask({ name: 'Volle kalenderdag', time: { durationUnit: 'days', scheduleDuration: 1 } as TaskTime });
@@ -190,7 +165,6 @@ function project(calendar: WorkCalendar): void {
   near('2b scherm = afdruk: einde', printed.bar(0)?.x2, screen.bar(C)?.x2 ?? Number.NaN);
 }
 
-// ── 3. Een urentaak, een mijlpaal met een moment en een taak met alleen datums ──────────────────────
 {
   project(STD);
   const H = S().addTask({ name: 'Vier uur', time: { durationUnit: 'hours', durationMinutes: 240 } as TaskTime });
@@ -200,7 +174,6 @@ function project(calendar: WorkCalendar): void {
   const h = S().tasks.find(x => x.id === H)!;
   const m = S().tasks.find(x => x.id === M)!;
   eq('3 opzet: urentaak 07:00–11:00, mijlpaal 11:00', [h.time.earlyStart, h.time.earlyFinish, m.time.earlyStart], ['2026-06-01T07:00', '2026-06-01T11:00', '2026-06-01T11:00']);
-  // Een taak met alleen datums (van vóór het minutenmodel) houdt haar inclusieve einddag.
   const old: Task = { ...h, id: 'oud', name: 'Alleen datums', time: { ...h.time, scheduleStart: '2026-06-02', earlyStart: '2026-06-02', scheduleFinish: '2026-06-02', earlyFinish: '2026-06-02' } };
   const zoom = 240;
   const printed = renderPrint([h, m, old], zoom);
@@ -208,7 +181,6 @@ function project(calendar: WorkCalendar): void {
   near('3a afdruk: de urentaak begint om 07:00', printed.bar(0)?.x1, (7 / 24) * zoom);
   near('3b afdruk: de urentaak eindigt om 11:00', printed.bar(0)?.x2, (11 / 24) * zoom);
   near('3c scherm = afdruk: einde urentaak', printed.bar(0)?.x2, screen.bar(H)?.x2 ?? Number.NaN);
-  // De ruit: het eerste punt van het pad is de top, recht boven het anker.
   const diamond = printed.fills.find(p => p.length === 4 && Math.abs(p[0].y - printed.rowHeight * 1.5) < printed.rowHeight / 2);
   near('3d afdruk: de mijlpaal met een moment staat op 11:00', diamond?.[0].x, (11 / 24) * zoom);
   near('3e afdruk: alleen datums blijft de hele dag (begin)', printed.bar(2)?.x1, zoom);
@@ -216,7 +188,6 @@ function project(calendar: WorkCalendar): void {
   near('3g scherm = afdruk: alleen datums', printed.bar(2)?.x2, screen.bar('oud')?.x2 ?? Number.NaN);
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  print-bar-moments: alle checks groen (${checks})`);
   process.exit(0);

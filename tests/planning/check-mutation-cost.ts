@@ -1,33 +1,3 @@
-// Wat één mutatie MAG AANRAKEN — de poort onder het prestatiedoel "5000 taken moet werken".
-//
-// AANLEIDING. Gemeten op een project van 5.000 taken kostte één `addTask` 132 ms en één
-// `updateTask` 97 ms. De oorzaak was niet de rekenkern (CPM doet 5.000 taken in 0,9 s, de
-// rijenberekening in 10 ms) maar dat élke mutatie O(n) werk deed over de HELE takenlijst:
-//   - `createSnapshot` deep-cloonde de projectdata met JSON, bij elke bewerking opnieuw;
-//   - `applyWbsNumbering` las en beschreef élke taak via de Immer-draft, ook waar de code gelijk
-//     bleef, zodat Immer n proxy's moest finaliseren en bevriezen;
-//   - `recomputeResourceLoad` las resources/toewijzingen/taken óók via de draft.
-// n mutaties werden zo O(n²). Na deze drie: 18 ms respectievelijk 11 ms. Zie `docs/TODO.md`.
-//
-// WAT DEZE BATTERIJ BEWAAKT, EN WAARMEE. Een timer zou een slechte poort zijn: traag, en op een
-// drukke CI-machine wisselvallig. De checks hieronder gebruiken daarom drie soorten bewaking, en
-// het is belangrijk te weten welke waarvoor werkt — ik heb ze alle zeven gesaboteerd om dat te
-// bepalen, en twee van de drie wijzigingen bleken GEEN gedragsspoor te hebben:
-//
-//   (a) OBJECTIDENTITEIT (deel 1, 2 en 4). Bij Immer krijgt een beschreven object een nieuwe
-//       identiteit en een ongemoeid object niet. Dat vangt de teruggekeerde deep-clone hard (de
-//       snapshot deelt dan niet meer) en het vangt code die alle taken met NIEUWE waarden
-//       overschrijft. Het vangt NIET dat de nummering weer over de hele draft loopt: Immer negeert
-//       een schrijfactie met dezelfde waarde, dus de identiteit blijft dan gewoon staan terwijl de
-//       app 60% trager is.
-//   (b) BRON-ASSERTS (deel 5). Precies daarom staan die er: voor de twee wijzigingen die alleen
-//       kosten schelen en geen gedrag veranderen (plain lezen i.p.v. via de draft, en de
-//       belastingberekening buiten de producer) is dit de énige poort. Dat is bewust en niet uit
-//       gemakzucht — er ís hier geen waarneembaar gedrag om op te toetsen.
-//   (c) GEDRAG (deel 2 en 3). De invariant waar het delen op rust — de state is diep bevroren, dus
-//       in-place muteren buiten een producer kán niet — plus dat undo/redo nog precies herstelt.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { produce } from 'immer';
 import { latestAppliedDocumentDataDelta } from '@/state/sessionHistory';
 import './domStub';
@@ -49,8 +19,6 @@ const truthy = (label: string, got: boolean) => {
   if (!got) diffs.push(`${label}: verwacht waar, kreeg onwaar`);
 };
 
-/** Hoeveel van de taken uit `voor` zijn ná de mutatie VERVANGEN (nieuw object)? `id` is de sleutel,
- *  niet de index, zodat invoegen/verwijderen het antwoord niet vertroebelt. */
 function vervangen(voor: readonly { id: string }[], na: readonly { id: string }[]): string[] {
   const naById = new Map(na.map(t => [t.id, t]));
   const uit: string[] = [];
@@ -61,9 +29,6 @@ function vervangen(voor: readonly { id: string }[], na: readonly { id: string }[
   return uit;
 }
 
-// ── 1. Eén mutatie raakt alleen aan wat er verandert ─────────────────────────
-// Dit is de kern. Twintig taken is genoeg: gaat de nummering weer over álles heen, dan zijn het er
-// twintig in plaats van één, en dat is precies wat we willen zien vallen.
 S().newProject();
 const ids: string[] = [];
 for (let i = 0; i < 20; i++) ids.push(S().addTask({ name: `T${i}` }));
@@ -94,12 +59,9 @@ S().runCPM();
   const resId = S().addResource({ name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1 });
   const voor = S().tasks;
   S().assignResource(ids[4], resId, 1);
-  // Alleen de taak die de resource krijgt (haar `resourceIds` groeit) mag vervangen worden.
   eq('4 assignResource vervangt alleen de doeltaak', vervangen(voor, S().tasks), [ids[4]]);
 }
 
-// Een mutatie die de nummering ECHT verschuift moet wél doorwerken — anders bewaakt bovenstaande
-// alleen maar luiheid. Een taak vóóraan invoegen verschuift de codes van alles erachter.
 {
   const voor = S().tasks;
   S().addTask({ name: 'nieuw vooraan', position: { anchorId: ids[0], where: 'above' } });
@@ -109,7 +71,6 @@ S().runCPM();
   eq('5b de oude eerste taak is doorgeschoven naar 2', S().tasks.find(t => t.id === ids[0])?.wbsCode, '2');
 }
 
-// ── 2. De snapshot deelt, en dat is onschadelijk ─────────────────────────────
 {
   S().newProject();
   const a = S().addTask({ name: 'A' });
@@ -122,7 +83,6 @@ S().runCPM();
   eq('6a de snapshot ziet de oude naam', snap.tasks.find(t => t.id === a)?.name, 'A');
   eq('6b de live state ziet de nieuwe', S().tasks.find(t => t.id === a)?.name, 'A2');
 
-  // Nog een mutatie bovenop: de gedeelde snapshot mag daar niet in meebewegen.
   S().updateTask(a, { name: 'A3' });
   eq('7 de eerste snapshot beweegt niet mee met latere mutaties', snap.tasks.find(t => t.id === a)?.name, 'A');
 
@@ -133,17 +93,12 @@ S().runCPM();
   S().redo();
   eq('10 redo gaat weer vooruit', S().tasks.find(t => t.id === a)?.name, 'A2');
 
-  // Na een undo aliassen live state en snapshot. Muteren daarna moet nog steeds veilig zijn.
   const naUndo = S().tasks;
   S().updateTask(a, { name: 'A4' });
   eq('11 muteren ná een undo laat de herstelde array met rust', naUndo.find(t => t.id === a)?.name, 'A2');
   eq('11a en de live state is bij', S().tasks.find(t => t.id === a)?.name, 'A4');
 }
 
-// ── 3. De invariant onder het delen: de state is diep bevroren ───────────────
-// Zonder deze eigenschap zou een gedeelde snapshot stil kunnen meebewegen met een in-place mutatie.
-// Immer's auto-freeze maakt zo'n mutatie een TypeError in plaats van corruptie. We toetsen het na
-// elke soort mutatie, want de eerste producer bevriest de state en daarna moet het zo blijven.
 function bevroren(label: string) {
   const s = S();
   const slecht: string[] = [];
@@ -182,7 +137,6 @@ bevroren('18 bevroren na redo');
 withTransaction(() => { for (let i = 0; i < 5; i++) S().addTask({ name: `bulk${i}` }); });
 bevroren('19 bevroren na een bulk-transactie');
 
-// Sluitstuk: de bevriezing is echt afdwingend, geen vlag die toevallig aan staat.
 {
   checks++;
   let gooide = false;
@@ -192,9 +146,6 @@ bevroren('19 bevroren na een bulk-transactie');
   }
 }
 
-// ── 4. Schaal: het gedrag mag niet omslaan bij een groot project ─────────────
-// 2.000 taken is genoeg om een teruggekeerde O(n)-per-mutatie te laten zien; 5.000 zou de suite
-// alleen maar trager maken zonder iets extra's te bewaken.
 {
   S().newProject();
   const grote: string[] = [];
@@ -216,16 +167,6 @@ bevroren('19 bevroren na een bulk-transactie');
   eq('25 undo op 2.000 taken herstelt de naam', S().tasks.find(t => t.id === grote[1000])?.name, 'G1000');
 }
 
-// ── 4b. Gedrag: binnen een producer leest de snapshot de VOOR-staat ──────────
-// De bron-asserts 27a–27c hieronder pinnen dat `createSnapshot` via `original()` normaliseert en
-// niet via `current()`. Nodig, maar niet genoeg: dat is een tekstcontrole. Het verschil valt
-// vandaag namelijk nergens op — élke aanroeper houdt de conventie *guards; snapshot; mutatie* aan,
-// en dan leveren `original()` en `current()` hetzelfde op. Een sabotage naar `current()` liet dan
-// ook de hele rest van deze suite groen.
-//
-// Deze check maakt het verschil wél waarneembaar door de conventie BEWUST te schenden: eerst
-// muteren, daarna snapshotten. Leest de snapshot dan de na-staat, dan legt een undo-stap de
-// verkeerde voor-staat vast en herstelt undo te weinig — geen crash, maar stil dataverlies.
 {
   S().newProject();
   S().addTask({ name: 'A' });
@@ -239,15 +180,10 @@ bevroren('19 bevroren na een bulk-transactie');
 
   eq('25a createSnapshot leest binnen een producer de VOOR-staat', binnenProducer.tasks[0].name, voorNaam);
   eq('25b en de producer muteerde wel degelijk', na.tasks[0].name, 'GEMUTEERD');
-  // Eis 9: er ontsnapt geen ingetrokken draft. Een gelekte draft is ná afloop van zijn producer
-  // ingetrokken en gooit bij het uitlezen — deze regel zou dan niet halen.
   truthy('25c de snapshot blijft leesbaar ná afloop van de producer',
     JSON.parse(JSON.stringify(binnenProducer.tasks)).length === na.tasks.length);
 }
 
-// ── 5. Bron-assert: de drie plekken waar dit vandaan komt ────────────────────
-// De checks hierboven meten gedrag. Deze meet de OORZAAK, zodat een terugval herkenbaar is in
-// plaats van alleen zichtbaar als een gevallen identiteitscheck.
 {
   const { readFileSync, existsSync } = await import('node:fs');
   const { fileURLToPath } = await import('node:url');
@@ -287,30 +223,20 @@ bevroren('19 bevroren na een bulk-transactie');
       Object.entries(paden).map(([k, p]) => [k, strip(readFileSync(join(root, p), 'utf8'))]),
     ) as Record<keyof typeof paden, string>;
 
-    // Bewaker op de stripper: hij moet commentaar weghalen en code laten staan.
     eq('26a de stripper haalt commentaar weg', src.snapshot.includes('WAAROM GEEN DIEPE KLOON'), false);
     eq('26b de stripper laat code staan', src.snapshot.includes('export function createSnapshot'), true);
 
-    // (a) de snapshot kloont niet meer.
     eq('27 createSnapshot doet geen JSON-kloon', /JSON\.(parse|stringify)/.test(src.snapshot), false);
-    // 27a–c pinnen de BRON van de draftnormalisatie, die in `immerDraft.ts` woont — de enige plek
-    // waar app-state de Immer-typegrens oversteekt. Het GEDRAG erachter (de snapshot leest de
-    // basis, niet de na-staat) staat in 25a/25b hierboven; deze drie regels leggen alleen vast
-    // langs welke weg dat gebeurt. 27c is daarbij een zwakke negatieve guard: `includes('current(')`
-    // matcht `currentAppState(` NIET, dus de refactor die hij lijkt te blokkeren wordt in de
-    // praktijk door 27a gevangen. Laat 'm staan als goedkope extra, maar reken hem niet mee.
     eq('27a createSnapshot normaliseert een draft via originalAppState()',
       src.snapshot.includes('originalAppState('), true);
     eq('27b originalAppState() leest de producerbasis via original()',
       /export function originalAppState\b[\s\S]*?\boriginal\s*[<(]/.test(src.immerDraft), true);
     eq('27c en snapshot.ts leest nooit current()', src.snapshot.includes('current('), false);
 
-    // (b) de nummering leest plain en schrijft alleen verschillen.
     eq('28 wbs.ts leest de draft plain via current()', src.wbs.includes('current('), true);
     truthy('28a applyWbsNumbering schrijft alleen bij een verschil',
       /!==\s*view\[i\]\.wbsCode/.test(src.wbs));
 
-    // (c) de belastingberekening draait buiten de producer.
     const rrl = src.schedule.slice(src.schedule.indexOf('recomputeResourceLoad:'));
     const body = rrl.slice(0, rrl.indexOf('runCPM:'));
     truthy('29 recomputeResourceLoad rekent buiten de producer', /const s = get\(\);/.test(body));
@@ -319,15 +245,12 @@ bevroren('19 bevroren na een bulk-transactie');
     eq('29b computeResourceLoad staat niet ín een set()-producer',
       /set\(\([a-z]+\) => \{\s*[a-z]+\.resourceLoadResult = computeResourceLoad/.test(body), false);
 
-    // (d) niemand zet Immer's auto-freeze uit — dat zou stilletjes de invariant onder het delen
-    //     wegslaan, en check 20 hierboven is de enige die het zou merken.
     for (const [naam, code] of Object.entries(src)) {
       eq(`30 ${naam} zet auto-freeze niet uit`, code.includes('setAutoFreeze'), false);
     }
   }
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: mutatiekosten — ${checks} checks groen`);
 } else {

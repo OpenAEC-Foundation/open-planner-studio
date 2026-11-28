@@ -1,19 +1,3 @@
-// Issue #114 (manuvarkey): "Predecessors/Successors colour not being set". De trace-tint (goud voor
-// voorgangers, paars voor opvolgers) werd wél als balkkleur gezet, maar in de standaard kleurmodus
-// tekende de voortgangsvulling daarna `normalLight`-blauw (of `criticalLight`-rood) over de balk —
-// bij een voltooide taak dus de héle balk. Precies de voorbeeldprojecten (status-datum in het verleden,
-// vroege taken 100 %) toonden zo geen enkele trace-kleur; alleen het dimmen van de rest was zichtbaar.
-//
-// Sinds de balkweergave van oktober 2026 wordt voltooid werk grijs (`doneBarTones`). Dat grijs mag
-// de trace NIET wegpoetsen: in een trace wint de trace-tint, ook op een voltooide taak.
-//
-// Deze batterij draait de ECHTE GanttRenderer met een opnemende 2D-context over één voltooide
-// voorganger + focus-taak, met de trace aan, en eist dat de rij van de voorganger in de trace-tint
-// zelf getekend wordt, zonder grijs en zonder standaardkleur. Zonder trace tekent een voltooide
-// taak het grijs van zijn eigen standaardkleur (regressie-anker).
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {} };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -33,7 +17,6 @@ function ok(label: string, cond: boolean): void {
   if (!cond) diffs.push(label);
 }
 
-// Opnemende context: elke `fill()` legt de op dat moment actieve fillStyle + laatste roundRect vast.
 interface Fill { x: number; y: number; w: number; h: number; style: string }
 function makeCtx(): { ctx: CanvasRenderingContext2D; fills: Fill[] } {
   const fills: Fill[] = [];
@@ -57,7 +40,6 @@ function makeCtx(): { ctx: CanvasRenderingContext2D; fills: Fill[] } {
   return { ctx: ctx as unknown as CanvasRenderingContext2D, fills };
 }
 
-// ── Scenario: voltooide voorganger → focus-taak (beide 100 %) ────────────────
 S().newProject();
 S().addTask({ name: 'Voorganger' });
 S().addTask({ name: 'Focus' });
@@ -71,7 +53,6 @@ const st = S();
 const rows: ViewRow[] = st.tasks.map(task => ({ kind: 'task', rowKey: task.id, task, depth: 0, dimmed: false }));
 const ROWH = 28, HDRH = 60;
 const inRow = (f: Fill, i: number) => f.y >= HDRH + i * ROWH && f.y + f.h <= HDRH + (i + 1) * ROWH;
-// Voltooid zonder trace = het grijs van de standaardkleur (`doneBarTones`, licht thema).
 const PAL = readGanttPalette();
 const GREY = [doneBarTones(PAL.normal, false).fill, doneBarTones(PAL.critical, false).fill].map(c => c.toLowerCase());
 const STANDARD = [PAL.normal, PAL.critical].map(c => c.toLowerCase());
@@ -95,11 +76,9 @@ function render(traceMode: 'off' | 'predecessors' | 'successors'): Fill[] {
   return fills;
 }
 
-// Regressie-anker: zonder trace tekent een voltooide taak het grijs van zijn standaardkleur.
 const off = render('off').filter(f => inRow(f, 0));
 ok(`zonder trace: voltooide balk is grijs (${off.map(f => f.style).join(', ')})`, off.some(f => GREY.includes(f.style.toLowerCase())));
 
-// Predecessors: rij 0 (de voorganger) krijgt de goudtint, zonder grijs of standaardkleur.
 const pred = render('predecessors').filter(f => inRow(f, 0));
 const GOLD = [GANTT_TRACE_COLORS.predecessor, GANTT_TRACE_COLORS.predecessorDriving].map(c => c.toLowerCase());
 ok(`predecessors: voorgangerbalk tekent in de trace-goudtint (${pred.map(f => f.style).join(', ')})`, pred.some(f => GOLD.includes(f.style.toLowerCase())));
@@ -108,7 +87,6 @@ ok(
   !pred.some(f => GREY.includes(f.style.toLowerCase()) || STANDARD.includes(f.style.toLowerCase())),
 );
 
-// Successors (focus = voorganger): rij 1 (de opvolger) idem in paars.
 const succ = render('successors').filter(f => inRow(f, 1));
 const PURPLE = [GANTT_TRACE_COLORS.successor, GANTT_TRACE_COLORS.successorDriving].map(c => c.toLowerCase());
 ok(`successors: opvolgerbalk tekent in de trace-paarstint (${succ.map(f => f.style).join(', ')})`, succ.some(f => PURPLE.includes(f.style.toLowerCase())));

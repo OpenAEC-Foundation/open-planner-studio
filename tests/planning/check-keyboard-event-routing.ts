@@ -47,10 +47,6 @@ eq('Een externe verticale scrollprop trekt de echte DOM-scrollpositie mee',
 eq('De verticale synchronisatie laat een al gelijke horizontale positie ongemoeid',
   externalScrollTarget.scrollLeft, 17);
 
-// Dit is bewust hetzelfde cancelable native Event-object in beide fasen. De echte helper uit
-// DataGridCore handelt de celopdracht af; daarna simuleren we de browser-bubbelgrens naar de
-// globale listener. Een gestopte of al afgehandelde gebeurtenis mag daar nooit taakverwijdering
-// bereiken.
 for (const key of ['Delete', 'Backspace']) {
   const event = new Event('keydown', { cancelable: true }) as Event & { key: string };
   Object.defineProperty(event, 'key', { value: key });
@@ -70,10 +66,6 @@ for (const key of ['Delete', 'Backspace']) {
   eq(`${key}: hetzelfde native event is aan de gridgrens gestopt`, event.cancelBubble, true);
 }
 
-// WCAG 2.1.2, echte modules end-to-end: Tab op de allerlaatste cel en Shift+Tab op de allereerste
-// cel moeten via de volledige dispatchketen (resolveTaskGridCommand → dispatchDataGridKeyCommand)
-// `unhandled` opleveren, zodat `preventDefault`/`stopPropagation` NIET worden aangeroepen en de
-// native browserfocusverplaatsing kan doorgaan.
 {
   const taskRows: ViewRow[] = ['ta', 'tb'].map(id => ({
     kind: 'task', rowKey: id, task: { id } as Task, depth: 0, dimmed: false,
@@ -123,12 +115,6 @@ for (const key of ['Delete', 'Backspace']) {
   eq('Shift+Tab op de eerste cel roept onCommand niet aan', firstCellHandled, false);
 }
 
-// Napunt 1 (onafhankelijke eindreview op b0107289): Escape in selectiemodus moet BEIDE doen —
-// de grid geeft zijn eigen exit-to-container-commando (focus naar de gridcontainer) én laat het
-// event doorbubbelen naar de globale `edit.deselect`-sneltoets (deselectAll, traceMode/
-// showDependencyMode uit). De eerdere fix riep onvoorwaardelijk preventDefault+stopPropagation
-// aan voor elk afgehandeld commando, waardoor de globale poort (`shouldHandleGlobalShortcutEvent`,
-// die `!event.defaultPrevented` toetst) Escape nooit meer bereikte zolang een gridcel focus had.
 {
   const taskRows: ViewRow[] = ['ta', 'tb'].map(id => ({
     kind: 'task', rowKey: id, task: { id } as Task, depth: 0, dimmed: false,
@@ -165,9 +151,6 @@ for (const key of ['Delete', 'Backspace']) {
   ok('De globale sneltoetspoort ziet Escape dus als onafgehandeld en mag doorgaan',
     shouldHandleGlobalShortcutEvent(escapeEvent as unknown as KeyboardEvent));
 
-  // Einde-tot-einde: de ECHTE `edit.deselect`-entry uit het register tegen een echte store met
-  // een echte selectie en actieve trace-/dependency-modus, zodat het volledige globale effect
-  // (niet alleen "wordt niet tegengehouden") aantoonbaar nog steeds afvuurt.
   const deselectEntry = SHORTCUTS.find(entry => entry.id === 'edit.deselect');
   if (!deselectEntry) {
     failures.push('edit.deselect ontbreekt in SHORTCUTS — kan het globale Escape-effect niet bewijzen');

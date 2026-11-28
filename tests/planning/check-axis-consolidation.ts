@@ -1,29 +1,3 @@
-// Byte-identiteit-bewijs voor de fase-0-consolidatie van de tijd-as (issue #21 punt 5,
-// `docs/superpowers/werkdagen-as-ontwerp.md` §2.1/§3.1/§3.2, review §10).
-//
-// Fase 0 verplaatst een aantal `pixels = dagen × zoom`-formules (en hun inverses) naar de al
-// bestaande gedeelde `dateToX` uit `src/engine/renderer/timeAxis.ts`, plus twee nieuwe
-// consolidatie-helpers in datzelfde bestand (`xToDayOffset`, `xToDate`). Er verandert
-// EXPLICIET geen enkel getal — dit is puur het opheffen van verspreide kopieën.
-//
-// Bewijsaanpak (§3.2, gekozen variant): "de check is een VERGELIJKING tussen de geconsolideerde
-// dateToX/xToDate en een lokaal in de test gedefinieerde referentie-implementatie (de oude
-// formule letterlijk gekopieerd) over een raster van datums × zoom × scrollX — exact gelijk
-// (===, geen epsilon)." Dat past het beste bij deze fase: de call-sites die zijn aangepakt
-// (printPreview.ts:318, GanttCanvas.tsx `revealTaskIfOffscreen`, GanttRenderer.ts's
-// grid-`startOffset`, useBarDrag.ts's uur-drag) waren stuk voor stuk PURE, lokaal gedefinieerde
-// arithmetiek zonder DOM/canvas-afhankelijkheid — een headless ctx-recorder-render (zoals
-// `check-gantt-float-cull.ts`) zou voor drie van de vier niets bewijzen dat de pure-vergelijking
-// niet al aantoont, want `GanttRenderer.dateToX` zelf riep vóór deze fase AL `timeAxis.dateToX`
-// aan (dat was al geconsolideerd in fase 2.7). De ENE render-interne wijziging — de
-// grid-`startOffset`-berekening (`GanttRenderer.ts` regel ~260) — wordt daarom AANVULLEND ook
-// via een echte headless render geverifieerd (zie deel 2), zodat de daadwerkelijk-getekende
-// verticale grid-lijnen bewijsbaar ongewijzigd blijven, niet alleen de kale formule.
-//
-// Exit 0 = alles groen (draait mee in tests/planning/run.sh).
-
-// ── DOM-stubs (vóór het instantiëren): de renderer leest themakleuren via
-//    getComputedStyle(document.documentElement); zonder stub gooit dat in Node.
 const g = globalThis as unknown as Record<string, unknown>;
 g.document = { documentElement: {}, createElement: () => ({ getContext: () => null }) };
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
@@ -42,13 +16,10 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   if (actual !== expected) diffs.push(`${label}: kreeg ${JSON.stringify(actual)}, verwacht ${JSON.stringify(expected)}`);
 }
 
-// ── Raster: datums × zoom × scrollX × taskTableWidth ─────────────────────────────────────────
-const VIEW_START = new Date(Date.UTC(2026, 0, 1)); // 2026-01-01T00:00:00Z
+const VIEW_START = new Date(Date.UTC(2026, 0, 1));
 const ZOOMS = [3, 7.5, 22, 40.333, 100];
 const SCROLLS = [0, 1, 37.5, 300, 999.9];
 const TABLE_WIDTHS = [0, 90, 300];
-// Dag-offsets (hele dagen, zoals de meeste call-sites gebruiken) + een paar sub-dag-offsets
-// (in ms) voor de fractionele call-sites (GanttCanvas reveal-on-select, uur-taken).
 const DAY_OFFSETS = [-30, -1, 0, 1, 2, 5, 13, 90, 365];
 const SUBDAY_MS_OFFSETS = [0, 3 * 3600000, 11.5 * 3600000, 23 * 3600000 + 59 * 60000];
 
@@ -56,34 +27,23 @@ function dateAt(dayOffset: number, extraMs = 0): Date {
   return new Date(VIEW_START.getTime() + dayOffset * MS_PER_DAY + extraMs);
 }
 
-// ── 1a. Referentie: de HOOFD-`dateToX` zoals GanttRenderer/HistogramRenderer hem gebruiken
-//        (`taskTableWidth + daysFromStart*zoom - scrollX`). Dit was AL geconsolideerd vóór
-//        fase 0 — hier alleen bevestigd dat de fase-0-wijzigingen dat pad niet raakten.
 function oldDateToXWithScroll(date: Date, viewStart: Date, tableWidth: number, zoom: number, scrollX: number): number {
   const daysFromStart = (date.getTime() - viewStart.getTime()) / MS_PER_DAY;
   return tableWidth + daysFromStart * zoom - scrollX;
 }
 
-// ── 1b. Referentie: printPreview.ts:318 vóór de refactor —
-//        `TABLE_WIDTH + diffCalendarDays(minDate, date) * zoom` (scrollX bestond niet, dus 0).
 function oldPrintDateToX(date: Date, minDate: Date, tableWidth: number, zoom: number): number {
   return tableWidth + diffCalendarDays(minDate, date) * zoom;
 }
 
-// ── 1c. Referentie: GanttCanvas.tsx `revealTaskIfOffscreen` vóór de refactor —
-//        `tableW + ((d - evs)/msPerDay) * zoom` (fractioneel, scrollX bestond niet, dus 0).
 function oldGanttCanvasRevealX(date: Date, evs: Date, tableWidth: number, zoom: number): number {
   return tableWidth + ((date.getTime() - evs.getTime()) / MS_PER_DAY) * zoom;
 }
 
-// ── 1d. Referentie: GanttRenderer.ts's grid-`startOffset` vóór de refactor —
-//        `Math.floor(scrollX / zoom)`.
 function oldStartOffset(scrollX: number, zoom: number): number {
   return Math.floor(scrollX / zoom);
 }
 
-// ── 1e. Referentie: useBarDrag.ts's uur-drag `rawMs` vóór de refactor —
-//        `(pixelDelta / zoom) * 86400000` (hardcoded magic number, nu `MS_PER_DAY`).
 function oldHourDragRawMs(pixelDelta: number, zoom: number): number {
   return (pixelDelta / zoom) * 86400000;
 }
@@ -91,7 +51,6 @@ function oldHourDragRawMs(pixelDelta: number, zoom: number): number {
 for (const zoom of ZOOMS) {
   for (const scrollX of SCROLLS) {
     for (const tableWidth of TABLE_WIDTHS) {
-      // 1a: hoofd-dateToX (bevestiging, geen wijziging in deze fase)
       for (const dayOffset of DAY_OFFSETS) {
         const date = dateAt(dayOffset);
         eq(
@@ -101,8 +60,6 @@ for (const zoom of ZOOMS) {
         );
       }
 
-      // 1b: printPreview — alleen hele kalenderdagen (zoals print ze via parseDate levert),
-      // scrollX bestond niet in de oude formule ⇒ vergelijk tegen dateToX(..., 0).
       for (const dayOffset of DAY_OFFSETS) {
         const date = dateAt(dayOffset);
         eq(
@@ -112,7 +69,6 @@ for (const zoom of ZOOMS) {
         );
       }
 
-      // 1c: GanttCanvas reveal-on-select — fractionele (sub-dag) datums, scrollX=0.
       for (const dayOffset of DAY_OFFSETS) {
         for (const subMs of SUBDAY_MS_OFFSETS) {
           const date = dateAt(dayOffset, subMs);
@@ -124,14 +80,12 @@ for (const zoom of ZOOMS) {
         }
       }
 
-      // 1d: grid-startOffset — via xToDayOffset op x=taskTableWidth (§ GanttRenderer.ts:260).
       eq(
         `startOffset z=${zoom} sx=${scrollX} tw=${tableWidth}`,
         Math.floor(xToDayOffset(tableWidth, tableWidth, zoom, scrollX)),
         oldStartOffset(scrollX, zoom),
       );
 
-      // Sanity: xToDate ⇄ dateToX zijn elkaars inverse (op de precisie van fractionele dagen).
       for (const dayOffset of DAY_OFFSETS) {
         const date = dateAt(dayOffset);
         const x = dateToX(date, VIEW_START, tableWidth, zoom, scrollX);
@@ -144,7 +98,6 @@ for (const zoom of ZOOMS) {
     }
   }
 
-  // 1e: useBarDrag uur-drag — alleen van zoom/pixelDelta afhankelijk (geen scrollX/tableWidth).
   for (const pixelDelta of [-500, -37.5, 0, 12, 240, 1234.5]) {
     eq(
       `hourDragRawMs z=${zoom} px=${pixelDelta}`,
@@ -154,14 +107,8 @@ for (const zoom of ZOOMS) {
   }
 }
 
-// MS_PER_DAY zelf mag nooit driften van de bekende 86400000 — anders zijn 1a-1e stilzwijgend
-// allemaal tegen een verkeerde constante getest.
 eq('MS_PER_DAY', MS_PER_DAY, 86400000);
 
-// ── 2. Live-render-bewijs voor de ENE render-interne wijziging: grid-startOffset ────────────
-// Render de ECHTE (aangepaste) GanttRenderer en vergelijk de daadwerkelijk getekende verticale
-// dag-grid-lijnen (moveTo/lineTo/stroke-triples van bovenrand tot onderrand) tegen een
-// onafhankelijk — met de OUDE `startOffset`-formule — berekende verwachte dagenlijst.
 interface Op { kind: string; x?: number; y?: number }
 function makeRecordingCtx(): { ctx: CanvasRenderingContext2D; verticalGridX: number[] } {
   const verticalGridX: number[] = [];
@@ -180,11 +127,6 @@ function makeRecordingCtx(): { ctx: CanvasRenderingContext2D; verticalGridX: num
       if (lastMoveTo && lastLineTo) {
         const m = lastMoveTo as { x: number; y: number };
         const l = lastLineTo as { x: number; y: number };
-        // Verticale dag-grid-lijn (`drawGridBackground`): van HEADER_HEIGHT naar CANVAS_HEIGHT,
-        // zelfde x, lineWidth 0.5/1 (weekdag vs. weekstart). De vandaag-/statusdatumlijn heeft
-        // DEZELFDE moveTo/lineTo-vorm maar lineWidth 2 (+ dash) en een `new Date()`-afhankelijke
-        // (dus niet-deterministische) x — expliciet uitgesloten zodat deze check reproduceerbaar
-        // blijft, ongeacht de datum waarop de suite draait.
         const lw = (ctx as unknown as { lineWidth: number }).lineWidth;
         if (m.x === l.x && m.y === HEADER_HEIGHT && l.y === CANVAS_HEIGHT && lw <= 1) {
           verticalGridX.push(m.x);
@@ -231,18 +173,9 @@ function renderedGridDays(canvasWidth: number, zoom: number, scrollX: number): n
 }
 
 function expectedGridX(canvasWidth: number, zoom: number, scrollX: number): number[] {
-  // `parseDate`, niet `new Date(iso)`: beide leveren hier UTC-middernacht, maar `parseDate` is
-  // letterlijk dezelfde bron als de renderer — en de weekdag-/maandfilter hieronder hangt aan die
-  // kalenderdag. Voor de x-waarden zelf maakt het niets uit: `oldDateToXWithScroll` rekent met het
-  // VERSCHIL tussen `date` en `viewStart`, en beide komen uit dezelfde basis.
   const viewStart = parseDate(S().view.viewStartDate);
   const visibleDays = Math.ceil(canvasWidth / zoom) + 2;
-  const startOffset = oldStartOffset(scrollX, zoom); // de OUDE formule, onafhankelijk berekend
-  // U2: sinds de rasterdichtheid per zoom loopt, tekent de renderer onder 8 px/dag niet meer élke
-  // dag. Deze check gaat over de startOffset-FORMULE (welke x-posities), niet over de dichtheid —
-  // dus wordt hier dezelfde filter toegepast. Drempels NIET met de hand nagebouwd maar uit
-  // `gridDensityForZoom` zelf: een verschoven drempel hoort deze check niet stilletjes te laten
-  // slagen op een andere lijnenset. weekStartDay is in deze scène de default 'monday'.
+  const startOffset = oldStartOffset(scrollX, zoom);
   const density = gridDensityForZoom(zoom);
   const xs: number[] = [];
   for (let i = -1; i < visibleDays; i++) {
@@ -274,9 +207,6 @@ for (const c of RENDER_CASES) {
   }
 }
 
-// ── 3. Structuurpoort voor de drie x-contracten van de tabeloverhaul ─────────────────────────
-// De oude naam mag nergens in de betrokken productiecode terugkomen. Alleen HistogramRenderer
-// houdt een linkerbreedte, en die heet semantisch pickerWidth.
 const sourceRoot = process.cwd();
 const originContractFiles = [
   'src/components/canvas/GanttCanvas.tsx',
@@ -304,10 +234,6 @@ const histogramSource = fs.readFileSync(
   path.join(sourceRoot, 'src/engine/renderer/HistogramRenderer.ts'),
   'utf8',
 );
-// G13: de kiezer staat aan de kant van de takenlijst (rechts in ar/fa), dus de plotoorsprong is niet
-// altijd `pickerWidth`. De renderer leidt zijn indeling exact eenmaal af van pickerWidth + kiezerkant
-// (`histogramLayout`), en chartOriginX exact eenmaal van het begin van de plot. De gedeelde as in de
-// viewportcoördinator rekent zijn oorsprong met dezelfde functie (`histogramPlotInsets`).
 eq('HistogramRenderer leidt zijn indeling exact eenmaal van pickerWidth en pickerSide af',
   (histogramSource.match(/histogramLayout\(opts\.canvasWidth,\s*opts\.pickerWidth,\s*opts\.pickerSide\)/g) ?? []).length, 1);
 eq('HistogramRenderer leidt chartOriginX exact eenmaal van het plotbegin af',
@@ -322,7 +248,6 @@ eq('histogramas in de viewportcoördinator begint op het plotbegin van dezelfde 
   /chartOriginX:\s*histogramPlotInsets\(input\.histogramPickerWidth,\s*input\.histogramPickerSide\)\.left/
     .test(viewportCoordinatorSource), true);
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  axis-consolidation: alle checks groen (${checks})`);
   process.exit(0);
