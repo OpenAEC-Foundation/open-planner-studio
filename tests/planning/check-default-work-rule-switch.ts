@@ -1,16 +1,3 @@
-/**
- * Geërfd vast werk valt onder B1a (spec "alleen uren" §3.2; review #581 r1, knownbug 251). Een taak
- * zonder eigen regel erft `Project.defaultWorkRule` (`effectiveWorkRule`). Een wissel van die
- * standaard is voor haar dus een typewissel: dezelfde werkregelbrug als een wissel op de taak, en een
- * maatwijziging is planning (geval 11c, §5.2): de modus "datums zoals opgeslagen" gaat uit, de planning
- * wordt verouderd en er wordt doorgerekend, in één undo-stap.
- *
- * Voorbeeldweek (zoals `check-work-rule-measure-switch.ts`): ma–do 8 u, vr 6 u, werktijd per dag 8 u.
- * V (2 d, ma–di) → A (3 d, wo–vr 14:00) → B (2 d), alle drie zonder eigen regel, uit een vreemd IFC in
- * de modus. De standaard *Vast werk* maakt V 16 u, A 24 u (einde ma 09:00) en B 16 u.
- * De terugweg (van vast werk naar een andere standaard) laat de urenmaat staan, net als bij 11c.
- * Routes: de store (`setProject`) en MCP (`planner_update_project`, een batch, `draft.setProject`).
- */
 import { makeMcpContext } from '../mcp/harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpToolResult, McpToolOk } from '@/services/mcp/contracts';
@@ -95,8 +82,6 @@ const OPGESLAGEN = {
   aStart: WO, aFinish: VR_EINDE, bStart: B_OPGESLAGEN, inMode: true, stale: false, defaultWorkRule: null,
 };
 
-/** Een UI-bewerking plus wat `useExitRecordedDates` daarna doet (React; hier met dezelfde pure
- *  functies, zie `check-work-rule-measure-switch.ts`). Geeft het aantal berekeningen. */
 function viaUi(f: Fixture, action: () => void): number {
   const observe = (): RecordedDatesObservation => {
     const s = f.context.store.getState();
@@ -124,14 +109,12 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   eq(`${label}: …en één undo-stap`, applied(f), appliedBefore);
 }
 
-// ── Voorwaarde ───────────────────────────────────────────────────────────────────
 {
   const f = fixture();
   eq('d0 voorwaarde: V, A en B zoals opgeslagen, in de modus, zonder eigen regel',
     [stand(f), [f.vId, f.aId, f.bId].map(id => taskOf(f, id).workRule ?? null)], [OPGESLAGEN, [null, null, null]]);
 }
 
-// ── Store ────────────────────────────────────────────────────────────────────────
 {
   const f = fixture();
   const before = applied(f);
@@ -141,7 +124,6 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   eq('d1 setProject: één undo-stap voor wissel en berekening', applied(f), before + 1);
   expectUndone('d1 setProject', f, before);
 }
-// De terugweg: van vast werk naar een andere standaard. De urenmaat blijft (zoals 11c), datumneutraal.
 {
   const f = fixture();
   viaUi(f, () => f.context.store.getState().setProject({ defaultWorkRule: 'FIXED_WORK' }));
@@ -152,7 +134,6 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
     [st.a, st.aFinish, runs, st.stale, st.defaultWorkRule], [['hours', 1440, 3], MA_0900, 0, false, 'FIXED_DURATION_RATE']);
   eq('d2 terugweg: één undo-stap', applied(f), before + 1);
 }
-// Een taak met een eigen regel volgt de standaard niet.
 {
   const f = fixture();
   f.context.store.getState().setTaskWorkRule(f.bId, 'FIXED_DURATION_RATE');
@@ -160,7 +141,6 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   eq('d3 eigen regel: B houdt de dagenmaat, A wordt urenmaat', [measure(taskOf(f, f.bId)), measure(taskOf(f, f.aId))],
     [['days', null, 2], ['hours', 1440, 3]]);
 }
-// Zonder de modus (de probe van de reviewer): 3 d vanaf wo op een korte vrijdag (vr 07:00–13:00).
 {
   const long = [{ start: 420, end: 900 }];
   const cal: WorkCalendar = { id: 'cal', name: 'cal', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 7,
@@ -169,7 +149,6 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   const S = () => context.store.getState();
   context.store.setState(s => { s.project.startDate = '2026-06-03'; s.calendar = cal; s.calendars = []; });
   const id = S().addTask({ name: 'geërfd', time: createDefaultTaskTime(WO, 3) });
-  // Een resource met inzet 1: de brug legt het werk vast (24 u).
   const r = S().addResource({ name: 'R', type: 'LABOR', description: '', maxUnits: 1 });
   S().assignResource(id, r, 1);
   S().runCPM();
@@ -180,20 +159,17 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
     [S().assignments[0].unitsPerDay, S().assignments[0].remainingWorkMinutes], [1, 1440]);
   S().runCPM();
   eq('d4 opnieuw rekenen: het einde is ma 09:00', S().tasks[0].time.earlyFinish, MA_0900);
-  // Een mijlpaal en een ELAPSEDTIME-taak vallen buiten de regel en blijven ongemoeid.
   S().setProject({ defaultWorkRule: 'FIXED_DURATION_RATE' });
   const m = S().addTask({ name: 'M', isMilestone: true, time: createDefaultTaskTime(WO, 0) });
   const e = S().addTask({ name: 'E', time: { ...createDefaultTaskTime(WO, 2), durationType: 'ELAPSEDTIME' } });
   S().setProject({ defaultWorkRule: 'FIXED_WORK' });
   const byId = (x: string) => S().tasks.find(t => t.id === x)!;
   eq('d5 mijlpaal en ELAPSEDTIME: blijven in de dagenmaat', [byId(m).time.durationUnit, byId(e).time.durationUnit], ['days', 'days']);
-  // Dezelfde standaard opnieuw zetten is geen bewerking.
   const events = S().historyEvents.length;
   S().setProject({ defaultWorkRule: 'FIXED_WORK' });
   eq('d6 dezelfde standaard: geen undo-stap', S().historyEvents.length, events);
 }
 
-// Een expliciete projectkeuze ontsluit de bestaande taaktypevelden, net als een keuze op een taak.
 {
   const context = createAppStoreContext();
   const S = () => context.store.getState();
@@ -205,7 +181,6 @@ function expectUndone(label: string, f: Fixture, appliedBefore: number) {
   eq('p769: undo wist de keuze en houdt de velden zichtbaar', [S().project.defaultWorkRule, S().taskTypesVisible], [undefined, true]);
 }
 
-// Issue #769: het formulier volgt dezelfde brug, ook wanneer het rekenprofiel tegelijk wijzigt.
 for (const withProfile of [false, true]) {
   const context = createAppStoreContext();
   const S = () => context.store.getState();
@@ -245,7 +220,6 @@ for (const withProfile of [false, true]) {
     [S().project.defaultWorkRule, task().time.durationUnit, ownState()], [undefined, 'days', beforeOwn]);
   S().redo();
 
-  // Alle vier keuzes door de echte IFC-schrijver/lezer en de laadgrens, inclusief tweede opslag.
   for (const rule of WORK_RULES) {
     S().applyProjectInfo({ defaultWorkRule: rule }, undefined);
     const reopened = createAppStoreContext();
@@ -267,7 +241,6 @@ for (const withProfile of [false, true]) {
     projectInfoPatch(S().project, { ...S().project, defaultWorkRule: S().project.defaultWorkRule ?? DEFAULT_WORK_RULE }), {});
 }
 
-// ── MCP ──────────────────────────────────────────────────────────────────────────
 async function mcp() {
   {
     const f = fixture();
@@ -303,7 +276,6 @@ async function mcp() {
     expectSwitched('m3 draft.setProject', f);
     expectUndone('m3 draft.setProject', f, before);
   }
-  // De terugweg via MCP: `null` wist de standaard; de urenmaat blijft.
   {
     const f = fixture();
     await getTool('planner_update_project')!.handler({ defaultWorkRule: 'FIXED_WORK' }, makeMcpContext(f.context));

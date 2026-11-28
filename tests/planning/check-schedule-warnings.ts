@@ -1,9 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
-// Waarschuwingenpaneel (issue #53): de pure verzamelaar `collectScheduleWarnings`, de solver-
-// uitbreiding `cycleTaskIds`, de navigatie `revealScheduleWarning` op een ECHTE store, en de
-// `setUI`-invarianten voor het derde railpaneel.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStoreContext } from '@/state/appStore';
 import { collectScheduleWarnings, summarizeScheduleWarnings, hasScheduleWarningTarget } from '@/engine/scheduler/scheduleWarnings';
@@ -24,7 +18,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
 const ctx = createAppStoreContext();
 const S = () => ctx.store.getState();
 
-// ── 1) Echte solve: deadline + SNLT-constraint + overbezetting + gemiste deadline op een echte store
 S().newProject();
 S().setProject({ name: 'Waarschuwingen', startDate: '2026-09-07' });
 const a = S().addTask({ name: 'A Grondwerk' });
@@ -39,11 +32,8 @@ setTime(b, { scheduleStart: '2026-09-07', scheduleDuration: 10 });
 setTime(c, { scheduleStart: '2026-09-07', scheduleDuration: 10 });
 const seqAB = S().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 })!;
 S().addSequence({ predecessorId: b, successorId: c, type: 'FINISH_START', lagDays: 0 });
-// Deadline op B vóór zijn vroegste einde (A duurt 10 werkdagen, B start daarna).
 S().updateTask(b, { deadline: '2026-09-11' });
-// Constraint "start niet later dan" op C vóór wat de logica toestaat.
 S().updateTask(c, { constraint: { type: 'SNLT', date: '2026-09-09' } });
-// Overbezetting: één resource met capaciteit 1, twee parallelle toewijzingen van 1.
 const r = S().addResource({ name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1 });
 S().assignResource(a, r, 1);
 S().addTask({ name: 'D Parallel' });
@@ -71,8 +61,6 @@ S().runCPM();
   eq('08 constraint-rij draagt type + datum', [vc.facts.constraintType, vc.facts.constraintDate], ['SNLT', "2026-09-09T07:00"]);
   const oa = w.find(x => x.kind === 'overallocation')!;
   eq('09 overbezettingsrij wijst naar de resource met dagtelling', [oa.target, (oa.facts.days ?? 0) > 0], [{ type: 'resource', resourceId: r }, true]);
-  // R1: deze overbezetting komt van twee parallelle toewijzingen op de projectkalender (geen
-  // resourcekalendermismatch) ⇒ puur over-capacity, dus nonWorkingDays === 0 (niet "onbekend").
   eq('09a overbezettingsrij is puur over-capacity: nonWorkingDays is 0', oa.facts.nonWorkingDays, 0);
   eq('10 volgorde: deadline vóór constraint vóór overbezetting', [
     kinds.indexOf('missedDeadline') < kinds.indexOf('violatedConstraint'),
@@ -80,7 +68,6 @@ S().runCPM();
   ], [true, true]);
   eq('11 samenvatting telt alleen waarschuwingen', summarizeScheduleWarnings(w), { errors: 0, warnings: w.length, total: w.length });
 
-  // Herhaalde aanroep op dezelfde invoer levert byte-identiek dezelfde lijst (pure functie).
   const w2 = collectScheduleWarnings({
     tasks: s.tasks, sequences: s.sequences, resources: s.resources,
     cpmResult: s.cpmResult, resourceLoadResult: s.resourceLoadResult,
@@ -88,10 +75,6 @@ S().runCPM();
   eq('12 deterministisch', w2, w);
 }
 
-// ── 1b) R1: `nonWorkingDays`-feit voor de drie takken (alles vrije dagen, mix, geen) ─────────────
-// Synthetische `resourceLoadResult` in plaats van een echte solve: `collectScheduleWarnings` is
-// puur en leest alleen `overallocatedDays`/`overallocatedReasons`, dus dit dekt de drie takken
-// zonder een kalendermismatch te hoeven opzetten via een echte resourcekalender.
 {
   const rxAll = S().addResource({ name: 'RX Alles vrije dagen', type: 'LABOR', description: '', maxUnits: 1 });
   const rxMix = S().addResource({ name: 'RX Mix', type: 'LABOR', description: '', maxUnits: 1 });
@@ -127,7 +110,6 @@ S().runCPM();
   S().removeResource(rxNone);
 }
 
-// ── 2) Navigatie: taak, relatie, resource ────────────────────────────────────
 {
   const s = S();
   const w = collectScheduleWarnings({
@@ -140,7 +122,6 @@ S().runCPM();
   eq('21 taak: focus-signaal voor de GanttCanvas gezet', S().view.pendingFocusTaskId, b);
   S().clearPendingFocusTask();
 
-  // Relatie-doel: gebruik een synthetische out-of-sequence-rij op A→B.
   revealScheduleWarning(S(), {
     id: `outOfSequence:${seqAB}`, kind: 'outOfSequence', severity: 'warning',
     target: { type: 'sequence', sequenceId: seqAB, predecessorId: a, successorId: b }, facts: {},
@@ -150,8 +131,6 @@ S().runCPM();
   eq('23 relatie: focus op de opvolger', S().view.pendingFocusTaskId, b);
   S().clearPendingFocusTask();
 
-  // Relatie-doel uit de ECHTE solver: een lead die de opvolger vóór de projectstart wil trekken
-  // wordt afgekapt (`truncatedLeadSequenceIds`) en moet via de fold als originele id terugkomen.
   const e = S().addTask({ name: 'E Leadproef' });
   setTime(e, { scheduleStart: '2026-09-07', scheduleDuration: 5 });
   const seqAE = S().addSequence({ predecessorId: a, successorId: e, type: 'FINISH_START', lagDays: -30 })!;
@@ -180,8 +159,6 @@ S().runCPM();
   eq('27 resource: geen focus-sprong (kan om veel taken gaan)', S().view.pendingFocusTaskId ?? null, null);
   eq('27a resource: op een Gantt-tab blijft het tabblad met rust', S().ui.activeRibbonTab, 'start');
 
-  // Op de Tabel-werkruimte is de histogramstrook onzichtbaar: dan wisselt de resource-sprong naar
-  // de Resources-tab (Gantt + histogram), de taak-sprong niet.
   S().setUI({ activeRibbonTab: 'table' });
   revealScheduleWarning(S(), w.find(x => x.kind === 'overallocation')!);
   eq('28 resource op Tabel-tab: naar de Resources-tab', S().ui.activeRibbonTab, 'resources');
@@ -192,7 +169,6 @@ S().runCPM();
   S().setUI({ activeRibbonTab: 'start' });
 }
 
-// ── 3) Verwijderde doelen vallen weg; niets pusht een undo-stap ──────────────
 {
   const before = S().historyEvents.length;
   const s = S();
@@ -216,10 +192,7 @@ S().runCPM();
   eq('34 navigatie/verzamelen raakt de undo-stapel niet', S().historyEvents.length, before);
 }
 
-// ── 4) Cyclus: `cycleTaskIds` op het cyclus-pad en navigatie naar de loop ────
 {
-  // De store-route weigert een kring vooraf (check-relation-routes.ts); een kring komt nog wel binnen
-  // zoals een importer hem schrijft: rechtstreeks in `sequences`.
   ctx.store.setState(st => {
     st.sequences.push({ id: 'seq-kring', predecessorId: c, successorId: a, type: 'FINISH_START', lagDays: 0 });
   });
@@ -242,7 +215,6 @@ S().runCPM();
     [[...S().selectedTaskIds].sort(), S().activeTaskId === ids[0]], [[a, b, c].sort(), true]);
   S().clearPendingFocusTask();
   eq('45 cyclusrij heeft een doel', hasScheduleWarningTarget(w[0]), true);
-  // Solverfout zónder cyclus (geen taak-ids): geen doel, en navigeren is een no-op.
   const noTarget = collectScheduleWarnings({
     tasks: s.tasks, sequences: s.sequences, resources: s.resources,
     cpmResult: { ...s.cpmResult!, cycleTaskIds: undefined }, resourceLoadResult: null,
@@ -253,7 +225,6 @@ S().runCPM();
   eq('47 navigeren zonder doel raakt niets aan', [S().selectedTaskIds, S().view.pendingFocusTaskId ?? null], [selBefore, null]);
 }
 
-// ── 5) UI-invarianten van het derde railpaneel ───────────────────────────────
 {
   eq('50 paneel staat standaard uit', S().ui.showWarningsPanel, false);
   S().setUI({ rightPanelCollapsed: true });
@@ -262,8 +233,6 @@ S().runCPM();
     [S().ui.showWarningsPanel, S().ui.rightPanelCollapsed], [true, false]);
   COMMANDS.toggleWarningsPanel.run(S());
   eq('52 commando togglet terug', S().ui.showWarningsPanel, false);
-  // Alleen het waarschuwingenpaneel aan, rail ingeklapt en dan uitgeklapt: Eigenschappen mag
-  // NIET geforceerd aan (invariant 3 ziet het derde paneel).
   S().setUI({ showPropertiesPanel: false, resourcePanelDocked: false, showResourcePanel: false, showWarningsPanel: true });
   S().setUI({ rightPanelCollapsed: true });
   S().setUI({ rightPanelCollapsed: false });
