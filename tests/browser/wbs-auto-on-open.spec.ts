@@ -1,13 +1,3 @@
-// WBS auto bij het openen (eigenaarsbesluit 2026-10-17). Draagt een geopend bestand geen
-// WBS-auto-vlag en zijn alle WBS-codes al de nummering van de boom, dan staat *WBS auto* na het
-// openen aan. Aanleiding: in productieplanning.mpp kreeg een nieuwe taak boven "Hefcilinder monteren"
-// de code 1.3.6.2, die die taak al had; na inspringen bleef dat zo.
-//
-// Echte gebruikersflow: Openen via de lintknop en de bestandskiezer, een klik op de rij, Insert en
-// Alt+Shift+→. `window.__OPS__` LEEST alleen de uitkomst.
-//
-// Fixture 1 (CI): een klein MSPDI-bestand, inline. Fixture 2 (alleen lokaal): het echte
-// productieplanning.mpp uit de map in `OPS_QA_FILES`; zonder die variabele slaat de test over.
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Locator, Page } from '@playwright/test';
@@ -30,7 +20,6 @@ function nameCell(page: Page, taskId: string): Locator {
   );
 }
 
-/** Het raster virtualiseert: scroll met het muiswiel tot de rij gerenderd is. */
 async function scrollIntoGrid(page: Page, taskId: string): Promise<void> {
   const grid = page.locator('[data-task-grid-surface-id="gantt-task-grid"]');
   const box = await grid.boundingBox();
@@ -55,7 +44,6 @@ const wbsCodes = (page: Page) => page.evaluate(() => window.__OPS__!.store.getSt
 const taskIdByName = (page: Page, name: string) => page.evaluate(n =>
   window.__OPS__!.store.getState().tasks.find(t => t.name === n)?.id ?? null, name);
 
-/** Insert boven `anchorName`, spring de nieuwe taak in, en controleer dat geen code dubbel is. */
 async function insertAndIndent(page: Page, anchorName: string): Promise<{ newId: string; newCode: string; parentName: string | null }> {
   const anchor = await taskIdByName(page, anchorName);
   expect(anchor).not.toBeNull();
@@ -70,7 +58,6 @@ async function insertAndIndent(page: Page, anchorName: string): Promise<{ newId:
   let codes = await wbsCodes(page);
   expect(new Set(codes).size).toBe(codes.length);
 
-  // Naamveld krijgt na Insert de focus; Escape laat de naam staan en geeft het raster terug.
   await page.keyboard.press('Escape');
   await scrollIntoGrid(page, newId);
   await nameCell(page, newId).click();
@@ -116,7 +103,6 @@ test('productieplanning.mpp: geen dubbele code na Insert boven "Hefcilinder mont
   await expectWbsAutoActive(page);
 
   const result = await insertAndIndent(page, 'Hefcilinder monteren');
-  // Ingesprongen onder "Assembleren hefsysteem dmv. Assen" (1.3.6.1): de nieuwe taak is 1.3.6.1.1.
   expect(result.parentName).toBe('Assembleren hefsysteem dmv. Assen');
   expect(result.newCode).toBe('1.3.6.1.1');
   const hef = await taskIdByName(page, 'Hefcilinder monteren');

@@ -1,22 +1,11 @@
-// Crashherstel met het XER-bronarchief "één keer geschreven" (eigenaarsbesluit plan (9); ontwerp
-// `docs/superpowers/plans/2026-10-07-xer-archief-eenmalig.md`). ECHTE IndexedDB en echte
-// gebruikershandelingen: een .xer met twee projecten via de ribbonknop Openen en de bestandskiezer, een
-// taaknaam wijzigen in de tabel, herladen, en Herstellen in het herstelvenster. `window.__OPS__` en
-// IndexedDB worden alleen GELEZEN. Het tweede geval zet vóór de app-start een oude (v1) database met
-// een leesbare snapshot met ingebed archief én een onleesbare kopie — en bewijst
-// dat de upgrade naar v3 die snapshot nog herstelt.
 import type { Locator, Page } from '@playwright/test';
 import { expect, test, waitForOps } from './fixtures/ops';
-
-// main.tsx installeert de brug via een losse dynamische import. Een zichtbare herstelmelding
-// bewijst niet dat die klaar is: na iedere app-navigatie wachten vóór store-observaties.
 
 const TASK_HEADER = [
   'task_id', 'proj_id', 'clndr_id', 'task_code', 'task_name', 'task_type', 'duration_type',
   'status_code', 'target_drtn_hr_cnt', 'remain_drtn_hr_cnt', 'target_start_date', 'target_end_date',
 ].join('\t');
 
-/** Klein, synthetisch XER met twee projecten ⇒ twee documenten die één bronarchief delen. */
 const XER_TWO_PROJECTS = [
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -50,7 +39,6 @@ interface RecoveryDbView {
   snapshotHasName: boolean;
 }
 
-/** Leest de echte IndexedDB `ops-recovery` (zonder versie: geen upgrade vanuit de test). */
 function readRecoveryDb(page: Page, needle: string): Promise<RecoveryDbView> {
   return page.evaluate((name) => new Promise<RecoveryDbView>((resolve) => {
     const empty: RecoveryDbView = { version: 0, stores: [], blobs: 0, manifestRefs: [], snapshotHasName: false };
@@ -84,7 +72,6 @@ function readRecoveryDb(page: Page, needle: string): Promise<RecoveryDbView> {
   }), needle);
 }
 
-/** Wat de gebruiker na herstel open heeft: per document de taaknamen en de archiefstaat (alleen lezen). */
 function openDocuments(page: Page) {
   return page.evaluate(() => window.__OPS__!.store.getState().getOpenDocumentPayloads().map(({ payload }) => ({
     project: payload.project.name,
@@ -106,7 +93,6 @@ test('crashherstel: een XER met twee projecten komt terug mét archief, uit éé
   test.setTimeout(90_000);
   const workers: string[] = [];
   page.on('worker', worker => workers.push(worker.url()));
-  // Alleen observeren: echte worker, berichten en IndexedDB; de gebruikersroute blijft ongewijzigd.
   await page.evaluate(() => {
     const requests: Array<{ inputKeys: string[]; archiveKeys: string[] }> = [];
     Object.assign(window, { __recoveryWorkerRequests: requests });
@@ -119,7 +105,6 @@ test('crashherstel: een XER met twee projecten komt terug mét archief, uit éé
       Reflect.apply(post, this, [value, ...rest]);
     };
   });
-  // (1) Openen via de echte bestandsroute.
   const openButton = page.locator('button.ribbon-btn').filter({ hasText: /^(Open|Openen)$/ });
   await expect(openButton).toHaveCount(1);
   const chooserPromise = page.waitForEvent('filechooser');
@@ -131,7 +116,6 @@ test('crashherstel: een XER met twee projecten komt terug mét archief, uit éé
   expect(opened.every(doc => doc.archiveSha !== null)).toBe(true);
   expect(new Set(opened.map(doc => doc.archiveSha)).size).toBe(1);
 
-  // (2) Een taaknaam wijzigen in de tabel van het actieve document (Alfa of Beta, wat actief is).
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   await expect(page.locator('[data-task-grid-surface-id="full-task-grid"] [role="grid"]')).toBeVisible();
   const taskId = await page.evaluate(() => window.__OPS__!.store.getState().tasks[0]!.id);
@@ -145,8 +129,6 @@ test('crashherstel: een XER met twee projecten komt terug mét archief, uit éé
   await page.keyboard.press('Enter');
   await expect(cell).toHaveText(RENAMED);
 
-  // (3) De auto-save-tick (throttle 10 s) afwachten in de echte IndexedDB: de snapshot draagt de
-  // nieuwe naam, beide manifestregels verwijzen naar hetzelfde archief en er is precies één blob.
   await expect.poll(() => readRecoveryDb(page, RENAMED), { timeout: 30_000, intervals: [500] }).toMatchObject({
     version: 3, blobs: 1, snapshotHasName: true,
   });
@@ -167,14 +149,12 @@ test('crashherstel: een XER met twee projecten komt terug mét archief, uit éé
   expect(db.manifestRefs).toHaveLength(2);
   expect(new Set(db.manifestRefs)).toEqual(new Set([opened[0]!.archiveSha]));
 
-  // (4) Herladen, zoals na een crash; (5) herstellen via het echte herstelvenster.
   await page.evaluate(() => localStorage.setItem('ops-welcomeSeen', 'true'));
   page.on('dialog', d => { void d.accept(); });
   await page.reload();
   await waitForOps(page);
   await acceptRecovery(page);
 
-  // (6) Beide documenten zijn terug, mét het gedeelde archief en zonder archiefmelding; de wijziging ook.
   await expect.poll(() => openDocuments(page).then(docs => docs.length)).toBe(2);
   const restored = await openDocuments(page);
   expect(restored.map(doc => doc.archiveSha)).toEqual([opened[0]!.archiveSha, opened[0]!.archiveSha]);
@@ -185,16 +165,8 @@ test('crashherstel: een XER met twee projecten komt terug mét archief, uit éé
 
 test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft bewaard na nieuwe auto-save', async ({ page, ops }) => {
   test.setTimeout(90_000);
-  // Zelfde herstelroute ook zonder Web Worker (bijvoorbeeld een beperkte webview).
   await page.addInitScript(() => { Object.defineProperty(window, 'Worker', { value: undefined, configurable: true }); });
-  // Fixture, vóór de app-start: de app is door de `ops`-fixture al geladen en heeft `ops-recovery` op v3
-  // gezet. Daarom eerst weg van de app naar een statisch bestand, de database wissen, en daar een v1-
-  // database neerzetten met de snapshot die een vorige versie schreef: IFC met INGEBED archief (schema 2),
-  // gemaakt met de eigen lezer/writer via de dev-server. Daarna pas de app openen.
   await page.goto('/icon.png');
-  // Review #550: oefen readFailures via de ECHTE herstelhook, niet een gekopieerde if/else.
-  // Alleen de backend-leesuitkomst voor de gemengde I/O-sessie krijgt een I/O-foutdouble.
-  // IndexedDB, de gezonde IFC, de herstelklik, hold/clear en de volgende auto-save blijven echt.
   await page.route('**/src/services/recovery/recoveryStore.ts*', async route => {
     const response = await route.fetch();
     const body = await response.text();
@@ -213,14 +185,10 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
   });
 
   ops.acceptError('Failed to read recovery document: doc-corrupt');
-  // Twee gemengde gevallen, elk met een gedeeltelijk geslaagde herstelklik en de volgende auto-save:
-  // 'parse' = de tweede kopie faalt pas bij het parsen; 'io' = de tweede kopie faalt al bij het lezen.
-  // De lus-body is bewust niet ingesprongen: zo blijft de diff klein.
   for (const variant of ['parse', 'io'] as const) {
   const sessionId = variant === 'io' ? 'oude-sessie-v1-io' : 'oude-sessie-v1';
   if (variant === 'io') await page.goto('/icon.png');
   await page.evaluate(async ({ xer, sid }) => {
-    // Paden als variabele: de dev-server (Vite) levert de bronmodules; de testtypecheck kent ze niet.
     const readerPath = '/src/services/xer/xerReader.ts';
     const writerPath = '/src/services/ifc/ifcWriter.ts';
     const { readXER } = (await import(/* @vite-ignore */ readerPath)) as { readXER: (bytes: Uint8Array) => unknown };
@@ -273,13 +241,10 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
   expect(restored!.archiveSha).toMatch(/^[0-9a-f]{64}$/);
   expect(restored!.archiveIssue).toBeNull();
   expect(restored!.sourceProjectId).toBe('P1');
-  // De database is geüpgraded naar v3 met archiefstore en kind-index.
   const db = await readRecoveryDb(page, 'Fundering');
   expect(db.version).toBe(3);
   expect(db.stores.sort()).toEqual(['records', 'xer-archives']);
 
-  // Niet alleen direct na Herstellen kijken: ook de eerstvolgende echte auto-save
-  // moet de onleesbare kopie bewaren. Bewerk daarom het herstelde document via de tabel.
   const edited = 'Herstel na gedeeltelijk herstel';
   await page.getByRole('button', { name: /^(Table|Tabel)$/ }).click();
   const taskId = await page.evaluate(() => window.__OPS__!.store.getState().tasks[0]!.id);
@@ -293,8 +258,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
   expect((await readRecoveryDb(page, 'BROKEN_RECOVERY_FIXTURE')).snapshotHasName).toBe(true);
   }
 
-  // Na het veiligstellen van de gezonde projecten blijft alleen een onleesbare kopie over.
-  // Fixture vóór de start; bewaren/verwerpen gebeurt vervolgens met echte gebruikershandelingen.
   for (const locale of ['nl', 'en']) {
     await page.goto('/icon.png');
     await page.evaluate(async ({ sid, locale }) => {
@@ -339,7 +302,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
     await waitForOps(page);
     await expect(dialog).toBeVisible({ timeout: 15_000 });
     if (locale === 'nl') {
-      // Ook Enter kiest standaard de veilige uitweg, nooit verwijderen.
       await page.keyboard.press('Enter');
       await expect(dialog).toHaveCount(0);
       expect((await readRecoveryDb(page, 'BROKEN_RECOVERY_FIXTURE')).snapshotHasName).toBe(true);
@@ -356,8 +318,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
     await expect(dialog).toHaveCount(0);
   }
 
-  // Knownbug 96: dezelfde opstartroute met leesbare IFC onder een geweigerd manifest.
-  // Alleen de fixture en observatie via IndexedDB; bewerken en melding sluiten via echte UI.
   await page.clock.install();
   await page.addInitScript(() => {
     const observed = Object.assign(window, { __manifestWriteAttempts: 0 });
@@ -380,7 +340,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
       tx.oncomplete = () => {
         resolve(JSON.stringify([records.result, blobs.result.map((b: { id: string; bytes: Uint8Array }) =>
           ({ ...b, bytes: [...b.bytes] }))], (_key, value: unknown) => {
-          // Alleen de waarneming coderen, niet de fixture: hole ≠ undefined/null in IndexedDB.
           if (Array.isArray(value) && Object.keys(value).length < value.length) {
             return { type: 'sparse-array', length: value.length, entries: Object.entries(value) };
           }
@@ -403,8 +362,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
       const { readXER } = (await import(/* @vite-ignore */ readerPath)) as { readXER: (bytes: Uint8Array) => { results: unknown[] } };
       const { writeIFC } = (await import(/* @vite-ignore */ writerPath)) as { writeIFC: (input: unknown) => string };
       const ifc = writeIFC(readXER(new TextEncoder().encode(xer)).results[0]);
-      // NL begint met de bestaande DB v2 zonder index. De app moet zelf upgraden en ALLE bytes
-      // bewaren, inclusief een gezond canoniek manifest naast een onbekende afwijkende kandidaat.
       if (locale === 'nl') await new Promise<void>((resolve, reject) => {
         const request = indexedDB.deleteDatabase('ops-recovery');
         request.onsuccess = () => resolve();
@@ -428,7 +385,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
             version: locale === 'nl' ? 5 : '5', activeDocumentId: 'doc-oud', addedAt: 1,
             documents: [{ id: 'doc-oud', ifc: sid + '::doc::doc-oud', filePath: 'oud.ifc',
               isDirty: true, datesAsRecorded: true, siteFileId: 'oude-site', siteFileVersion: 'oude-basis' }] };
-          // Native IndexedDB structured clone: de hole blijft afwezig, zonder JSON-normalisatie.
           if (shape === 'sparse-documents') {
             manifest.version = 5;
             manifest.documents.length++;
@@ -451,7 +407,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
     }, { xer: XER_TWO_PROJECTS, locale, shape });
     const before = await recoveryBytes();
     if (shape.startsWith('sparse-')) {
-      // De native read moet nog precies de afwezige tweede positie tonen, geen ingevulde null.
       expect(before).toContain('"type":"sparse-array","length":2,"entries":[["0",');
     }
     const sidBefore = await page.evaluate(() => sessionStorage.getItem('ops-recovery-session'));
@@ -495,7 +450,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
       return value;
     });
     await page.clock.pauseAt(await page.evaluate(() => Date.now() + 500));
-    // Zonder selectie heet de knop 'onderaan'; een klik kan de selectie en dus de naam wijzigen.
     expect(await page.evaluate(() => window.__OPS__!.store.getState().selectedTaskIds)).toEqual([]);
     const addTask = page.locator('button[data-ops-ribbon-item="addTask"]');
     await expect(addTask).toHaveAccessibleName(locale === 'nl'
@@ -520,8 +474,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
     await page.clock.resume();
   }
 
-  // R2: een ECHTE v2-verbinding weigert versionchange. Gezonde data mag dan geen lege read worden
-  // en na het sluiten van de blocker ook niet alsnog door de nieuwe lege sessie worden overschreven.
   const previousData: unknown = JSON.parse(await recoveryBytes());
   if (!Array.isArray(previousData) || !Array.isArray(previousData[0])) throw new Error('Herstelfixture ontbreekt.');
   const snapshot: unknown = previousData[0].find((record: unknown) =>
@@ -548,7 +500,7 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
         request.onsuccess = () => {
           const db = request.result;
           const observed = Object.assign(window, { __blockedRecoveryDb: db, __recoveryVersionChanges: 0 });
-          db.onversionchange = () => { observed.__recoveryVersionChanges++; }; // bewust NIET sluiten
+          db.onversionchange = () => { observed.__recoveryVersionChanges++; };
           const tx = db.transaction(['records', 'xer-archives'], 'readwrite');
           tx.objectStore('records').put({ id: 'blocked-upgrade::doc::oud', kind: 'doc', sessionId: 'blocked-upgrade',
             docId: 'oud', ifc, addedAt: 1 });
@@ -561,7 +513,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
         };
       });
     }, ifc);
-    // Lezen via de blokkadeverbinding zelf: een nieuwe openaanvraag zou achter de upgrade wachten.
     const blockedBytes = () => blocker.evaluate(() => new Promise<string>((resolve, reject) => {
       const db: unknown = Reflect.get(window, '__blockedRecoveryDb');
       if (!(db instanceof IDBDatabase)) throw new Error('Blokkadeverbinding ontbreekt.');
@@ -599,7 +550,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
     await expect(warning).toBeVisible();
     await expect(warning).toContainText('Save your work yourself');
     await expect(page.locator('[data-ops-recovery-dialog]')).toHaveCount(0);
-    // Welkom wacht op recoveryResolved: deze echte opstartstap bewijst dat finish() bereikt is.
     await expect(page.locator('[data-ops-welcome-dialog]')).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(page.locator('[data-ops-welcome-dialog]')).toHaveCount(0);
@@ -628,7 +578,7 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
     await expect(addTask).toHaveAccessibleName('New task at the bottom of the list');
     await addTask.click();
     await page.clock.runFor(10_000);
-    await expect(warning).toBeVisible(); // error-melding verloopt niet zoals een info-toast
+    await expect(warning).toBeVisible();
     expect(await blockedBytes()).toBe(before);
     await blocker.evaluate(() => {
       const db: unknown = Reflect.get(window, '__blockedRecoveryDb');
@@ -636,7 +586,7 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
       db.close();
     });
     await expect.poll(openEvents).toEqual(['blocked', 'upgradeneeded', 'error']);
-    expect((await readRecoveryDb(page, 'Fundering')).version).toBe(2); // late upgrade is afgebroken
+    expect((await readRecoveryDb(page, 'Fundering')).version).toBe(2);
     expect(await refusedOperations()).toEqual(Array(4).fill('IndexedDbUpgradeBlockedError'));
     await addTask.click();
     await page.clock.runFor(10_000);
@@ -655,7 +605,6 @@ test('crashherstel: oude v1-snapshot herstelt en I/O- of parsefoutkopie blijft b
         documents: state.documents.length, session: sessionStorage.getItem('ops-recovery-session') };
     })).toEqual({ tasks: 3, filePath: null, siteFileId: null, documents: 1, session: 'blocked-upgrade' });
     await page.clock.resume();
-    // Alleen een nieuwe paginastart probeert opnieuw; gezond v2-herstel en de v3-index blijven werken.
     page.once('dialog', dialog => { void dialog.accept(); });
     await page.reload();
     await waitForOps(page);

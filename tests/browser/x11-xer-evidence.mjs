@@ -279,7 +279,7 @@ async function removeTemporaryDependencies(linkPath) {
   try {
     const stat = await lstat(linkPath);
     if (stat.isSymbolicLink()) await unlink(linkPath);
-  } catch { /* opruimen is best effort; de runstatus blijft leidend */ }
+  } catch { }
 }
 
 function loadPlaywrightCore() {
@@ -296,7 +296,7 @@ function loadPlaywrightCore() {
         if (metadata.name === 'playwright-core') return require(candidate);
       }
       return require(require.resolve('playwright-core', { paths: [candidate] }));
-    } catch { /* probeer het volgende expliciete/externe pad */ }
+    } catch { }
   }
   fail('playwright-core niet gevonden; stel OPS_PLAYWRIGHT_DIR in');
 }
@@ -871,8 +871,6 @@ async function abortIndexedDbTransaction(page) {
     try {
       return await new Promise((resolvePromise, reject) => {
         const tx = db.transaction('records', 'readwrite');
-        // Een expliciete abort levert volgens IndexedDB ook een bubbling error-event op de
-        // request/transaction. Onderdruk alleen dat verwachte AbortError-pad; onabort is de gate.
         tx.onerror = (event) => { event.preventDefault(); };
         tx.oncomplete = () => reject(new Error('abortproef committeerde onverwacht'));
         tx.onabort = () => resolvePromise(true);
@@ -920,9 +918,6 @@ async function runBrowserRecovery(page, preflightResult, bridgeGateSetup) {
   const tabs = page.locator('[role="tab"][data-ops-tab-index]');
   if (await tabs.count() !== 12) fail(`recovery-import leverde ${await tabs.count()} tabs, verwacht 12`);
 
-  // Een geopende bronimport is terecht schoon en maakt dus nog geen crashsnapshot. Maak via de
-  // gewone zichtbare productbediening één echte gebruikerswijziging; vanaf dat moment moet de
-  // browser-autosave alle twaalf open documenten veiligstellen.
   const taskCountBeforeTrigger = (await readPhase2BDocumentState(page)).activeDocument.taskCount;
   const homeTab = page.locator('button.ribbon-tab').filter({ hasText: /^Home$/ });
   await homeTab.click();
@@ -1254,16 +1249,12 @@ async function runBrowserSmallA(preflightResult, server) {
     locale: 'en-US',
     viewport: { width: 1440, height: 900 },
   });
-  // Deze drie wijzigingen gelden alleen binnen dit Playwright-contextobject. De eerste gebeurt
-  // vóór de eerste pagina-load, zodat de bestaande input[type=file]-terugval werkelijk wordt
-  // gekozen in plaats van de Chromium File System Access API.
   await context.addInitScript(() => {
     delete window.showOpenFilePicker;
     localStorage.setItem('ops-locale', 'en');
     localStorage.setItem('ops-docs-locale', 'en');
     localStorage.setItem('ops-documentChromeStyle', 'tabs');
     localStorage.setItem('ops-welcomeSeen', 'true');
-    // Uitleg na het openen van een ander formaat (FormatNoticeDialog) uit: hij is modaal.
     localStorage.setItem('ops-formatNoticeHidden', JSON.stringify(['xer', 'mpp', 'mspdi', 'p6xml', 'csv']));
     const counts = { alert: 0, confirm: 0, prompt: 0 };
     window.__OPS_X11_DIALOG_COUNTS__ = counts;

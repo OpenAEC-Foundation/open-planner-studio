@@ -1,16 +1,3 @@
-// Platformbouw voor de OpenAEC-app op Frappe (issues #307, #308, #310, #311).
-//
-// Deze spec bouwt ÉÉN keer de platformbundel met het echte commando (`npm run build:platform`,
-// hier rechtstreeks `node scripts/build-platform.mjs`, wat dat npm-script ook doet) en serveert
-// `dist-platform/` met een kleine statische server onder het subpad `/tools/planner/`. Alles buiten
-// dat subpad geeft 404, zoals op de site: een hard pad naar `/icon.png` of `/docs/…` valt dan op.
-//
-// Een productiebouw heeft geen `window.__OPS__`; alle controles lopen via de DOM en echte klikken.
-// De dev-server die Playwright voor de rest van de suite start, gebruikt deze spec niet.
-//
-// De werkplek van de SuperCloud (#818) staat onderaan: dezelfde bundel in een sandbox-frame met een
-// strikte CSP en een nep-`window.openaecHost`. De server levert daarvoor ook `/werkplek.html`.
-
 import { expect, test, type Frame, type Page, type Request } from '@playwright/test';
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, statSync, createReadStream } from 'node:fs';
@@ -49,18 +36,6 @@ function listFiles(dir: string): string[] {
   });
 }
 
-// De werkplek van de SuperCloud (#818), BENADERD: de echte SuperCloud zet zijn eigen ouderpagina, CSP en
-// berichtbrug neer; die hebben we hier niet. Wat we wel nadoen, volgens het contract:
-//   - een ouderpagina buiten het basispad met een frame `sandbox="allow-scripts allow-modals"` (zonder
-//     `allow-same-origin`): het document in het frame heeft een opaque origin (`null`);
-//   - een strikte CSP op het document in het frame: alleen de eigen bundel, geen inline scripts, geen
-//     netwerk naar buiten. Inline stijlen mogen volgens het contract. `data:` en `blob:` voor afbeeldingen
-//     en lettertypen laten we toe: dat is geen netwerk, en of de SuperCloud ze toelaat, staat niet in het
-//     contract (zie knownbugs 866);
-//   - `Access-Control-Allow-Origin: *` op de bestanden van de bundel: een opaque frame haalt modules en
-//     lettertypen op met origin `null` (calc-supercloud.md).
-// De CSP gaat alleen mee met een document dat in een frame laadt (`Sec-Fetch-Dest: iframe`) of een worker,
-// zodat de scenario's hierboven (de bundel als gewone pagina, zoals op Frappe) ongewijzigd blijven.
 const WORKPLACE_PATH = '/werkplek.html';
 const WORKPLACE_HTML = `<!doctype html>
 <html lang="nl"><head><meta charset="utf-8"><title>Werkplek (test)</title></head>
@@ -77,8 +52,6 @@ const WORKPLACE_CSP = [
   "font-src 'self' data:",
 ].join('; ');
 
-/** Statische server: alleen `BASE` bestaat, de rest is 404 (net als een subpad op de site). Uitzondering:
- *  de ouderpagina van de werkplek op `WORKPLACE_PATH`. */
 function startStaticServer(): Promise<Server> {
   const root = resolve(OUT_DIR);
   const srv = createServer((req, res) => {
@@ -110,8 +83,6 @@ function startStaticServer(): Promise<Server> {
   return new Promise((resolveServer) => srv.listen(0, '127.0.0.1', () => resolveServer(srv)));
 }
 
-/** Open de app op het subpad. Welkomst en "net geüpdatet" staan uit; een oude `ops-aiMode = true`
- *  staat wél klaar, om te bewijzen dat de platformbouw die negeert. */
 async function openApp(page: Page): Promise<{ sameOriginOutsideBase: string[]; catalogRequests: string[]; pageErrors: string[] }> {
   const sameOriginOutsideBase: string[] = [];
   const catalogRequests: string[] = [];
@@ -137,15 +108,11 @@ async function openBackstage(page: Page): Promise<void> {
   await expect(page.locator('.backstage')).toBeVisible();
 }
 
-/** Taakrijen in de taaktabel; de lege invoerrij (`data-grid-ghost`) telt niet mee. */
 const taskRows = (page: Page) => page.locator('[data-grid-data-row="true"]:not([data-grid-ghost="true"])');
 
 const navItem = (page: Page, label: string) =>
   page.locator('.backstage-sidebar .backstage-nav-item', { hasText: new RegExp(`^${label}$`) });
 
-/** Start de rondleiding met "Start tour" in Instellingen → Geavanceerd (dat tabblad staat open) en loop hem
- *  tot het einde (#818): zes stappen, zonder de feedbackstap, en "Close" op de laatste. Daarna staat er geen
- *  laag meer over de app: een echte klik op een ribbontab komt aan. `root` is de pagina of het frame. */
 async function walkTourFromSettings(root: Page | Frame): Promise<void> {
   await root.locator('.backstage-main').getByRole('button', { name: 'Start tour' }).click();
   const card = root.locator('[data-ops-tour-card]');
@@ -183,7 +150,6 @@ test.afterAll(async () => {
 });
 
 test('de bundel: manifest, basispad in index.html, geen catalogus-URL', () => {
-  // Vite's build.manifest: hiermee voegt de site de entry in.
   const manifestPath = join(OUT_DIR, '.vite', 'manifest.json');
   expect(existsSync(manifestPath)).toBe(true);
   const manifest = JSON.parse(readFileSync(manifestPath, 'utf8')) as Record<string, { file: string; isEntry?: boolean }>;
@@ -191,13 +157,10 @@ test('de bundel: manifest, basispad in index.html, geen catalogus-URL', () => {
   expect(entry?.isEntry).toBe(true);
   expect(existsSync(join(OUT_DIR, entry.file))).toBe(true);
 
-  // Elke src/href in index.html wijst naar een bestand onder het basispad.
   const html = readFileSync(join(OUT_DIR, 'index.html'), 'utf8');
   const refs = [...html.matchAll(/\s(?:src|href)="([^"]+)"/g)].map((m) => m[1]);
   expect(refs.length).toBeGreaterThan(0);
   for (const ref of refs) expect(ref, `pad in index.html: ${ref}`).toMatch(/^\/tools\/planner\//);
-  // Geen inline script (#818: de CSP van de SuperCloud laat alleen de eigen bundel toe). Het pre-paint-script
-  // staat als klassiek script onder het basispad en is meegekopieerd.
   const scripts = [...html.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi)];
   for (const [, attrs, body] of scripts) {
     expect(attrs, 'elk script heeft een src').toMatch(/\ssrc="/);
@@ -206,13 +169,11 @@ test('de bundel: manifest, basispad in index.html, geen catalogus-URL', () => {
   expect(html).toMatch(new RegExp(`<script src="${BASE}theme-prepaint\\.js"></script>`));
   expect(existsSync(join(OUT_DIR, 'theme-prepaint.js'))).toBe(true);
 
-  // Extensies uit (#311): de catalogus-URL zit nergens in de JS.
   const jsFiles = listFiles(OUT_DIR).filter((f) => f.endsWith('.js'));
   expect(jsFiles.length).toBeGreaterThan(0);
   const withCatalog = jsFiles.filter((f) => readFileSync(f, 'utf8').includes(CATALOG_MARKER));
   expect(withCatalog, 'JS-bestanden met de catalogus-URL').toEqual([]);
 
-  // De tooldefinities voor de assistent van de site liggen naast de bundel (#818), zonder de bestandstools.
   const tools = JSON.parse(readFileSync(join(OUT_DIR, 'mcp-tools.json'), 'utf8')) as { name: string }[];
   const names = tools.map((tool) => tool.name);
   expect(names).toContain('planner_add_tasks');
@@ -223,12 +184,10 @@ test('de bundel: manifest, basispad in index.html, geen catalogus-URL', () => {
 test('de app op het subpad: icoon, leeg document, geen MCP-tabblad, geen token', async ({ page }) => {
   const seen = await openApp(page);
 
-  // Het icoon laadt via het basispad.
   const icon = page.locator('img.title-bar-app-icon');
   await expect(icon).toHaveAttribute('src', `${BASE}icon.png`);
   await expect.poll(() => icon.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth > 0)).toBe(true);
 
-  // Geen demo-start (#310): de tool haalt geen voorbeeld op en het document blijft leeg.
   await page.waitForLoadState('networkidle');
   await page.waitForTimeout(1_000);
   const exampleRequests = await page.evaluate(() =>
@@ -237,7 +196,6 @@ test('de app op het subpad: icoon, leeg document, geen MCP-tabblad, geen token',
   await expect(page.locator('[data-grid-data-row="true"]').first()).toBeVisible();
   await expect(taskRows(page)).toHaveCount(0);
 
-  // MCP-koppeling uit, ook met een oude `ops-aiMode = true`; er komt geen token in de opslag.
   await expect(page.locator('.ribbon-tab', { hasText: /^MCP$/ })).toHaveCount(0);
   await expect(page.locator('[data-ops-ribbon-tab="ai"]')).toHaveCount(0);
   expect(await page.evaluate(() => localStorage.getItem('ops-mcpToken'))).toBeNull();
@@ -251,17 +209,14 @@ test('Backstage: geen Extensies, geen extensie-importers, geen MCP-instellingen'
   const seen = await openApp(page);
   await openBackstage(page);
 
-  // Controle dat de selector werkt: de andere items zijn er wel.
   await expect(navItem(page, 'App settings')).toHaveCount(1);
   await expect(navItem(page, 'Help')).toHaveCount(1);
   await expect(navItem(page, 'Extensions')).toHaveCount(0);
 
-  // Importeren: de eigen kaart wel, maar geen extensie-importers en geen verwijzing naar Extensies.
   await navItem(page, 'Import').click();
   await expect(page.locator('[data-ops-progress-import-card]')).toBeVisible();
   await expect(page.locator('.backstage-main')).not.toContainText('Extensions');
 
-  // Instellingen → Geavanceerd: Debug-terminal wel, MCP-koppeling niet (ook niet via zoeken).
   await navItem(page, 'App settings').click();
   await page.locator('.backstage-main [data-ops-settings-group="advanced"]').click();
   await expect(page.locator('.backstage-main [data-ops-setting="debugTerminal"]')).toBeVisible();
@@ -269,15 +224,11 @@ test('Backstage: geen Extensies, geen extensie-importers, geen MCP-instellingen'
   await page.locator('.backstage-main [data-ops-settings-search]').fill('MCP');
   await expect(page.locator('.backstage-main [data-ops-setting]')).toHaveCount(0);
   await page.locator('.backstage-main [data-ops-settings-search]').fill('');
-  // Over de app.
   await page.locator('.backstage-main [data-ops-settings-group="about"]').click();
-  // Geen downloadcijfers (#818): die komen van GitHub, en de werkplek laat geen netwerk buiten de bundel toe.
   await expect(page.locator('.backstage-main [data-ops-settings-stats]')).toHaveCount(0);
-  // Geen update-check en geen "Wat is er nieuw" (#818, knownbug 868); het versienummer staat er wel.
   await expect(page.locator('.backstage-main [data-ops-settings-version]')).toBeVisible();
   await expect(page.locator('.backstage-main').getByRole('button', { name: 'Check for updates' })).toHaveCount(0);
   await expect(page.locator('.backstage-main').getByRole('button', { name: "What's new" })).toHaveCount(0);
-  // Geen feedbackknop in de titelbalk (#818, knownbug 865): de werkplek heeft er zelf een.
   await expect(page.locator('[data-tour-anchor="feedback-button"]')).toHaveCount(0);
 
   await walkTourFromSettings(page);
@@ -316,7 +267,6 @@ test('Voorbeelden: een voorbeeldproject laadt via het basispad', async ({ page }
   await expect(card).toBeVisible({ timeout: 15_000 });
   await card.click();
 
-  // Na het openen sluit de Backstage en staat de planning in de taaktabel.
   await expect(page.locator('.backstage')).toHaveCount(0, { timeout: 15_000 });
   await expect.poll(() => taskRows(page).count(), { timeout: 15_000 }).toBeGreaterThan(0);
 
@@ -325,10 +275,6 @@ test('Voorbeelden: een voorbeeldproject laadt via het basispad', async ({ page }
   expect(seen.pageErrors).toEqual([]);
 });
 
-// Productiebundel (PR #369, hercheck): in een productiebouw vangt een voorpoort Ctrl+S af vóór het
-// sneltoets-register. Die voorpoort moet het actieve tekstveld eerst laten committen, net als het
-// register; anders staat een getypte inzet die direct met Ctrl+S wordt opgeslagen er niet in.
-// Geen `__OPS__` in deze bouw: we lezen de waarde uit het gedownloade IFC-bestand.
 test('Ctrl+S direct na het typen van een inzet slaat de nieuwe inzet op', async ({ page }) => {
   const seen = await openApp(page);
   await openBackstage(page);
@@ -339,7 +285,6 @@ test('Ctrl+S direct na het typen van een inzet slaat de nieuwe inzet op', async 
   await expect(page.locator('.backstage')).toHaveCount(0, { timeout: 15_000 });
   await expect.poll(() => taskRows(page).count(), { timeout: 15_000 }).toBeGreaterThan(0);
 
-  // Kies de eerste taak met een toewijzing (klik op de rij, zoals een planner).
   const row = page.locator('[data-ops-assignment-row]').first();
   const count = await taskRows(page).count();
   for (let i = 0; i < count && !(await row.isVisible()); i++) {
@@ -358,7 +303,6 @@ test('Ctrl+S direct na het typen van een inzet slaat de nieuwe inzet op', async 
   const ifc = readFileSync(await (await download).path(), 'utf8');
   expect(ifc).toMatch(/IFCTEXT\('3\.25\|/);
 
-  // De focus staat weer in het veld: Backspace verwijdert de geselecteerde taak niet.
   await expect(input).toBeFocused();
   const rowsBefore = await taskRows(page).count();
   await page.keyboard.press('Backspace');
@@ -368,12 +312,6 @@ test('Ctrl+S direct na het typen van een inzet slaat de nieuwe inzet op', async 
   expect(seen.pageErrors).toEqual([]);
 });
 
-// ── De werkplek van de SuperCloud (#818) ──────────────────────────────────────────────────────────────
-// De controle uit het issue: de bundel start zonder fouten in een sandbox-frame met een strikte CSP (zie
-// `WORKPLACE_CSP` hierboven, een benadering), en Openen, Opslaan, Opslaan als, instellingen en de assistent
-// werken met een nep-`window.openaecHost` in de platte vorm van het contract.
-
-/** Een aanroep van de nep-host, zoals hij hem bijhoudt op `window.__werkplek.calls` in het frame. */
 interface WorkplaceHostCall {
   fn: 'open' | 'save' | 'list' | 'versions' | 'settings.get' | 'settings.set' | 'settings.delete';
   id?: string | null;
@@ -388,25 +326,12 @@ interface WorkplaceHostCall {
 }
 
 const WORKPLACE_IFC = readFileSync(join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
-/** Een taak uit dat voorbeeld; de eerste rijen van de taaktabel. */
 const WORKPLACE_TASK = 'Set up site';
 const FLOAT_BAND = (JSON.parse(readFileSync(join(ROOT, 'src/i18n/locales/en/menu.json'), 'utf8')) as {
   ribbon: { toggleFloatBand: string };
 }).ribbon.toggleFloatBand;
-/** De instelling die het scenario omzet. De tool bewaart elke blijvende `ops-`-sleutel onder dezelfde naam
- *  bij de host, met de tekst uit `localStorage` als waarde (`siteHostSettings.ts`). */
 const FLOAT_BAND_KEY = 'ops-showFloatBand';
 
-/**
- * Zet in het frame (en alleen daar) vóór de start wat de SuperCloud daar neerzet: opslag in het geheugen
- * voor `localStorage`/`sessionStorage` (het opaque frame weigert de echte) en `window.openaecHost`. De
- * nep-host houdt elke aanroep bij op `window.__werkplek.calls`; CSP-schendingen komen in
- * `window.__werkplek.violations`.
- *
- * De host houdt bij de start `settings.get` en `open` vast tot de test ze vrijgeeft
- * (`window.__werkplek.release('settings' | 'open')`), zodat de test kan kijken wat er tijdens de hostlezing en
- * vóór het startbestand bestaat. De host bewaart `ops-constructionMode = 'false'` (bouwmodus uit).
- */
 async function installWorkplaceHost(page: Page): Promise<void> {
   await page.addInitScript((ifc) => {
     if (window.top === window) return;
@@ -425,7 +350,6 @@ async function installWorkplaceHost(page: Page): Promise<void> {
       state.violations.push(`${event.effectiveDirective} ${event.blockedURI} ${event.sourceFile}:${event.lineNumber}`);
     }, true);
 
-    // De SuperCloud geeft het frame opslag in het geheugen (contract: "Geen opslag in de browser").
     const memoryStorage = (): Storage => {
       const items = new Map<string, string>();
       return {
@@ -441,7 +365,6 @@ async function installWorkplaceHost(page: Page): Promise<void> {
       try { void window[name]; } catch { Object.defineProperty(window, name, { configurable: true, value: memoryStorage() }); }
     }
 
-    // Bestanden in de map van de tool; versies als GETAL, zoals de SuperCloud.
     interface HostFile { id: string; name: string; version: number; bytes: Uint8Array }
     const files = new Map<string, HostFile>([['f1', { id: 'f1', name: 'Verbouwing.ifc', version: 7, bytes: new TextEncoder().encode(ifc) }]]);
     let seq = 0;
@@ -497,7 +420,6 @@ async function installWorkplaceHost(page: Page): Promise<void> {
   }, WORKPLACE_IFC);
 }
 
-/** Het frame van de tool op de ouderpagina. */
 async function toolFrame(page: Page): Promise<Frame> {
   await expect.poll(() => page.frames().length, { timeout: 15_000 }).toBe(2);
   return page.frames().find((frame) => frame !== page.mainFrame())!;
@@ -509,7 +431,6 @@ const workplaceSaves = async (frame: Frame) => (await workplaceCalls(frame)).fil
 
 test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de assistent via de host', async ({ page }) => {
   test.setTimeout(120_000);
-  // Een donkere systeemvoorkeur: dan bewijst `data-theme="light"` dat het thema van de host wint.
   await page.emulateMedia({ colorScheme: 'dark' });
   const consoleErrors: string[] = [];
   const pageErrors: string[] = [];
@@ -525,13 +446,9 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   await page.goto(`${origin}${WORKPLACE_PATH}`);
   const frame = await toolFrame(page);
 
-  // Echt een opaque origin, en de nep-opslag van de SuperCloud staat er.
   await expect.poll(() => frame.evaluate(() => (window as unknown as { __werkplek: { waiting(what: string): number } }).__werkplek.waiting('settings')), { timeout: 20_000 }).toBeGreaterThan(0);
   expect(await frame.evaluate(() => [self.origin, typeof window.localStorage.getItem])).toEqual(['null', 'function']);
 
-  // Tijdens de hostlezing (review #828): nog geen app en nog geen `window.__OPDS_APP__`. Een vroege aanroep
-  // zou de store maken met de standaardinstellingen. Staat het koppelvlak er toch, dan doen we wat een vroege
-  // assistent doet (`definitions()`); de kalender hieronder wordt dan rood.
   const duringRead = await frame.evaluate(async () => {
     const app = (window as unknown as { __OPDS_APP__?: { definitions(): Promise<unknown> } }).__OPDS_APP__;
     if (app) await app.definitions().catch(() => null);
@@ -540,8 +457,6 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   expect(duringRead).toEqual({ assistant: false, rendered: false });
   await frame.evaluate(() => (window as unknown as { __werkplek: { release(what: string): void } }).__werkplek.release('settings'));
 
-  // De start wacht op de hostlezing (#827): alle `settings.get` komen vóór het openen van het startbestand. Bij
-  // het openen staat `window.__OPDS_APP__` er al.
   await expect.poll(() => frame.evaluate(() => (window as unknown as { __werkplek: { waiting(what: string): number } }).__werkplek.waiting('open')), { timeout: 20_000 }).toBe(1);
   {
     const calls = await workplaceCalls(frame);
@@ -550,13 +465,9 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
     expect(gets.length).toBeGreaterThan(0);
     expect(Math.max(...gets)).toBeLessThan(firstOpen);
     expect(calls[firstOpen]).toEqual({ fn: 'open', id: 'f1', version: null, assistant: 'object' });
-    // De start mag sleutels die de host nog niet had één keer meesturen (#827), maar raakt de bouwmodus van de
-    // host en de instelling die de gebruiker straks omzet niet aan.
     expect(calls.filter((call) => (call.fn === 'settings.set' || call.fn === 'settings.delete')
       && (call.key === 'ops-constructionMode' || call.key === FLOAT_BAND_KEY))).toEqual([]);
   }
-  // De kalender die de app werkelijk maakte (het lege startdocument, vóór het startbestand): bouwmodus uit
-  // bij de host, dus de Standaardkalender zonder feestdagen.
   const startCalendar = await frame.evaluate(async () => {
     const app = (window as unknown as { __OPDS_APP__: { run(name: string, args?: object): Promise<unknown> } }).__OPDS_APP__;
     const result = await app.run('planner_get_calendars', {}) as { data: { calendars: { name: string; holidays?: unknown[]; isProjectDefault?: boolean }[] } };
@@ -567,18 +478,13 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   await frame.evaluate(() => (window as unknown as { __werkplek: { release(what: string): void } }).__werkplek.release('open'));
   await expect(frame.locator('.title-bar')).toBeVisible({ timeout: 20_000 });
 
-  // Het startbestand van de host opent: een taak staat in de taaktabel.
   await expect(frame.getByText(WORKPLACE_TASK, { exact: true }).first()).toBeVisible({ timeout: 20_000 });
-  // De host antwoordde binnen 5 s: geen pop-up over niet-geladen instellingen (#818).
   await expect(frame.locator('[data-ops-settings-delay-dialog]')).toHaveCount(0);
   expect((await workplaceCalls(frame)).filter((call) => call.fn === 'open')).toEqual([{ fn: 'open', id: 'f1', version: null, assistant: 'object' }]);
 
-  // Taal en thema van de host: Engels en licht, ook al is het systeem donker.
   await expect(frame.locator('html')).toHaveAttribute('lang', 'en');
   await expect(frame.locator('html')).toHaveAttribute('data-theme', 'light');
 
-  // De assistent van de site: definities zonder bestandstools, een leestool met paginering, en een
-  // bestandstool die weigert met `niet_in_browser`.
   const assistant = await frame.evaluate(async () => {
     interface App {
       tools(): Promise<string[]>;
@@ -615,14 +521,10 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   expect(assistant!.list.names).toContain(WORKPLACE_TASK);
   expect(assistant!.refusal?.code).toBe('niet_in_browser');
   expect(assistant!.refusal?.message).toMatch(/^niet_in_browser: planner_export_ifc/);
-  // `mcp-tools.json` naast de bundel heeft precies dezelfde tools als `definitions()`.
   const toolsFile = await page.request.get(`${origin}${BASE}mcp-tools.json`);
   expect(toolsFile.status()).toBe(200);
   expect(((await toolsFile.json()) as { name: string }[]).map((tool) => tool.name)).toEqual(assistant!.names);
 
-  // Een echte wijziging: een nieuwe taak in de taaktabel. Insert opent de naamcel van de nieuwe rij; het
-  // typen moet daar landen, niet in het naamveld van het eigenschappenpaneel (in de productiebundel won
-  // dat veld eerst de focus en bleef de cel leeg open).
   const grid = frame.locator('[data-task-grid-surface-id="gantt-task-grid"]');
   await grid.locator('[data-grid-row-key][data-grid-column-id="task.name"]').first().click();
   await page.keyboard.press('Insert');
@@ -631,7 +533,6 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   await page.keyboard.press('Enter');
   await expect(grid.getByText('In de werkplek', { exact: true }).first()).toBeVisible();
 
-  // Ctrl+S: een nieuwe versie van hetzelfde bestand, met de geopende versie als GETAL.
   await page.keyboard.press('Control+s');
   await expect.poll(() => workplaceSaves(frame).then((saves) => saves.length)).toBe(1);
   const [save] = await workplaceSaves(frame);
@@ -640,7 +541,6 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   expect(save.text).toContain("'In de werkplek'");
   await expect(frame.locator('[data-ops-site-save-dialog]')).toHaveCount(0);
 
-  // Nog een Ctrl+S na een wijziging: de basis is nu de versie die de host teruggaf (8).
   await grid.getByText('In de werkplek', { exact: true }).first().click();
   await page.keyboard.press('Insert');
   await expect(grid.locator('input:focus')).toHaveCount(1);
@@ -651,7 +551,6 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   await expect.poll(() => workplaceSaves(frame).then((saves) => saves.length)).toBe(2);
   expect((await workplaceSaves(frame))[1]).toMatchObject({ id: 'f1', expectedVersion: 8 });
 
-  // Opslaan als: een nieuw bestand met alleen een naam.
   await page.keyboard.press('Control+Shift+s');
   const saveDialog = frame.locator('[data-ops-site-save-dialog]');
   await expect(saveDialog).toBeVisible();
@@ -661,8 +560,6 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   await expect.poll(() => workplaceSaves(frame).then((saves) => saves.length)).toBe(3);
   expect((await workplaceSaves(frame))[2]).toMatchObject({ fn: 'save', id: null, name: 'Variant.ifc', expectedVersion: null, bytes: true });
 
-  // Een instelling die de gebruiker omzet, komt gebundeld bij `settings.set` van de host, onder haar eigen
-  // sleutel. Bij de start vroeg de tool die sleutel op met `settings.get`.
   expect((await workplaceCalls(frame)).some((call) => call.fn === 'settings.get' && call.key === FLOAT_BAND_KEY)).toBe(true);
   await frame.locator('[data-ops-ribbon-tab="beeld"]').click();
   const floatBand = frame.getByRole('button', { name: new RegExp(`^${FLOAT_BAND}`) });
@@ -674,8 +571,6 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
     return sets.at(-1)?.value;
   }).toBe(String(!wasActive));
 
-  // Nivelleren: het opaque frame weigert een worker van de bundel al in de constructor (`SecurityError`);
-  // de berekening valt dan terug op de hoofdthread en levert gewoon een voorstel.
   await frame.locator('[data-ops-ribbon-tab="resources"]').click();
   await frame.locator('[data-ops-ribbon-item="levelResources"]').first().click();
   const leveling = frame.getByRole('dialog');
@@ -686,15 +581,12 @@ test('werkplek: in een sandbox-frame met CSP openen, opslaan, instellingen en de
   await leveling.getByRole('button', { name: /^Cancel$/ }).click();
   await expect(leveling).toBeHidden();
 
-  // De rondleiding vanuit Instellingen, in het frame (#818): zonder feedbackknop loopt hij tot het einde,
-  // en daarna is de app weer bedienbaar.
   await expect(frame.locator('[data-tour-anchor="feedback-button"]')).toHaveCount(0);
   await frame.locator('.ribbon-tab--file').click();
   await frame.locator('.backstage-sidebar .backstage-nav-item', { hasText: /^App settings$/ }).click();
   await frame.locator('.backstage-main [data-ops-settings-group="about"]').click();
   await walkTourFromSettings(frame);
 
-  // Geen fout, geen CSP-schending en geen verzoek buiten de bundel, over de hele route.
   expect(await frame.evaluate(() => (window as unknown as { __werkplek: { violations: string[] } }).__werkplek.violations), 'CSP-schendingen').toEqual([]);
   expect(consoleErrors, 'consolefouten').toEqual([]);
   expect(pageErrors, 'onafgevangen fouten').toEqual([]);

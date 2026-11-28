@@ -1,9 +1,5 @@
 import { expect, seedProject, test } from './fixtures/ops';
 
-// Review taakmutaties, bijvangst B: solverfouten verschenen ongeacht de UI-taal als vaste tekst —
-// "Ongeldige startdatum voor taak …" in het Nederlands, "Circular dependency detected" in het Engels.
-// De ongeldige start en de kring komen als ruwe data binnen (zoals uit een geopend bestand); taal
-// kiezen, berekenen en het waarschuwingenpaneel openen gaan via echte klikken.
 test('solverfouten verschijnen in de gekozen UI-taal, in de melding en in het waarschuwingenpaneel', async ({ page, ops: _ops }) => {
   const [first, second] = await seedProject(page, [
     { name: 'Erdarbeiten', start: '2026-09-07', finish: '2026-09-18' },
@@ -19,8 +15,6 @@ test('solverfouten verschijnen in de gekozen UI-taal, in de melding en in het wa
   await page.getByRole('button', { name: /^(Language|Taal)$/, exact: true }).click();
   await page.getByRole('option', { name: /Deutsch/ }).click();
   await expect(page.locator('html')).toHaveAttribute('lang', 'de');
-  // Sinds #233 heeft het sluitkruisje zelf de naam "Sluiten" (naast de voetknop met dezelfde
-  // tekst); kies daarom expliciet het kruisje, en bewijs meteen dat ook zijn naam meevertaalt.
   const closeX = page.getByRole('dialog').locator('.modal-close-btn');
   await expect(closeX).toHaveAccessibleName('Schließen');
   await closeX.click();

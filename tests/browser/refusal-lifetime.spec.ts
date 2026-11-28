@@ -1,14 +1,3 @@
-// Eigenaarsbesluiten 2026-10-19 (PR #375).
-//  5a: *Taak* met een selectie buiten boommodus zet de taak achteraan en meldt dat met een RODE
-//      toast (geen strook), met de knop *Wissen* die filter, groepering en sortering wist.
-//  5b: een weigering verdwijnt na een undo- of redo-stap en bij een documentwissel. Echte fouten
-//      blijven (headless bewaakt in tests/planning/check-refusal-lifetime.ts).
-// Route 2 (Insert, Ctrl+I) en in-/uitspringen houden de strook.
-//
-// Echte events: lintknoppen, klikken in het raster, typen, Ctrl+Z/Ctrl+Y, Bestand › Voorbeelden,
-// tabklik. De `__OPS__`-brug zet alleen fixtures (project, taal) en leest state.
-//
-// Schermbewijs: `OPS_REFUSAL_SHOTS=<map>` maakt van de *Taak*-toast een PNG in licht en donker.
 import type { Locator, Page } from '@playwright/test';
 import { expect, seedProject, test } from './fixtures/ops';
 import { LOCALE_CASES, chooseLocale } from './fixtures/locale';
@@ -53,7 +42,6 @@ async function shoot(page: Page, target: Locator, name: string): Promise<void> {
     await page.evaluate(t => window.__OPS__!.store.getState().setUI({ uiTheme: t }), theme);
     await page.waitForTimeout(300);
     const b = (await target.boundingBox())!;
-    // De toast met wat raster erboven, zodat te zien is waar hij staat.
     const pad = 24;
     const x = Math.max(b.x - 260, 0);
     const y = Math.max(b.y - 220, 0);
@@ -67,8 +55,6 @@ async function openExample(page: Page, title: RegExp): Promise<void> {
   await page.locator('.ribbon-tab--file').first().click();
   await page.locator('button.backstage-nav-item[data-tour-anchor="backstage-examples"]').click();
   await page.locator('button.backstage-export-card').filter({ has: page.locator('h4', { hasText: title }) }).first().click();
-  // Wacht tot het gekozen voorbeeld echt actief is. Alleen `tasks.length > 5` is bij een tweede
-  // voorbeeld al waar vóór de wissel (dan staat het vorige document nog open): race op de CI.
   await expect.poll(() => page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     return { name: s.project.name, tasks: s.tasks.length };
@@ -76,7 +62,6 @@ async function openExample(page: Page, title: RegExp): Promise<void> {
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showPropertiesPanel: true, rightPanelCollapsed: false }));
 }
 
-/** Duurweigering op WBS 4.14 van De Akkers (50 % gedaan, duur 4): typ 1 in *Duur*. */
 async function refuseDuration(page: Page): Promise<{ id: string; toast: Locator }> {
   const id = await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
@@ -118,14 +103,12 @@ test('5a: Taak onder Resourcediagram ⇒ taak achteraan, rode toast (nl) zonder 
   await page.getByRole('button', { name: /^Start$/ }).click();
   await page.locator('[data-ops-ribbon-item="addTask"]').first().click();
 
-  // De taak komt er wél, en wel achteraan.
   await expect.poll(async () => (await S(page).tasks()).length).toBe(before.length + 1);
   const after = await S(page).tasks();
   const added = after[after.length - 1];
   expect(before.some(t => t.id === added.id)).toBe(false);
   expect(await S(page).selected()).toEqual([added.id]);
 
-  // Rode weigeringstoast met de letterlijke nl-tekst; geen strook.
   const toast = page.locator('.ops-toast', { hasText: NL_TEXT });
   await expect(toast).toHaveCount(1);
   await expect(toast).toHaveClass(/toast-error/);
@@ -133,14 +116,12 @@ test('5a: Taak onder Resourcediagram ⇒ taak achteraan, rode toast (nl) zonder 
   await expect(page.locator('[data-ops-structure-locked]')).toHaveCount(0);
   const clear = toast.locator('[data-ops-notification-action="clearViewArrangement"]');
   await expect(clear).toHaveText('Wissen');
-  // Naamveld heeft de focus na *Taak*; los die eerst, zodat de foto de toast toont zoals hij blijft.
   await page.keyboard.press('Escape');
   await shoot(page, toast, 'taak-achteraan');
 
   await clear.click();
   await expect(toast).toHaveCount(0);
   expect(await S(page).view()).toEqual({ group: [], sort: [], filter: null });
-  // De taak blijft staan.
   expect((await S(page).tasks()).some(t => t.id === added.id)).toBe(true);
 });
 
@@ -150,18 +131,15 @@ test('5b: duurweigering ⇒ geslaagde bewerking + Ctrl+Z ⇒ toast weg; nieuwe w
   const { id, toast } = await refuseDuration(page);
   expect(await duration(page, id)).toBe(4);
 
-  // Een geslaagde bewerking laat de weigering staan (blijft tot het kruisje).
   await typeDuration(page, '6');
   await expect.poll(() => duration(page, id)).toBe(6);
   await expect(toast).toHaveCount(1);
 
-  // Ctrl+Z buiten het invoerveld: de stap gaat terug en de weigering verdwijnt.
   await nameCell(page, 'Upper floor slab — House 4').click();
   await page.keyboard.press('Control+z');
   await expect.poll(() => duration(page, id)).toBe(4);
   await expect(toast).toHaveCount(0);
 
-  // Opnieuw weigeren, dan Ctrl+Y (redo): ook weg.
   await refuseDuration(page);
   await nameCell(page, 'Upper floor slab — House 4').click();
   await page.keyboard.press('Control+y');
@@ -184,7 +162,6 @@ test('5b: weigering ⇒ ander document openen ⇒ toast weg, en terug naar het e
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId)).toBe(akkers);
   await expect(toast).toHaveCount(0);
 
-  // Alleen een tabwissel (geen openen): opnieuw weigeren in De Akkers, dan het andere tabblad.
   await refuseDuration(page);
   await page.locator(`[data-ops-tab="${other}"]`).click();
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().activeDocumentId)).toBe(other);
@@ -194,7 +171,6 @@ test('5b: weigering ⇒ ander document openen ⇒ toast weg, en terug naar het e
 test('5a/5b: Insert en Ctrl+I onder groepering geven nog steeds de strook; Ctrl+Z sluit hem', async ({ page, ops: _ops }) => {
   await page.setViewportSize({ width: 1600, height: 1000 });
   await seedWithResources(page);
-  // Fixture: een bewerking om straks terug te draaien, daarna de groepering.
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     s.updateTask(s.tasks[2].id, { name: 'Gevel (oud)' });
@@ -217,7 +193,6 @@ test('5a/5b: Insert en Ctrl+I onder groepering geven nog steeds de strook; Ctrl+
   await expect(page.locator('.ops-toast')).toHaveCount(0);
   expect((await S(page).tasks()).length).toBe(count);
 
-  // 5b: na een undo-stap is de strook weg.
   await page.keyboard.press('Control+z');
   await expect.poll(() => page.evaluate(() => window.__OPS__!.store.getState().tasks.some(t => t.name === 'Gevel'))).toBe(true);
   await expect(strip).toHaveCount(0);

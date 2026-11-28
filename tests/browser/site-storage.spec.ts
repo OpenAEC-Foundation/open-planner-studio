@@ -1,15 +1,3 @@
-// Opslag via de site (issue #309) als echte gebruikershandeling: Ctrl+O, Ctrl+S, klikken in de
-// dialogen en in Recent. De SITE is hier een nep-host die `page.addInitScript` vóór de app op
-// `window.openaecHost` zet, precies zoals een echte site dat doet. Hij bewaart zijn bestanden in
-// `sessionStorage`, zodat ze een herlaadbeurt overleven, en telt elke aanroep. De brug
-// (`window.__OPS__`) leest alleen state en maakt een document gewijzigd; openen en opslaan zelf
-// gaan altijd via toetsen en klikken.
-//
-// De iframe-tests zetten de host op de PARENT (een same-origin pagina met de tool in een iframe),
-// zoals een site dat doet die de tool insluit. Objecten gaan dan tussen twee vensters heen en weer.
-//
-// Zonder host (laatste test) moet alles blijven zoals het was: geen site-dialoog, de gewone
-// bestandskiezer en download.
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import type { Frame, Page } from '@playwright/test';
@@ -27,14 +15,11 @@ interface HostCall {
   baseVersion?: string | null;
   type?: string;
   extensions?: string[] | null;
-  /** Alleen in de iframe-opzet: kwam de Blob van `save` uit het venster van de host of uit een ander? */
   realm?: 'host' | 'other';
-  /** Alleen in de SuperCloud-vorm: de `expectedVersion` van `save` (een getal) en of `bytes` een Uint8Array was. */
   expectedVersion?: number | string | null;
   bytes?: boolean;
 }
 
-/** Eén bestand `Planning.ifc` (id `p1`) met twee versies. */
 const SEED: HostFile[] = [{
   id: 'p1',
   name: 'Planning.ifc',
@@ -44,12 +29,6 @@ const SEED: HostFile[] = [{
   ],
 }];
 
-/**
- * De nep-host. Draait in de pagina, vóór de app, bij elke (her)laadbeurt. `onlyTop`: alleen in het
- * bovenste venster (de iframe-opzet), zodat de tool in de iframe de host op `window.parent` vindt.
- * Een ontbrekend bestand geeft `code: 'not-found'`; `failOpen` in de opslag laat `open` met een
- * andere fout falen.
- */
 async function installSiteHost(
   page: Page,
   seed: HostFile[],
@@ -114,8 +93,6 @@ async function installSiteHost(
         return [...find(read(), id).versions].reverse().map((v) => ({ version: v.version, author: v.author }));
       },
     };
-    // De SuperCloud-vorm (#818): de functies direct op de host, versies als GETAL, inhoud als bytes.
-    // Een conflict geeft geen fout maar een kopie naast het bestand.
     const superCloud = {
       async open(id: string, version?: number) {
         log({ fn: 'open', id, version: version ?? null });
@@ -159,7 +136,6 @@ async function installSiteHost(
       (window as unknown as { openaecHost: unknown }).openaecHost = host;
       return;
     }
-    // Een site die de host pas later zet, meldt dat met `openaec-host-ready` (zie siteHost.ts).
     setTimeout(() => {
       (window as unknown as { openaecHost: unknown }).openaecHost = host;
       window.dispatchEvent(new Event('openaec-host-ready'));
@@ -167,7 +143,6 @@ async function installSiteHost(
   }, { key: HOST_KEY, seedFiles: seed, initialFileId: options.initialFileId, lateMs: options.lateMs, onlyTop: !!options.onlyTop, shape: options.shape ?? 'storage' });
 }
 
-/** Pas de opslag van de host aan (testscenario's: storing, bestand weg, kapotte versie). */
 async function editHost(page: Page, change: 'fail-open' | 'heal-open' | 'delete-p1' | 'push-broken' | 'pop'): Promise<void> {
   await page.evaluate(({ key, what }) => {
     const db = JSON.parse(sessionStorage.getItem(key)!) as { files: HostFile[]; failOpen?: string };
@@ -181,7 +156,6 @@ async function editHost(page: Page, change: 'fail-open' | 'heal-open' | 'delete-
   }, { key: HOST_KEY, what: change });
 }
 
-/** Testscenario "iemand anders slaat op": een nieuwe versie direct in de opslag van de host. */
 async function otherUserSaves(page: Page, id: string): Promise<void> {
   await page.evaluate(({ key, fileId }) => {
     const db = JSON.parse(sessionStorage.getItem(key)!) as { files: HostFile[] };
@@ -196,7 +170,6 @@ async function hostCalls(page: Page): Promise<HostCall[]> {
 }
 const saves = async (page: Page) => (await hostCalls(page)).filter((c) => c.fn === 'save');
 
-/** De pagina of de iframe waarin de tool draait. */
 type Tool = Page | Frame;
 
 async function doc(tool: Tool) {
@@ -219,13 +192,11 @@ const lastNotification = (tool: Tool) => tool.evaluate(() => {
   return n ? { messageKey: n.messageKey, detail: n.detail ?? null, name: (n.params?.name as string | undefined) ?? null } : null;
 });
 
-/** Maak het actieve document gewijzigd (fixture, niet de handeling onder test). */
 async function makeDirty(tool: Tool, name: string): Promise<void> {
   await tool.evaluate((taskName) => { window.__OPS__!.store.getState().addTask({ name: taskName }); }, name);
   await expect.poll(() => doc(tool).then((d) => d.isDirty)).toBe(true);
 }
 
-/** Aantal records in de crashherstel-database (web). */
 async function recoveryRecords(page: Page): Promise<number> {
   return page.evaluate(() => new Promise<number>((done) => {
     const request = indexedDB.open('ops-recovery');
@@ -240,11 +211,6 @@ async function recoveryRecords(page: Page): Promise<number> {
   }));
 }
 
-/**
- * Na een herlaadbeurt: wacht op het herstelvenster of het einde van de welkomstcontrole (die komt pas
- * na de herstelcontrole). Een herstelvenster beantwoorden we met "niet herstellen". Met een host draait
- * de tool ingebed: geen welkomstvenster (#716).
- */
 async function settleAfterReload(page: Page): Promise<void> {
   await waitForOps(page);
   const recovery = page.locator('[data-ops-recovery-dialog]');
@@ -260,7 +226,6 @@ async function settleAfterReload(page: Page): Promise<void> {
 const openDialog = (tool: Tool) => tool.locator('[data-ops-site-open-dialog]');
 const saveDialog = (tool: Tool) => tool.locator('[data-ops-site-save-dialog]');
 
-/** Ctrl+O → "Openen van de site" → klik op het bestand (zonder te wachten op het resultaat). */
 async function clickOpenFromSite(page: Page, id: string): Promise<void> {
   await page.keyboard.press('Control+o');
   await expect(openDialog(page)).toBeVisible();
@@ -268,7 +233,6 @@ async function clickOpenFromSite(page: Page, id: string): Promise<void> {
   await expect(openDialog(page)).toHaveCount(0);
 }
 
-/** Ctrl+O → "Openen van de site" → klik op het bestand, en wacht tot het geopend is. */
 async function openFromSiteDialog(page: Page, id: string): Promise<void> {
   await clickOpenFromSite(page, id);
   await expect.poll(() => doc(page).then((d) => d.siteFileId)).toBe(id);
@@ -288,8 +252,6 @@ siteTest('openen van de site, Ctrl+S schrijft zonder dialoog, en Recent heropent
   const opened = await doc(page);
   expect(opened.filePath).toBe('Planning.ifc');
   expect(opened.tasks).toBeGreaterThan(0);
-  // `list` kan in DEV twee keer komen (React StrictMode draait het effect dubbel); het telt dat
-  // hij de open-extensies meekreeg en dat er precies één bestand gelezen is.
   const calls = await hostCalls(page);
   expect(calls.filter((c) => c.fn === 'list').every((c) => c.extensions?.includes('ifc'))).toBe(true);
   expect(calls.filter((c) => c.fn === 'list').length).toBeGreaterThan(0);
@@ -304,21 +266,17 @@ siteTest('openen van de site, Ctrl+S schrijft zonder dialoog, en Recent heropent
   await expect(saveDialog(page)).toHaveCount(0);
   await expect.poll(() => doc(page).then((d) => d.isDirty)).toBe(false);
 
-  // Nog een keer: de basis is nu de net geschreven versie 3.
   await makeDirty(page, 'Nog meer werk');
   await page.keyboard.press('Control+s');
   await expect.poll(() => saves(page).then((s) => s.length)).toBe(2);
   expect((await saves(page))[1].baseVersion).toBe('3');
   await expect(saveDialog(page)).toHaveCount(0);
 
-  // Recent toont het site-bestand met het label "Op de site".
   await page.locator('.ribbon-tab--file').click();
   const recent = page.locator('.backstage-recent-item').filter({ hasText: 'Planning.ifc' });
   await expect(recent).toHaveCount(1);
   await expect(recent.locator('[data-ops-recent-site]')).toHaveText(/^(On the site|Op de site)$/);
 
-  // Herladen. Recent moet het bestand heropenen, dus geen crashherstel: komt dat venster (de
-  // auto-save kan tussendoor een kopie hebben gemaakt), dan kiezen we "niet herstellen".
   page.on('dialog', (d) => { void d.accept(); });
   await page.reload();
   await settleAfterReload(page);
@@ -334,7 +292,6 @@ siteTest('openen van de site, Ctrl+S schrijft zonder dialoog, en Recent heropent
   expect(opens.length).toBe(opensBefore + 1);
   expect(opens.at(-1)).toEqual({ fn: 'open', id: 'p1', version: null });
 
-  // Na heropenen weer Ctrl+S: naar hetzelfde bestand, met de nieuwste versie (4) als basis.
   await makeDirty(page, 'Na herladen');
   await page.keyboard.press('Control+s');
   await expect.poll(() => saves(page).then((s) => s.length)).toBe(3);
@@ -350,10 +307,8 @@ siteTest('nieuw document: Ctrl+S vraagt een naam en maakt een nieuw bestand op d
   const nameField = saveDialog(page).locator('[data-ops-site-save-name]');
   await expect(nameField).toBeFocused();
   await expect(nameField).toHaveValue('Nieuwbouw school.ifc');
-  // De naam zonder `.ifc` is geselecteerd: typen vervangt hem.
   await page.keyboard.type('School Noord');
   await expect(nameField).toHaveValue('School Noord.ifc');
-  // Ctrl+S in het naamveld start geen tweede opslagronde.
   await page.keyboard.press('Control+s');
   await saveDialog(page).locator('[data-ops-site-save-confirm]').click();
   await expect(saveDialog(page)).toHaveCount(0);
@@ -364,7 +319,6 @@ siteTest('nieuw document: Ctrl+S vraagt een naam en maakt een nieuw bestand op d
   });
   await expect.poll(() => doc(page)).toMatchObject({ siteFileId: 'nieuw-1', filePath: 'School Noord.ifc', isDirty: false });
 
-  // Daarna is de site het doel: Ctrl+S schrijft zonder vraag een nieuwe versie.
   await makeDirty(page, 'Ruwbouw');
   await page.keyboard.press('Control+s');
   await expect.poll(() => saves(page).then((s) => s.length)).toBe(2);
@@ -373,7 +327,6 @@ siteTest('nieuw document: Ctrl+S vraagt een naam en maakt een nieuw bestand op d
 });
 
 siteTest('sluiten met Opslaan: de site-vraag ligt boven de sluitvraag en het tabblad sluit na opslaan', async ({ page, ops: _ops }) => {
-  // Twee documenten, zodat het sluiten van het actieve tabblad de app niet leeg achterlaat.
   await page.evaluate(() => window.__OPS__!.store.getState().setProject({ name: 'Eerste' }));
   await page.evaluate(() => window.__OPS__!.store.getState().newDocument());
   await page.evaluate(() => window.__OPS__!.store.getState().setProject({ name: 'Te sluiten' }));
@@ -395,9 +348,6 @@ siteTest('sluiten met Opslaan: de site-vraag ligt boven de sluitvraag en het tab
   await expect.poll(() => page.evaluate((id) => window.__OPS__!.store.getState().documents.some((d) => d.id === id), closing)).toBe(false);
 });
 
-// AutoSave op de nepklok (testaudit 2026-10-20: dit kostte 13 s echte wachttijd). De klok gaat aan vóór het
-// laden van de app (deze fixture draait vóór `ops` navigeert), dus ook een al ingeplande AutoSave-ronde staat
-// op de nepklok; tot de test hem stilzet loopt hij gewoon mee met de echte tijd.
 const siteClockTest = siteTest.extend({
   page: async ({ page }, use) => {
     await page.clock.install();
@@ -405,28 +355,22 @@ const siteClockTest = siteTest.extend({
   },
 });
 
-/** isDirty van een (ook niet-actief) document. */
 const dirtyOf = (page: Page, id: string) => page.evaluate((docId) => window.__OPS__!.store.getState()
   .getOpenDocumentPayloads().find((d) => d.id === docId)?.payload.isDirty, id);
 
 siteClockTest('AutoSave: voor een site-bestand grijs met eigen uitleg, en de timer schrijft nooit naar de site', async ({ page, ops: _ops }) => {
   const toggle = page.locator('[data-ops-autosave]');
   await openFromSiteDialog(page, 'p1');
-  // Besluit #309: automatisch opslaan naar de site bestaat niet (elke ronde zou een nieuwe versie maken).
   await expect(toggle).toBeDisabled();
   await expect(toggle).toHaveAttribute('aria-checked', 'false');
   await expect(toggle).toHaveAttribute('title', /^(On the site, Save \(Ctrl\+S\) stores a new version\.|Op de site slaat Opslaan \(Ctrl\+S\) een nieuwe versie op\.)/);
   await toggle.click({ force: true });
   expect(await page.evaluate(() => window.__OPS__!.store.getState().autoSaveToFile)).toBe(false);
 
-  // Ook met de vlag aan (alleen als fixture te zetten) schrijft de timer niets naar de site.
   await page.evaluate(() => window.__OPS__!.store.getState().setAutoSaveToFile(true));
   await makeDirty(page, 'Niet automatisch');
   const siteDoc = (await doc(page)).activeDocumentId;
 
-  // Controle dat de AutoSave-ronde echt voorbijkomt: een tweede document met een (fixture-)FSA-handle en
-  // AutoSave aan. Dezelfde timer schrijft dat document wel weg (het wordt schoon); zonder die controle zou
-  // "geen site-save" ook groen zijn als de timer nooit liep.
   const controlDoc = await page.evaluate(() => {
     const store = window.__OPS__!.store;
     const id = store.getState().newDocument();
@@ -445,8 +389,6 @@ siteClockTest('AutoSave: voor een site-bestand grijs met eigen uitleg, en de tim
   await page.locator(`[data-testid="document-tab"][data-ops-tab="${siteDoc}"]`).click();
   await expect.poll(() => doc(page).then((d) => d.activeDocumentId)).toBe(siteDoc);
 
-  // Klok stil (sprong van 500 ms; `pauseAt` mag niet naar het verleden), dan precies 13 s vooruit. Daarna
-  // laat de poll alleen de async schrijfronde afronden; de echte tijd zet geen timer meer verder (review PR #399).
   const now = await page.evaluate(() => Date.now());
   await page.clock.pauseAt(now + 500);
   await page.clock.runFor(13_000);
@@ -460,26 +402,22 @@ siteClockTest('AutoSave: voor een site-bestand grijs met eigen uitleg, en de tim
 siteTest('twee tabbladen op één site-bestand: elk zijn eigen basis, ook na een mislukte heropening', async ({ page, ops }) => {
   ops.acceptError('Opslaan op de site mislukt');
   ops.acceptError('Failed to open file');
-  // Tab A rust op versie 2 en wordt gewijzigd.
   await openFromSiteDialog(page, 'p1');
   const tabA = await doc(page);
   expect(tabA.siteFileVersion).toBe('2');
   await makeDirty(page, 'Werk in A');
 
-  // Een collega slaat versie 3 op; daarna opent de gebruiker het bestand opnieuw, in tab B.
   await otherUserSaves(page, 'p1');
   await clickOpenFromSite(page, 'p1');
   await expect.poll(() => doc(page).then((d) => d.activeDocumentId)).not.toBe(tabA.activeDocumentId);
   const tabB = await doc(page);
   expect(tabB).toMatchObject({ siteFileId: 'p1', siteFileVersion: '3', documentCount: 2 });
 
-  // Een heropening die bij het lezen van het bestand faalt, verschuift ook niets.
   await editHost(page, 'push-broken');
   await clickOpenFromSite(page, 'p1');
   await expect.poll(() => lastNotification(page).then((n) => n?.messageKey)).toBe('notifications.openFailed');
   await editHost(page, 'pop');
 
-  // Terug naar tab A: Ctrl+S stuurt A's eigen basis (2) mee en botst met het werk van de collega.
   await page.locator(`[data-testid="document-tab"][data-ops-tab="${tabA.activeDocumentId}"]`).click();
   await expect.poll(() => doc(page).then((d) => d.activeDocumentId)).toBe(tabA.activeDocumentId);
   expect((await doc(page)).siteFileVersion).toBe('2');
@@ -489,7 +427,6 @@ siteTest('twee tabbladen op één site-bestand: elk zijn eigen basis, ook na een
   await expect.poll(() => lastNotification(page).then((n) => n?.messageKey)).toBe('notifications.siteSaveConflict');
   expect(await doc(page)).toMatchObject({ isDirty: true, siteFileVersion: '2' });
 
-  // Tab B rust op versie 3 en slaagt.
   await page.locator(`[data-testid="document-tab"][data-ops-tab="${tabB.activeDocumentId}"]`).click();
   await expect.poll(() => doc(page).then((d) => d.activeDocumentId)).toBe(tabB.activeDocumentId);
   await makeDirty(page, 'Werk in B');
@@ -503,7 +440,6 @@ siteTest('Recent: een storing laat het bestand staan; alleen "bestaat niet" haal
   ops.acceptError('Openen van de site mislukt');
   await openFromSiteDialog(page, 'p1');
 
-  // Storing bij de site: melding met de tekst van de site, en het bestand blijft in Recent.
   await editHost(page, 'fail-open');
   await page.locator('.ribbon-tab--file').click();
   await recentItem(page).click();
@@ -513,7 +449,6 @@ siteTest('Recent: een storing laat het bestand staan; alleen "bestaat niet" haal
   await page.locator('.ribbon-tab--file').click();
   await expect(recentItem(page)).toHaveCount(1);
 
-  // Het bestand is weg op de site (code 'not-found'): melding, en het gaat uit Recent.
   await editHost(page, 'heal-open');
   await editHost(page, 'delete-p1');
   await recentItem(page).click();
@@ -559,7 +494,6 @@ siteTest('oudere versie opent als kopie zonder doel; Ctrl+S vraagt dan een naam'
   expect(copy.filePath).toMatch(/^Planning \((version|versie) 1\)\.ifc$/);
   expect((await hostCalls(page)).filter((c) => c.fn === 'open')).toEqual([{ fn: 'open', id: 'p1', version: '1' }]);
 
-  // Geen doel: Ctrl+S overschrijft de nieuwste versie niet, maar vraagt een naam.
   await makeDirty(page, 'Op de kopie');
   await page.keyboard.press('Control+s');
   await expect(saveDialog(page)).toBeVisible();
@@ -568,7 +502,6 @@ siteTest('oudere versie opent als kopie zonder doel; Ctrl+S vraagt dan een naam'
   expect(await saves(page)).toEqual([]);
   expect((await doc(page)).isDirty).toBe(true);
 
-  // Niet in Recent: de kopie is geen site-bestand.
   await page.locator('.ribbon-tab--file').click();
   await expect(page.locator('.backstage-recent-list, .backstage-empty').first()).toBeVisible();
   await expect(page.locator('[data-ops-recent-site]')).toHaveCount(0);
@@ -599,7 +532,6 @@ siteTest('herstel na een crash houdt het site-doel en de basisversie', async ({ 
   await expect(recovery).toHaveCount(0);
   await expect.poll(() => doc(page)).toMatchObject({ siteFileId: 'p1', isDirty: true });
 
-  // Ctrl+S schrijft weer naar de site, met de versie van vóór de crash als basis (geen dialoog).
   await page.keyboard.press('Control+s');
   await expect.poll(() => saves(page).then((s) => s.length)).toBe(1);
   expect((await saves(page))[0]).toMatchObject({ id: 'p1', name: 'Planning.ifc', baseVersion: '2' });
@@ -607,10 +539,6 @@ siteTest('herstel na een crash houdt het site-doel en de basisversie', async ({ 
   await expect.poll(() => doc(page).then((d) => d.isDirty)).toBe(false);
 });
 
-/**
- * De tool in een same-origin iframe, met de host op de parent. De parentpagina komt via `page.route`
- * van hetzelfde adres als de dev-server; de nep-host staat alleen in het bovenste venster.
- */
 async function openToolInIframe(page: Page, options: { initialFileId?: string; lateMs?: number }): Promise<Frame> {
   await installSiteHost(page, SEED, { ...options, onlyTop: true });
   await page.route('**/site-host-test.html', (route) => route.fulfill({
@@ -622,19 +550,12 @@ async function openToolInIframe(page: Page, options: { initialFileId?: string; l
   const frame = page.frames().find((f) => f !== page.mainFrame())!;
   await expect.poll(() => frame.evaluate(() => window.__OPS__ !== undefined), { timeout: 15_000 }).toBe(true);
   expect(await frame.evaluate(() => 'openaecHost' in window)).toBe(false);
-  // De host op de parent maakt de tool ook ingebed: geen welkomstvenster (#716). Komt de host pas ná de
-  // welkomstcontrole (`lateMs`), dan staat het venster al open, zoals het contract zegt; sluit het dan.
   const outcome = await waitForWelcomeCheck(frame);
   if (options.lateMs === undefined) expect(outcome).toBe('welkomstcontrole: overgeslagen (ingebed)');
   else await frame.evaluate(() => window.__OPS__!.store.getState().setUI({ showWelcomeDialog: false, showTourOverlay: false }));
   return frame;
 }
 
-/**
- * Zoals in de SuperCloud-werkplek (issue #582): daar draait de tool in een sandbox-iframe zonder
- * `allow-same-origin`, en weigert de browser IndexedDB met een `SecurityError`. Alleen in de iframe;
- * de host op de parent houdt zijn eigen opslag.
- */
 async function refuseIndexedDbInIframe(page: Page): Promise<void> {
   await page.addInitScript(() => {
     if (window === window.top) return;
@@ -645,24 +566,19 @@ async function refuseIndexedDbInIframe(page: Page): Promise<void> {
   });
 }
 
-/** Meldingen over crashherstel of auto-save in het meldingenkanaal van de tool. */
 const recoveryNotices = (tool: Tool) => tool.evaluate(() => window.__OPS__!.store.getState().ui.notifications
   .map((n) => n.messageKey).filter((key) => /recovery|autoSave/i.test(key)));
 
 for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000]] as const) {
   test(`iframe: host op de parent (${label}) — startbestand, openen en opslaan over twee vensters`, async ({ page }) => {
-    // De iframe weigert IndexedDB, zoals in de werkplek. Crashherstel gaat dan stil uit: één
-    // consoleregel, geen melding; openen en opslaan via de host werken gewoon.
     const recoveryOff: string[] = [];
     page.on('console', (message) => { if (message.text().includes('Crashherstel staat uit')) recoveryOff.push(message.text()); });
     await refuseIndexedDbInIframe(page);
     const frame = await openToolInIframe(page, { initialFileId: 'p1', lateMs });
-    // Het startbestand komt van de parent; de inhoud is een Blob uit het venster van de parent.
     await expect.poll(() => doc(frame).then((d) => d.siteFileId), { timeout: 20_000 }).toBe('p1');
     expect(await doc(frame)).toMatchObject({ filePath: 'Planning.ifc', siteFileVersion: '2' });
     expect((await doc(frame)).tasks).toBeGreaterThan(0);
 
-    // "Openen van de site" in de iframe toont de lijst van de parent.
     await frame.locator('.ribbon-tab--file').waitFor();
     await frame.locator('.title-bar').click({ position: { x: 600, y: 10 } });
     await page.keyboard.press('Control+o');
@@ -671,7 +587,6 @@ for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000
     await page.keyboard.press('Escape');
     await expect(openDialog(frame)).toHaveCount(0);
 
-    // Ctrl+S: de Blob van de tool komt uit een ánder venster dan de host; de host leest hem toch.
     await makeDirty(frame, 'Vanuit de iframe');
     await page.keyboard.press('Control+s');
     await expect.poll(() => saves(page).then((s) => s.length)).toBe(1);
@@ -680,8 +595,6 @@ for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000
     });
     await expect.poll(() => doc(frame)).toMatchObject({ isDirty: false, siteFileVersion: '3' });
 
-    // De eerste crashherstelronde loopt meteen na de eerste wijziging; de site-opslag hierboven is
-    // pas daarna klaar. Nog een wijziging en nog een opslag: ook die ronde blijft stil.
     await makeDirty(frame, 'Nog een wijziging');
     await page.keyboard.press('Control+s');
     await expect.poll(() => saves(page).then((s) => s.length)).toBe(2);
@@ -691,7 +604,6 @@ for (const [label, lateMs] of [['meteen', undefined], ['pas na het laden', 3_000
   });
 }
 
-/** Wacht tot de tool in de (nieuwe) iframe klaar is en sluit het welkomstvenster. */
 async function readyToolFrame(page: Page, previous: Frame | null): Promise<Frame> {
   await expect.poll(() => page.frames().some((f) => f !== page.mainFrame() && f !== previous && !f.isDetached())).toBe(true);
   const frame = page.frames().find((f) => f !== page.mainFrame() && f !== previous && !f.isDetached())!;
@@ -701,8 +613,6 @@ async function readyToolFrame(page: Page, previous: Frame | null): Promise<Frame
 }
 
 test('iframe: geen luisteraar blijft op de parent achter (iframe weg, of startbestand gevonden)', async ({ page }) => {
-  // Een luisteraar op de PARENT verdwijnt niet vanzelf met de iframe: de pagina van de site leeft door
-  // en zou via de closure de hele oude app vasthouden. Tel de luisteraars via het DevTools-protocol.
   const first = await openToolInIframe(page, {});
   const cdp = await page.context().newCDPSession(page);
   const readyListeners = async (): Promise<number> => {
@@ -710,14 +620,11 @@ test('iframe: geen luisteraar blijft op de parent achter (iframe weg, of startbe
     const { listeners } = await cdp.send('DOMDebugger.getEventListeners', { objectId: result.objectId! });
     return listeners.filter((l) => l.type === 'openaec-host-ready').length;
   };
-  // Zonder startbestand wacht de tool op het event, ook op de parent.
   await expect.poll(readyListeners).toBe(1);
 
-  // De site haalt de iframe weg (bijv. navigatie in Frappe desk): de luisteraar moet mee weg.
   await page.evaluate(() => document.getElementById('tool')!.remove());
   await expect.poll(readyListeners).toBe(0);
 
-  // Een nieuwe iframe; daarna meldt de site alsnog een startbestand.
   await page.evaluate(() => {
     const iframe = document.createElement('iframe');
     iframe.id = 'tool';
@@ -732,7 +639,6 @@ test('iframe: geen luisteraar blijft op de parent achter (iframe weg, of startbe
     window.dispatchEvent(new Event('openaec-host-ready'));
   });
   await expect.poll(() => doc(second).then((d) => d.siteFileId), { timeout: 20_000 }).toBe('p1');
-  // Gevonden ⇒ afgemeld; precies één `open` van het startbestand.
   await expect.poll(readyListeners).toBe(0);
   expect((await hostCalls(page)).filter((c) => c.fn === 'open' && c.id === 'p1')).toHaveLength(1);
 });
@@ -751,7 +657,6 @@ for (const [label, lateMs, shape] of [
     expect((await hostCalls(page)).filter((c) => c.fn === 'open')).toEqual([{ fn: 'open', id: 'p1', version: null }]);
     if (shape !== 'supercloud') return;
 
-    // De SuperCloud-vorm (#818) verder: de basis is tekst in de tool, een GETAL naar de host.
     expect((await doc(page)).siteFileVersion).toBe('2');
     await makeDirty(page, 'Werk in de SuperCloud');
     await page.keyboard.press('Control+s');
@@ -760,7 +665,6 @@ for (const [label, lateMs, shape] of [
     await expect(saveDialog(page)).toHaveCount(0);
     await expect.poll(() => doc(page)).toMatchObject({ isDirty: false, siteFileVersion: '3' });
 
-    // Een collega sloeg intussen op: de host bewaart het werk in een kopie. Die wordt het doel.
     await otherUserSaves(page, 'p1');
     await makeDirty(page, 'Botsend werk');
     await page.keyboard.press('Control+s');
@@ -772,14 +676,12 @@ for (const [label, lateMs, shape] of [
     await expect(page.locator('.ops-toast').filter({ hasText: 'Planning (kopie).ifc' })).toBeVisible();
     expect(await lastNotification(page)).toMatchObject({ messageKey: 'notifications.siteSaveConflictCopy', name: 'Planning (kopie).ifc' });
 
-    // Ctrl+S schrijft daarna naar de kopie, zonder vraag.
     await makeDirty(page, 'Verder in de kopie');
     await page.keyboard.press('Control+s');
     await expect.poll(() => saves(page).then((s) => s.length)).toBe(3);
     expect((await saves(page))[2]).toEqual({ fn: 'save', id: 'nieuw-1', expectedVersion: 1, bytes: true });
     await expect(saveDialog(page)).toHaveCount(0);
 
-    // Opslaan als: save(bytes, { name }), een nieuw bestand.
     await page.keyboard.press('Control+Shift+s');
     await expect(saveDialog(page)).toBeVisible();
     await page.keyboard.type('Variant');
@@ -794,7 +696,6 @@ for (const [label, lateMs, shape] of [
 test('zonder site: Ctrl+O en Ctrl+S gaan als vanouds naar bestandskiezer en download', async ({ page, ops: _ops }) => {
   expect(await page.evaluate(() => 'openaecHost' in window)).toBe(false);
 
-  // Firefox/Safari-capabilityroute in Chromium: geen herbruikbare handles of site-host.
   await page.evaluate(() => {
     Reflect.deleteProperty(window, 'showOpenFilePicker');
     Reflect.deleteProperty(window, 'showSaveFilePicker');

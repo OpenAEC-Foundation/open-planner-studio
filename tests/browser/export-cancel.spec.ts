@@ -5,8 +5,6 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
   await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     s.bindProjectToCompany(s.addCompany('Exportbibliotheek'));
-    // Alleen de browsergrens is een fixture: synthetische kiezer, zonder echte bestandstoegang.
-    // Chromium kan de onbekende featurePolicy-naam als false melden; dat mag deze fixture niet overslaan.
     Object.defineProperty(document, 'featurePolicy', { configurable: true, value: undefined });
     sessionStorage.setItem('ops-test-export-picker-calls', '0');
     Object.defineProperty(window, 'showOpenFilePicker', { configurable: true, value: async () => [] });
@@ -44,7 +42,6 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
     }
   }
 
-  // Twee-bestandenroute: project is al gedownload, maar de tweede kiezer wordt geannuleerd.
   await page.locator('.backstage-main input[type="checkbox"]').check();
   await page.evaluate(() => {
     let calls = 0;
@@ -67,7 +64,6 @@ test('Backstage export: annuleren blijft staan, ook bij poolbestand; succesvolle
   await expect.poll(() => page.evaluate(() => sessionStorage.getItem('ops-test-export-suggested-name'))).toMatch(/-library\.ifc$/);
   await expect.poll(inExport).toEqual(['file', 'export']);
 
-  // Nieuwe poging zonder pool: een echte download is wel succes en sluit Backstage.
   await page.locator('.backstage-main input[type="checkbox"]').uncheck();
   await page.evaluate(() => {
     Object.defineProperty(window, 'showSaveFilePicker', {

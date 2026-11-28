@@ -1,15 +1,6 @@
-// Automatisch berekenen rekent pas als een bewerking voltooid is (eigenaar, 2026-09-24): "hij
-// berekent vaak tijdens een muisbeweging en dat is heel irritant". Een balksleep commit bij elke
-// mousemove; met alleen een korte debounce draaide de CPM zodra de muis even stilstond, midden in
-// het gebaar.
-//
-// Echte muis-events; de dev-brug zet alleen de fixture en telt de CPM-runs (elke run levert een
-// nieuw `cpmResult`-object op).
 import type { Page } from '@playwright/test';
 import { barPoint, expect, seedProject, test } from './fixtures/ops';
 
-// Deze route bedient tijdlijnbalken naast de takenlijst en de eigenschappenrail.
-// Reserveer expliciet genoeg canvasruimte, onafhankelijk van de standaard paneelbreedte.
 test.use({ viewport: { width: 1600, height: 900 } });
 
 async function countCpmRuns(page: Page): Promise<void> {
@@ -33,7 +24,6 @@ test('automatisch berekenen: niet tijdens een balksleep, wel direct na het losla
   await page.mouse.move(point.x, point.y);
   await page.mouse.down();
   await page.mouse.move(point.x + 40, point.y, { steps: 4 });
-  // Muis even stil, knop nog ingedrukt: vóór de fix rekende hij hier al.
   await page.waitForTimeout(400);
   expect(await cpmRuns(page)).toBe(0);
   expect(await stale(page)).toBe(true);
@@ -75,8 +65,6 @@ test('automatisch berekenen: de voortgangsschuif rekent pas na het loslaten', as
     window.__OPS__!.store.getState().tasks.find(task => task.id === id)!.time.completion
   ), taskId)).toBeGreaterThan(0.3);
 
-  // Geforceerde systeemkleuren (hoogcontrast van het besturingssysteem): de app-stijl van de schuifjes valt weg
-  // en de browser tekent baan, knop en focusrand zelf. Met `appearance: none` was het schuifje onzichtbaar (#847, review r6).
   const sliderLook = () => slider.evaluate(el => {
     const style = getComputedStyle(el);
     return { appearance: style.appearance, outline: style.outlineStyle };

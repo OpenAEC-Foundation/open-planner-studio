@@ -8,8 +8,6 @@ test('automatisch berekenen verbergt alleen de tijdelijke stale-indicator', asyn
     { name: 'Tweede S1-taak', start: '2026-09-21', finish: '2026-10-02' },
   ]);
 
-  // Bewaak de zichtbare DOM gedurende de hele automatische berekening. Alleen de fixture en
-  // instellingen gaan via de brug; de geteste statusbalk blijft gewone gerenderde UI.
   await page.evaluate(() => {
     let staleAppearances = 0;
     const count = () => {
@@ -53,8 +51,6 @@ test('automatisch berekenen verbergt alleen de tijdelijke stale-indicator', asyn
     const store = window.__OPS__!.store.getState();
     store.setUI({ autoCalcCPM: true });
     store.addSequence({ predecessorId: taskIds[0], successorId: taskIds[1], type: 'FINISH_START', lagDays: 0 });
-    // De store-route weigert een kring vooraf; een kring komt nog wel binnen zoals een importer hem
-    // schrijft: rechtstreeks in `sequences`, binnen hetzelfde debouncevenster als de relatie hierboven.
     window.__OPS__!.store.setState((s) => {
       s.sequences.push({ id: 'seq-kring', predecessorId: taskIds[1], successorId: taskIds[0], type: 'FINISH_START', lagDays: 0 });
     });
@@ -66,12 +62,6 @@ test('automatisch berekenen verbergt alleen de tijdelijke stale-indicator', asyn
   await expect(page.getByText(staleText)).toBeVisible();
 });
 
-// Review taakmutaties, bijvangst A: een mislukte berekening pushte een melding, die melding wijzigde
-// de store en automatisch berekenen rekende meteen opnieuw — ~10 solves per seconde, teller ×42 in
-// 3 s. De kring komt als ruwe data binnen (zoals uit een geopend bestand) en Berekenen laat hem één
-// keer falen; daarna gaat alles via echte klikken en toetsen: automatisch berekenen aanzetten in de
-// instellingen mag bij dezelfde invoer niets herhalen, en een echte bewerking in de Tabel mag
-// precies één nieuwe poging geven.
 test('automatisch berekenen herhaalt een mislukte berekening niet tot de invoer verandert', async ({ page, ops: _ops }) => {
   const [first, second] = await seedProject(page, [
     { name: 'Eerste kringtaak', start: '2026-09-07', finish: '2026-09-18' },

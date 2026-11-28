@@ -1,13 +1,3 @@
-// Structuurovergangen met toewijzingen (audit taakmutaties §6), met ECHTE browser-events.
-// - Het mijlpaalvinkje in het eigenschappenpaneel op een taak met een toewijzing: geweigerd, met een
-//   zichtbare melding (voorheen werd de taak een mijlpaal en viel de belasting stil naar 0).
-// - "Taak wordt een samenvattingstaak" (eigenaarsbesluit 2026-10-17, "altijd vragen"): krijgt een taak met een
-//   toewijzing haar eerste subtaak, dan vraagt een venster wat ermee moet. Annuleren wijzigt niets,
-//   Verplaatsen verhuist de toewijzing naar de nieuwe subtaak, Verwijderen haalt haar weg; één
-//   Ctrl+Z zet alles terug. Heeft de subtaak dezelfde resource al, dan is Verplaatsen uit.
-//   Routes: Alt+Shift+→, lintknop Inspringen, rechtsklik › Inspringen (takenlijst en Gantt),
-//   rechtsklik › Subtaak toevoegen, en "Taak bewerken" › Bovenliggende taak.
-// `__OPS__` zet alleen de fixture (taken, resource, toewijzing, selectie) en leest state.
 import type { Locator, Page } from '@playwright/test';
 import zhCommon from '@/i18n/locales/zh/common.json' with { type: 'json' };
 import { barPoint, expect, state, test, waitForOps, waitForWelcomeDialog } from './fixtures/ops';
@@ -29,7 +19,6 @@ async function seedAssignedLeaf(page: Page): Promise<{ L: string; N: string; R: 
 }
 
 const assignmentTaskIds = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().assignments.map(a => a.taskId));
-/** Complete waardesnapshot: ook resource, inzet en eventuele overige toewijzingsvelden moeten gelijk blijven. */
 const assignmentSnapshot = (page: Page) => page.evaluate(() => window.__OPS__!.store.getState().assignments);
 
 test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', async ({ page, ops: _ops }) => {
@@ -48,7 +37,6 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
   expect(await page.evaluate((id) => window.__OPS__!.store.getState().tasks.find(t => t.id === id)!.isMilestone, L)).toBe(false);
   expect(await assignmentSnapshot(page)).toEqual(beforeSingle);
 
-  // Dezelfde route in een taal zonder CLDR-one: een echte taalkeuze, daarna opnieuw klikken.
   await page.locator('.ops-toast [data-ops-toast-close]').click();
   await page.evaluate(() => window.__OPS__!.store.getState().setUI({ showSettingsDialog: true }));
   await page.getByRole('button', { name: 'Language', exact: true }).click();
@@ -66,8 +54,6 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
   expect(await assignmentSnapshot(page)).toEqual(beforeSingle);
   await named.locator('[data-ops-toast-close]').click();
 
-  // Bulk via het echte contextmenu: twee toegewezen taken blijven gewoon taken, beide namen
-  // staan onder het getal. De brug zet alleen de aanvullende fixture.
   const N = await page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
     const n = s.tasks.find(t => t.name === 'Voegen')!.id;
@@ -86,8 +72,6 @@ test('mijlpaalvinkje op een taak met toewijzing wordt geweigerd met melding', as
   await page.getByText('切换里程碑', { exact: true }).click();
   const bulk = page.locator('.ops-toast.toast-error');
   await expect(bulk).toHaveCount(1);
-  // Exact op de hoofdtekst: een deeltekst "2" zou ook 12 of 22 laten slagen (knownbug 223).
-  // De browser kiest zelf taal, CLDR-other en getal; taaknamen horen in de aparte detailregel.
   await expect(bulk.locator('.ops-toast-message')).toHaveText(
     zhCommon.notifications.milestoneRefusedAssignmentsMany_other.replace('{{count}}', '2'));
   await expect(bulk.locator('.ops-toast-detail')).toHaveText(
@@ -112,7 +96,6 @@ function nameCell(page: Page, taskId: string): Locator {
 }
 const parentOf = (page: Page, id: string) =>
   page.evaluate(taskId => window.__OPS__!.store.getState().tasks.find(t => t.id === taskId)!.parentId, id);
-/** Structuur en volledige toewijzingswaarden: ook inzet, resource en werk moeten gelijk blijven. */
 const fingerprint = (page: Page) => page.evaluate(() => {
   const s = window.__OPS__!.store.getState();
   return JSON.stringify({
@@ -140,13 +123,11 @@ test('Alt+Shift+→ vraagt eerst; Verplaatsen verhuist de toewijzing naar de nie
     "'Metselen' gets the subtask 'Voegen' and becomes a summary task. A summary task has no assignments of its own. "
     + 'What do you want to do with the assignment of Metselaar?',
   );
-  // Drie knoppen, van links naar rechts; Verplaatsen is primair en aan, geen infoblok.
   await expect(dialog(page).locator('button[data-ops-phase-cancel], button[data-ops-phase-remove], button[data-ops-phase-move]'))
     .toHaveText(['Cancel', 'Remove assignment', "Move to 'Voegen'"]);
   await expect(moveButton(page)).toBeEnabled();
   await expect(moveButton(page)).toHaveClass(/btn--primary/);
   await expect(notice(page)).toHaveCount(0);
-  // Zolang het venster open staat, is er niets gewijzigd.
   expect(await fingerprint(page)).toBe(before);
 
   await moveButton(page).click();
@@ -154,16 +135,13 @@ test('Alt+Shift+→ vraagt eerst; Verplaatsen verhuist de toewijzing naar de nie
   expect(await parentOf(page, N)).toBe(L);
   expect(await assignmentTaskIds(page)).toEqual([N]);
   expect((await state(page)).undoDepth).toBe(depth + 1);
-  // De planner koos zelf: geen melding die dat herhaalt.
   await expect(page.locator('.ops-toast', { hasText: /moved to subtask/ })).toHaveCount(0);
 
-  // Na herberekenen (echte F5) telt de belasting weer mee: 5 werkdagen × 1 eenheid.
   await page.keyboard.press('F5');
   await expect.poll(() => page.evaluate((rid) => Object.values(
     (window.__OPS__!.store.getState().resourceLoadResult?.load?.[rid] ?? {}) as Record<string, number>,
   ).reduce((sum, value) => sum + value, 0), R)).toBe(5);
 
-  // Eén Ctrl+Z zet structuur én toewijzing terug.
   await page.keyboard.press('Control+z');
   await expect.poll(() => parentOf(page, N)).toBeNull();
   expect(await assignmentTaskIds(page)).toEqual([L]);
@@ -229,7 +207,6 @@ test('lintknop Inspringen en rechtsklik › Inspringen (takenlijst en Gantt) ton
   await page.getByRole('button', { name: /^Indent$/ }).first().click();
   await askAndCancel();
 
-  // Terug naar Start: dan is het enige "Indent" het item van het contextmenu.
   await page.getByRole('button', { name: /^Home$/ }).first().click();
   await expect(page.getByRole('button', { name: /^Indent$/ })).toHaveCount(0);
 
@@ -344,8 +321,6 @@ test('Nederlands: de canonieke tekst en knoppen', async ({ page, ops: _ops }) =>
 
 test('zolang het venster open is, doen Ctrl+Z, Ctrl+Y en Ctrl+V niets (review #374)', async ({ page, ops: _ops }) => {
   const { L, N } = await seedAssignedLeaf(page);
-  // Probe van de review: een tweede toewijzing (Opperman) toevoegen en weer weghalen, zodat Ctrl+Z
-  // haar zou terugzetten terwijl het venster alleen Metselaar noemt.
   await page.evaluate((l) => {
     const s = () => window.__OPS__!.store.getState();
     const R2 = s().addResource({ name: 'Opperman', type: 'LABOR', description: '', maxUnits: 1 });
@@ -371,7 +346,6 @@ test('zolang het venster open is, doen Ctrl+Z, Ctrl+Y en Ctrl+V niets (review #3
   await expect(dialog(page)).toBeHidden();
   expect(await parentOf(page, N)).toBe(L);
   expect(await assignmentTaskIds(page)).toEqual([]);
-  // Na het venster werkt Ctrl+Z weer gewoon: één stap terug.
   await page.keyboard.press('Control+z');
   await expect.poll(() => parentOf(page, N)).toBeNull();
   expect(await assignmentTaskIds(page)).toEqual([L]);
@@ -388,7 +362,6 @@ test('Taak bewerken: taak ⇒ mijlpaal met een nieuwe ouder vraagt met het conce
   await page.getByRole('option', { name: /Metselen$/ }).click();
   await taskDialog.getByRole('button', { name: /^Save$/ }).click();
 
-  // Het concept is een mijlpaal: verplaatsen kan niet, verwijderen is primair.
   await expect(dialog(page)).toBeVisible();
   await expect(moveButton(page)).toBeDisabled();
   await expect(blockedNote(page)).toContainText("'Metselen' gets no subtask that can carry an assignment");
@@ -449,7 +422,6 @@ test('Taak bewerken › ? › Opslaan: na de keuze opent Help alsnog (review #37
 
 test('verricht werk: het infoblok noemt het, focus op Annuleren, Enter wijzigt niets (eigenaarsbesluit 2026-10-17)', async ({ page, ops: _ops }) => {
   const { L, N } = await seedAssignedLeaf(page);
-  // Fixture: 7,5 uur verricht werk op de toewijzing van Metselaar.
   await page.evaluate(() => window.__OPS__!.store.setState((s) => { s.assignments[0].actualWorkMinutes = 450; }));
   const before = await fingerprint(page);
   const depth = (await state(page)).undoDepth;
@@ -467,13 +439,11 @@ test('verricht werk: het infoblok noemt het, focus op Annuleren, Enter wijzigt n
   await expect(moveButton(page)).toBeEnabled();
   await expect(moveButton(page)).not.toHaveClass(/btn--primary/);
 
-  // Enter gooit nooit verricht werk weg: het venster sluit, er verandert niets.
   await page.keyboard.press('Enter');
   await expect(dialog(page)).toBeHidden();
   expect(await fingerprint(page)).toBe(before);
   expect((await state(page)).undoDepth).toBe(depth);
 
-  // Ook als Verplaatsen uit is (dezelfde resource op de subtaak) blijft de focus op Annuleren.
   await page.evaluate(({ n }) => {
     const s = window.__OPS__!.store.getState();
     s.assignResource(n, s.assignments[0].resourceId, 1);
@@ -486,7 +456,6 @@ test('verricht werk: het infoblok noemt het, focus op Annuleren, Enter wijzigt n
   await expect(dialog(page)).toBeHidden();
   expect(await parentOf(page, N)).toBeNull();
 
-  // Verwijderen blijft mogelijk met een bewuste klik.
   await page.keyboard.press('Alt+Shift+ArrowRight');
   await removeButton(page).click();
   await expect(dialog(page)).toBeHidden();
@@ -516,11 +485,8 @@ test('verricht werk in het Nederlands: de canonieke zin', async ({ page, ops: _o
 
 test('alle globale sneltoetsen staan dicht onder de vraag: Delete, Backspace, F5, Ctrl+S, Insert (review #374)', async ({ page, ops: _ops }) => {
   const { L, N } = await seedAssignedLeaf(page);
-  // Elke download telt: een doorgelaten Ctrl+S of Ctrl+Shift+S geeft er een.
   let downloads = 0;
   page.on('download', () => { downloads++; });
-  // Alleen lezen: na de app-listener (zelfde doel, later geregistreerd) zien of F5/Ctrl+S de
-  // browseractie (herladen, pagina opslaan) tegenhielden. Headless herlaadt F5 niet vanzelf.
   await page.evaluate(() => {
     const seen: Record<string, boolean> = {};
     (window as unknown as { __phaseKeys: Record<string, boolean> }).__phaseKeys = seen;
@@ -530,7 +496,6 @@ test('alle globale sneltoetsen staan dicht onder de vraag: Delete, Backspace, F5
       }
     });
   });
-  // Planning verouderd, zodat een doorgelaten F5 zichtbaar is (stale gaat dan uit).
   await page.evaluate((n) => {
     const s = window.__OPS__!.store.getState();
     const t = s.tasks.find(x => x.id === n)!;
@@ -540,7 +505,6 @@ test('alle globale sneltoetsen staan dicht onder de vraag: Delete, Backspace, F5
   await selectRow(page, N);
   await page.keyboard.press('Alt+Shift+ArrowRight');
   await expect(dialog(page)).toBeVisible();
-  // Geen ?-knop in dit venster: die zou Help áchter "Taak bewerken" openen.
   await expect(dialog(page).locator('[data-ops-help-button]')).toHaveCount(0);
   const snapshot = () => page.evaluate(() => {
     const s = window.__OPS__!.store.getState();
@@ -549,18 +513,15 @@ test('alle globale sneltoetsen staan dicht onder de vraag: Delete, Backspace, F5
   const before = await snapshot();
   const depth = (await state(page)).undoDepth;
 
-  // Na ELKE toets apart nagaan: twee doorgelaten toetsen mogen elkaar niet opheffen (Delete + Ctrl+Z).
   for (const key of ['Delete', 'Backspace', 'F5', 'Control+s', 'Control+Shift+s', 'Insert', 'Alt+Shift+ArrowLeft', 'Control+d', 'Control+z', 'Control+y']) {
     await page.keyboard.press(key);
     await expect(dialog(page), key).toBeVisible();
     expect(await snapshot(), key).toBe(before);
     expect((await state(page)).undoDepth, key).toBe(depth);
   }
-  // Opslaan liep niet: geen download, geen schemavraag, geen tweede venster.
   await page.waitForTimeout(500);
   expect(downloads).toBe(0);
   expect(await page.evaluate(() => window.__OPS__!.store.getState().ui.pendingIfcSchemaQuestion ?? null)).toBeNull();
-  // De browseractie van F5 (herladen) en Ctrl+S (pagina opslaan) is tegengehouden, ook in dev.
   expect(await page.evaluate(() => (window as unknown as { __phaseKeys: Record<string, boolean> }).__phaseKeys))
     .toEqual({ F5: true, s: true, 'Shift+s': true });
 
@@ -593,8 +554,6 @@ test('vangnet: verandert de vraag terwijl het venster open is, dan wijzigt de ke
   await page.keyboard.press('Alt+Shift+ArrowRight');
   await expect(dialog(page)).toBeVisible();
   await expect(dialog(page).locator('[data-ops-phase-dialog-text]')).toContainText('the assignment of Metselaar?');
-  // Fixture: iets buiten de sneltoetsen (bijv. een extensie) wijst intussen een tweede resource toe.
-  // Het venster noemt alleen Metselaar; "Verwijderen" mag Opperman niet stil meenemen.
   await page.evaluate((l) => {
     const s = () => window.__OPS__!.store.getState();
     const R2 = s().addResource({ name: 'Opperman', type: 'LABOR', description: '', maxUnits: 1 });
@@ -605,17 +564,14 @@ test('vangnet: verandert de vraag terwijl het venster open is, dan wijzigt de ke
 
   await removeButton(page).click();
   await expect(dialog(page)).toBeHidden();
-  // Niets gewijzigd: N staat nog op de wortel, beide toewijzingen staan nog op L.
   expect(await fingerprint(page)).toBe(before);
   expect((await state(page)).undoDepth).toBe(depth);
   expect(await parentOf(page, N)).toBeNull();
   expect(await assignmentTaskIds(page)).toEqual([L, L]);
-  // De keuze is niet stil weggegooid: een melding via het ene meldingenkanaal.
   await expect(page.locator('.ops-toast', {
     hasText: 'The tasks or assignments changed while the question was open. Nothing was changed; please try again.',
   })).toBeVisible();
 
-  // Opnieuw proberen werkt: de nieuwe vraag noemt beide resources.
   await selectRow(page, N);
   await page.keyboard.press('Alt+Shift+ArrowRight');
   await expect(dialog(page).locator('[data-ops-phase-dialog-text]')).toContainText('Metselaar and Opperman');
@@ -625,10 +581,6 @@ test('vangnet: verandert de vraag terwijl het venster open is, dan wijzigt de ke
   expect(await assignmentTaskIds(page)).toEqual([N, N]);
 });
 
-// Fixronde 4 (#374): een lange taaknaam op de verplaatsknop duwde Annuleren links buiten het venster
-// (De Akkers, 4.2 "Upper floor slab — House 1": "nnuleren"). Alle drie de knoppen liggen altijd
-// binnen het venster; de verplaatsknop kapt zijn label af met een ellips, de volledige tekst staat
-// in `title` en de naam volledig in de vraag erboven.
 const LONG_CHILD = 'Upper floor slab — House 1 — reinforcement, formwork and pouring of the in-situ concrete (phase 2)';
 const SHOTS = process.env.OPS_FASE_VRAAG_SHOTS;
 
@@ -640,7 +592,6 @@ async function expectButtonsInsideDialog(page: Page, label: string): Promise<voi
     expect(box.x, where).toBeGreaterThanOrEqual(panel.x);
     expect(box.x + box.width, where).toBeLessThanOrEqual(panel.x + panel.width);
     expect(box.y + box.height, where).toBeLessThanOrEqual(panel.y + panel.height);
-    // Geen knop is tot niets geknepen: Annuleren en Verwijderen tonen hun hele label.
     expect(box.width, where).toBeGreaterThan(40);
   }
   for (const button of [cancelButton(page), removeButton(page)]) {
@@ -675,12 +626,10 @@ test('lange subtaaknaam: alle knoppen binnen het venster, label afgekapt, volled
   await page.keyboard.press('Alt+Shift+ArrowRight');
   await expect(dialog(page)).toBeVisible();
 
-  // De naam staat volledig in de vraag; de knop draagt het volledige label als tooltip en kapt af.
   await expect(dialog(page).locator('[data-ops-phase-dialog-text]')).toContainText(LONG_CHILD);
   await expect(moveButton(page)).toHaveAttribute('title', `Move to '${LONG_CHILD}'`);
   await expect(moveButton(page)).toHaveText(`Move to '${LONG_CHILD}'`);
   expect(await moveButton(page).locator('[data-ops-phase-move-label]').evaluate(el => el.scrollWidth > el.clientWidth)).toBe(true);
-  // Volgorde, primaire stijl en focus blijven zoals ze waren.
   await expect(dialog(page).locator('button[data-ops-phase-cancel], button[data-ops-phase-remove], button[data-ops-phase-move]'))
     .toHaveText(['Cancel', 'Remove assignment', `Move to '${LONG_CHILD}'`]);
   await expect(moveButton(page)).toHaveClass(/btn--primary/);
@@ -688,7 +637,6 @@ test('lange subtaaknaam: alle knoppen binnen het venster, label afgekapt, volled
 
   await checkAllSizesAndThemes(page, 'en', 'en-lang');
 
-  // De afgekapte knop werkt gewoon.
   await moveButton(page).click();
   await expect(dialog(page)).toBeHidden();
   expect(await parentOf(page, N)).toBe(L);
@@ -736,8 +684,6 @@ test('lange subtaaknaam in het Arabisch (RTL): alle knoppen binnen het venster (
   await page.keyboard.press('Alt+Shift+ArrowRight');
   await expect(dialog(page)).toBeVisible();
   await expect(moveButton(page)).toBeFocused();
-  // Sinds de vertaalronde van v2026.10.0 is het label Arabisch: `dir="auto"` maakt het rechts-naar-links,
-  // de ellips staat dan aan het einde (links). Daarvoor was het de Engelse terugvaltekst (ltr).
   const label = moveButton(page).locator('[data-ops-phase-move-label]');
   await expect(label).toHaveText(/[\u0600-\u06FF]/);
   expect(await label.evaluate(el => getComputedStyle(el).direction)).toBe('rtl');

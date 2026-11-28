@@ -8,7 +8,6 @@ test('Recent: leesfout meldt de reden en behoudt project en item; opnieuw prober
   async ({ page, ops }, testInfo) => {
     ops.acceptError(/Failed to open recent file:/);
     const path = 'D:\\Budowy Łódź\\Zażółć gęślą jaźń.ifc';
-    // Alleen de native I/O-rand is vervangen. De klikken, parser, store en melding zijn echt.
     await page.evaluate(({ path, ifc, appDataDirectory }) => {
       const w = window as unknown as {
         __recentReadFails: boolean;
@@ -17,9 +16,6 @@ test('Recent: leesfout meldt de reden en behoudt project en item; opnieuw prober
         };
       };
       w.__recentReadFails = true;
-      // Vóór het lezen handelt de app onafgeronde vervangingen van dit pad af (knownbug 1131 stap 5): ze vraagt de
-      // appDataDir op en leest daar de herstelrecords. Hier is die map leeg, dus er valt niets af te handelen.
-      // Alleen de AppData-map telt: een andere map (bijvoorbeeld AppLocalData) valt in de fout hieronder.
       const appData = 'C:\\Users\\planner\\AppData\\Roaming\\org.openaec.planner';
       w.__TAURI_INTERNALS__ = {
         invoke: async (cmd, args) => {
@@ -54,7 +50,6 @@ test('Recent: leesfout meldt de reden en behoudt project en item; opnieuw prober
     await page.screenshot({ path: testInfo.outputPath('recent-leesfout.png') });
     await error.locator('[data-ops-toast-close]').click();
 
-    // Een herstelde leesmogelijkheid moet dezelfde entry opnieuw kunnen openen.
     await page.evaluate(() => {
       (window as unknown as { __recentReadFails: boolean }).__recentReadFails = false;
     });
