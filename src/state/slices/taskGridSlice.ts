@@ -25,26 +25,15 @@ export interface PendingLegacyTaskGridColumns {
 }
 
 export interface TaskGridSlice {
-  /** App-globaal en gebruikersgebonden; nooit onderdeel van een documentpayload. */
   taskGridSurfaces: Record<TaskGridSurfaceId, TaskGridSurfacePreferences>;
-  /** Eén gedeelde MRU voor de pluskiezer op beide taakgridoppervlakken. */
   recentTaskColumns: TaskColumnId[];
-  /** Sessiestand, niet bewaard: mag de app zelf (zonder keuze van de gebruiker) kolomvoorkeuren
-   *  wegschrijven? Aan na een geldige of ontbrekende opgeslagen voorkeur (`hydrateTaskGridPreferences`).
-   *  Uit zolang de voorkeur niet gelezen is (de store heeft dan standaardkolommen) en uit na een
-   *  afgewezen voorkeur (`invalid-fallback`): die blijft rauw staan en een automatische schrijfactie
-   *  zou hem overschrijven. */
   taskGridAutoWriteAllowed: boolean;
-  /** `autoWrite: false` voor de terugval op standaardkolommen na een afgewezen voorkeur. */
   hydrateTaskGridPreferences: (
     preferences: PersistedTaskGridPreferencesV1,
     options?: { autoWrite?: boolean },
   ) => void;
-  /** Automatisch gemeten kolombreedtes ("Kolommen automatisch aanpassen"): bewaard, maar geen eigen
-   *  undo-stap. Doet niets zolang de opgeslagen voorkeuren niet zijn geladen. */
   applyAutoFitTaskGridColumns: (surface: TaskGridSurfaceId, columns: readonly TaskGridColumnPreference[]) => void;
   setTaskGridColumns: (surface: TaskGridSurfaceId, columns: readonly TaskGridColumnPreference[]) => void;
-  /** Eén directe gebruikersactie: voorkeur en undo-record worden in dezelfde producer gepubliceerd. */
   commitTaskGridColumns: (
     surface: TaskGridSurfaceId,
     label: string,
@@ -53,13 +42,10 @@ export interface TaskGridSlice {
   setTaskGridScrollX: (surface: TaskGridSurfaceId, scrollX: number) => void;
   recordRecentTaskColumn: (id: TaskColumnId) => void;
   applyTaskGridLayoutColumns: (columns: readonly TaskGridColumnPreference[]) => void;
-  /** Tijdelijke, store-lokale migratiebron. Staat bewust niet als dataveld in AppState. */
   stageLegacyTaskGridColumns: (projectId: string, columns: readonly ColumnConfig[] | undefined) => void;
   peekPendingLegacyTaskGridColumns: () => PendingLegacyTaskGridColumns | null;
 }
 
-/** De te persisteren taakgridvoorkeuren (beide surfaces + recente kolommen) — ook gebruikt door
- *  `historySlice` wanneer een undo/redo een gridvoorkeur terugzet. */
 export function persistedTaskGridPreferences(
   state: Pick<TaskGridSlice, 'taskGridSurfaces' | 'recentTaskColumns'>,
 ): PersistedTaskGridPreferencesV1 {
@@ -83,15 +69,9 @@ const initial = createDefaultTaskGridPreferences({
   projectId: '', activityCodeTypeIds: [], customFieldDefIds: [],
 });
 
-/** Scroll-events komen tijdens trackpad- en muiswielgebruik iedere frame binnen. De zichtbare
- *  Zustand-state blijft direct actueel, maar de synchrone localStorage-write wacht tot de gebruiker
- *  even gestopt is. Niet-scrollmutaties slaan meteen op en annuleren een ouder scrolltimer. */
 const TASK_GRID_SCROLL_PERSIST_DELAY_MS = 120;
 
 export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
-  // Per store-instantie, buiten de serialiseerbare Zustand-state. `hydratePayload` kan hierdoor de
-  // oude actieve `view.columns` veilig weg-normaliseren zonder de eenmalige migratiebron te verliezen.
-  // Na een expliciete nieuwe voorkeur of een bootstrap-hydrate is de bron definitief irrelevant.
   let preferencesReady = false;
   let pendingLegacyColumns: PendingLegacyTaskGridColumns | null = null;
   let scrollPersistenceTimer: ReturnType<typeof setTimeout> | null = null;
@@ -130,16 +110,12 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
 
     hydrateTaskGridPreferences: (preferences, options) => {
       const normalized = cloneTaskGridPreferences(preferences);
-      // Een geplande scrollwrite hoort bij de oude toestand en zou de net geladen voorkeuren
-      // terugzetten (bijv. een laat antwoord van de host, #818).
       cancelScheduledScrollPersistence();
       markPreferencesReady();
       set((state) => {
         state.taskGridAutoWriteAllowed = options?.autoWrite !== false;
         state.taskGridSurfaces = normalized.surfaces;
         state.recentTaskColumns = normalized.recent;
-        // Een oude actieve documentpayload kan deze key runtime nog dragen. De migratie heeft hem
-        // vóór deze call gelezen; vanaf hier mag hij niet opnieuw door capturePayload meereizen.
         delete (state.view as typeof state.view & { columns?: unknown }).columns;
       });
     },
@@ -158,9 +134,6 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
 
     applyAutoFitTaskGridColumns: (surface, columns) => {
       if (!get().taskGridAutoWriteAllowed) return;
-      // Ingebed, terwijl een laat antwoord van de host is toegepast maar de store nog de oude kopie
-      // heeft: een schrijfactie van die kopie zet de bewaarde waarde terug (zie `writeLocal`). De
-      // store wordt zo meteen opnieuw geladen, dan meet het raster opnieuw.
       if (siteHostSettingWriteHeld('ops-taskGridPreferences')) return;
       const normalized = normalizeTaskGridColumnPreferences(columns);
       if (normalized === null) return;
@@ -169,8 +142,6 @@ export const createTaskGridSlice: AppSlice<TaskGridSlice> = (set, get) => {
         state.taskGridSurfaces[surface].columns = normalized;
         persisted = persistedTaskGridPreferences(state);
       });
-      // Een gemeten breedte is geen keuze van de gebruiker (`'start'`, #818): ingebed telt ze niet als
-      // wijziging die bij een laat antwoord van de host teruggezet wordt.
       if (persisted) persistImmediately(persisted, 'start');
     },
 

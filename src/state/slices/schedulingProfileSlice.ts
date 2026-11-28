@@ -1,6 +1,3 @@
-// Store-actie van het rekenprofiel. Het profiel en de
-// projectopties zijn documentdata (`project`, rijdt mee in DOCUMENT_FIELDS/snapshot). Eigen sjablonen
-// zijn app-globaal en leven buiten de store (`services/schedulingProfiles/profileStore.ts`).
 import type { AppSliceFactory } from './types';
 import { PROJECT_INFO_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import type { Project } from '@/types/project';
@@ -16,21 +13,7 @@ export type SchedulingSettings = SchedulingSettingsDraft;
 export type ApplyResult = { changed: boolean; shifted: number | null };
 
 export interface SchedulingProfileSlice {
-  /** Eén undo-stap: `finishMutation({ stale: true })` (verlaat ook "datums zoals opgeslagen"), daarna
-   *  `runCPM()` zoals Toepassen in Projectinfo altijd deed (ook met Automatisch berekenen uit; runCPM
-   *  ververst het `after` van datzelfde undo-event), daarna één melding "N taken verschoven" (vóór/ná-
-   *  telling van de bladtaken, dezelfde als de strook "datums zoals opgeslagen"). Geen kloon-solve
-   *  vooraf, geen dialoog. Inhoudelijk gelijke instellingen (`sameSettings`) ⇒ niets, geen
-   *  undo-stap. Een eigen profiel zonder naam (`hasValidProfileName`) wordt geweigerd
-   *  (`changed: false`); een geldige naam wordt getrimd. = `applyProjectInfo({}, next)`. */
   applySchedulingSettings: (next: SchedulingSettings) => ApplyResult;
-  /** Toepassen in Projectinfo: `metadata` = alleen de ÉCHT gewijzigde velden
-   *  (`projectInfoPatch`). Wijzigt het profiel niet, dan gaat de metadata via `setProject` (met zijn
-   *  eigen no-op-guard en projectstart-klem). Wijzigt het profiel wél, dan landen metadata én profiel
-   *  in ÉÉN producer met één undo-stap "Projectinfo" (of "Rekenprofiel" zonder metadata) — zodat één
-   *  Ctrl+Z profiel, naam, datums en "datums zoals opgeslagen" samen terugzet. Leeg + ongewijzigd ⇒
-   *  niets: geen undo-stap, niet vuil, de modus blijft. Het IFC-schema gaat apart, zonder undo-stap
-   *  (`setIfcSchema`, review #336); telt wel als wijziging (`changed`). */
   applyProjectInfo: (metadata: Partial<Project>, scheduling: SchedulingSettings | undefined) => ApplyResult;
 }
 
@@ -39,7 +22,6 @@ export const createSchedulingProfileSlice: AppSliceFactory<SchedulingProfileSlic
 
   applyProjectInfo: (patch, next) => {
     if (next && !hasValidProfileName(next.profile)) return { changed: false, shifted: null };
-    // Het schema hoort bij het bestand: eerst, buiten de undo-stap van de rest.
     const { schema, rest: metadata } = splitIfcSchemaPatch(patch, get().project);
     const schemaChanged = schema ? get().setIfcSchema(schema) : false;
     const before = get();
@@ -62,7 +44,6 @@ export const createSchedulingProfileSlice: AppSliceFactory<SchedulingProfileSlic
     let clampedAnchors = 0;
     set((s) => {
       runtime.beginUndoable(s, { label: hasMetadata ? 'Projectinfo' : 'Rekenprofiel' });
-      // Ook een gelijktijdige projectstandaard volgt de werkregelbrug van `setProject`.
       if (hasMetadata) clampedAnchors = applyProjectPatch(s, metadata).clampedAnchors;
       s.project.schedulingProfile = profile ? { ...copyProfile(profile), name: profile.name.trim() } : undefined;
       s.project.schedulingOptions = options;
