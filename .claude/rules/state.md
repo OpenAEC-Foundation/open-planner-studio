@@ -228,3 +228,9 @@ de getoonde datums en de tellers (0333) en de bouwstenen voor de lezers (0334).
 
 **Datums zoals opgeslagen verlaten rekent altijd door** (`useExitRecordedDates`, ook met Automatisch berekenen uit):
 `docs/adr/0782-datums-zoals-opgeslagen-verlaten-rekent-altijd.md`.
+**Keuzes in de slices** (`src/state/slices/`): acties die zelf herrekenen zetten toch `stale` voor één undo-stap
+(`docs/adr/0800-slice-acties-die-zelf-herrekenen.md`), rekenen op de bevroren staat buiten de producer
+(`0801-rekenen-buiten-de-immer-producer.md`), de baseline op de getoonde datums (`0802-baseline-op-de-getoonde-datums.md`),
+Shift kiest precies het bereik (`0803-shift-selectie-kiest-precies-het-bereik.md`), extensies in de store
+(`0804-extensies-in-de-store.md`) en geen automatische kolombreedtemeting na een afgewezen taakgridvoorkeur
+(`0805-taakgridvoorkeuren-na-een-afgewezen-voorkeur.md`).

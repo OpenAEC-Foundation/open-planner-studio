@@ -9,65 +9,29 @@ import type { Snapshot } from '../snapshot';
 import type { AppState } from '../appStore';
 import type { AppSliceFactory } from './types';
 
-/**
- * Structuurdefinities: activity-code-types en custom fields, per document
- * (round-trippen door IFC; zitten in undo-snapshots en de document-payloads).
- * Taak-toewijzingen leven op de taken zelf (task.activityCodes / task.customFields)
- * en liften daardoor vanzelf mee met snapshot/klembord/IFC-taken.
- */
 export interface StructureSlice {
   activityCodeTypes: ActivityCodeType[];
   customFieldDefs: CustomFieldDef[];
-  /** Projectkopieën van de zelfgekozen taaktypen; bewust per document en IFC-roundtrip. */
   customTaskTypes: CustomTaskType[];
 
   addActivityCodeType: (name: string) => string;
   renameActivityCodeType: (id: string, name: string) => void;
-  /** Verwijdert het type én alle toewijzingen ervan op taken; reset een actieve groepering erop. */
   removeActivityCodeType: (id: string) => void;
   addActivityCodeValue: (typeId: string, value: Omit<ActivityCodeValue, 'id'>) => string;
   updateActivityCodeValue: (typeId: string, valueId: string, patch: Partial<Omit<ActivityCodeValue, 'id'>>) => void;
-  /**
-   * Zet een waarde één plek omhoog (delta -1) of omlaag (+1) in de eigen volgorde van het type; die volgorde is
-   * die van de keuzelijsten. Verandert nooit een toewijzing op een taak. Aan de rand of bij een onbekende
-   * waarde gebeurt niets (ook geen undo-stap).
-   */
   moveActivityCodeValue: (typeId: string, valueId: string, delta: -1 | 1) => void;
-  /** Verwijdert de waarde én alle taak-toewijzingen ervan. */
   removeActivityCodeValue: (typeId: string, valueId: string) => void;
-  /** Wijs een codewaarde toe aan een taak (null = toewijzing weghalen). Max één waarde per type. */
   setTaskActivityCode: (taskId: string, typeId: string, valueId: string | null) => void;
 
   addCustomField: (name: string, type: CustomFieldType) => string;
   renameCustomField: (id: string, name: string) => void;
-  /** Verwijdert het veld én alle waarden ervan op taken. */
   removeCustomField: (id: string) => void;
-  /** Zet een veldwaarde op een taak (null = waarde weghalen). */
   setTaskCustomField: (taskId: string, defId: string, value: CustomFieldValue | null) => void;
-  /** Neemt een werksoort op in het document. Haar kleur gaat mee; zonder kleur de eerste vrije (#856). */
   ensureProjectTaskType: (type: CustomTaskTypeDraft) => void;
-  /**
-   * Hernoemt de projectkopie van een eigen taaktype (#804 keuze 7): één ongedaan-maakstap, document
-   * gewijzigd, de naam gaat mee in het IFC en het herstel. Alleen in `documentId`, het document waarin de
-   * planner het bevestigde (is een ander document actief: niets), en alleen als een taak het type gebruikt
-   * (een ongebruikte definitie bewaart IFC/herstel niet; die gaat via `renameUnusedProjectTaskType`).
-   * Dezelfde botsingsregel als `ensureProjectTaskType`; een geweigerde of overbodige hernoeming verandert
-   * niets.
-   */
   renameProjectTaskType: (documentId: string, id: string, name: string) => RenameProjectTaskTypeResult;
-  /**
-   * De tegenhanger voor een projectkopie die GEEN taak gebruikt (eigenaarsbesluit 18 november 2026): die
-   * krijgt de nieuwe naam stil. IFC en herstel bewaren zo'n definitie niet, dus wat bewaard wordt verandert
-   * niet: geen ongedaan-maakstap en het document wordt niet gewijzigd. Ook de oudere momentopnames van dit
-   * document waarin de kopie ongebruikt is, krijgen de naam, zodat ongedaan maken haar niet terugdraait;
-   * een stand waarin een taak haar gebruikte, houdt de naam van toen. Dezelfde regels als
-   * `renameProjectTaskType`; een gebruikte kopie (`inUse`) of een botsende naam verandert niets.
-   */
   renameUnusedProjectTaskType: (documentId: string, id: string, name: string) => RenameProjectTaskTypeResult;
 }
 
-/** Uitkomst van `renameProjectTaskType`. `nameTaken` noemt de naam van het ándere type, zodat de
- *  planner ziet waarom de naam in het project niet veranderde. */
 export type RenameProjectTaskTypeResult =
   | { status: 'renamed' }
   | { status: 'unchanged' }
@@ -78,9 +42,6 @@ export type RenameProjectTaskTypeResult =
   | { status: 'otherDocument' }
   | { status: 'nameTaken'; takenName: string };
 
-/** De regels van beide hernoemacties, in deze volgorde: het document waarin de planner hernoemde, een
- *  niet-lege naam, een type dat in het project staat, het gebruik dat bij de actie hoort (`used`), geen
- *  ánder type met die naam en een echte wijziging. Geeft de getrimde naam of de weigering. */
 function checkProjectTaskTypeRename(
   state: AppState, documentId: string, id: string, name: string, used: boolean,
 ): { status: 'allowed'; name: string } | RenameProjectTaskTypeResult {
@@ -128,8 +89,6 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
     const state = get();
     const check = checkProjectTaskTypeRename(state, documentId, id, name, false);
     if (check.status !== 'allowed') return check;
-    // Buiten `beginUndoable`/`finishMutation`: geen stap en geen `isDirty`. Dezelfde typelijst krijgt
-    // overal dezelfde nieuwe lijst, zodat gedeelde referenties tussen momentopnames gedeeld blijven.
     const renamed = new Map<readonly CustomTaskType[], CustomTaskType[] | null>();
     const rename = (types: readonly CustomTaskType[]): CustomTaskType[] | null => {
       if (!renamed.has(types)) renamed.set(types, renamedCustomTaskTypes(types, id, check.name));
@@ -140,8 +99,6 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       const customTaskTypes = rename(snapshot.customTaskTypes);
       return customTaskTypes ? { ...snapshot, customTaskTypes } : snapshot;
     });
-    // Geen `recomputeViewRows`: de rijen lezen de werksoortcatalogus niet (`viewRowInputs`); de Tabel en
-    // het werksoortveld volgen haar rechtstreeks.
     set({ customTaskTypes: rename(state.customTaskTypes)!, historyEvents });
     return { status: 'renamed' };
   },
@@ -176,7 +133,6 @@ export const createStructureSlice: AppSliceFactory<StructureSlice> = (runtime) =
       for (const task of s.tasks) {
         if (task.activityCodes && id in task.activityCodes) delete task.activityCodes[id];
       }
-      // Groep-/sort-niveaus die naar dit type verwezen laten vallen.
       s.view.group = s.view.group.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
       s.view.sort = s.view.sort.filter(g => !(g.field.src === 'activityCode' && g.field.typeId === id));
       runtime.finishMutation(s);
