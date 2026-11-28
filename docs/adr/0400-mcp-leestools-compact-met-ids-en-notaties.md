@@ -24,8 +24,7 @@ beschrijvingen). De bekende gevallen waarin een gelezen waarde niet zo terug kan
   eist één relatie in alle `rels` samen, de notatie met `#<seq-id>` en het `id` op de rij).
 - De rijen van het overzicht staan in boomvolgorde (`flattenOrder`), met `depth` en `parentId`: `parent` is de
   WBS-code van de ouder, en die is bij vrije of dubbele codes niet eenduidig. `parent` blijft staan voor bestaande
-  clients. Dat de store na een P6- of IFC-import met de samenvattingen begint, komt uit het weggehaalde commentaar en
-  is niet nagegaan. Toets: `cases-read.ts`, "get_project_overview: rijen in boomvolgorde met depth en parentId …"
+  clients. Toets: `cases-read.ts`, "get_project_overview: rijen in boomvolgorde met depth en parentId …"
   (R, S1, a; de toets eist die volgorde, diepte 1, 2 en 3, geen `depth` op de wortel, `parentId` als id en `parent`
   als WBS-code).
 - Relatietype en lag komen uit `seqAbbrev` en `lagLabel` in `sequenceFields.ts`, de module waar ook

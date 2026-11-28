@@ -1,10 +1,3 @@
-// check-distribute.ts — B1c-plan-2 taak 10: het sequentiële plaatsingsprotocol (spec §4/§9).
-// Cases 1-15 volgen de spec-testlijst (§9, blok "Verdeler"). Poolitem P (capaciteit 2/dag) in
-// bibliotheek c1; week ma 2026-08-03 t/m vr 2026-08-07 tenzij anders vermeld. Fixture-bouwstenen
-// gekopieerd (niet geïmporteerd) uit `tests/library/check-occupancy.ts` en `check-ifc-hostile.ts` —
-// stijl van deze suite.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { computeDistribution, type DistributionDocInput, type DistributionLevelRun, type DistributionShortfall } from '@/services/library/distribute';
 import { computeLibraryOccupancy } from '@/services/library/occupancy';
 import type { LevelingPoolLedger } from '@/engine/scheduler/ResourceLeveler';
@@ -30,7 +23,6 @@ function assert(cond: boolean, msg: string): void {
   if (!cond) { fails++; console.log(`   XX ${msg}`); }
 }
 
-// ── Fixture-bouwstenen (kopie van check-occupancy.ts) ──────────────────────────────────────────────
 function cal(id = 'cal-1'): WorkCalendar {
   return {
     id, name: 'Standaard', description: '', workDays: [1, 2, 3, 4, 5],
@@ -82,8 +74,6 @@ interface DistDocOpts {
   sequences?: Sequence[];
   calendar?: WorkCalendar;
   scheduleStale?: boolean;
-  /** Forceert het vangnetpad (§4.3): geen `solveInput` meegeven ⇒ `counted: false` bij een stale
-   *  document — case 14 (UNCOUNTED_DOCUMENT). */
   omitSolveInput?: boolean;
 }
 function distDoc(docId: string, opts: DistDocOpts = {}): DistributionDocInput {
@@ -110,13 +100,6 @@ function distDoc(docId: string, opts: DistDocOpts = {}): DistributionDocInput {
 }
 const OPTS_OFF = { allowSplits: false };
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 1 (§9.1): float eerst — een document met float benut die en verschuift zijn EINDDATUM niet.
-// d0 (gepind) bezet ma 08-03 volledig (2/2). d1 heeft twee onafhankelijke takken: Z (3 wd, geen
-// resource, de kritieke tak) en A (2 wd, stamped op P) — A heeft dus 1 werkdag float t.o.v. Z. A kan
-// niet op ma starten (P vol door d0), schuift naar di/wo (delay 1) — precies haar float, dus Z blijft
-// de projecteinddatum bepalen.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: float eerst, geen einddatum-kosten (case 1) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -142,11 +125,6 @@ console.log('-- distribute: float eerst, geen einddatum-kosten (case 1) --');
   assert(doc1.endShiftWorkdays === 0, `case 1: float wordt benut zonder einddatum-kosten (kreeg ${doc1.endShiftWorkdays})`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 2 (§9.2): rangorde gerespecteerd — nr. 1 nivelleert alleen tegen de vaste last (ziet géén van
-// de andere deelnemers), nr. 2 ziet nr. 1 wél. Twee documenten willen allebei de volle poolcapaciteit
-// (2/dag) op dezelfde dag.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: rangorde gerespecteerd (case 2) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -164,10 +142,6 @@ console.log('-- distribute: rangorde gerespecteerd (case 2) --');
   assert(Object.keys(p2.docs[1].delays).length > 0, 'case 2: nr. 2 wijkt om nr. 1 heen');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 3 (§9.3): uitschieter minimaal — dezelfde fixture met de rangorde omgedraaid toont dat de
-// verdeling meebeweegt: de rangorde ÍS de fairness-knop (spec §4 stap 2).
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: rangorde is de fairness-knop (case 3) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -185,15 +159,6 @@ console.log('-- distribute: rangorde is de fairness-knop (case 3) --');
   assert(wijktReversed === 'd1', `case 3: bij omgedraaide rangorde wijkt d1 (kreeg ${wijktReversed})`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 4 (§9.4): plafonds hard — d1 (rank1, geen plafond) bezet 08-03+08-04 volledig; d2 (rank2, 1 wd,
-// eigen deadline op ma ⇒ float 0, plafond 1) kan niet ver genoeg wijken ⇒ tekort. Reden is RESIDUAL_FULL
-// (fixronde B1c-plan-2-etappe-2, bevinding 4, was CEILING_TOO_TIGHT): d2 se EIGEN projectinzet had op
-// 08-03 nooit een probleem (RA se maxUnits is ruim) — elke afgewezen kandidaat liep uitsluitend vast op
-// het GEDEELDE poolgrootboek dat d1 al volledig bezet houdt (`poolBlockedOnly`), dus de eerlijke reden
-// wijst naar de pool, niet naar d2 se eigen (onschuldige) plafond van 1 werkdag. Zie case 4b hieronder
-// voor het omgekeerde: een taak die WEL door haar eigen plafond geblokkeerd wordt (geen pool-conflict).
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: plafonds zijn hard (case 4) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -220,20 +185,12 @@ console.log('-- distribute: plafonds zijn hard (case 4) --');
   assert(p4.hasShortfall === true, 'case 4: hasShortfall staat');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 4b (fixronde B1c-plan-2-etappe-2, bevinding 4): het omgekeerde van case 4 — GEEN blokker op de
-// pool (poolcapaciteit ruim, niemand anders boekt), maar d1 se EIGEN (krappe) projectinzet blokkeert
-// A2, en met plafond 0 kan A2 ook geen dag uitwijken. Zelfde fixture als case 9 (min met de
-// projectinzet), maar nu MET een plafond van 0 werkdagen — case 9 liet A2 nog gewoon 1 dag wijken;
-// hier kán dat niet meer, dus wordt het een tekort. De afwijzing lag nooit aan de pool (die had de
-// hele week ruimte), dus de eerlijke reden blijft CEILING_TOO_TIGHT.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: CEILING_TOO_TIGHT blijft bestaan zonder pool-blokkade (case 4b) --');
 {
-  const p = pool([poolRes('lib-1', 'Kraan', 5)]); // ruime pool, niemand anders boekt
+  const p = pool([poolRes('lib-1', 'Kraan', 5)]);
   const d1 = distDoc('d1', {
     rank: 1, ceilingWorkdays: 0,
-    resources: [stamped('d1-r1', 'lib-1', 'c1', { maxUnits: 1 })], // krappe PROJECTinzet
+    resources: [stamped('d1-r1', 'lib-1', 'c1', { maxUnits: 1 })],
     tasks: [
       task('a1', '2026-08-03', '2026-08-03', 1, { priority: 900 }),
       task('a2', '2026-08-03', '2026-08-03', 1, { priority: 100, deadline: '2026-08-03' }),
@@ -248,24 +205,17 @@ console.log('-- distribute: CEILING_TOO_TIGHT blijft bestaan zonder pool-blokkad
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 5 (§9.5): het plafond meet vanaf de HUIDIGE (mét bestaande nivellering berekende) planning.
-// X (buiten scope — geen bibliotheekstempel) draagt al `levelingDelay: 2` uit een eerdere
-// nivellering elders in hetzelfde document; A (FS-opvolger van X, in scope) volgt X se VERSCHOVEN
-// positie. Een pin blokkeert A se natuurlijke landingsdag; met plafond 0 (= float, geen ruimte) is
-// dat een tekort, met plafond 1 past het precies.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: plafond t.o.v. de huidige (genivelleerde) planning (case 5) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const d0 = distDoc('d0', {
     pinned: true,
     resources: [stamped('d0-r1', 'lib-1')],
-    tasks: [task('x0', '2026-08-06', '2026-08-06', 1)], // do 08-06 volledig bezet
+    tasks: [task('x0', '2026-08-06', '2026-08-06', 1)],
     assignments: [assign('d0-a1', 'x0', 'd0-r1', 2)],
   });
   const mkD1 = (ceilingWorkdays: number) => {
-    const taskX = task('x', '2026-08-03', '2026-08-03', 1, { levelingDelay: 2 }); // ⇒ EF wordt 08-05
+    const taskX = task('x', '2026-08-03', '2026-08-03', 1, { levelingDelay: 2 });
     const taskA = task('a', '2026-08-06', '2026-08-06', 1);
     const seq: Sequence = { id: 'seq-xa', predecessorId: 'x', successorId: 'a', type: 'FINISH_START', lagDays: 0 };
     return distDoc('d1', {
@@ -284,10 +234,6 @@ console.log('-- distribute: plafond t.o.v. de huidige (genivelleerde) planning (
   assert(doc5b.shortfalls.length === 0 && doc5b.delays['a'] === 1, `case 5: plafond 1 past precies (kreeg ${JSON.stringify(doc5b.delays)}, tekorten ${JSON.stringify(doc5b.shortfalls)})`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 6 (§9.6): plafond onbereikbaar door een deadline die de lateStart ver vóór de PF duwt — eigen
-// reden (CEILING_UNREACHABLE), spiegelt `check-leveler-ceiling.ts` geval 3.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: onbereikbaar plafond door een deadline (case 6) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -307,9 +253,6 @@ console.log('-- distribute: onbereikbaar plafond door een deadline (case 6) --')
   assert(shortfallC?.reason === 'CEILING_UNREACHABLE', `case 6: onbereikbaar plafond ⇒ eigen reden (kreeg ${shortfallC?.reason})`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 7 (§9.7): gepind document — volledig ongemoeid ÉN meegeteld als vaste last.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: gepind document (case 7) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -326,9 +269,6 @@ console.log('-- distribute: gepind document (case 7) --');
   assert((p7.fixedLoadByDay['2026-08-03'] ?? 0) > 0, `case 7: maar bezet het profiel wél (kreeg ${p7.fixedLoadByDay['2026-08-03']})`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 8 (§9.8): priority-1000-document — alle taken vastgepind ⇒ "kan niet wijken".
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: document kan niet wijken, maar meldt zijn tekort (case 8 / 760) --');
 for (const capacity of [1, 2]) {
   const p = pool([poolRes('lib-1', 'Kraan', capacity)]);
@@ -356,10 +296,6 @@ for (const capacity of [1, 2]) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 9 (§9.9): `min` met de projectinzet — de PROJECTkopie heeft maxUnits 1, dus een tweede taak op
-// dezelfde resource kan niet 2 boeken ook al is er poolrest over.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: min met de projectinzet (case 9) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -373,20 +309,11 @@ console.log('-- distribute: min met de projectinzet (case 9) --');
     assignments: [assign('d1-a1', 'a1', 'd1-r1', 1), assign('d1-a2', 'a2', 'd1-r1', 1)],
   });
   const p9 = computeDistribution('c1', p, 'lib-1', [d1], OPTS_OFF);
-  // De PROJECTinzet (RA se eigen maxUnits 1) blokkeert A2 op 08-03, ook al heeft de pool (2/dag)
-  // daar nog volop rest — A2 wijkt dus gewoon één dag uit, ondanks de ruime poolrest. Geen enkele
-  // afgewezen kandidaat faalde UITSLUITEND op de pool, dus een eventuele onopgeloste reden zou hier
-  // nooit RESIDUAL_FULL mogen zijn (spiegelt `check-leveler-pool-ledger.ts` geval 2).
   assert(p9.docs[0].delays['a2'] === 1, `case 9: A2 wijkt om de eigen (krappere) projectinzet heen (kreeg ${JSON.stringify(p9.docs[0].delays)})`);
   const shortfallA2 = p9.docs[0].shortfalls.find(s => s.taskId === 'a2');
   assert(shortfallA2 === undefined || shortfallA2.reason !== 'RESIDUAL_FULL', 'case 9: nooit RESIDUAL_FULL — de pool zelf had ruimte');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 10 (§9.10): dubbele stempel in één document — twee gestempelde resources trekken van HETZELFDE
-// grootboek, geen dubbeltelling (spiegelt `check-leveler-pool-ledger.ts` geval 3, hier op
-// verdelerniveau). Poolcapaciteit hier bewust 1 (niet de gedeelde default 2).
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: gedeeld grootboek binnen één document (case 10) --');
 {
   const p10pool = pool([poolRes('lib-1', 'Kraan', 1)]);
@@ -404,18 +331,12 @@ console.log('-- distribute: gedeeld grootboek binnen één document (case 10) --
   assert(p10.docs[0].delays['b'] === 1, `case 10: gedeeld grootboek — B wijkt één dag (kreeg ${JSON.stringify(p10.docs[0].delays)})`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 11 (§9.11): som ≠ oplossing — twee documenten met elk een plafond van 1 werkdag lijken
-// samen "genoeg" speling te hebben, maar een blokker bezet de HELE relevante week volledig: geen van
-// beide vindt ergens een slot ⇒ allebei een tekort, geen "opgelost"-shortcut op de som.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: som van plafonds ≠ oplossing (case 11) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const d0 = distDoc('d0', {
     pinned: true,
     resources: [stamped('d0-r1', 'lib-1')],
-    // Een volle week (5 wd) volledig bezet — ruim voorbij beide documenten se plafond van 1 wd.
     tasks: [task('x0', '2026-08-03', '2026-08-07', 5)],
     assignments: [assign('d0-a1', 'x0', 'd0-r1', 2)],
   });
@@ -431,11 +352,6 @@ console.log('-- distribute: som van plafonds ≠ oplossing (case 11) --');
   assert(part.length === 2 && part.every(d => d.shortfalls.length > 0), 'case 11: BEIDE documenten houden een tekort — geen som-shortcut');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 12 (§9.12): niet-plaatsbaar document ⇒ tekort geregistreerd, restprofiel blijft ≥ 0, GEEN
-// cascade — het document ná het tekort krijgt exact dezelfde plaatsing als wanneer het tekortdocument
-// er niet was. Poolcapaciteit hier bewust 1.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: tekort cascadeert niet (case 12) --');
 {
   const p12pool = pool([poolRes('lib-1', 'Kraan', 1)]);
@@ -445,8 +361,6 @@ console.log('-- distribute: tekort cascadeert niet (case 12) --');
     tasks: [task('a1', '2026-08-03', '2026-08-03', 1)],
     assignments: [assign('d1-a1', 'a1', 'd1-r1', 1)],
   });
-  // d2 vraagt STRUCTUREEL meer dan de poolcapaciteit ooit kan bieden (3 > 1, altijd) — intrinsiek
-  // onoplosbaar, boekt dus NIETS in het grootboek.
   const d2 = distDoc('d2', {
     rank: 2,
     resources: [stamped('d2-r1', 'lib-1')],
@@ -477,9 +391,6 @@ console.log('-- distribute: tekort cascadeert niet (case 12) --');
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 13 (§9.13): #63 ("datums zoals opgeslagen") is impliciet gepind, met een eigen label.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: #63 is impliciet gepind (case 13) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -494,10 +405,6 @@ console.log('-- distribute: #63 is impliciet gepind (case 13) --');
   assert(JSON.stringify(p13.docs[0]?.delays) === '{}', 'case 13: #63-document wordt nooit beschreven');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 14 (§9.14/§3.1): een UNCOUNTED document blokkeert de HELE actie met uitleg — geen stille
-// uitsluiting. Stale document zonder solveInput ⇒ vangnetpad (counted: false).
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: uncounted blokkeert de hele actie (case 14) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -518,17 +425,12 @@ console.log('-- distribute: uncounted blokkeert de hele actie (case 14) --');
   assert(p14.docs.length === 0, 'case 14: en levert geen voorstel');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 15 (§9.15): onderbreek-modus — met `allowSplits` schrijft het voorstel geldige `splitGaps`
-// MÉT herkomstveld, en die komen door de OPS_TaskSplits-round-trip (writeIFC/readIFC) heen. Zelfde
-// blokker/deadline/plafond-vorm als `check-leveler-splitmode.ts` geval 1 ("aan").
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: onderbreek-modus schrijft geldige splitGaps (case 15) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 1)]);
   const blocker = task('x0', '2026-08-03', '2026-08-05', 3, {
     priority: 900,
-    splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }], // bezet ma+wo+do, di vrij
+    splitGaps: [{ afterMinutes: 480, gapMinutes: 480 }],
   });
   const d0 = distDoc('d0', {
     pinned: true,
@@ -547,8 +449,6 @@ console.log('-- distribute: onderbreek-modus schrijft geldige splitGaps (case 15
   const gaps = doc15.gaps['b'];
   assert(!!gaps && gaps.length === 1 && gaps[0].source === 'leveling', `case 15: het voorstel draagt precies één leveling-gat (kreeg ${JSON.stringify(gaps)})`);
 
-  // Round-trip door de ECHTE OPS_TaskSplits-pset (writeIFC → readIFC), zelfde patroon als
-  // `check-ifc-hostile.ts`s `minimalFixture`.
   const fixture: ImportResult = {
     project: createDefaultProject(),
     calendar: createDefaultCalendar(),
@@ -562,13 +462,6 @@ console.log('-- distribute: onderbreek-modus schrijft geldige splitGaps (case 15
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 16 (fixronde B1c-plan-2-etappe-2, bevinding 1) — repro van de keurder: twee documenten die elk
-// 1 eenheid van een MATERIAL-poolitem met capaciteit 1 boeken op dezelfde dag. `levelResources`
-// nivelleert `MATERIAL` nooit (spec §5.3, `renewable`-filter), dus zonder de `MATERIAL_ITEM`-poort
-// kreeg elke scope-taak stilzwijgend `hasDemand === false`: een LEEG voorstel dat "opgelost" oogt
-// (geen delays, geen tekorten), terwijl het bezettingsoverzicht gewoon een conflict toont.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: MATERIAL-poolitem blokkeert de hele actie (case 16, bevinding 1) --');
 {
   const p = pool([poolRes('lib-mat', 'Beton', 1, { type: 'MATERIAL' })]);
@@ -587,19 +480,12 @@ console.log('-- distribute: MATERIAL-poolitem blokkeert de hele actie (case 16, 
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 17 (fixronde B1c-plan-2-etappe-2, bevinding 1, algemener deel): het poolitem zelf is LABOR
-// (geen `MATERIAL_ITEM`-blokkade), maar de gestempelde PROJECTresource staat — inconsistent —  op
-// MATERIAL. Dezelfde "geen enkele scope-taak heeft vraag"-situatie als case 16, nu zonder dat het
-// poolitem het zelf verraadt: het algemenere `NO_DEMAND`-vangnet moet dit alsnog blokkeren i.p.v. een
-// leeg "opgelost"-voorstel te tonen.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: NO_DEMAND is het algemenere vangnet naast MATERIAL_ITEM (case 17, bevinding 1) --');
 {
-  const p = pool([poolRes('lib-1', 'Kraan', 2)]); // poolitem zelf: gewoon LABOR
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const d1 = distDoc('d1', {
     rank: 1,
-    resources: [stamped('d1-r1', 'lib-1', 'c1', { type: 'MATERIAL' })], // inconsistente stempel
+    resources: [stamped('d1-r1', 'lib-1', 'c1', { type: 'MATERIAL' })],
     tasks: [task('a1', '2026-08-03', '2026-08-03', 1)],
     assignments: [assign('d1-a1', 'a1', 'd1-r1', 1)],
   });
@@ -608,16 +494,6 @@ console.log('-- distribute: NO_DEMAND is het algemenere vangnet naast MATERIAL_I
   assert(p17.docs.length === 0, 'case 17: en levert geen leeg "opgelost"-voorstel');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// B1c-plan3 taak 1, bevinding 6: het grootboek boekt PER ITEM. `makeLedgerForDoc` negeerde `itemId`
-// volledig (`residualOn: (_itemId, iso) => residualOn(iso)`). Dat was tot dusver correct omdat
-// `poolItemOf` uitsluitend `libraryItemId` teruggeeft — maar het is een ONGESCHREVEN invariant, en
-// een toekomstige verdeler over meerdere poolitems tegelijk zou stil alles op één hoop boeken. Deze
-// case pint dat de sleutel gebruikt WORDT: de `runLeveling`-hook (dezelfde injecteerbare motor-rand
-// als de rest van dit bestand) vangt de door `computeDistribution` gebouwde `poolLedger` op, zodat
-// de test rechtstreeks tegen `book`/`residualOn` kan toetsen — `makeLedgerForDoc` zelf is niet
-// geëxporteerd.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: het poolitem-grootboek boekt PER ITEM (bevinding 6) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -646,14 +522,6 @@ console.log('-- distribute: het poolitem-grootboek boekt PER ITEM (bevinding 6) 
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// B1c-plan3 taak 11 (a)+(b): `afterLoadByDay`/`bookingByDay`, sluitende boekhouding. Zelfde fixture
-// als case 1 (geen tekort): d0 (gepind) bezet ma 08-03 volledig; d1 se A wijkt één dag om d0 heen.
-// (a) Voor elke dag in `residualByDay` is Σ_doc afterLoadByDay[doc][iso] + residualByDay[iso] gelijk
-//     aan de poolcapaciteit — het gepinde document (d0) staat ZELF in `afterLoadByDay`, dus de som
-//     daarover dekt zowel de vaste last als de geplaatste boeking, geen dubbeltelling nodig.
-// (b) d0 (gepind) staat met zijn ONGEWIJZIGDE boeking in de na-stand: gelijk aan zijn voor-stand.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: afterLoadByDay + residualByDay = capaciteit (taak 11a) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -688,20 +556,12 @@ console.log('-- distribute: afterLoadByDay + residualByDay = capaciteit (taak 11
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// B1c-plan3 taak 11 (c): bij een tekort is `afterIncomplete === true` en de niet-geplaatste vraag
-// ontbreekt in `afterLoadByDay`. LET OP: dit vraagt om een tekort waar de POOL zelf nog ruimte heeft
-// (anders toont de som toch de volle capaciteit — gewoon omdat een ANDER document 'm al volmaakt, niet
-// omdat de ontbrekende vraag ontbreekt). Daarom hier het CEILING_TOO_TIGHT-type tekort van case 4b
-// (eigen krappe projectinzet, GEEN pool-blokkade), met de poolcapaciteit gelijkgetrokken aan a1+a2
-// samen (2): had a2 wél geplaatst, dan was de pool exact vol; nu ontbreekt precies haar eenheid.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: tekort ⇒ afterIncomplete en ontbrekende vraag (taak 11c) --');
 {
-  const p = pool([poolRes('lib-1', 'Kraan', 2)]); // a1 (1) + a2 (1) = 2, zou de pool precies vullen
+  const p = pool([poolRes('lib-1', 'Kraan', 2)]);
   const d1 = distDoc('d1', {
     rank: 1, ceilingWorkdays: 0,
-    resources: [stamped('d1-r1', 'lib-1', 'c1', { maxUnits: 1 })], // krappe PROJECTinzet blokkeert a2, niet de pool
+    resources: [stamped('d1-r1', 'lib-1', 'c1', { maxUnits: 1 })],
     tasks: [
       task('a1', '2026-08-03', '2026-08-03', 1, { priority: 900 }),
       task('a2', '2026-08-03', '2026-08-03', 1, { priority: 100, deadline: '2026-08-03' }),
@@ -723,10 +583,6 @@ console.log('-- distribute: tekort ⇒ afterIncomplete en ontbrekende vraag (taa
   assert(sumAfter < cap, `taak 11c: de niet-geplaatste vraag (a2) ontbreekt uit afterLoadByDay — som (${sumAfter}) < capaciteit (${cap})`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// B1c-plan3 taak 11 (d): een `blocked`-voorstel levert lege boekhoudingen — zelfde fixture als case 16
-// (MATERIAL_ITEM).
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: blocked-voorstel ⇒ bookingByDay/afterLoadByDay leeg (taak 11d) --');
 {
   const p = pool([poolRes('lib-mat', 'Beton', 1, { type: 'MATERIAL' })]);
@@ -743,11 +599,6 @@ console.log('-- distribute: blocked-voorstel ⇒ bookingByDay/afterLoadByDay lee
   assert(result.afterIncomplete === false, 'taak 11d: afterIncomplete is false bij blokkade');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// B1c-plan3 taak 11 (e): `bookingByDay` bevat élk boekend document (ook gepind), met dezelfde waarden
-// als `computeLibraryOccupancy`s eigen `row.docs[].dailyLoad` — geen tweede, kunnen-divergeren
-// berekening. Zelfde fixture als taak 11a/b.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: bookingByDay bevat elk boekend document, gelijk aan de bezetting (taak 11e) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 2)]);
@@ -777,27 +628,10 @@ console.log('-- distribute: bookingByDay bevat elk boekend document, gelijk aan 
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Case 18 (onderzoek 2026-09-14, "lege na-balk"): een deelnemer die wijkt mag zijn boeking NOOIT
-// stilzwijgend kwijtraken. Repro van de browserfixture `seedTwoConflictingDocuments`: twee
-// documenten met elk tien werkdagen werk (ma 2026-09-07 t/m vr 2026-09-18) op één poolitem met
-// capaciteit 1. B kan er niet bij en schuift er volledig achter — zijn na-boeking valt daarmee
-// GEHEEL buiten de voor-dagen.
-//
-// De twee dingen die deze case vastlegt (zie het moduleblok van distribute.ts):
-//  (a) B's boeking staat volledig en ongeschonden in `afterLoadByDay`, zonder tekort — een lege
-//      na-balk in de UI is dus een presentatiefout (as uit de VOOR-stand), geen verdelerfout;
-//  (b) handmatige taken houden hun eigen datums in zowel de CPM-solve als de boekhouding;
-//      een vaste botsing blijft een tekort, zonder onwerkzame vertraging (knownbug 259).
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: na-boeking buiten de voor-dagen, endShiftWorkdays is geen maat (case 18) --');
 for (const manual of [true, false]) {
   const p = pool([poolRes('lib-1', 'Gedeelde kraan', 1)]);
   const mk = (docId: string, rank: number): DistributionDocInput => {
-    // F3c (B1, spec §3.11 eis 4 en §4.2 D1/D2): een handmatig geplande taak boekt op haar eigen
-    // spanne, en de solver neemt haar datums rauw over. De laadgrens normaliseert een datum zonder
-    // tijd (einde = einde van die werkdag); de fixture doet dat nu ook, anders leest de solver het
-    // einde '2026-09-18' als 18 sep 00:00 (= einde van de 17e) en boekt B maar negen dagen.
     const t = normalizeTaskDates(task(`${docId}-t1`, '2026-09-07', '2026-09-18', 10, { manuallyScheduled: manual }),
       { calendar: cal(), calendars: [] });
     return distDoc(docId, {
@@ -814,8 +648,6 @@ for (const manual of [true, false]) {
   const docB = result.docs.find(d => d.docId === 'B')!;
   assert(docB !== undefined && docB.participated, `${label}: B doet mee als deelnemer`);
   if (manual) {
-    // Knownbug 259: de solver houdt handmatige datums vast. Het voorstel moet diezelfde last
-    // tonen en het onoplosbare conflict melden, zonder een onwerkzame nivelleervertraging.
     assert(Object.keys(docB.delays).length === 0, `${label}: geen vertraging op handmatige taken`);
     assert(docB.shortfalls.length > 0 && result.hasShortfall, `${label}: vaste botsing blijft zichtbaar`);
     assert(docB.endShiftWorkdays === 0, `${label}: projecteinde blijft vast`);
@@ -825,22 +657,18 @@ for (const manual of [true, false]) {
   assert(docB.shortfalls.length === 0, `${label}: B is geplaatst, dus geen tekort (kreeg ${JSON.stringify(docB.shortfalls)})`);
   assert(result.hasShortfall === false, `${label}: geen tekort in het voorstel`);
 
-  // (a) De kern van de bevinding: geplaatst ⇒ de boeking staat er, en wel volledig.
   const before = result.bookingByDay['B'] ?? {};
   const after = result.afterLoadByDay['B'] ?? {};
   const sum = (m: Record<string, number>): number => Object.values(m).reduce((n, v) => n + v, 0);
   assert(Object.keys(after).length > 0, `${label}: afterLoadByDay['B'] is NIET leeg — een geplaatste boeking mag niet stil verdwijnen`);
   assert(sum(after) === sum(before), `${label}: B houdt zonder tekort exact evenveel werk (voor ${sum(before)}, na ${sum(after)})`);
 
-  // De na-dagen liggen GEHEEL buiten de voor-dagen: precies de stand waarin een as uit de
-  // voor-stand een lege balk tekent.
   const beforeDays = new Set([...Object.keys(result.fixedLoadByDay), ...Object.values(result.bookingByDay).flatMap(m => Object.keys(m))]);
   assert(
     Object.keys(after).every(iso => !beforeDays.has(iso)),
     `${label}: B's na-dagen vallen buiten de voor-dagen (na ${JSON.stringify(Object.keys(after))})`,
   );
 
-  // (b) endShiftWorkdays volgt de PROJECTeinddatum, niet de boeking.
   assert(
     docB.endShiftWorkdays === (manual ? 0 : 10),
     `${label}: endShiftWorkdays is ${manual ? 0 : 10} (kreeg ${docB.endShiftWorkdays}) — een handmatig geplande taak schuift haar einddatum niet op`,
@@ -848,17 +676,10 @@ for (const manual of [true, false]) {
   assert(docB.delays['B-t1'] === 10, `${label}: de boeking schuift wél tien werkdagen (kreeg ${JSON.stringify(docB.delays)})`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Audit 2026-09-26: een relatie op een SAMENVATTING (S{A} →FS→ B) moet de verdeler net zo zien als
-// het store-pad: uitgeklapt naar A →FS→ B. Vroeger kreeg de leveler de ruwe relatie; de solver liet
-// die in de basis-/PF-/proefsolves vallen en de verdeler bedacht een onterechte vertraging.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- distribute: samenvattingsrelatie wordt uitgeklapt (audit 2026-09-26) --');
 {
   const p = pool([poolRes('lib-1', 'Kraan', 1)]);
   const summary = task('s', '2026-08-03', '2026-08-07', 5, { childIds: ['a'] });
-  // B heeft een HOGERE prioriteit dan A: zonder de (weggevallen) relatie plaatst de leveler B eerst
-  // op de vroegste dag en duwt hij A opzij — precies de onterechte vertraging.
   const taskA = task('a', '2026-08-03', '2026-08-07', 5, { parentId: 's', priority: 400 });
   const taskB = task('b', '2026-08-10', '2026-08-10', 1, { priority: 600 });
   const d1 = distDoc('d1', {
@@ -867,8 +688,6 @@ console.log('-- distribute: samenvattingsrelatie wordt uitgeklapt (audit 2026-09
     sequences: [{ id: 'sb', predecessorId: 's', successorId: 'b', type: 'FINISH_START', lagDays: 0 }],
     assignments: [assign('d1-a1', 'a', 'd1-r1', 1), assign('d1-a2', 'b', 'd1-r1', 1)],
   });
-  // Het directe symptoom: de solver in de leveler meldt dat hij een relatie NEGEERT omdat een
-  // uiteinde geen bladtaak is. Met uitgeklapte relaties mag dat niet meer gebeuren.
   const warnings: string[] = [];
   const origWarn = console.warn;
   console.warn = (...a: unknown[]) => { warnings.push(a.map(String).join(' ')); };
@@ -886,7 +705,6 @@ console.log('-- distribute: samenvattingsrelatie wordt uitgeklapt (audit 2026-09
   assert(!result.hasShortfall, 'samenvattingsrelatie: geen tekort');
 }
 
-// 322: gemengd document met twee botsende pins blijft een geldig voorstel zonder verzonnen zoekreden.
 {
   const p = pool([poolRes('lib-1', 'Kraan', 1)]);
   const doc = distDoc('pins', {
@@ -923,7 +741,6 @@ for (const allowSplits of [false, true]) {
   assert(Object.values(result.afterLoadByDay['dubbele-koppeling'] ?? {}).every(v => v <= 1), '349: geen verborgen overboeking');
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (fails === 0) {
   console.log(`OK  distribute: alle checks groen (${checks})`);
   process.exit(0);

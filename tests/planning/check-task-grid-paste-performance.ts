@@ -1,24 +1,3 @@
-// Bulk-plak-performance (eindreview, FIX 5) — de gezamenlijke-eindtoestandcontrole voor
-// conditioneel schrijfbare cellen (applyCellEdits in gridTransaction.ts) kopieerde vroeger, per
-// conditioneel schrijfbare cel × per prefixlengte, de VOLLEDIGE `tasksById`-documentkaart, en de
-// route ernaartoe deed daarnaast twee eigen O(document)-hotspots: `orderWritesForDependentTransitions`
-// scande de complete schrijflijst opnieuw voor elke betrokken taak, en `applyCellEdits` zocht de
-// taakindex met `Array.findIndex` in plaats van de kaart die de caller al had. Gemeten: 2.000
-// taken × 27 kolommen plakken (16.000+ writes) bevroor de app 4.446 ms synchroon.
-//
-// Deze batterij reproduceert dat scenario op de ECHTE store (`useAppStore` + `runGridMutation`),
-// met `wbsAutoNumber` aan zodat `task.wbsCode` op elke rij conditioneel read-only is — precies de
-// kolom die de review aanwees — en met synthetische, gegarandeerd-gewijzigde waarden zodat
-// `planTaskGridPaste`'s no-op-eliminatie de writes niet wegfiltert vóór ze de gemeten hot path
-// bereiken. De plak hoeft niet te SLAGEN (wbsCode blijft door `wbsAutoNumber` conditioneel
-// read-only): de meting gaat over hoe lang de controle erover doet om dat vast te stellen.
-//
-// Aanbeveling 3 (onafhankelijke eindreview): één sample zonder warmup was gevoelig voor CPU-druk
-// (de reviewer zag 5.049 ms rood en 2.935 ms net groen op hetzelfde werk). Zelfde protocol als
-// check-task-grid-performance.ts: twee warmups, negen runs, mediaan, en `OPS_RELAX_PERF=1` meet
-// alleen zonder de poort te laten falen (voor een zwaarbelaste machine/CI-runner).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import {
   TASK_GRID_PASTE_PERFORMANCE_COUNTS,
   TASK_GRID_PERFORMANCE_BUDGETS,

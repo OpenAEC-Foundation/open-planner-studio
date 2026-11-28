@@ -1,5 +1,3 @@
-// F5a-1: minuutgetrouwe adapters. De dagenmaat-markering met records (F5a-2) toetst check-uren-f5a2-adapters.ts.
-// Alle invoer komt via de publieke lezers/schrijvers; geen solver- of storewijziging.
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { writeMSPDI, OPS_DURATION_UNIT_FIELD_ID, OPS_DURATION_UNIT_FIELD_NAME } from '@/services/msproject/mspdiWriter';
 import { readP6XML } from '@/services/p6/p6xmlReader';
@@ -36,9 +34,6 @@ function p6Xml(marker = false, lag = 3, rest = 12): string {
     <Relationship><ObjectId>1</ObjectId><PredecessorActivityObjectId>1</PredecessorActivityObjectId><SuccessorActivityObjectId>2</SuccessorActivityObjectId><Type>Finish to Start</Type><Lag>${lag}</Lag></Relationship></Project></APIBusinessObjects>`;
 }
 
-// I1, I2, I3, T15: een volledige dagduur zonder tijdsignaal wordt toch urenmaat.
-// De bestaande OPS-dagenmarkering blijft leesbaar. De ruwe rest toetsen we zonder voortgang;
-// normalisatie van gemarkeerde dagtaken valt onder F2/F5a-2.
 for (const marker of [false, true]) {
   const tag = marker ? 'bestaande dagenmarkering' : 'zonder markering';
   const msp = mspXml(marker);
@@ -47,8 +42,6 @@ for (const marker of [false, true]) {
   eq(`MSPDI ${tag}: I3 rest 12 u`, marker ? r.tasks[0]?.time.remainingTime : r.tasks[0]?.time.remainingMinutes, marker ? 1.5 : 720);
   eq(`MSPDI ${tag}: T15 eenheid`, r.tasks[0]?.time.durationUnit, marker ? 'days' : 'hours');
   eq(`MSPDI ${tag}: duur`, marker ? r.tasks[0]?.time.scheduleDuration : r.tasks[0]?.time.durationMinutes, marker ? 3 : 1440);
-  // F5a-2 (§3.3): `LagFormat` 8 (ed) zegt kalenderdagen; die komen terug als 1,5 ed, zonder afronding (I2).
-  // De andere kalenderformaten (em, eu, ew, emo) blijven kalenderminuten.
   for (const format of [4, 6, 8, 10, 12]) {
     const elapsed = readMSPDI(mspXml(marker, 21600, format)).sequences[0];
     eq(`MSPDI ${tag}: I2 36 verstreken uur, formaat ${format}`, [elapsed?.lagMinutes, elapsed?.lagDays, elapsed?.lagUnit],
@@ -83,7 +76,6 @@ source.sequences = [17, -23, 0].map((minutes, index): Sequence => ({
   lagDays: 0, lagMinutes: minutes,
 }));
 
-// Heen én opnieuw heen: rest en minutenlagen blijven dezelfde velden dragen.
 for (const [name, writer, reader] of [
   ['MSPDI', writeMsp, readMSPDI], ['P6 XML', writeP6, readP6XML],
 ] as const) {
@@ -97,8 +89,6 @@ for (const [name, writer, reader] of [
   }
 }
 
-// I7: werktijd van de gekozen lagkalender, ook als opgeslagen uren per dag afwijken. `LinkLag` draagt de
-// lengte (tienden van minuten); het record (T21, F5a-2) geeft de lag terug als 1 d dagenmaat.
 const long = { ...source.calendar, id: 'lang', name: 'Lange dagen', hoursPerDay: 8,
   workStartHour: 7, workEndHour: 17, workTime: { byWeekday: {
     1: [{ start: 420, end: 1020 }], 2: [{ start: 420, end: 1020 }], 3: [{ start: 420, end: 1020 }],
@@ -117,7 +107,6 @@ for (const [lagCalendar, expected] of [[undefined, 6000], ['predecessor', 6000],
 }
 source.project.schedulingOptions = undefined;
 
-// I6: P6 bakt procentlag op de minuut uit, ook bij een dagtaak en een afwijkende taakkalender.
 for (const [unit, duration, minutes, hpd, percent, expected] of [
   ['days', 3, undefined, 8, 50, 12],
   ['days', 3, undefined, 10, 50, 15],
@@ -143,16 +132,13 @@ eq('I6: mijlpaal met duur houdt zijn procentduur, zoals in de motor', readP6XML(
 pred.time.scheduleDuration = 0;
 eq('I6: nulduur-mijlpaal heeft geen procentduur', readP6XML(writeP6(source)).sequences[0]?.lagMinutes, 0);
 
-// T15 bewaart ook de dagcomponent van een verstreken ISO-duur in minuten.
 const dayDuration = readMSPDI(mspXml(false, 0, 7, 'P1DT12H', 'P1D'));
 eq('MSPDI verstreken ISO-duur en rest', [dayDuration.tasks[0]?.time.durationMinutes, dayDuration.tasks[0]?.time.remainingMinutes], [2160, 1440]);
-// Een afgerond percentage mag een expliciet vastgelegde rest niet overschrijven.
 for (const [name, r] of [['MSPDI', readMSPDI(mspXml(false, 1, 7, 'PT24H', 'PT12H13M'))],
   ['P6', readP6XML(p6Xml(false, -23 / 60, 733 / 60))]] as const) {
   eq(`${name}: rest onafhankelijk van percentage`, r.tasks[0]?.time.remainingMinutes, 733);
 }
 
-// MSPDI bewaart procentlag en kalendertijd zelfstandig; ze vallen niet onder dagafronding.
 const percent = readMSPDI(mspXml(false, -125, 19)).sequences[0];
 eq('MSPDI procentlag', [percent?.lagPercent, percent?.lagMinutes], [-12.5, undefined]);
 const elapsed = readMSPDI(mspXml(false, -21600, 8)).sequences[0];

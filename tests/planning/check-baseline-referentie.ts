@@ -1,22 +1,3 @@
-/**
- * Meerdere baselines (issue #741): de actieve referentie blijft eenduidig — regressiebatterij.
- *
- * Bewaakt (aanvulling op `check-baseline-vergelijking.ts`, die de strook zelf bewaakt):
- *  K3. ALLEEN DE ACTIEVE BASELINE TELT. Het afwijkingsrapport (`computeVariance`, zoals
- *      `VarianceReport.tsx`), de tabelrapporten met baselinegegevens (WBS-samenvatting, voortgang;
- *      context zoals `useTableReportSpec.tsx`), de MCP-leestools (`planner_compare_baseline`,
- *      `planner_analyze_delay`) en de MSPDI-export lezen de actieve baseline. Een vergelijkingsbaseline
- *      aan- of uitzetten verandert geen cijfer en geen byte. De baselinekolommen van de tabel horen
- *      vast bij hun eigen baseline (id in de kolom-id): ook die veranderen niet. Een taak die niet in
- *      de baseline staat, krijgt '—' (kopie leeg), geen 0 en geen datum van een andere baseline.
- *      Plus een bronpin: geen van die lezers kent `comparedBaselineIds`.
- *  K4. VOORSPELBAAR NA MUTATIES. Na een nieuwe taak, een verwijderde taak, een nieuwe mijlpaal en een
- *      verwijderde mijlpaal (en hun undo/redo) blijft de keuze (actief + vergelijking) gelijk, en
- *      geven Gantt (echte `GanttRenderer`), afdruk (echte `renderReport`), tabel en rapport hetzelfde
- *      beeld: nieuw = geen strook, '—' in de kolommen, status 'new'; verwijderd = geen rij, de
- *      baselines zelf onveranderd, status 'dropped'. Filter, zoom en het wisselen van tabblad
- *      veranderen de keuze niet; het filter haalt alleen rijen weg.
- */
 import { makeMcpContext } from '../mcp/harness';
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
@@ -40,7 +21,6 @@ import { buildBaselineLayers, buildBaselineOverlay, comparisonOverlays, type Bas
 import type { Task } from '@/types/task';
 import type { TaskColumnContext } from '@/types/taskGrid';
 
-// Node-shim (zelfde als check-baseline-vergelijking): readGanttPalette leest CSS-variabelen.
 const g = globalThis as unknown as Record<string, unknown>;
 g.getComputedStyle = () => ({ getPropertyValue: () => '' });
 
@@ -54,8 +34,6 @@ const eq = (got: unknown, want: unknown, msg: string) => ok(J(got) === J(want), 
 
 registerAllTools();
 
-// ── Lezers, precies zoals de app ze voedt ───────────────────────────────────────────────────────
-/** `VarianceReport.tsx:24` en `useTableReportSpec.tsx:94`: de actieve baseline of null. */
 const activeOf = (): Baseline | null => {
   const s = S();
   return s.activeBaselineId ? s.baselines.find(b => b.id === s.activeBaselineId) ?? null : null;
@@ -71,7 +49,6 @@ async function mcp(name: string): Promise<unknown> {
   const res = await getTool(name)!.handler({}, makeMcpContext(appStoreContext, { expectedDocId: S().activeDocumentId })) as McpToolResult;
   return res.ok ? (res as McpToolOk).data : { error: (res as { error?: unknown }).error };
 }
-/** MSPDI: per taaknaam het <Baseline>-blok (of null). */
 function mspdiBaselines(): Record<string, string | null> {
   const s = S();
   const xml = writeMSPDI(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars, s.baselines, s.activeBaselineId);
@@ -83,7 +60,6 @@ function mspdiBaselines(): Record<string, string | null> {
   return out;
 }
 const GRID_FIELDS = ['start', 'finish', 'duration', 'varianceStart', 'varianceFinish', 'varianceDuration'] as const;
-/** Tabel: per baseline × veld × taak de getoonde tekst en de kopie, via de echte kolomregistry. */
 function gridCells(): Record<string, [string, string]> {
   const s = S();
   const cal = new CalendarEngine(s.calendar);
@@ -104,7 +80,6 @@ function gridCells(): Record<string, [string, string]> {
   }
   return out;
 }
-/** Alles wat een getal of datum uit een baseline toont, behalve de strook. */
 async function referentieBeeld() {
   return {
     variance: variance(),
@@ -117,7 +92,6 @@ async function referentieBeeld() {
   };
 }
 
-// ── Strook: echte GanttRenderer en echte renderReport, met opnemende contexten ───────────────────
 interface Fill { color: string; pts: [number, number][] }
 const BASE_COLORS = new Set([PRINT_PALETTE.baseline, PRINT_PALETTE.baselineCompare1, PRINT_PALETTE.baselineCompare2]);
 const cyOf = (pts: [number, number][]) => { const ys = pts.map(p => p[1]); return (Math.min(...ys) + Math.max(...ys)) / 2; };
@@ -128,7 +102,6 @@ function overlays() {
     comps: comparisonOverlays(buildBaselineLayers(s.baselines, s.activeBaselineId, s.comparedBaselineIds)),
   };
 }
-/** Scherm: per taaknaam de baselinekleuren in die rij (alleen rijen met een strook), plus de rijnamen. */
 function screenStrips(): { rows: string[]; strips: Record<string, string[]> } {
   const fills: Fill[] = [];
   let path: [number, number][] = [];
@@ -170,7 +143,6 @@ function screenStrips(): { rows: string[]; strips: Record<string, string[]> } {
   for (const k of Object.keys(strips)) strips[k].sort();
   return { rows: s.viewRows.filter(r => r.kind === 'task').map(r => (r as { task: Task }).task.name), strips };
 }
-/** Afdruk: per strookrij (van boven naar onder) de baselinekleuren. */
 function printStrips(tasks: Task[]): string[][] {
   const fills: Fill[] = [];
   let path: [number, number][] | null = null;
@@ -210,7 +182,6 @@ function printStrips(tasks: Task[]): string[][] {
   }
   return rows.sort((a, b) => a.cy - b.cy).map(r => r.colors.sort());
 }
-/** Scherm = afdruk: dezelfde strookrijen in dezelfde volgorde met dezelfde kleuren. */
 function checkScreenIsPrint(label: string) {
   const scr = screenStrips();
   const tasks = scr.rows.map(n => S().tasks.find(t => t.name === n)!);
@@ -219,7 +190,6 @@ function checkScreenIsPrint(label: string) {
   return scr;
 }
 
-// ══ Opzet: drie baselines met elk andere datums ══════════════════════════════════════════════════
 S().newProject();
 const tRuw = S().addTask({ name: 'Ruwbouw' });
 const tAfb = S().addTask({ name: 'Afbouw' });
@@ -234,20 +204,18 @@ setDur(tRuw, 8); S().runCPM();
 const blB = S().saveBaseline('B');
 setDur(tAfb, 9); S().runCPM();
 const blC = S().saveBaseline('C');
-setDur(tRuw, 10); S().runCPM();          // huidig plan wijkt af van alle drie
+setDur(tRuw, 10); S().runCPM();
 S().setActiveBaseline(blA);
 eq(S().activeBaselineId, blA, 'opzet: A is actief');
 const baselinesJson = () => J(S().baselines);
 const baselinesAtStart = baselinesJson();
 const P = PRINT_PALETTE;
 
-// ══ K3. Alleen de actieve baseline telt ═══════════════════════════════════════════════════════════
 const zonder = await referentieBeeld();
 eq((zonder.compare as { baselineId?: string }).baselineId, blA, 'K3 MCP compare_baseline meet tegen de actieve (A)');
 eq((zonder.delay as { baselineId?: string }).baselineId, blA, 'K3 MCP analyze_delay meet tegen de actieve (A)');
 const aRuw = S().baselines.find(b => b.id === blA)!.tasks.find(t => t.taskId === tRuw)!;
 eq(zonder.variance.rows.find(r => r.taskId === tRuw)?.baselineFinish, aRuw.finish, 'K3 afwijkingsrapport: baseline-einde komt uit A');
-// Per baseline een ander einde voor Ruwbouw en Afbouw: zo wijst elk cijfer één baseline aan.
 const finishOf = (bl: string, task: string) => S().baselines.find(b => b.id === bl)!.tasks.find(t => t.taskId === task)!.finish.slice(0, 10);
 ok(new Set([blA, blB, blC].map(b => finishOf(b, tAfb))).size === 3, 'K3 opzet: Afbouw heeft in A, B en C een ander einde');
 const mspdiFinish = (block: string | null) => /<Finish>(\d{4}-\d{2}-\d{2})/.exec(block ?? '')?.[1];
@@ -267,7 +235,6 @@ const met = await referentieBeeld();
 for (const k of Object.keys(zonder) as (keyof typeof zonder)[]) {
   eq(met[k], zonder[k], `K3 vergelijking aan verandert ${k} niet`);
 }
-// Wisselen van de actieve baseline doet wél iets (de vergelijking hierboven is dus niet loos).
 S().setActiveBaseline(blC);
 const metC = await referentieBeeld();
 ok(J(metC.variance) !== J(zonder.variance), 'K3 controle: een andere actieve baseline verandert het afwijkingsrapport wel');
@@ -275,7 +242,6 @@ eq(metC.grid, zonder.grid, 'K3 tabelkolommen horen bij hun eigen baseline: actie
 S().undo();
 eq([S().activeBaselineId, S().comparedBaselineIds], [blA, [blB, blC]], 'K3 undo actief wisselen: A actief, B en C vergeleken');
 
-// Bronpin: de lezers van de referentie kennen de vergelijkingskeuze niet.
 for (const file of [
   'src/engine/variance.ts', 'src/components/panels/VarianceReport.tsx', 'src/components/panels/reports/useTableReportSpec.tsx',
   'src/engine/reports/reportCommon.ts', 'src/engine/reports/wbsSummary.ts', 'src/engine/reports/progressReport.ts',
@@ -286,7 +252,6 @@ for (const file of [
   ok(!/comparedBaselineIds|buildBaselineLayers|comparisonOverlays/.test(src), `K3 bronpin: ${file} leest geen vergelijkingsbaseline`);
 }
 
-// ══ K4. Nieuwe en verwijderde taken en mijlpalen ══════════════════════════════════════════════════
 const keuze = () => [S().activeBaselineId, S().comparedBaselineIds];
 const KEUZE = [blA, [blB, blC]];
 const ALL3 = [P.baseline, P.baselineCompare1, P.baselineCompare2].sort();
@@ -295,7 +260,6 @@ const ALL3 = [P.baseline, P.baselineCompare1, P.baselineCompare2].sort();
   eq(scr.strips, { Ruwbouw: ALL3, Afbouw: ALL3, Oplevering: ALL3 }, 'K4 start: elke rij heeft een strook in alle drie de kleuren');
 }
 
-/** Een nieuwe taak/mijlpaal: overal leeg, nergens een verzonnen waarde. */
 async function checkNew(name: string, label: string) {
   eq(keuze(), KEUZE, `${label}: keuze ongewijzigd`);
   eq(baselinesJson(), baselinesAtStart, `${label}: baselines zelf ongewijzigd`);
@@ -318,7 +282,6 @@ async function checkNew(name: string, label: string) {
   const cmpRow = (b.compare as { deviations?: { taskId: string; status: string; baselineFinish?: string }[] }).deviations?.find(r => r.taskId === id);
   eq([cmpRow?.status, cmpRow?.baselineFinish], ['new', undefined], `${label}: MCP compare_baseline 'new' zonder baselinedatum`);
 }
-/** Een verwijderde taak/mijlpaal: geen rij, de baselines houden haar, rapport meldt 'dropped'. */
 async function checkDropped(id: string, name: string, label: string) {
   eq(keuze(), KEUZE, `${label}: keuze ongewijzigd`);
   eq(baselinesJson(), baselinesAtStart, `${label}: baselines zelf ongewijzigd (de taak blijft erin)`);
@@ -331,7 +294,6 @@ async function checkDropped(id: string, name: string, label: string) {
 }
 
 const voor = await referentieBeeld();
-// Nieuwe taak, met undo en redo.
 const tNieuw = S().addTask({ name: 'Nieuw' });
 S().runCPM();
 await checkNew('Nieuw', 'K4 nieuwe taak');
@@ -346,7 +308,6 @@ await checkNew('Nieuw', 'K4 redo nieuwe taak');
 S().deleteTask(tNieuw);
 S().runCPM();
 
-// Nieuwe mijlpaal.
 S().addTask({ name: 'Keuring', isMilestone: true });
 S().runCPM();
 await checkNew('Keuring', 'K4 nieuwe mijlpaal');
@@ -360,7 +321,6 @@ S().deleteTask(S().tasks.find(t => t.name === 'Keuring')!.id);
 S().runCPM();
 eq((await referentieBeeld()).variance, voor.variance, 'K4 opruimen: terug bij het startbeeld');
 
-// Verwijderde taak, met undo en redo.
 S().deleteTask(tAfb);
 S().runCPM();
 await checkDropped(tAfb, 'Afbouw', 'K4 verwijderde taak');
@@ -375,7 +335,6 @@ await checkDropped(tAfb, 'Afbouw', 'K4 redo verwijderde taak');
 S().undo();
 S().runCPM();
 
-// Verwijderde mijlpaal, met undo en redo.
 S().deleteTask(tOpl);
 S().runCPM();
 await checkDropped(tOpl, 'Oplevering', 'K4 verwijderde mijlpaal');
@@ -390,7 +349,6 @@ S().undo();
 S().runCPM();
 eq(J(await referentieBeeld()), J(voor), 'K4 na alle undo: tabel, rapporten, MCP en export als vóór');
 
-// ══ K4. Filter, zoom en tabbladen veranderen de keuze niet ═══════════════════════════════════════
 {
   const before = screenStrips();
   S().setFilter({ kind: 'rule', field: { src: 'builtin', key: 'name' }, operator: 'contains', value: 'Ruw' });

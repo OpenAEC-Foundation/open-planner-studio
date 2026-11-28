@@ -1,17 +1,3 @@
-/**
- * Resttempo (eigenaarsbesluit 2026-10-15, optie 1; bron: docs/superpowers/plans/
- * 2026-10-07-review-pr109-uitkomsten.md op `claude/review-pr109-log`, laatste twee punten).
- *
- * Voor werk dat nog moet gebeuren rekent en toont de app met het RESTERENDE tempo (XER
- * `remain_qty_per_hr`, P6 XML `RemainingUnitsPerTime`). Het geplande werk blijft in de drie
- * werkvelden; een toewijzing zonder restwerk houdt het geplande tempo; bij openen rekent de app
- * niets om. De P6 XML-export schrijft het geplande tempo als `PlannedUnitsPerTime`, nooit het
- * resterende.
- *
- * De XER-fixture bootst Roads_Project_TEC.xer na, taak A10530 (DT_FixedDrtn, TK_Active, 9 h):
- * Foreman begroot 10 h bij 1,111/h, rest 306 h bij 34/h; General worker begroot 20 h bij 2,22/h,
- * rest 9 h bij 1/h. Geen corpusbestand in de repo.
- */
 import './domStub';
 import { installDOMParser } from './xmldom-shim';
 import { readXerArchiveIFC } from './xerArchiveTestReader';
@@ -53,7 +39,6 @@ const near = (a: number | undefined, b: number, eps = 1e-6): boolean => a !== un
 const T_FOREMAN = 1.11111111111111;
 const T_WORKER = 2.22222222222222;
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (a) importedAssignmentRate: de keuzeregel --');
 {
   eq('a1 restwerk > 0 en een ander resttempo ⇒ resttempo, begroot apart', importedAssignmentRate(T_FOREMAN, 34, 306),
@@ -70,8 +55,6 @@ console.log('-- (a) importedAssignmentRate: de keuzeregel --');
     { unitsPerDay: 42.2267, plannedUnitsPerDay: 42.226 });
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Uurkalender 07:00–17:00 ma–vr (zoals de Roads-kalender), dus een uurtaak van 9 h.
 const weekBands = '(0||DaysOfWeek()('
   + '(0||2()((0||0(s|07:00|f|17:00)())))'
   + '(0||3()((0||0(s|07:00|f|17:00)())))'
@@ -90,11 +73,8 @@ const xer = [
   `%R\tCR\tAll Items-5d\tP1\tCA_Project\t10\t50\t${calendarData}`,
   '%T\tTASK',
   '%F\ttask_id\tproj_id\tclndr_id\ttask_code\ttask_name\ttask_type\tduration_type\tstatus_code\tcomplete_pct_type\tphys_complete_pct\ttarget_drtn_hr_cnt\tremain_drtn_hr_cnt\ttarget_start_date\ttarget_end_date\tact_start_date\tact_end_date',
-  // A10530: gestart, 9 h, rest 9 h — de Foreman-situatie.
   '%R\t85140\tP1\tCR\tA10530\tPlacing of Blinding Concrete\tTT_Task\tDT_FixedDrtn\tTK_Active\tCP_Phys\t50\t9\t9\t2026-04-23 07:00\t2026-04-23 16:00\t2026-02-16 07:00\t',
-  // A2: voltooid, geen restwerk; het resttempo wijkt af maar telt niet.
   '%R\t85141\tP1\tCR\tA2\tKlaar\tTT_Task\tDT_FixedDrtn\tTK_Complete\tCP_Phys\t100\t8\t0\t2026-04-20 07:00\t2026-04-20 15:00\t2026-04-20 07:00\t2026-04-20 15:00',
-  // A3: niet gestart, randgevallen.
   '%R\t85142\tP1\tCR\tA3\tRandgevallen\tTT_Task\tDT_FixedDrtn\tTK_NotStart\tCP_Phys\t0\t9\t9\t2026-04-24 07:00\t2026-04-24 16:00\t\t',
   '%T\tRSRC',
   '%F\trsrc_id\trsrc_name\trsrc_type\tclndr_id\tdef_qty_per_hr\tunit_id',
@@ -106,13 +86,9 @@ const xer = [
   '%F\ttaskrsrc_id\tproj_id\ttask_id\trsrc_id\trsrc_type\ttarget_qty_per_hr\tremain_qty_per_hr\tremain_qty\ttarget_qty\tact_reg_qty\tact_ot_qty',
   '%R\t72605\tP1\t85140\t2969\tRT_Labor\t1.11111111111111\t34\t306\t10\t0\t0',
   '%R\t72607\tP1\t85140\t2971\tRT_Labor\t2.22222222222222\t1\t9\t20\t0\t0',
-  // Zelfde tempo, alleen anders afgerond (Roads: 1.77777778 naast 1.77777777777778).
   '%R\t72604\tP1\t85140\t2923\tRT_Equip\t1.77777777777778\t1.77777778\t16\t16\t0\t0',
-  // Voltooid: restwerk 0 ⇒ begroot tempo.
   '%R\t72700\tP1\t85141\t2969\tRT_Labor\t1\t0.5\t0\t8\t8\t0',
-  // Restwerk > 0 maar resttempo 0 (DCP-03 Baseline) ⇒ begroot tempo.
   '%R\t72701\tP1\t85142\t2971\tRT_Labor\t2\t0\t18\t18\t0\t0',
-  // Materiaal met een ander resttempo ⇒ begroot tempo (buiten de werkdriehoek).
   '%R\t72702\tP1\t85142\t3100\tRT_Mat\t3\t5\t45\t27\t0\t0',
   '%E',
 ].join('\n');
@@ -164,7 +140,6 @@ console.log('-- (c) geen waarschuwingsteken bij het resttempo --');
   const worker = asg(opened, '72607');
   eq('c1 Foreman: geen waarschuwing (34 × 9 h = 306 h)', assignmentWorkDeviation(task, foreman.unitsPerDay, foreman.remainingWorkMinutes, hpd, false), null);
   eq('c2 General worker: geen waarschuwing (1 × 9 h = 9 h)', assignmentWorkDeviation(task, worker.unitsPerDay, worker.remainingWorkMinutes, hpd, false), null);
-  // Tegenproef: met het begrote tempo zou de waarschuwing er wél staan (zoals vóór dit besluit).
   eq('c3 tegenproef: begroot tempo 1,111 naast 306 h ⇒ waarschuwing 306 / 10',
     assignmentWorkDeviation(task, foreman.plannedUnitsPerDay!, foreman.remainingWorkMinutes, hpd, false), { stored: 306, derived: 10 });
 }
@@ -228,13 +203,10 @@ console.log('-- (g) P6 XML-lezer: spiegel van de XER-lezer --');
   eq('g3 werkvelden reizen mee', [foreman.plannedWorkMinutes, foreman.remainingWorkMinutes], [600, 306 * 60]);
   const hpd = hpdOf(task, back.resourceCalendars ?? [], back.calendar);
   eq('g4 geen waarschuwing na de P6 XML-route', assignmentWorkDeviation(task, foreman.unitsPerDay, foreman.remainingWorkMinutes, hpd, false), null);
-  // Tweede export is gelijk aan de eerste: geen drift in de P6 XML-route.
   const again = writeP6XML(back.project, back.calendar, back.tasks, back.sequences, back.resources, back.assignments, back.resourceCalendars ?? []);
   eq('g5 P6 XML → app → P6 XML: dezelfde tempo-elementen',
     (again.match(/<(Planned|Remaining)UnitsPerTime>[^<]*</g) ?? []).sort(), (exported.match(/<(Planned|Remaining)UnitsPerTime>[^<]*</g) ?? []).sort());
 
-  // Losse lezercases: een P6 XML zonder `plannedUnitsPerDay`-route (OPS-model met inzet = begroot),
-  // waarin we het resttempo met de hand zetten. Zo toetst dit de lezer, niet de writer.
   const s = S();
   const plain = s.assignments.map((a) => {
     const { plannedUnitsPerDay, ...rest } = a;
@@ -260,8 +232,6 @@ console.log('-- (g) P6 XML-lezer: spiegel van de XER-lezer --');
   const r4 = foremanRead(base);
   eq('g11 geen RemainingUnitsPerTime ⇒ begroot tempo (zoals vroeger)', [r4.unitsPerDay, 'plannedUnitsPerDay' in r4], [T_FOREMAN, false]);
 
-  // Review #361 punt 2: geen bruikbaar begroot tempo (PlannedUnitsPerTime 0) maar wel een resttempo.
-  // Dan is het resttempo ook het begrote, zoals in de XER-lezer; de lezer verzint geen begroot tempo 1.
   const plannedPatch = `<PlannedUnitsPerTime>${T_FOREMAN}</PlannedUnitsPerTime>`;
   ok('g12 voorwaarde: het begrote tempo van de Foreman staat één keer in de basis', base.split(plannedPatch).length === 2);
   const zonderBegroot = (xml: string) => xml.replace(plannedPatch, '<PlannedUnitsPerTime>0</PlannedUnitsPerTime>');
@@ -273,8 +243,6 @@ console.log('-- (g) P6 XML-lezer: spiegel van de XER-lezer --');
   const r6 = foremanRead(zonderBegroot(base));
   eq('g15 PlannedUnitsPerTime 0 zonder resttempo ⇒ de oude terugval 1', [r6.unitsPerDay, 'plannedUnitsPerDay' in r6], [1, false]);
 
-  // Review #361 punt 3: materiaal houdt in de P6 XML-lezer het begrote tempo, zoals in XER (b8).
-  // Mutatiebewijs: de materiaaluitzondering in `p6xmlReader.ts` uit ⇒ g17 rood (inzet 50).
   const materiaal = /(<PlannedUnitsPerTime>30<\/PlannedUnitsPerTime>\s*<ProjectObjectId>\d+<\/ProjectObjectId>)(\s*<ResourceObjectId>)/;
   ok('g16 voorwaarde: het materiaalblok (Beton, 30 per dag) staat in de basis', materiaal.test(base));
   const metMateriaalRest = base.replace(materiaal, '$1<RemainingUnits>45</RemainingUnits><RemainingUnitsPerTime>50</RemainingUnitsPerTime>$2');
@@ -327,7 +295,6 @@ console.log('-- (j) MSPDI: één Units per toewijzing; lezen verandert niet --')
 }
 
 console.log('-- (l) tabelkolom: begroot tempo in dezelfde opmaak als de inzet --');
-// Review #361 punt 4: de gids belooft `Naam: getal` zonder afronding, net als de inzetkolom.
 {
   const task = opened.tasks.find((t) => t.wbsCode === 'A10530')!;
   const ctx: TaskColumnContext = {
@@ -344,12 +311,10 @@ console.log('-- (l) tabelkolom: begroot tempo in dezelfde opmaak als de inzet --
     const column = registry.find((c) => c.id === id)!;
     return column.format(column.read(task, ctx), task, ctx);
   };
-  // Weergave op hooguit twee decimalen (eigenaar 2026-10-15); de opslag blijft exact (b1–b5).
   eq('l1 Begrote eenheden per dag: alleen de toewijzingen met een apart begroot tempo, op twee decimalen',
     text('assignment.plannedUnits'), 'Foreman: 1.11; General worker: 2.22');
   eq('l2 de inzetkolom toont het resttempo in dezelfde opmaak',
     text('assignment.unitsPerDay'), 'Foreman: 34; General worker: 1; Compactor: 1.78');
-  // Met de app-taal het decimaalteken van die taal; de bewerktekst blijft exact (geen stille afronding bij Enter).
   const nlCtx = { ...ctx, numberLocale: 'nl' };
   const unitsColumn = registry.find((c) => c.id === 'assignment.unitsPerDay')!;
   eq('l3 inzetkolom in nl: komma als decimaalteken',
@@ -359,9 +324,6 @@ console.log('-- (l) tabelkolom: begroot tempo in dezelfde opmaak als de inzet --
 }
 
 console.log('-- (k) extensie: lees-wijzig-laad houdt het begrote tempo (review #361 punt 1) --');
-// `api.data.loadProject(get*())` op hetzelfde project. Het begrote tempo is niet publiek; zonder de
-// `assignments`-regel in `retainActiveDocument` schreef de P6 XML-export daarna het resttempo 34 als
-// `PlannedUnitsPerTime`. Mutatiebewijs: die regel weg ⇒ k1, k2 en k3 rood.
 {
   S().applyOpenedImport(openXer(), OPEN_OPTIONS);
   const api = createExtensionApi('resttempo-k', [], undefined, appStoreContext, { app: appStoreContext, showNotification: () => {} });
@@ -382,13 +344,11 @@ console.log('-- (k) extensie: lees-wijzig-laad houdt het begrote tempo (review #
     xml.includes(`<PlannedUnitsPerTime>${T_FOREMAN}</PlannedUnitsPerTime>`) && !xml.includes('<PlannedUnitsPerTime>34</PlannedUnitsPerTime>'));
   eq('k3 dezelfde tempo-elementen als de export vóór de extensie (f)', tempo(xml), tempo(exported));
 
-  // De extensie wijzigt de inzet: het begrote tempo blijft referentie, zoals bij een wijziging in de app.
   const gewijzigd = lees();
   gewijzigd.assignments = gewijzigd.assignments.map((a) => (a.id === 'xer-assignment:72605' ? { ...a, unitsPerDay: 30 } : a));
   api.data.loadProject(gewijzigd);
   eq('k4 extensie zet de inzet op 30 ⇒ inzet 30, begroot blijft 1,111', [foreman()?.unitsPerDay, foreman()?.plannedUnitsPerDay], [30, T_FOREMAN]);
 
-  // Een ander project-id is een nieuw project: dan geldt alleen wat de extensie meestuurt.
   const ander = lees();
   ander.project = { ...ander.project, id: 'ander-project-resttempo' };
   api.data.loadProject(ander);

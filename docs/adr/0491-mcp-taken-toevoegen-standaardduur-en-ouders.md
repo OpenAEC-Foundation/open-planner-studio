@@ -15,7 +15,7 @@ doet, staat in ADR 0242; de verse tijd en velden van een nieuwe taak in ADR 0210
   bij 5 in de maat van `newTaskTimeUnit`. In beide gevallen beslist daarna `settleNewTaskMeasure` in `draft.addTask`
   over de maat die de taak krijgt (ADR 0156), bijvoorbeeld de urenmaat bij `FIXED_WORK`. In het nagespeelde geval
   van knownbug 2530 (het rekenprofiel van een nieuw project, de urenmaat als standaard, geen vast werk) geven de twee
-  invoeren verschillende duren. Het weggehaalde commentaar noemde beide dezelfde standaard.
+  invoeren verschillende duren.
 - Een item dat de ouder is van een ander item in dezelfde aanroep, mag geen tijddeel met `scheduleDuration` dragen
   (`SUMMARY_DURATION_READ_ONLY`), want de duur van een verzameltaak volgt uit haar kinderen. Dat geldt voor `duration`,
   ook in uren (`parseTaskFields` zet dan ook `scheduleDuration`), en voor `isMilestone: true`. `parseAddTasks` toetst

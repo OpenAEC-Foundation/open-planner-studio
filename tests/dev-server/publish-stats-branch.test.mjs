@@ -5,9 +5,6 @@ import { mkdtempSync, readFileSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 
-// Draait scripts/publish-stats-branch.sh tegen een tijdelijke bare repo: eerst zonder
-// stats-branch (orphan-commit), dan nog eens (commit mét parent), dan ongewijzigd (no-op).
-
 const SCRIPT = resolve(import.meta.dirname, '../../scripts/publish-stats-branch.sh');
 
 test('geplande en handmatige stats-publicaties delen één vaste wachtrij zonder annulering', () => {

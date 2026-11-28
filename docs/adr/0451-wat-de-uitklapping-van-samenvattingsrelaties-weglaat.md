@@ -27,5 +27,4 @@ ongewijzigd door. Die tweede laat de constructor van `CPMSolver` vallen, met een
 - Dezelfde toets dekt de drie vormen van de relatie met een eigen (voor)ouder, ook samen met een gewone relatie in
   één aanroep en daarna door `CPMSolver.solve()` zonder fout; het geval `wbs-summary-relation-ancestor-guard-01` in
   `cases-edge.json` doet dat door de store. De app weigert zo'n relatie al bij het aanleggen (gids
-  `howto-relaties-leggen`); de toets hier vangt wat een bestand of een latere verhanging aanlevert. Het weggehaalde
-  commentaar zei dat MS Project zo'n relatie ook niet toestaat; dat is niet nagegaan.
+  `howto-relaties-leggen`); de toets hier vangt wat een bestand of een latere verhanging aanlevert.

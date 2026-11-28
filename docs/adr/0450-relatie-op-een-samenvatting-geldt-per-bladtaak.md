@@ -16,9 +16,9 @@ werkblok dat om 15:00 sluit (klaar op maandag 1 juni 15:00) en K2 op de projectk
 start op maandag 8 juni 08:00, bepaald door K1; met alleen K2 als voorganger start X op woensdag 3 juni 08:00. Met
 een lag geldt hetzelfde (knownbug 2479).
 We kozen dit boven de samenvatting als eigen knoop in de solver, omdat zo'n knoop een duur en positie nodig heeft
-die uit haar kinderen volgen; dat is een grotere wijziging. Weglaten was geen optie: volgens het weggehaalde
-commentaar kostte dat in het corpusbestand `870d339f60603f71` een kwart van de logica. Het corpus staat niet in de
-repo; `check-mpp-summary-relations.ts` draait alleen met dat bestand en slaat anders over.
+die uit haar kinderen volgen; dat is een grotere wijziging. Weglaten was geen optie: dat kostte in het corpusbestand
+`870d339f60603f71` 28 van de 105 relaties, ruim een kwart van de logica (de kop en de basislijn van
+`check-mpp-summary-relations.ts`). Het corpus staat niet in de repo; `check-mpp-summary-relations.ts` draait alleen met dat bestand en slaat anders over.
 
 ## Gevolgen
 
@@ -33,13 +33,10 @@ repo; `check-mpp-summary-relations.ts` draait alleen met dat bestand en slaat an
   voldoen, ook een kind dat eerder klaar kan zijn (knownbug 2478). Een lag rekent per bladrelatie, met de duur of de
   kalender van het blad dat voorganger is (knownbug 2479). De gids `howto-relaties-leggen` legt de gebruiker uit wat
   per type geldt.
-- Het weggehaalde commentaar noemde FS en FF met de samenvatting als voorganger en FS en SS met de samenvatting als
-  opvolger gelijk aan MS Project, en de vier andere vormen conservatief: daar kan een taak in de voorwaartse rekening
-  later komen dan bij de fase als één taak, niet eerder, en dat noemde het in bouwplanning de veilige kant. Volgens
-  dat commentaar had geen van de 28 samenvattingsrelaties in het corpusbestand zo'n vorm of een procentuele lag. Dat
-  MS Project een relatie op een samenvatting op elk blad toepast, komt ook uit dat commentaar, met de MSPDI-export van
-  hetzelfde bestand als referentie. Niets daarvan is in de repo nagegaan; `check-mpp-summary-relations.ts` noemt die
-  export een andere versie van het document en pint alleen het eigen resultaat.
+- Met de samenvatting als voorganger bij SS of SF, en als opvolger bij FF of SF, kan een taak in de voorwaartse
+  rekening later komen dan bij de fase als één taak, niet eerder; in bouwplanning is dat de veilige kant (de gevallen
+  `wbs-summary-relation-conservative-*` in `cases-edge.json`). Geen van de 28 samenvattingsrelaties in het
+  corpusbestand had zo'n vorm of een procentuele lag (commit 1a04011ec).
 - De vier vormen staan met handberekende datums in `cases-edge.json` (`wbs-summary-relation-pred-01`, `-succ-01`,
   `-both-01` en `-nested-01`); welke bladrelaties ontstaan, met welk type en welke lag, toetst
   `check-summary-relation-expansion.ts`.

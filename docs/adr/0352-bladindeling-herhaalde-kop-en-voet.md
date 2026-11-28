@@ -16,8 +16,7 @@ de legenda anders alleen op het blad staat waar hij toevallig valt, en een uitde
 - De voet wordt alleen herhaald als hij gevraagd is, als kop en voet samen kleiner zijn dan de bronhoogte van een blad
   en dan `logicalHeight`, en als de afdruk meer dan één blad telt: de bron is hoger dan één blad, er is meer dan één
   kolom, of er ligt een gedwongen breekpositie tussen de kop en `logicalHeight − repeatFooterHeightPx`. Past alles op
-  één blad, dan blijft de voet onder de laatste rij; volgens het weggehaalde commentaar kreeg de gewone afdruk anders
-  twintig centimeter wit tussen tabel en voet. Een gedwongen positie in de voetstrook telt hier niet mee, omdat ze bij
+  één blad, dan blijft de voet onder de laatste rij. Een gedwongen positie in de voetstrook telt hier niet mee, omdat ze bij
   een herhaalde voet buiten de body valt en dan als breekpositie wegvalt (ADR 0353).
 - Zonder herhaalde voet loopt de body tot `logicalHeight`: de voet blijft een deel van de bron en wordt met de gewone
   vensters gesneden. Hij staat dan op de laatste rij bladen, en bij meer dan één kolom verdeeld over de bladen van die

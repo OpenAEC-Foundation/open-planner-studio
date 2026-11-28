@@ -15,8 +15,8 @@ andere weergave (16:00 van de ene werkdag in plaats van 08:00 van de volgende).
 
 - Aan de voorgangerkant is de bladrelatie `p2 → q` minstens zo streng als `p → q`: voorwaarts, en ook bij het
   terugrekenen, want de late finish van p blijft via haar interne FS-opvolger p2 begrensd, en bij de vrije speling,
-  want die van p is via p2 nooit groter. Aan de opvolgerkant krijgt q de grens van de relatie via q2. Zo staat het in
-  het weggehaalde commentaar; de toets hieronder vergelijkt het resultaat.
+  want die van p is via p2 nooit groter. Aan de opvolgerkant krijgt q de grens van de relatie via q2. De toets hieronder
+  bevestigt dat: met de snoei komen de vroege en late datums, de speling en de vrije speling per relatie gelijk uit.
 - Als dominantierelatie telt alleen een relatie uit de invoer met aan beide kanten een bladtaak, met een lag in de
   dagmaat (`wholeDayLag`: geen `lagMinutes` anders dan 0 en geen `lagUnit` `ELAPSEDTIME`; een breuk in `lagDays`,
   zoals de invoer `1,5d`, is ook een dagmaat), zonder negatieve waarde in `lagDays`, `lagMinutes` of `lagPercent`

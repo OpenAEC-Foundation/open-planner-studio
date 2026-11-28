@@ -55,7 +55,8 @@ wegvallen toetst die sectie niet.
   fase die het tijdvak overschrijdt, krijgt aan de afgekapte kant geen haakje, want dat zou daar een begin of einde
   suggereren (een grens daarvan: knownbug 1863).
 - *Vaste schaal* mag tot `REPORT_MIN_DAY_WIDTH` (0,01 px per dag), omdat het Rapport-tabblad bij de wissel vanaf
-  *Passend maken* begint op de breedte die passen gaf, en die ligt bij een lange planning onder 1 px per dag. Volgens
-  het weggehaalde commentaar gaf 1 px als ondergrens bij 5000 taken op A3 een sprong van 139 naar 695 pagina's.
+  *Passend maken* begint op de breedte die passen gaf, en die ligt bij een lange planning onder 1 px per dag. Met 1 px
+  als ondergrens gaf de wissel bij 5000 taken op A3 een sprong van 139 naar 695 bladen
+  (`docs/superpowers/specs/2026-11-07-rapport-tabblad-bevindingen.md`, *Vaste schaal exact*).
   `fixedScaleStartDayWidth` neemt die breedte een miljardste smaller, zodat een afrondfout in de bladindeling geen extra
   kolom bladen geeft. Toets: `check-report-svg.ts`, sectie 7.

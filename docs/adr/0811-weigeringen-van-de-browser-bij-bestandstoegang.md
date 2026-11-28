@@ -1,7 +1,7 @@
 # Weigeringen van de browser bij bestandstoegang
 
-Een omgeving kan de File System Access API volledig aanbieden en toch elke schrijfactie weigeren: volgens het
-weggehaalde commentaar (gemeten, hier niet opnieuw nagegaan) krijgt een handle uit de bestandskiezer in de ingebedde
+Een omgeving kan de File System Access API volledig aanbieden en toch elke schrijfactie weigeren: gemeten in
+commit "fix(web): val terug op downloaden wanneer de omgeving schrijven weigert" krijgt een handle uit de bestandskiezer in de ingebedde
 webview van de Claude-desktopapp nooit een readwrite-grant, zodat `createWritable` `NotAllowedError` gooit. Featuredetectie
 ziet dat niet. `src/services/fileAccess/webBackend.ts` onthoudt daarom de eerste `NotAllowedError` voor de rest van de
 sessie (`platformRefusesWrites`, en `platformRefusesReads` voor openen) en gaat daarna meteen naar de download of naar

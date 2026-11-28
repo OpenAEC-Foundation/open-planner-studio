@@ -19,11 +19,10 @@ function wt(name) {
 function deps({ paths }) {
   return {
     listPaths: () => paths,
-    portFree: async () => true,      // niets gebonden
-    lock: async (_root, fn) => fn(), // geen echte flock
+    portFree: async () => true,
+    lock: async (_root, fn) => fn(),
   };
 }
-/** deps + een teller op `stamp`, zodat een test kan eisen dat er NIET gestempeld wordt. */
 function spyDeps({ paths, portFree = async () => true }) {
   const calls = [];
   return {
@@ -120,8 +119,6 @@ test('browserstempel laat bestaande devmarker en devconfiguratie inhoudelijk int
   rmSync(join(root, '..'), { recursive: true, force: true });
 });
 
-// --- botsende stempels: het defect dat twee worktrees op poort 3010 zette ---
-
 test('botsing: twee worktrees met dezelfde stempel → wij wijken uit naar een vrije poort', async () => {
   const me = wt('me');
   const sib = wt('sib');
@@ -170,10 +167,6 @@ test('geen churn: een unieke stempel wordt teruggegeven zonder opnieuw te stempe
   rmSync(join(sib, '..'), { recursive: true, force: true });
 });
 
-// DE VALKUIL — deze test bestaat om te voorkomen dat iemand "slim" op bezetting
-// gaat herstellen. Onze eigen draaiende dev-server bindt onze eigen poort (en
-// allocatePort draait in tauri-dev.mjs vóór acquireGuardLock), dus een gebonden
-// poort is juist het teken van normaal gebruik, geen botsing.
 test('valkuil: een unieke stempel die op dit moment GEBONDEN is blijft ongewijzigd', async () => {
   const me = wt('me');
   const sib = wt('sib');
@@ -191,9 +184,6 @@ test('valkuil: een unieke stempel die op dit moment GEBONDEN is blijft ongewijzi
 test('een symlink-pad naar onszelf telt niet als botsing', async () => {
   const me = wt('me');
   writeStamp(me, 3050);
-  // `git worktree list` is niet realpath-genormaliseerd (denk aan /tmp → /private/tmp
-  // op macOS): hetzelfde worktree kan onder een ander pad opduiken. Dat is nog
-  // steeds ONSZELF en mag onze eigen stempel niet als botsing aanmerken.
   const alias = join(me, '..', 'alias');
   symlinkSync(me, alias, 'dir');
   const { calls, deps: d } = spyDeps({ paths: [alias] });
@@ -207,15 +197,14 @@ test('geen vrije poort meer → begrijpelijke fout in plaats van een willekeurig
   const me = wt('vol');
   const sib = wt('sib');
   writeStamp(me, 3010);
-  writeStamp(sib, 3010); // botsing → herstelpad in
-  // alles in het bereik is gebonden
+  writeStamp(sib, 3010);
   const { calls, deps: d } = spyDeps({ paths: [me, sib], portFree: async () => false });
 
   await assert.rejects(
     () => allocatePort(me, d),
     (err) => {
       assert.match(err.message, /Geen vrije dev-poort in 3007-3106/);
-      assert.match(err.message, /vol/); // de worktree-naam staat erbij
+      assert.match(err.message, /vol/);
       return true;
     },
   );

@@ -9,8 +9,8 @@ Het ontwerp van de vertaalstraat staat in `docs/superpowers/specs/2026-10-09-ver
 - `pt` zoekt in de Portugees-Europese TBX (`TBX_FILES` in `common.ts`), niet in de Braziliaanse: de bestaande
   pt-UI is Europees-Portugees (*ficheiro* staat in ruim tweehonderd teksten, *arquivo* nergens).
 - `normLabel` in `docs.ts` haalt de afsluitende witruimte, punten en `…` weg met een lus die achteruit scant, niet
-  met een regex als `/[\s….:]+$/`. Volgens het weggehaalde commentaar voorkomt dat ambigu backtracken op lange
-  reeksen punten (niet nagegaan); het werk blijft lineair.
+  met een regex als `/[\s….:]+$/`. Zo'n regex backtrackt op een lange reeks punten met een ander teken erachter
+  kwadratisch (proef in Node 24: 10.000 punten 113 ms, 40.000 punten 1,9 s); het werk van de lus blijft lineair.
 - `pairChanged` in `docs.ts` koppelt een groep ongekoppelde secties (tussen twee gekoppelde secties, of aan het begin
   of einde van het artikel) alleen op volgorde als die groep evenveel oude als nieuwe telt. Bij een ongelijk aantal
   krijgt geen sectie uit die groep een `previous`: liever opnieuw

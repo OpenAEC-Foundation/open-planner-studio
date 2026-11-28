@@ -1,13 +1,3 @@
-// check-work-rule-store.ts — taaktypes-etappe (spec 2026-09-04, bouwstap 4): de werkdriehoek
-// BEDRAAD in de store (`taskSlice.updateTask`/`setTaskWorkRule`, `resourceSlice.assignResource`/
-// `updateAssignment`/`unassignResource`/`setAssignmentWork`), in het taakraster
-// (`gridTransaction.ts`) en in de MCP-tweeling (`createMcpTransactions.ts`), plus de vierde bron
-// van `assignmentDayUnits`. De pure kern staat in `check-work-triangle.ts`; hier gaat het om
-// het ritueel eromheen: byte-identiek onder de standaardregel, `scheduleStale` bij een duur die
-// uit de driehoek komt, één undo-stap (meetlat 28), contourherschaling met werkbehoud (22) en
-// resource erbij onder FIXED_WORK (23).
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { runGridMutation } from '@/state/gridTransaction';
@@ -46,7 +36,6 @@ const task = (id: string): Task => S().tasks.find((t) => t.id === id)!;
 const asgOf = (taskId: string, resourceId: string): ResourceAssignment => S().assignments.find((a) => a.taskId === taskId && a.resourceId === resourceId)!;
 function labor(name: string): string { return S().addResource({ name, type: 'LABOR', description: '', maxUnits: 1 }); }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (a) standaardregel: byte-identiek aan vandaag --');
 {
   reset();
@@ -71,7 +60,6 @@ console.log('-- (a) standaardregel: byte-identiek aan vandaag --');
   eq('a8 workRuleApplies: mijlpaal niet', workRuleApplies(task(m)), false);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (b) FIXED_WORK in de store: duur, inzet, resource erbij/eraf, werk, undo --');
 {
   reset();
@@ -83,21 +71,17 @@ console.log('-- (b) FIXED_WORK in de store: duur, inzet, resource erbij/eraf, we
   S().setTaskWorkRule(t, 'FIXED_WORK');
   eq('b1 typewissel schrijft workRule', task(t).workRule, 'FIXED_WORK');
   eq('b2 …legt het restwerk vast (4 dagen × slot)', asgOf(t, r1).remainingWorkMinutes, 4 * slot());
-  // B1 (spec §3.2 B1a, §5.2 geval 11c): vast werk maakt de dagenmaat-taak urenmaat met dezelfde lengte
-  // (4 d × 8 u = 1920 min); die maatwijziging is planning en zet de planning verouderd.
   eq('b3 …verandert de lengte niet, maakt de taak urenmaat en zet verouderd (11c)', [task(t).time.scheduleDuration, task(t).time.durationUnit, task(t).time.durationMinutes, S().scheduleStale], [4, 'hours', 4 * slot(), true]);
   eq('b4 …is één undo-stap en dirty', [S().historyEvents.length - events0, S().isDirty], [1, true]);
   S().setTaskWorkRule(t, 'FIXED_WORK');
   eq('b5 ongewijzigde regel is een no-op (geen undo-event)', S().historyEvents.length - events0, 1);
 
-  // Duur ×2 ⇒ inzet ×0,5, werk blijft.
   S().updateTask(t, { time: { ...task(t).time, scheduleDuration: 8 } });
   eq('b6 duur 4→8: inzet 0,5', asgOf(t, r1).unitsPerDay, 0.5);
   eq('b7 …werk blijft 4 slots', asgOf(t, r1).remainingWorkMinutes, 4 * slot());
   eq('b8 …planning verouderd', S().scheduleStale, true);
   S().runCPM();
 
-  // Inzet → 1 ⇒ duur 4 (meetlat 28 hieronder: undo in één stap).
   const eventsBeforeUnits = S().historyEvents.length;
   S().updateAssignment(asgOf(t, r1).id, { unitsPerDay: 1 });
   eq('b9 inzet 0,5→1: duur 4', task(t).time.scheduleDuration, 4);
@@ -110,7 +94,6 @@ console.log('-- (b) FIXED_WORK in de store: duur, inzet, resource erbij/eraf, we
   eq('b14 redo herstelt', [task(t).time.scheduleDuration, asgOf(t, r1).unitsPerDay], [4, 1]);
   S().runCPM();
 
-  // Resource erbij (spec §5 rij 4): werk 4 slots over twee resources à 1 ⇒ elk 2 slots, R = 2 d.
   const r2 = labor('r2');
   S().assignResource(t, r2, 1);
   eq('b15 tweede resource erbij onder FIXED_WORK: duur 2', task(t).time.scheduleDuration, 2);
@@ -118,33 +101,27 @@ console.log('-- (b) FIXED_WORK in de store: duur, inzet, resource erbij/eraf, we
   eq('b17 …inzet blijft zoals ingevoerd', [asgOf(t, r1).unitsPerDay, asgOf(t, r2).unitsPerDay], [1, 1]);
   eq('b18 …planning verouderd', S().scheduleStale, true);
   S().runCPM();
-  // Materiaal erbij: telt niet mee (spec §4.3).
   const mat = S().addResource({ name: 'zand', type: 'MATERIAL', description: '', maxUnits: 100 });
   S().assignResource(t, mat, 10);
   eq('b19 materiaal erbij verandert de duur niet', [task(t).time.scheduleDuration, S().scheduleStale], [2, false]);
   eq('b20 …en krijgt geen werkveld', asgOf(t, mat).remainingWorkMinutes, undefined);
-  // Resource eraf: r2 weg ⇒ 4 slots terug naar r1 ⇒ duur 4.
   S().unassignResource(asgOf(t, r2).id);
   eq('b21 r2 eraf: duur 4, werk 4 slots bij r1', [task(t).time.scheduleDuration, asgOf(t, r1).remainingWorkMinutes], [4, 4 * slot()]);
   S().runCPM();
-  // Werk gezet (spec §5 rij 3): 8 slots bij inzet 1 ⇒ duur 8.
   S().setAssignmentWork(asgOf(t, r1).id, 8 * slot());
   eq('b22 werk → 8 slots: duur 8, inzet 1', [task(t).time.scheduleDuration, asgOf(t, r1).unitsPerDay, S().scheduleStale], [8, 1, true]);
   const eventsBeforeBad = S().historyEvents.length;
   S().setAssignmentWork(asgOf(t, r1).id, -1);
   S().setAssignmentWork('bestaat-niet', 100);
   eq('b23 ongeldig werk/onbekend id: no-op zonder undo-event', S().historyEvents.length, eventsBeforeBad);
-  // T14: 2,5 slots werk bij inzet 1 geven exact 2,5 d.
   S().runCPM();
   S().setAssignmentWork(asgOf(t, r1).id, 2.5 * slot());
   eq('b24 2,5 dag werk houdt de duur exact op 2,5 d', task(t).time.scheduleDuration, 2.5);
   eq('b25 …het werk zelf blijft 2,5 slots', asgOf(t, r1).remainingWorkMinutes, 2.5 * slot());
-  // Terug naar de projectstandaard: geen getal verandert, het werkveld blijft staan.
   S().setTaskWorkRule(t, undefined);
   eq('b26 regel terug naar projectstandaard: veld weg, werk blijft', [task(t).workRule, asgOf(t, r1).remainingWorkMinutes], [undefined, 2.5 * slot()]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (c) FIXED_DURATION_WORK en projectstandaard --');
 {
   reset();
@@ -158,14 +135,12 @@ console.log('-- (c) FIXED_DURATION_WORK en projectstandaard --');
   eq('c2 inzet → 0,5: duur blijft 4, werk = R × I = 2 slots (vastgelegd)', [task(t).time.scheduleDuration, asgOf(t, r1).remainingWorkMinutes, S().scheduleStale], [4, 2 * slot(), false]);
   S().updateTask(t, { time: { ...task(t).time, scheduleDuration: 8 } });
   eq('c3 duur 4→8: inzet 0,25, werk blijft 2 slots', [asgOf(t, r1).unitsPerDay, asgOf(t, r1).remainingWorkMinutes], [0.25, 2 * slot()]);
-  // MSP-afwijking 8-B: bewaard effortDriven true op FIXED_DURATION_WORK ⇒ werk volgt de duur.
   S().updateTask(t, { mspTaskType: 'FIXED_DURATION', effortDriven: true });
   S().runCPM();
   S().updateTask(t, { time: { ...task(t).time, scheduleDuration: 4 } });
   eq('c4 (8-B) FD+ED: duur 8→4 laat de inzet staan en herschrijft het werk', [asgOf(t, r1).unitsPerDay, asgOf(t, r1).remainingWorkMinutes], [0.25, slot()]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (d) contour met werkbehoud (meetlat 22/23) --');
 {
   reset();
@@ -174,7 +149,6 @@ console.log('-- (d) contour met werkbehoud (meetlat 22/23) --');
   S().assignResource(t, r1, 1);
   S().runCPM();
   S().setTaskWorkRule(t, 'FIXED_WORK');
-  // Vooraan belast: 2, 1, 0,5, 0,5 slots (som 4).
   const mpd = slot();
   S().setAssignmentContour(asgOf(t, r1).id, workDaySlotsToPeriods([2 * mpd, mpd, 0.5 * mpd, 0.5 * mpd], undefined, mpd));
   const workBefore = task(t).timephasedContours![0].periods.reduce((s, p) => s + p.workMinutes, 0);
@@ -190,9 +164,6 @@ console.log('-- (d) contour met werkbehoud (meetlat 22/23) --');
     contourKeepsWork({ workRule: undefined, mspTaskType: undefined }, 'FIXED_DURATION_WORK'),
     contourKeepsWork({ workRule: undefined, mspTaskType: undefined }),
   ], [true, false, true, true, false]);
-  // (23) tweede resource erbij à 0,5 naast r1 à 0,5: werk (4 slots) naar rato ⇒ 2 + 2;
-  // R = 2 / 0,5 = 4 d ⇒ de as van r1's contour gaat van 8 terug naar 4 d, de HOOGTE halveert
-  // (besluit 3: vorm blijft, hoogte zakt — `reconcileContourWork`); r2 heeft geen contour (vlak).
   S().runCPM();
   const r2 = labor('r2');
   S().assignResource(t, r2, 0.5);
@@ -205,7 +176,6 @@ console.log('-- (d) contour met werkbehoud (meetlat 22/23) --');
   eq('d9 (23) histogram r1 boekt de gehalveerde contour (som 2 dag-eenheden)', assignmentDayUnits(task(t), asgOf(t, r1), mpd, undefined, S().assignments.filter((a) => a.taskId === t)).map((u) => Math.round(u * 1000) / 1000), [1, 0.5, 0.25, 0.25]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (e) taakraster: dezelfde regels via gridTransaction --');
 {
   reset();
@@ -240,7 +210,6 @@ console.log('-- (e) taakraster: dezelfde regels via gridTransaction --');
   eq('e7 …duur 2, werk 2 + 2 slots', [task(t).time.scheduleDuration, asgOf(t, r1).remainingWorkMinutes, asgOf(t, r2).remainingWorkMinutes], [2, 2 * slot(), 2 * slot()]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (f) MCP-tweeling --');
 {
   reset();
@@ -266,7 +235,6 @@ console.log('-- (f) MCP-tweeling --');
   eq('f6 MCP: werk 0 is een fout (transactie teruggerold)', [r6.ok, task(t).time.scheduleDuration], [false, 8]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (g) assignmentDayUnits: opgeslagen werk als vierde bron --');
 {
   const t = { id: 't', time: { ...createDefaultTaskTime('2026-06-01', 4) } } as Task;
@@ -277,15 +245,12 @@ console.log('-- (g) assignmentDayUnits: opgeslagen werk als vierde bron --');
   const front = assignmentDayUnits(t, { ...base, remainingWorkMinutes: 960, curve: 'FRONT_LOADED' }, 480);
   ok('g3 vooraan belast: eerste dag > laatste dag, som 2', front[0] > front[3] && near(front.reduce((s, v) => s + v, 0), 2));
   eq('g4 verricht + resterend telt samen', r3(assignmentDayUnits(t, { ...base, remainingWorkMinutes: 480, actualWorkMinutes: 480 }, 480)), [0.5, 0.5, 0.5, 0.5]);
-  // Fable-critreview #170, bevinding 7: een P6-/MSPDI-curve (`curveValues`) is de VORM, opgeslagen werk het
-  // TOTAAL — vroeger won de curve en boekte zij inzet × duur (4) i.p.v. het werk (2).
   const curve = Array.from({ length: 21 }, (_, i) => (i < 10 ? 10 : 0));
   const withCurve = assignmentDayUnits(t, { ...base, curveValues: curve, remainingWorkMinutes: 960 }, 480);
   eq('g5 curveValues + restwerk 2 slots: som 2 (werk is het totaal)', Math.round(withCurve.reduce((s, v) => s + v, 0) * 1e6) / 1e6, 2);
   eq('g6 …en de curvevorm blijft (vorm gelijk aan de curve zonder werkveld, geschaald ×0,5)', r3(withCurve), r3(assignmentDayUnits(t, { ...base, curveValues: curve }, 480).map((v) => v * 0.5)));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (h) voortgang > 0: geen drift, voortgangsbewerking is geen duurbewerking (review B1/B2/B3) --');
 {
   reset();
@@ -300,12 +265,10 @@ console.log('-- (h) voortgang > 0: geen drift, voortgangsbewerking is geen duurb
   eq('h1 typewissel legt alleen het RESTwerk vast (5 dagen)', asgOf(t, r1).remainingWorkMinutes, 5 * mpd);
   const r6 = (xs: number[]) => xs.map((v) => Math.round(v * 1e6) / 1e6);
   eq('h2 (B3) histogram na typewissel ongewijzigd (verricht deel afgeleid)', r6(assignmentDayUnits(task(t), asgOf(t, r1), mpd)), r6(loadBefore));
-  // Voortgangsbewerking via updateTask met een gespreide time-tak (TaskDialog-patroon) raakt de inzet niet.
   S().updateTask(t, { time: { ...task(t).time, completion: 0.7 } });
   eq('h3 (B1) completion-wijziging via updateTask laat de inzet staan', asgOf(t, r1).unitsPerDay, 1);
   S().updateTask(t, { time: { ...task(t).time, completion: 0.5 } });
   S().runCPM();
-  // Inzet 1→2 op een half gedane taak: rest 5 d × 1 = 5 slots werk ⇒ R = 2,5 d; duur = 7,5 d.
   S().updateAssignment(asgOf(t, r1).id, { unitsPerDay: 2 });
   eq('h4 (B2) inzet 1→2: duur 7,5 (5 gedaan + 2,5 rest), rest expliciet 2,5', [task(t).time.scheduleDuration, task(t).time.remainingTime], [7.5, 2.5]);
   S().runCPM();
@@ -316,14 +279,12 @@ console.log('-- (h) voortgang > 0: geen drift, voortgangsbewerking is geen duurb
   S().runCPM();
   S().updateAssignment(asgOf(t, r1).id, { unitsPerDay: 1 });
   eq('h6 (case 31) heen-en-weer blijft 10', task(t).time.scheduleDuration, 10);
-  // Raster: een voortgangscel verandert de rest, niet de duur ⇒ geen driehoekstap.
   const cellP = (columnId: string, route: CellEditIntent['route'], value: unknown): CellEditIntent =>
     ({ kind: 'cell-edit', taskId: t, columnId: columnId as CellEditIntent['columnId'], route, value });
   eq('h7 (B1) rastercel completion 0,5→0,8 slaagt', runGridMutation([cellP('task.time.completion', 'task-progress', 0.8)]).ok, true);
   eq('h8 (B1) …en laat inzet en duur staan', [asgOf(t, r1).unitsPerDay, task(t).time.scheduleDuration], [1, 10]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (i) uurmodus --');
 {
   reset();
@@ -341,7 +302,6 @@ console.log('-- (i) uurmodus --');
   eq('i3 inzet 2 ⇒ 180 min', task(t).time.durationMinutes, 180);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (j) FIXED_RATE en de 8-B-cel effortDriven:false --');
 {
   reset();
@@ -360,19 +320,16 @@ console.log('-- (j) FIXED_RATE en de 8-B-cel effortDriven:false --');
   S().setAssignmentWork(asgOf(t, r1).id, 8 * slot());
   eq('j3 FIXED_RATE: meer werk ⇒ langer (8), inzet blijft 1', [task(t).time.scheduleDuration, asgOf(t, r1).unitsPerDay], [8, 1]);
   S().runCPM();
-  // 8-B: MSP "Fixed Units, niet effort-driven" ⇒ resource erbij verandert het werk, niet de duur.
   S().updateTask(t, { mspTaskType: 'FIXED_UNITS', effortDriven: false });
   S().runCPM();
   S().assignResource(t, r2, 1);
   eq('j4 (8-B) FIXED_RATE + effortDriven:false: erbij laat de duur staan', task(t).time.scheduleDuration, 8);
-  // De kern schrijft de nieuwkomer geen veld (afwezig ⇒ afgeleid als R × I, hetzelfde getal).
   eq('j5 (8-B) …de nieuwe toewijzing krijgt geen veld (afgeleid = R × I)', asgOf(t, r2).remainingWorkMinutes, undefined);
   S().runCPM();
   S().unassignResource(asgOf(t, r2).id);
   eq('j6 (8-B) …eraf laat de duur staan', task(t).time.scheduleDuration, 8);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (#954) Vaste inzet: andere uren blijven bij gelijke duur, ook na F5 en undo/redo --');
 {
   reset();
@@ -416,10 +373,6 @@ console.log('-- (k) raster: materiaal, gemengde Resources-cel (K6), datums-zoals
   };
   eq('k1 materiaal erbij via het raster slaagt', runGridMutation([addMat]).ok, true);
   eq('k2 …en verandert de duur niet, geen werkveld op materiaal', [task(t).time.scheduleDuration, asgOf(t, mat).remainingWorkMinutes], [4, undefined]);
-  // Gemengde cel: r1 eraf + r2 erbij (à 0,5) in één keer. Volgorde verwijderen → toevoegen:
-  // r1's werk (4 slots) gaat naar de blijvers — er zijn er geen (materiaal stuurt niet), dus het
-  // werk vervalt; r2 komt daarna als EERSTE werkresource en krijgt geen veld (afwezig ⇒ afgeleid
-  // als R × I = 4 × 0,5 = 2 slots); de duur blijft 4.
   const r2 = labor('r2');
   const swap: AssignmentSetIntent = {
     kind: 'assignment-set', taskId: t, columnId: 'assignment.resources' as AssignmentSetIntent['columnId'],
@@ -427,7 +380,6 @@ console.log('-- (k) raster: materiaal, gemengde Resources-cel (K6), datums-zoals
   };
   eq('k3 (K6) r1 eraf + r2 erbij in één cel slaagt', runGridMutation([swap]).ok, true);
   eq('k4 (K6) volgorde verwijderen→toevoegen: duur 4, r2 zonder veld (afgeleid), r1 weg', [task(t).time.scheduleDuration, asgOf(t, r2).remainingWorkMinutes, S().assignments.some((a) => a.resourceId === r1)], [4, undefined, false]);
-  // Datums zoals opgeslagen: een duur uit de driehoek verlaat die modus (zelfde als een duurcel).
   S().runCPM();
   useAppStore.setState((s) => { s.datesAsRecorded = true; s.recordedDates = {} as never; });
   const units: AssignmentSetIntent = {
@@ -438,7 +390,6 @@ console.log('-- (k) raster: materiaal, gemengde Resources-cel (K6), datums-zoals
   eq('k6 …duur 2, planning verouderd, datums-zoals-opgeslagen verlaten', [task(t).time.scheduleDuration, S().scheduleStale, S().datesAsRecorded, S().recordedDates], [2, true, false, null]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (l) moveAssignment en removeResource lopen door de driehoek (review B4) --');
 {
   reset();
@@ -452,21 +403,16 @@ console.log('-- (l) moveAssignment en removeResource lopen door de driehoek (rev
   S().runCPM();
   S().setTaskWorkRule(a, 'FIXED_WORK');
   S().setTaskWorkRule(b, 'FIXED_WORK');
-  // a: r1 en r2 elk 4 slots vastgelegd (8 slots totaal); b: r1 4 slots. r2 van a naar b:
-  // a ⇒ "eraf": al het restwerk (8 slots) blijft en gaat naar r1 ⇒ R = 8 d (spec §5 rij 5);
-  // b ⇒ "erbij": 4 slots over r1 + r2 naar rato ⇒ 2 + 2, R = 2 d.
   const events0 = S().historyEvents.length;
   S().moveAssignment(asgOf(a, r2).id, b);
   eq('l1 verplaatsen: oude taak houdt al haar werk bij r1 (8 slots ⇒ duur 8)', [asgOf(a, r1).remainingWorkMinutes, task(a).time.scheduleDuration], [8 * slot(), 8]);
   eq('l2 verplaatsen: nieuwe taak verdeelt haar werk ⇒ duur 2, 2 + 2', [task(b).time.scheduleDuration, asgOf(b, r1).remainingWorkMinutes, asgOf(b, r2).remainingWorkMinutes], [2, 2 * slot(), 2 * slot()]);
   eq('l3 …één undo-stap, planning verouderd', [S().historyEvents.length - events0, S().scheduleStale], [1, true]);
   S().runCPM();
-  // Resource r2 verwijderen: b verliest r2 ⇒ 4 slots terug naar r1 ⇒ duur 4.
   S().removeResource(r2);
   eq('l4 removeResource: b terug naar 4 dagen met al het werk bij r1', [task(b).time.scheduleDuration, asgOf(b, r1).remainingWorkMinutes, S().scheduleStale], [4, 4 * slot(), true]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (m) workRule via de generieke updateTask legt óók vast (review K1) --');
 {
   reset();
@@ -482,7 +428,6 @@ console.log('-- (m) workRule via de generieke updateTask legt óók vast (review
   void events0;
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Werkregel / Resterend werk --');
 {
   eq('n1 hasTaskTypeData: leeg ⇒ false', hasTaskTypeData([], []), false);
@@ -493,8 +438,6 @@ console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Wer
     hasTaskTypeData([], [{ remainingWorkMinutes: 60 }]),
     hasTaskTypeData([], [], { defaultWorkRule: 'FIXED_RATE' }),
   ], [true, true, true, true, true]);
-  // E4 (orkestratorbesluit 25-09): ontsluiten meldt alleen bij opgeslagen werk, een projectstandaard
-  // of een eigen regel; een regel die uit het importveld volgt ontsluit stil.
   eq('n2b taskTypesNeedNotice: afgeleide regel stil, werk/standaard/eigen regel melden', [
     taskTypesNeedNotice([{ p6DurationType: 'DT_FixedQty', workRule: 'FIXED_WORK' }], []),
     taskTypesNeedNotice([{ mspTaskType: 'FIXED_UNITS', workRule: 'FIXED_RATE' }], []),
@@ -513,7 +456,6 @@ console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Wer
   S().runCPM();
   S().setTaskWorkRule(t, 'FIXED_WORK');
   eq('n5 een gezette regel ontsluit het document', S().taskTypesVisible, true);
-  // Raster: de kolom Werkregel is alleen beschikbaar wanneer ontsloten.
   const registry = buildTaskColumnRegistry({ projectId: S().project.id, activityCodeTypes: [], customFieldDefs: [], baselines: [], customTaskTypes: [] });
   const workRuleCol = registry.find((d) => String(d.id) === 'task.workRule')!;
   const workCol = registry.find((d) => String(d.id) === 'assignment.remainingWork')!;
@@ -523,8 +465,6 @@ console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Wer
     workCol.available({ ...ctxBase, taskTypesUnlocked: true }), workCol.available(ctxBase),
   ], [true, false, true, false]);
   eq('n7 Werkregel is bewerkbaar met de vier waarden + projectstandaard', workRuleCol.editorOptions?.map((o) => o.value), ['', 'FIXED_DURATION_RATE', 'FIXED_DURATION_WORK', 'FIXED_WORK', 'FIXED_RATE']);
-  // Gebruikstest #170, G8: een geïmporteerde regel op mijlpaal/verzameltaak/hangmat toont het raster
-  // LEEG (die taken hebben geen werkregel); een bladtaak toont hem gewoon.
   {
     const base = task(t);
     const shown = (patch: Partial<typeof base>) => workRuleCol.read({ ...base, workRule: 'FIXED_RATE', ...patch }, ctxBase as never);
@@ -532,7 +472,6 @@ console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Wer
       shown({ isMilestone: true }), shown({ childIds: ['x'] }), shown({ isHammock: true }), shown({}),
     ], [undefined, undefined, undefined, 'FIXED_RATE']);
   }
-  // Raster: typewissel via de cel legt het werk vast (zelfde als setTaskWorkRule), terug naar '' wist.
   S().setTaskWorkRule(t, undefined);
   useAppStore.setState((s) => { const a = s.assignments.find((x) => x.taskId === t)!; delete a.remainingWorkMinutes; });
   const cell = (columnId: string, route: CellEditIntent['route'], value: unknown): CellEditIntent =>
@@ -541,7 +480,6 @@ console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Wer
   eq('n9 …regel gezet én werk vastgelegd (4 slots)', [task(t).workRule, asgOf(t, r1).remainingWorkMinutes], ['FIXED_WORK', 4 * slot()]);
   eq('n10 rastercel Werkregel → leeg slaagt en wist het veld', [runGridMutation([cell('task.workRule', 'task-field', undefined)]).ok, task(t).workRule], [true, undefined]);
   eq('n11 rastercel Werkregel ongeldig wordt geweigerd', runGridMutation([cell('task.workRule', 'task-field', 'fixed_work')]).ok, false);
-  // Raster: Resterend werk als assignment-set: 4 slots → 8 slots onder FIXED_WORK ⇒ duur 8.
   S().setTaskWorkRule(t, 'FIXED_WORK');
   S().runCPM();
   const setWork: AssignmentSetIntent = {
@@ -552,12 +490,10 @@ console.log('-- (n) bouwstap 5: ontsluiting, instelling en de rasterkolommen Wer
   eq('n13 …duur 8, werk 8 slots, planning verouderd', [task(t).time.scheduleDuration, asgOf(t, r1).remainingWorkMinutes, S().scheduleStale], [8, 8 * slot(), true]);
   S().undo();
   eq('n14 …undo in één stap', [task(t).time.scheduleDuration, asgOf(t, r1).remainingWorkMinutes], [4, 4 * slot()]);
-  // Parser van de kolom: "naam: uren".
   const parsed = workCol.parse!('r1: 12', task(t), { ...ctxBase, taskTypesUnlocked: true, tasksById: new Map([[t, task(t)]]), assignmentsByTaskId: new Map([[t, S().assignments.filter((a) => a.taskId === t)]]), resourcesById: new Map(S().resources.map((r) => [r.id, r])), effectiveHoursPerDay: () => S().calendar.hoursPerDay });
   eq('n15 parser "r1: 12" ⇒ 720 werkminuten', parsed.ok ? (parsed.value as { remainingWorkMinutes?: number }[])[0]?.remainingWorkMinutes : parsed, 720);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (o) reviewronde stap 5: plakken behoudt werk, werkcel bevriest niets, typewissel via paneel, melding na newProject --');
 {
   reset();
@@ -575,11 +511,9 @@ console.log('-- (o) reviewronde stap 5: plakken behoudt werk, werkcel bevriest n
     resourcesById: new Map(S().resources.map((r) => [r.id, r])), baselinesById: new Map(), scheduleStale: false,
     taskTypesUnlocked: true, effectiveHoursPerDay: () => S().calendar.hoursPerDay,
   });
-  // (B1) tokens met een VREEMD assignmentId (plakken vanaf een andere taak) houden hun werk.
   const foreign = [{ assignmentId: 'van-andere-taak', resourceId: r1, unitsPerDay: 1, remainingWorkMinutes: 600 }];
   const validated = workCol.validate!(foreign, task(t), ctxOf());
   eq('o1 (B1) cross-task tokens behouden remainingWorkMinutes na normalisatie', validated.ok ? (validated.value as { remainingWorkMinutes?: number }[])[0]?.remainingWorkMinutes : validated, 600);
-  // (B2) FIXED_RATE, twee toewijzingen zonder opgeslagen werk: alleen r1 bewerken laat r2 zonder veld.
   S().setTaskWorkRule(t, 'FIXED_RATE');
   useAppStore.setState((s) => { for (const a of s.assignments) if (a.taskId === t) delete a.remainingWorkMinutes; });
   S().runCPM();
@@ -587,36 +521,29 @@ console.log('-- (o) reviewronde stap 5: plakken behoudt werk, werkcel bevriest n
     kind: 'assignment-set', taskId: t, columnId: 'assignment.remainingWork' as AssignmentSetIntent['columnId'],
     tokens: [
       { resourceId: r1, assignmentId: asgOf(t, r1).id, unitsPerDay: 1, remainingWorkMinutes: 8 * slot() },
-      { resourceId: r2, assignmentId: asgOf(t, r2).id, unitsPerDay: 1, remainingWorkMinutes: 4 * slot() }, // = de getoonde waarde
+      { resourceId: r2, assignmentId: asgOf(t, r2).id, unitsPerDay: 1, remainingWorkMinutes: 4 * slot() },
     ],
   };
   eq('o2 (B2) werkcel met r2 op de getoonde waarde slaagt', runGridMutation([cell]).ok, true);
   eq('o3 (B2) r1 8 slots ⇒ duur 8; r2 krijgt GEEN expliciet werk (blijft afgeleid)', [task(t).time.scheduleDuration, asgOf(t, r1).remainingWorkMinutes, asgOf(t, r2).remainingWorkMinutes], [8, 8 * slot(), undefined]);
-  // (B3) typewissel via de generieke updateTask zet niet verouderd (setTaskWorkRule is de UI-route).
   S().runCPM();
   useAppStore.setState((s) => { s.datesAsRecorded = true; s.recordedDates = {} as never; });
-  // B1 (spec §3.2 B1a): een wissel naar vast werk verandert nu de maat. De wissel zonder maatwijziging
-  // (o4) houdt de modus; de wissel met maatwijziging (o4b) is planning (§5.2, geval 11c).
   S().setTaskWorkRule(t, 'FIXED_DURATION_WORK');
   eq('o4 (B3) setTaskWorkRule zonder maatwijziging laat scheduleStale en datums-zoals-opgeslagen ongemoeid', [S().scheduleStale, S().datesAsRecorded], [false, true]);
   S().setTaskWorkRule(t, 'FIXED_WORK');
   eq('o4b (11c) setTaskWorkRule naar vast werk maakt de dagtaak urenmaat: modus uit, planning verouderd', [task(t).time.durationUnit, S().scheduleStale, S().datesAsRecorded, S().recordedDates], ['hours', true, false, null]);
   useAppStore.setState((s) => { s.datesAsRecorded = false; s.recordedDates = null; });
-  // (K4) werk zetten op een ELAPSEDTIME-taak is een no-op zonder undo-stap.
   const e = S().addTask({ name: 'elapsed', time: { ...createDefaultTaskTime('2026-06-01', 4), durationType: 'ELAPSEDTIME' } });
   S().assignResource(e, r1, 1);
   const events0 = S().historyEvents.length;
   S().setAssignmentWork(asgOf(e, r1).id, 480);
   eq('o5 (K4) setAssignmentWork op ELAPSEDTIME: no-op, geen undo-stap', [S().historyEvents.length - events0, asgOf(e, r1).remainingWorkMinutes], [0, undefined]);
-  // (K1) melding: één per document, opnieuw na newProject op hetzelfde docId.
   __resetTaskTypesNoticeForTests();
   const docId = S().activeDocumentId;
   const count = () => S().ui.notifications.filter((n) => n.messageKey === 'notifications.taskTypesUnlocked').length;
   notifyTaskTypesUnlocked(S().notify, docId);
   notifyTaskTypesUnlocked(S().notify, docId);
   eq('o6 (K1) melding één keer per document', count(), 1);
-  // De toast-lijst vouwt op `dedupeKey` samen zolang de vorige nog staat; leeg 'm dus eerst, zodat
-  // alleen de sessie-gate (per docId) telt.
   S().newProject();
   useAppStore.setState((s) => { s.ui.notifications = []; });
   notifyTaskTypesUnlocked(S().notify, S().activeDocumentId);
@@ -624,7 +551,6 @@ console.log('-- (o) reviewronde stap 5: plakken behoudt werk, werkcel bevriest n
   useAppStore.setState((s) => { s.ui.notifications = []; });
   notifyTaskTypesUnlocked(S().notify, S().activeDocumentId);
   eq('o7b (K1) …maar daarna weer één keer per document', count(), 0);
-  // (K3) de generieke updateTask en de MCP-tweeling ontsluiten óók.
   reset();
   const t2 = S().addTask({ name: 'k3', time: createDefaultTaskTime('2026-06-01', 2) });
   S().updateTask(t2, { workRule: 'FIXED_WORK' });
@@ -635,11 +561,9 @@ console.log('-- (o) reviewronde stap 5: plakken behoudt werk, werkcel bevriest n
   eq('o9 (K3) MCP setTaskWorkRule ontsluit het document', S().taskTypesVisible, true);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkregel (K2) en rest schuift mee met Δ --');
 {
   reset();
-  // Een tweede kalender met 6 u/dag: kopie van de projectkalender met andere hoursPerDay.
   const base = S().calendar;
   const six = S().addCalendar({ ...base, id: 'cal-6h', name: '6 uur', hoursPerDay: 6 } as never);
   const sixId = typeof six === 'string' ? six : 'cal-6h';
@@ -652,7 +576,6 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
     if (rule) S().setTaskWorkRule(t, rule);
     return { t, r };
   };
-  // (32) FIXED_WORK: 32 u blijft, 6 u/dag ⇒ 6 dagen.
   const a = mk('FIXED_WORK');
   const events0 = S().historyEvents.length;
   S().setTaskCalendar(a.t, sixId);
@@ -662,21 +585,17 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   eq('p3 …undo zet kalender én duur terug', [task(a.t).calendarId, task(a.t).time.scheduleDuration], [undefined, 4]);
   S().redo();
   S().runCPM();
-  // (33) FIXED_DURATION_WORK: duur 4 blijft, inzet 32/24 = 1,333.
   const b = mk('FIXED_DURATION_WORK');
   S().setTaskCalendar(b.t, sixId);
   eq('p4 (33) FIXED_DURATION_WORK: duur 4, inzet 4/3, werk 32 u', [task(b.t).time.scheduleDuration, asgOf(b.t, b.r).unitsPerDay, asgOf(b.t, b.r).remainingWorkMinutes], [4, 4 / 3, 32 * 60]);
-  // (34) standaardregel zonder veld: byte-identiek (geen veld, duur 4, inzet 1).
   const c = mk(undefined);
   const before = JSON.stringify(asgOf(c.t, c.r));
   S().setTaskCalendar(c.t, sixId);
   eq('p5 (34) standaardregel zonder werkveld: toewijzing byte-identiek, duur 4', [JSON.stringify(asgOf(c.t, c.r)) === before, task(c.t).time.scheduleDuration], [true, 4]);
-  // (34) standaardregel mét veld: werk volgt (32 → 24 u).
   const d = mk(undefined);
   useAppStore.setState((s) => { s.assignments.find((x) => x.taskId === d.t)!.remainingWorkMinutes = 32 * 60; });
   S().setTaskCalendar(d.t, sixId);
   eq('p6 (34) standaardregel mét werkveld: werk volgt naar 24 u', [task(d.t).time.scheduleDuration, asgOf(d.t, d.r).remainingWorkMinutes], [4, 24 * 60]);
-  // Uurtaak: geen slotafhankelijke duur ⇒ niets.
   const h = S().addTask({ name: 'p-hours', time: createDefaultTaskTime('2026-06-01', 4, 'hours') });
   const hr = labor('r-h');
   S().assignResource(h, hr, 1);
@@ -684,14 +603,12 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   S().setTaskWorkRule(h, 'FIXED_WORK');
   S().setTaskCalendar(h, sixId);
   eq('p7 uurtaak: kalenderwissel raakt duur noch inzet', [task(h).time.durationMinutes, asgOf(h, hr).unitsPerDay], [240, 1]);
-  // Via de generieke updateTask (dialoog/paneel-patch) en via het raster.
   const e = mk('FIXED_WORK');
   S().updateTask(e.t, { calendarId: sixId });
   eq('p8 updateTask({ calendarId }) loopt ook door de regel ⇒ duur 16/3 d', task(e.t).time.scheduleDuration, 16 / 3);
   const f = mk('FIXED_WORK');
   const cellCal: CellEditIntent = { kind: 'cell-edit', taskId: f.t, columnId: 'task.calendarId' as CellEditIntent['columnId'], route: 'task-schedule', value: sixId };
   eq('p9 rastercel kalender slaagt en volgt de regel ⇒ duur 16/3 d', [runGridMutation([cellCal]).ok, task(f.t).time.scheduleDuration], [true, 16 / 3]);
-  // Projectkalender: taken zonder eigen kalender volgen; melding met aantal.
   reset();
   const six2 = S().addCalendar({ ...S().calendar, id: 'cal-6h-b', name: '6 uur', hoursPerDay: 6 } as never);
   const six2Id = typeof six2 === 'string' ? six2 : 'cal-6h-b';
@@ -702,14 +619,10 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   S().setProjectCalendar(six2Id);
   eq('p10 projectkalender 8→6: Vast werk en Vaste inzet ⇒ 16/3 d, standaard blijft 4', [task(g1.t).time.scheduleDuration, task(g2.t).time.scheduleDuration, task(g3.t).time.scheduleDuration], [16 / 3, 16 / 3, 4]);
   const note = S().ui.notifications.find((n) => n.messageKey === 'notifications.workRuleDurationsChanged');
-  // B1 (spec §3.2 B1a): vast werk is urenmaat; zijn 32 u blijven en alleen het verborgen dagengetal
-  // volgt de werktijd per dag. Het taaktype past daar niets aan, dus de melding telt alleen Vaste inzet.
   eq('p11 …één melding; alleen Vaste inzet telt (vast werk houdt zijn 32 u)', [note?.params?.count, task(g1.t).time.durationMinutes], [1, 32 * 60]);
-  // Kalenderinhoud wijzigen (uren per dag) op de projectkalender.
   useAppStore.setState((s) => { s.ui.notifications = []; });
   S().updateCalendar(six2Id, { hoursPerDay: 4 });
   eq('p12 updateCalendar 6→4 u/dag: Vast werk 32 u ⇒ 8 d (verborgen dagen); melding telt 1 (Vaste inzet)', [task(g1.t).time.scheduleDuration, S().ui.notifications.find((n) => n.messageKey === 'notifications.workRuleDurationsChanged')?.params?.count], [8, 1]);
-  // MCP-tweeling: patchTaskFields met calendarId.
   reset();
   const six3 = S().addCalendar({ ...S().calendar, id: 'cal-6h-c', name: '6 uur', hoursPerDay: 6 } as never);
   const six3Id = typeof six3 === 'string' ? six3 : 'cal-6h-c';
@@ -717,11 +630,6 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   const mr = runInMcpTransaction(() => { draft.patchTaskFields(m.t, { calendarId: six3Id }); });
   eq('p13 MCP patchTaskFields({ calendarId }) ⇒ duur 16/3 d', [mr.ok, task(m.t).time.scheduleDuration], [true, 16 / 3]);
 
-  // ── Beslispunt 2: expliciete rest schuift mee met Δ; completion volgt. Eigenaarsbesluit 2026-09-26
-  // (optie 2, herbouw #232): het gedane werk is % × duur en blijft gelijk — percentage = oud % × oude
-  // duur ÷ nieuwe duur, onafgerond — en een duur korter dan het gedane werk wordt GEWEIGERD in plaats
-  // van de rest op 0 te klemmen. De rest 3 hieronder is bewust inconsistent met 50 % (zoals uit een
-  // bestand): rest en gedaan werk schuiven elk exact, geen van beide wordt uit de ander herleid.
   reset();
   const q = S().addTask({ name: 'q', time: createDefaultTaskTime('2026-06-01', 10) });
   const qr = labor('r-q');
@@ -732,7 +640,6 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   eq('q1 duur 10→12 bij expliciete rest 3 ⇒ rest 5, completion = 0,5 × 10 / 12', [task(q).time.remainingTime, near(task(q).time.completion, 5 / 12)], [5, true]);
   S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 4 } });
   eq('q2 duur 12→4 is korter dan het gedane werk (5 d) ⇒ geweigerd, taak ongewijzigd', [task(q).time.scheduleDuration, task(q).time.remainingTime, near(task(q).time.completion, 5 / 12)], [12, 5, true]);
-  // Onder FIXED_WORK volgt de driehoek de verschoven rest.
   S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 10, remainingTime: 6, completion: 0.5 } });
   eq('q2b een patch die de voortgang ZELF zet, wordt niet ook nog verschoven', [task(q).time.remainingTime, task(q).time.completion], [6, 0.5]);
   S().updateTask(q, { time: { ...task(q).time, remainingTime: 5 } });
@@ -741,7 +648,6 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   eq('q3 voorwaarde: restwerk 5 d vastgelegd', asgOf(q, qr).remainingWorkMinutes, 5 * slot());
   S().updateTask(q, { time: { ...task(q).time, scheduleDuration: 15 } });
   eq('q4 duur 10→15 ⇒ rest 10, inzet 0,5 (werk 5 d blijft)', [task(q).time.remainingTime, asgOf(q, qr).unitsPerDay, asgOf(q, qr).remainingWorkMinutes], [10, 0.5, 5 * slot()]);
-  // Raster en uurmodus.
   const cellDur: CellEditIntent = { kind: 'cell-edit', taskId: q, columnId: 'task.time.scheduleDuration' as CellEditIntent['columnId'], route: 'task-schedule', value: 20 * slot() };
   eq('q5 rastercel duur 15→20 ⇒ rest 15', [runGridMutation([cellDur]).ok, task(q).time.remainingTime], [true, 15]);
   const u = S().addTask({ name: 'u', time: createDefaultTaskTime('2026-06-01', 4, 'hours') });
@@ -752,7 +658,6 @@ console.log('-- (p) eigenaarsbesluiten 2026-09-05: kalenderwissel door de werkre
   eq('q7 MCP patchTaskFields duur 20→22 ⇒ rest 17, completion 5/22', [mq.ok, task(q).time.remainingTime, near(task(q).time.completion, 5 / 22)], [true, 17, true]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + duur in één bewerking, contour-as, gestarte taak, FIXED_RATE, bungelende kalender, meldingen --');
 {
   const addSix = (suffix: string): string => {
@@ -770,7 +675,6 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   const cell = (taskId: string, columnId: string, value: unknown): CellEditIntent =>
     ({ kind: 'cell-edit', taskId, columnId: columnId as CellEditIntent['columnId'], route: 'task-schedule', value });
 
-  // (F1) raster: kalender én duur in dezelfde paste — de duurbewerking moet overleven.
   reset();
   const six = addSix('r');
   const f1 = mkTask('r-f1', 10, 'FIXED_WORK');
@@ -779,26 +683,20 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   const f1b = mkTask('r-f1b', 10);
   const res1b = runGridMutation([cell(f1b.t, 'task.calendarId', six), cell(f1b.t, 'task.time.scheduleDuration', 4 * 360)]);
   eq('r2 (F1) standaardregel: dezelfde paste ⇒ duur 4 (geheel), geen werkveld, inzet 1', [res1b.ok, task(f1b.t).time.scheduleDuration, asgOf(f1b.t, f1b.r).remainingWorkMinutes, asgOf(f1b.t, f1b.r).unitsPerDay], [true, 4, undefined, 1]);
-  // Omgekeerde volgorde in de edit-set maakt niet uit: de kalenderstap gaat altijd voor.
   const f1c = mkTask('r-f1c', 10, 'FIXED_WORK');
   const res1c = runGridMutation([cell(f1c.t, 'task.time.scheduleDuration', 4 * 360), cell(f1c.t, 'task.calendarId', six)]);
   eq('r3 (F1) volgorde in de paste is irrelevant', [res1c.ok, task(f1c.t).time.scheduleDuration, asgOf(f1c.t, f1c.r).unitsPerDay], [true, 4, 10 / 3]);
 
-  // (F2) MCP patchTaskFields: kalender + duur in één call laat het verrichte deel staan.
   const f2 = mkTask('r-f2', 10, 'FIXED_WORK');
   S().updateTask(f2.t, { time: { ...task(f2.t).time, completion: 0.5, remainingTime: 5 } });
   S().runCPM();
   const res2 = runInMcpTransaction(() => { draft.patchTaskFields(f2.t, { calendarId: six }, { scheduleDuration: 8 }); });
-  // B1 (spec §3.2 B1a, §3.12): vast werk is urenmaat. Verricht blijft 40 u (50 % van 80 u); "8 d" op de
-  // 6-urenkalender is 48 u, dus rest 8 u = 4/3 d en completion 40/48.
   eq('r4 (F2) MCP kalender→6 u + duur→8 d in één call ⇒ 48 u, rest 8 u (verricht 40 u blijft), completion 5/6', [res2.ok, task(f2.t).time.scheduleDuration, task(f2.t).time.durationMinutes, task(f2.t).time.remainingMinutes, task(f2.t).time.remainingTime, task(f2.t).time.completion], [true, 8, 48 * 60, 8 * 60, 4 / 3, 5 / 6]);
-  // (F8) een aanroeper die de rest ZELF zet via `top.time`, ziet 'm niet óók nog verschuiven.
   const f8 = mkTask('r-f8', 10);
   S().updateTask(f8.t, { time: { ...task(f8.t).time, completion: 0.5, remainingTime: 5 } });
   const res8 = runInMcpTransaction(() => { draft.patchTaskFields(f8.t, { time: { ...task(f8.t).time, scheduleDuration: 14, remainingTime: 9 } }, { scheduleDuration: 14 }); });
   eq('r5 (F8) MCP patchTaskFields met eigen rest 9 ⇒ rest 9 (niet 13)', [res8.ok, task(f8.t).time.scheduleDuration, task(f8.t).time.remainingTime], [true, 14, 9]);
 
-  // (F3) contour-as na een kalenderwissel: as-span == duur × nieuwe slot; werk volgens de regel.
   const span = (t: string) => task(t).timephasedContours![0].periods.reduce((m, p) => Math.max(m, p.afterMinutes + p.minutes), 0);
   const sum = (t: string) => task(t).timephasedContours![0].periods.reduce((s, p) => s + p.workMinutes, 0);
   const withContour = (rule?: 'FIXED_WORK' | 'FIXED_DURATION_WORK') => {
@@ -819,7 +717,6 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   S().setTaskCalendar(c3.t, six);
   eq('r10 (F3) standaardregel: dagen 4, as 1440, werk volgt (1440)', [task(c3.t).time.scheduleDuration, span(c3.t), sum(c3.t)], [4, 1440, 1440]);
 
-  // (G1/G2) contour mét opgeslagen werkveld, alle vier de regels: hoogte == werk van de toewijzing (opgeslagen ?? afgeleid), as == duur × nieuwe slot.
   for (const rule of ['FIXED_DURATION_RATE', 'FIXED_DURATION_WORK', 'FIXED_WORK', 'FIXED_RATE'] as const) {
     const x = mkTask(`r-g-${rule}`, 4, rule === 'FIXED_DURATION_RATE' ? undefined : rule);
     const mpd = slot();
@@ -831,8 +728,6 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
     eq(`r10-${rule} contour mét werkveld na 8→6 u: as = duur × 360, hoogte = werk toewijzing`, [span(x.t) === task(x.t).time.scheduleDuration * 360, Math.round(sum(x.t)), Math.round(work)], [true, Math.round(work), rule === 'FIXED_DURATION_RATE' ? 1440 : 1920]);
     eq(`r10-${rule} histogram: som van de dageenheden = werk / 360`, Math.round(assignmentDayUnits(task(x.t), a, 360, undefined, S().assignments.filter((q) => q.taskId === x.t)).reduce((m, u) => m + u, 0) * 360), Math.round(work));
   }
-  // (F4, optie a 2026-09-06) gestarte taak: verricht blijft een feit, heen en terug is stabiel; completion volgt de rest.
-  // Eerst voortgang, dán de regel: het vastgelegde RESTwerk is 5 d × 8 u = 40 u (spec §7 besluit 2).
   const f4 = mkTask('r-f4', 10);
   S().updateTask(f4.t, { time: { ...task(f4.t).time, completion: 0.5 } });
   S().runCPM();
@@ -843,30 +738,22 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   S().setTaskCalendar(f4.t, undefined);
   eq('r12 (F4) terug naar 8 u: duur 10, rest 5, completion weer 0,5, werk 40 u', [task(f4.t).time.scheduleDuration, task(f4.t).time.remainingTime, task(f4.t).time.completion, asgOf(f4.t, f4.r).remainingWorkMinutes], [10, 5, 0.5, 40 * 60]);
 
-  // (E9 25-09, draait F5 terug) FIXED_RATE via setTaskCalendar: duur volgt en het werk (32 u) wordt het
-  // vastgelegde anker, zodat terug naar 8 u weer 4 d geeft (MSP bewaart Work; Fable-review bevinding 4).
   const f5 = mkTask('r-f5', 4, 'FIXED_RATE');
   S().setTaskCalendar(f5.t, six);
   eq('r13 (E9) FIXED_RATE 8→6 u: duur 16/3 d (32 ÷ 6), inzet 1, werk 32 u vastgelegd', [task(f5.t).time.scheduleDuration, asgOf(f5.t, f5.r).unitsPerDay, asgOf(f5.t, f5.r).remainingWorkMinutes], [16 / 3, 1, 32 * 60]);
   S().setTaskCalendar(f5.t, undefined);
   eq('r13b (E9) FIXED_RATE terug naar 8 u: weer 4 d, werk 32 u (vóór E9: 5 d)', [task(f5.t).time.scheduleDuration, asgOf(f5.t, f5.r).remainingWorkMinutes], [4, 32 * 60]);
-  // Inzet heen en terug via de store-actie (Fable-review P1): 5 d, I 1 → 0,3 → 1 ⇒ 50/3 d ⇒ 5 d (vóór E9: 6 d).
   const f5u = mkTask('r-f5u', 5, 'FIXED_RATE');
   S().updateAssignment(asgOf(f5u.t, f5u.r).id, { unitsPerDay: 0.3 });
   eq('r13c (E9) FIXED_RATE inzet 1 → 0,3: 50/3 d, werk 40 u vastgelegd', [task(f5u.t).time.scheduleDuration, asgOf(f5u.t, f5u.r).remainingWorkMinutes], [50 / 3, 40 * 60]);
   S().updateAssignment(asgOf(f5u.t, f5u.r).id, { unitsPerDay: 1 });
   eq('r13d (E9) FIXED_RATE inzet terug naar 1: weer 5 d', [task(f5u.t).time.scheduleDuration, asgOf(f5u.t, f5u.r).remainingWorkMinutes], [5, 40 * 60]);
 
-  // (F7) Δ-rest geldt ook op een ELAPSEDTIME-taak (duur-identiteit, geen driehoeksregel); niet op een mijlpaal.
   const f7 = S().addTask({ name: 'r-f7', time: { ...createDefaultTaskTime('2026-06-01', 10), durationType: 'ELAPSEDTIME' } });
   S().updateTask(f7, { time: { ...task(f7).time, completion: 0.5, remainingTime: 5 } });
   S().updateTask(f7, { time: { ...task(f7).time, scheduleDuration: 20 } });
   eq('r14 (F7) ELAPSEDTIME 10→20 bij rest 5 ⇒ rest 15, completion 0,25 (bewust, spec §6.5)', [task(f7).time.remainingTime, task(f7).time.completion], [15, 0.25]);
 
-  // B1 (spec §3.2 B1a): vast werk is urenmaat en houdt bij een kalenderwissel zijn minuten; de regel
-  // verandert dan geen duur. De kalenderpaden hieronder (F9, F10, de MCP-tweeling en G4) toetsen de
-  // regel, de melding en de nazorg daarom met Vaste inzet: die haalt de duur in dagen nog uit het werk.
-  // (F9) projectkalender: een bungelende taakkalender volgt de projectkalender; een expliciete verwijzing naar de OUDE projectkalender niet.
   reset();
   const six2 = addSix('r2');
   const oldProjectCal = S().project.calendarId;
@@ -885,7 +772,6 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   S().undo();
   eq('r17 undo van setProjectCalendar: projectkalender, cache én beide duren terug', [S().project.calendarId === oldProjectCal, S().calendar.hoursPerDay, task(g1.t).time.scheduleDuration, task(g2.t).time.scheduleDuration], [true, 8, 4, 4]);
 
-  // (F10) twee opeenvolgende bewerkingen geven twee meldingen met elk hun eigen aantal (geen ×N-badge met het laatste aantal).
   S().redo();
   useAppStore.setState((s) => { s.ui.notifications = []; });
   S().updateCalendar(six2, { hoursPerDay: 4 });
@@ -894,7 +780,6 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   const notes = S().ui.notifications.filter((n) => n.messageKey === 'notifications.workRuleDurationsChanged');
   eq('r18 (F10) burst 2 en daarna 2: twee losse meldingen, elk count 1 (geen dedupe-badge)', [notes.length, notes.map((n) => n.count), notes.map((n) => n.params?.count)], [2, [1, 1], [2, 2]]);
 
-  // MCP-tweeling `draft.updateCalendar`: zelfde regel, zelfde melding.
   reset();
   const six3 = addSix('r3');
   const m1 = mkTask('r-m1', 4, 'FIXED_RATE');
@@ -904,14 +789,12 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   const resM = runInMcpTransaction(() => { draft.updateCalendar(six3, { hoursPerDay: 4 }); });
   eq('r20 MCP draft.updateCalendar 6→4 u: 32 u ⇒ 8 d; melding telt 1', [resM.ok, task(m1.t).time.scheduleDuration, S().ui.notifications.find((n) => n.messageKey === 'notifications.workRuleDurationsChanged')?.params?.count], [true, 8, 1]);
 
-  // Timephased-verlies: wist de nazorg van de regel het Z8-venster, dan wordt dat óók gemeld (setTaskCalendar wiste 'm anders stil).
   reset();
   const six4 = addSix('r4');
   const z = mkTask('r-z', 4, 'FIXED_RATE');
   useAppStore.setState((s) => { s.tasks.find((t) => t.id === z.t)!.timephasedFinishFloor = '2026-06-05'; s.ui.notifications = []; });
   S().setTaskCalendar(z.t, six4);
   eq('r21 Z8-venster gewist door de nazorg ⇒ venster weg én melding', [task(z.t).timephasedFinishFloor, S().ui.notifications.some((n) => n.messageKey === 'notifications.mppTimephasedSteeringLost')], [undefined, true]);
-  // (G4) dezelfde melding via updateCalendar en setProjectCalendar.
   reset();
   const six5 = addSix('r5');
   const z2 = mkTask('r-z2', 4, 'FIXED_RATE');
@@ -927,11 +810,8 @@ console.log('-- (r) reviewronde 2026-09-05 op K2/Δ-rest (F1–F10): kalender + 
   eq('r23 (G4) setProjectCalendar: venster weg én verliesmelding', [task(z3.t).timephasedFinishFloor, S().ui.notifications.some((n) => n.messageKey === 'notifications.mppTimephasedSteeringLost')], [undefined, true]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (s) baan 2 overname PR #101: een duur uit de werkdriehoek wist de nivelleergaten (dagtaken, kalenderpad) --');
 {
-  // De urentaak-kant (ingevoerd einde) staat in check-hour-input-finish.ts §17; hier de dagtaak en de
-  // paden die alleen dagtaken raken (kalenderwissel/-inhoud: `settleCalendarChange` slaat uurtaken over).
   const gap = (id: string) => useAppStore.setState((s) => {
     s.tasks.find((t) => t.id === id)!.splitGaps = [{ afterMinutes: 480, gapMinutes: 480, source: 'leveling' }, { afterMinutes: 960, gapMinutes: 480 }];
   });
@@ -955,13 +835,10 @@ console.log('-- (s) baan 2 overname PR #101: een duur uit de werkdriehoek wist d
   const c = mk('s-c', 'FIXED_WORK');
   const rc = runInMcpTransaction(() => { draft.setAssignmentWork(asgOf(c.t, c.r).id, 8 * slot()); });
   eq('s3 MCP setAssignmentWork 4→8 slots: duur 8, nivelleergat weg', [rc.ok, task(c.t).time.scheduleDuration, kinds(c.t)], [true, 8, ['import']]);
-  // Kalenderinhoud (updateCalendar): de werkregel verandert de duur ⇒ zelfde nazorg ⇒ gat weg.
-  // B1 (spec §3.2 B1a): vast werk is urenmaat en valt op het kalenderpad buiten de regel; de dagtaak
-  // waarvan de regel de duur verandert, is hier Vaste inzet.
   const six = S().addCalendar({ ...S().calendar, id: 'cal-6h-s', name: '6 uur', hoursPerDay: 8 } as never);
   const sixId = typeof six === 'string' ? six : 'cal-6h-s';
   const d = mk('s-d', 'FIXED_RATE');
-  S().setTaskCalendar(d.t, sixId); // zelfde slot (8 u): geen duurwijziging, maar de wissel zelf wist het gat al
+  S().setTaskCalendar(d.t, sixId);
   gap(d.t);
   S().updateCalendar(sixId, { hoursPerDay: 4 });
   eq('s4 updateCalendar 8→4 u onder Vaste inzet: duur 8, nivelleergat weg (duur uit de regel)', [task(d.t).time.scheduleDuration, kinds(d.t)], [8, ['import']]);
@@ -970,8 +847,6 @@ console.log('-- (s) baan 2 overname PR #101: een duur uit de werkdriehoek wist d
   gap(e.t);
   S().updateCalendar(sixId, { hoursPerDay: 2 });
   eq('s5 updateCalendar onder de standaardregel: duur blijft, nivelleergat blijft (geen duur uit de driehoek)', [task(e.t).time.scheduleDuration, kinds(e.t)], [4, ['leveling', 'import']]);
-  // Critreview baan 2, bevinding 1: resource weghalen = die toewijzing weghalen ⇒ de nivelleerpauze
-  // vervalt ONVOORWAARDELIJK, ook onder de standaardregel (geen duurwijziging) — zoals unassignResource.
   const f = mk('s-f');
   const fr = asgOf(f.t, f.r).resourceId;
   S().removeResource(fr);
@@ -979,8 +854,6 @@ console.log('-- (s) baan 2 overname PR #101: een duur uit de werkdriehoek wist d
   const g = mk('s-g');
   const rg = runInMcpTransaction(() => { draft.removeResource(g.r); });
   eq('s6b MCP removeResource onder de standaardregel: nivelleergat weg, importsplit blijft', [rg.ok, task(g.t).time.scheduleDuration, kinds(g.t)], [true, 4, ['import']]);
-  // Fable-critreview #170, bevinding 9: removeResource wist — net als unassignResource, dezelfde
-  // toewijzingstrigger — óók het Z8-venster en de bevroren duur-walks, met verliesmelding.
   const walk = [{ afterMinutes: 0, minutes: 480, workMinutes: 480 }];
   const z8 = (id: string) => useAppStore.setState((s) => {
     const x = s.tasks.find((t) => t.id === id)!;
@@ -998,11 +871,8 @@ console.log('-- (s) baan 2 overname PR #101: een duur uit de werkdriehoek wist d
   eq('s7b MCP removeResource: Z8-venster en walks weg', [ri.ok, task(i.t).timephasedFinishFloor, (task(i.t) as unknown as { timephasedDurationWalks?: unknown }).timephasedDurationWalks], [true, undefined, undefined]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (t) Fable-critreview #170 bevinding 1: voortgang onderhoudt het opgeslagen restwerk (rest = begroot − verricht) --');
 {
-  // Probe uit de review: FIXED_WORK 10 d, W 4800 vastgelegd, 50 % ⇒ W 2400 (niet 4800), histogram-som 10
-  // (niet 15), en inzet 1→2 daarna ⇒ R = 2400/960 = 2,5 d, duur 7,5 d.
   const sum = (xs: number[]) => Math.round(xs.reduce((a, b) => a + b, 0) * 1e6) / 1e6;
   const mk = (name: string) => {
     const t = S().addTask({ name, time: createDefaultTaskTime('2026-06-01', 10) });
@@ -1022,7 +892,6 @@ console.log('-- (t) Fable-critreview #170 bevinding 1: voortgang onderhoudt het 
   S().runCPM();
   S().updateAssignment(asgOf(a.t, a.r).id, { unitsPerDay: 2 });
   eq('t3 inzet 1→2 daarna: duur 7,5 (5 gedaan + 2,5 rest), rest 2,5', [task(a.t).time.scheduleDuration, task(a.t).time.remainingTime], [7.5, 2.5]);
-  // Beide richtingen: terugdraaien naar 20 % geeft werk terug aan de rest; totaal blijft.
   reset();
   const b = mk('t-b');
   S().setTaskProgress(b.t, 0.5);
@@ -1032,9 +901,7 @@ console.log('-- (t) Fable-critreview #170 bevinding 1: voortgang onderhoudt het 
   eq('t5 actualFinish (100 %): rest 0, verricht 4800', [asgOf(b.t, b.r).remainingWorkMinutes, asgOf(b.t, b.r).actualWorkMinutes], [0, 10 * slot()]);
   S().setTaskProgress(b.t, 0.5);
   eq('t6 heropenen op 50 %: totaal blijft 4800, naar rato van de restduur', [asgOf(b.t, b.r).remainingWorkMinutes, asgOf(b.t, b.r).actualWorkMinutes, load(b.t, b.r)], [5 * slot(), 5 * slot(), 10]);
-  // Niet-sturende toewijzing (W_i / I_i < R): haar eigen tempo blijft, histogram = haar eigen werk.
   reset();
-  // Standaardregel met een importwerkveld (zoals een XER-/MSPDI-toewijzing): taak 10 d, r2 4 slots.
   const c = { t: S().addTask({ name: 't-c', time: createDefaultTaskTime('2026-06-01', 10) }) };
   const r2 = labor('t-c2');
   S().assignResource(c.t, labor('t-c1'), 1);
@@ -1043,7 +910,6 @@ console.log('-- (t) Fable-critreview #170 bevinding 1: voortgang onderhoudt het 
   eq('t7 voorwaarde: tweede toewijzing 4 slots werk, taak 10 d', [load(c.t, r2), task(c.t).time.scheduleDuration], [4, 10]);
   S().setTaskProgress(c.t, 0.5);
   eq('t8 50 %: niet-sturende toewijzing rest 2, verricht 2, histogram 4', [asgOf(c.t, r2).remainingWorkMinutes, asgOf(c.t, r2).actualWorkMinutes, load(c.t, r2)], [2 * slot(), 2 * slot(), 4]);
-  // Standaardregel zonder werkveld: byte-identiek (geen veld erbij).
   reset();
   const d = S().addTask({ name: 't-d', time: createDefaultTaskTime('2026-06-01', 10) });
   const rd = labor('t-d');
@@ -1051,7 +917,6 @@ console.log('-- (t) Fable-critreview #170 bevinding 1: voortgang onderhoudt het 
   const beforeD = JSON.stringify(asgOf(d, rd));
   S().setTaskProgress(d, 0.5);
   eq('t9 zonder werkveld: toewijzing byte-identiek na voortgang', JSON.stringify(asgOf(d, rd)), beforeD);
-  // De andere voortgangspaden: updateTask (TaskDialog/extensie), raster, MCP-progress, MCP-updateTaskFields, voortgangsimport.
   reset();
   const e = mk('t-e');
   S().updateTask(e.t, { time: { ...task(e.t).time, completion: 0.5, remainingTime: 5 } });
@@ -1072,14 +937,8 @@ console.log('-- (t) Fable-critreview #170 bevinding 1: voortgang onderhoudt het 
   eq('t14 voortgangsimport 50 %: rest 2400, histogram 10', [asgOf(k.t, k.r).remainingWorkMinutes, load(k.t, k.r)], [5 * slot(), 10]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (u) Fable-critreview #170 bevinding 2: de kalenderdialoog (commitCalendarLibrary) en removeCalendar volgen K2 --');
 {
-  // B1 (spec §3.2 B1a): vast werk is urenmaat en valt op het kalenderpad buiten de regel. Deze sectie
-  // toetst K2 daarom met Vaste inzet, de regel die de duur in dagen nog uit het werk haalt.
-  // Probe uit de review: FIXED_WORK 4 d à 8 u ⇒ 6-u-kalender = 6 d; dan in de DIALOOGROUTE
-  // (`CalendarDialog` → `commitCalendarLibrary`, de hele bibliotheek in één keer) 6 → 4 u ⇒ 8 d;
-  // daarna `removeCalendar` ⇒ terug op de projectkalender (8 u) ⇒ 4 d.
   const durMsgs = () => S().ui.notifications.filter((n) => n.messageKey === 'notifications.workRuleDurationsChanged').map((n) => n.params?.count);
   reset();
   const six = S().addCalendar({ ...S().calendar, id: 'cal-6h-u', name: '6 uur', hoursPerDay: 6 } as never);
@@ -1091,11 +950,9 @@ console.log('-- (u) Fable-critreview #170 bevinding 2: de kalenderdialoog (commi
   S().setTaskWorkRule(t, 'FIXED_RATE');
   S().setTaskCalendar(t, sixId);
   eq('u0 voorwaarde: 6-u-kalender onder Vaste inzet ⇒ 16/3 d, werk 32 u', [task(t).time.scheduleDuration, asgOf(t, r).remainingWorkMinutes], [16 / 3, 32 * 60]);
-  // Een tweede taak op de PROJECTkalender (valt terug, geen eigen calendarId) onder Vaste inzet.
   const p = S().addTask({ name: 'u-p', time: createDefaultTaskTime('2026-06-01', 4) });
   S().assignResource(p, labor('u-p'), 1);
   S().setTaskWorkRule(p, 'FIXED_RATE');
-  // Een derde taak onder de standaardregel: duur blijft (byte-identiek aan vandaag).
   const q = S().addTask({ name: 'u-q', time: createDefaultTaskTime('2026-06-01', 4) });
   S().assignResource(q, labor('u-q'), 1);
   S().setTaskCalendar(q, sixId);
@@ -1107,19 +964,16 @@ console.log('-- (u) Fable-critreview #170 bevinding 2: de kalenderdialoog (commi
   eq('u2 …standaardregel op dezelfde kalender: duur blijft 4', task(q).time.scheduleDuration, 4);
   eq('u3 …taak op de ongewijzigde projectkalender blijft 4', task(p).time.scheduleDuration, 4);
   eq('u4 …één undo-stap en melding "1 taak"', [S().historyEvents.length - events0, durMsgs()], [1, [1]]);
-  // Projectkalender in de dialoog 8 → 4 u: de taak die op de projectkalender terugvalt wordt 8 d.
   useAppStore.setState((s) => { s.ui.notifications = []; });
   const pid = S().project.calendarId;
   S().commitCalendarLibrary(S().calendars.map((c) => (c.id === pid ? { ...c, hoursPerDay: 4 } : c)), pid);
   eq('u5 projectkalender 8→4 u via de dialoog: terugvallende Vaste-inzet-taak 4 ⇒ 8 d', [task(p).time.scheduleDuration, durMsgs()], [8, [1]]);
   S().commitCalendarLibrary(S().calendars.map((c) => (c.id === pid ? { ...c, hoursPerDay: 8 } : c)), pid);
   eq('u6 …en terug naar 8 u ⇒ 4 d', task(p).time.scheduleDuration, 4);
-  // Kalender verwijderen: de taak valt terug op de projectkalender (8 u) ⇒ 32 u / 8 = 4 d.
   useAppStore.setState((s) => { s.ui.notifications = []; });
   S().removeCalendar(sixId);
   eq('u7 removeCalendar (4 u → projectkalender 8 u) onder Vaste inzet ⇒ 4 d, werk 32 u', [task(t).calendarId, task(t).time.scheduleDuration, asgOf(t, r).remainingWorkMinutes], [undefined, 4, 32 * 60]);
   eq('u8 …standaardregel: duur blijft 4; melding "1 taak"', [task(q).time.scheduleDuration, durMsgs()], [4, [1]]);
-  // Kalender weg via de dialoog (bibliotheek zonder die entry) — dezelfde regel.
   reset();
   const six2 = S().addCalendar({ ...S().calendar, id: 'cal-6h-u2', name: '6 uur', hoursPerDay: 6 } as never);
   const six2Id = typeof six2 === 'string' ? six2 : 'cal-6h-u2';
@@ -1131,12 +985,8 @@ console.log('-- (u) Fable-critreview #170 bevinding 2: de kalenderdialoog (commi
   eq('u9 dialoog verwijdert de 6-u-kalender ⇒ terug op 8 u ⇒ 4 d', [task(t2).calendarId, task(t2).time.scheduleDuration], [undefined, 4]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- (v) Fable-critreview #170 bevinding 3: een contourbewerking houdt het werkveld coherent (spec §4.3) --');
 {
-  // Probe uit de review: FIXED_WORK 4 d, W 1920 vastgelegd; contour 4 × 240 = 960 ⇒ het restveld
-  // moet 960 worden (niet 1920 blijven); daarna duur 4 → 8 ⇒ inzet 960 / 3840 = 0,25 en de contour
-  // blijft 960 (het stale veld zette 'm vroeger via `reconcileContourWork` terug op 1920).
   const csum = (t: string, kind?: 'actual' | 'remaining') => task(t).timephasedContours![0].periods
     .filter((p) => kind === undefined || (p.kind === 'actual') === (kind === 'actual'))
     .reduce((acc, p) => acc + p.workMinutes, 0);
@@ -1156,18 +1006,14 @@ console.log('-- (v) Fable-critreview #170 bevinding 3: een contourbewerking houd
   eq('v1 contour 4 × 240: restveld volgt de contoursom (960)', [csum(a.t), asgOf(a.t, a.r).remainingWorkMinutes], [960, 960]);
   S().updateTask(a.t, { time: { ...task(a.t).time, scheduleDuration: 8 } });
   eq('v2 duur 4→8: inzet 0,25, contour blijft 960 (niet teruggezet naar 1920)', [asgOf(a.t, a.r).unitsPerDay, csum(a.t), asgOf(a.t, a.r).remainingWorkMinutes], [0.25, 960, 960]);
-  // Loslaten laat het werkveld staan (de bewerkte som blijft het werk).
   S().setAssignmentContour(asgOf(a.t, a.r).id, null);
   eq('v3 contour loslaten: restveld blijft 960', asgOf(a.t, a.r).remainingWorkMinutes, 960);
-  // MCP-tweeling.
   const b = mk('v-b', 'FIXED_WORK');
   const rb = runInMcpTransaction(() => { draft.setAssignmentContour(asgOf(b.t, b.r).id, workDaySlotsToPeriods([240, 240, 240, 240], undefined, mpd)); });
   eq('v4 MCP setAssignmentContour: restveld volgt (960)', [rb.ok, asgOf(b.t, b.r).remainingWorkMinutes], [true, 960]);
-  // Zonder werkveld (standaardregel) komt er géén veld bij — byte-identiek aan vandaag.
   const c = mk('v-c');
   S().setAssignmentContour(asgOf(c.t, c.r).id, workDaySlotsToPeriods([240, 240, 240, 240], undefined, mpd));
   eq('v5 zonder werkveld: geen restveld erbij', [asgOf(c.t, c.r).remainingWorkMinutes, asgOf(c.t, c.r).actualWorkMinutes], [undefined, undefined]);
-  // Staat er een verricht-veld, dan volgt dat de som van de actual-periodes.
   const d = mk('v-d', 'FIXED_WORK');
   useAppStore.setState((s) => { s.assignments.find((x) => x.taskId === d.t)!.actualWorkMinutes = 100; });
   const periods = [
@@ -1177,10 +1023,6 @@ console.log('-- (v) Fable-critreview #170 bevinding 3: een contourbewerking houd
   S().setAssignmentContour(asgOf(d.t, d.r).id, periods);
   eq('v6 verricht-veld volgt de actual-periodes, restveld de rest', [asgOf(d.t, d.r).actualWorkMinutes, asgOf(d.t, d.r).remainingWorkMinutes], [csum(d.t, 'actual'), csum(d.t, 'remaining')]);
   eq('v7 …met de verwachte getallen (480 / 900)', [csum(d.t, 'actual'), csum(d.t, 'remaining')], [mpd, 900]);
-  // Her-check Fable-fixes (punt 8): een EERSTE urenverdeling op een gestarte taak (nog geen
-  // actual-periodes; de dialoog vult de hele belasting als remaining) laat het verrichte werk staan.
-  // Mutatiebewijs: de tak `!hasActualPeriods` weg in `syncAssignmentWorkToContour` ⇒ v8 rood
-  // (verricht 0, rest 4800) en v9 rood.
   const first = (days: number, completion: number) => {
     const t = S().addTask({ name: `v-first-${days}`, time: createDefaultTaskTime('2026-06-01', days) });
     const r = labor(`r-v-first-${days}`);
@@ -1195,8 +1037,6 @@ console.log('-- (v) Fable-critreview #170 bevinding 3: een contourbewerking houd
   const f10 = first(10, 0.5);
   eq('v8 50 % geboekt, eerste verdeling toepassen ⇒ verricht blijft 2400, rest 2400',
     [f10.before.actual, f10.after.actual, f10.after.rest], [5 * mpd, 5 * mpd, 5 * mpd]);
-  // Niet-ronde duur × percentage (7 d, 33 %): de dagafronding in de voortgang mag het totaal niet
-  // laten lekken — verricht blijft, rest = totaal − verricht, samen 7 slots.
   const f7 = first(7, 0.33);
   eq('v9 7 d, 33 %: verricht onveranderd, verricht + rest = 7 slots',
     [f7.after.actual === f7.before.actual, (f7.after.actual ?? 0) + (f7.after.rest ?? 0), f7.before.rest === f7.after.rest],

@@ -60,8 +60,6 @@ ok(`Gemounte rijen blijven binnen ${mountedRowBudget}`, result.mountedRows <= mo
 ok('Gemounte datacellen blijven binnen gemounte rijen maal 24',
   result.mountedDataCells <= result.mountedRows * TASK_GRID_PERFORMANCE_COUNTS.columnCount);
 
-// Tel na de tijdmetingen de echte servermarkup. Zo blijft de timing vrij van React-opstartkosten,
-// maar zijn de DOM-budgetten geen afleiding die zichzelf per definitie gelijk geeft.
 const gridRows: DataGridRowModel[] = fixture.rows.map(row => ({
   kind: 'data', rowKey: row.rowKey, depth: row.kind === 'task' ? row.depth : 0,
 }));

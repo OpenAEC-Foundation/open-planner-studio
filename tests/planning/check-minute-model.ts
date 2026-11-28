@@ -1,17 +1,3 @@
-// Fase F0 van "alleen uren" (spec docs/superpowers/specs/2026-10-20-alleen-uren-design.md): de dagregels
-// en de migratiefunctie, nog niet aangesloten op de app.
-//
-//  §1 Werkdag van een moment (§0): standaardkalender, nachtblok di 22:00–wo 06:00 (einde wo 06:00 ⇒ di;
-//     einde wo 02:00 ⇒ di), 24-uurskalender (einde di 00:00 ⇒ ma), kalendertijd (einde di 00:00 ⇒ ma;
-//     einde di 12:00 ⇒ di), de 24:00-regel buiten de werkblokken.
-//  §2 D1 en D2 met D4: eerste blokbegin en laatste blokeinde van de datum; nachtblok eindigt de dag
-//     erna; weekend, feestdag en werkende uitzondering; ongelijke dagen (voorbeeldweek); kalendertijd;
-//     een kalender zonder werkblokken valt terug op begin- en eindtijd.
-//  §3 D3 per veld (kalendertijd: start 00:00, exclusief einde 00:00, inclusief einde 24:00) en D7
-//     (mijlpaal: één moment voor zijn eigen velden; zonder soort START, met de hint AtDayEnd FINISH).
-//  §4 migrateToMinuteModel: elk veld uit §4.2, baselines, externe ankers, projectdatums ongemoeid,
-//     zuiver (bevroren invoer), idempotent en deterministisch, T1 alleen bij een oud bestand, de vlag
-//     "omzetting open", meldingen voor wat niet om te zetten is.
 import { freshPayload, type DocumentPayload } from '@/state/documentContract';
 import {
   migrateToMinuteModel, normalizeTaskDate, taskDateContext, DayClockCache, constraintDateField,
@@ -36,8 +22,6 @@ function same(label: string, got: unknown, want: unknown): void {
   }
 }
 
-// ── Kalenders ──────────────────────────────────────────────────────────────────────────────────
-// 2026-06-01 is een maandag. Feestdag do 4 jun; werkende uitzondering za 13 jun 08:00–12:00.
 const STD: WorkCalendar = {
   id: 'cal-std', name: 'Standaard', description: '', workDays: [1, 2, 3, 4, 5],
   workStartHour: 7, workEndHour: 16, hoursPerDay: 8,
@@ -54,7 +38,6 @@ const H24: WorkCalendar = {
   workStartHour: 0, workEndHour: 24, hoursPerDay: 24, holidays: [],
   workTime: makeBands([1, 2, 3, 4, 5, 6, 7], [{ start: 0, end: 1440 }]),
 };
-// Voorbeeldweek uit §0: ma–do 07:00–12:00 + 13:00–16:00, vr 07:00–12:00 + 13:00–14:00.
 const WEEK: WorkCalendar = {
   id: 'cal-week', name: 'Voorbeeldweek', description: '', workDays: [1, 2, 3, 4, 5],
   workStartHour: 7, workEndHour: 16, hoursPerDay: 8, holidays: [],
@@ -69,9 +52,7 @@ const WEEK: WorkCalendar = {
     },
   },
 };
-// Geen werkdagen: geen werkblokken af te leiden; D1/D2 vallen terug op begin- en eindtijd.
 const NODAYS: WorkCalendar = { ...STD, id: 'cal-nodays', name: 'Geen werkdagen', workDays: [], holidays: [], workingExceptions: [] };
-// Begin = einde: geen werkblokken en geen geldige tijden ⇒ geen moment.
 const DEAD: WorkCalendar = { ...NODAYS, id: 'cal-dead', name: 'Dood', workStartHour: 8, workEndHour: 8 };
 
 const std = blocksClock(STD);
@@ -79,7 +60,6 @@ const night = blocksClock(NIGHT);
 const h24 = blocksClock(H24);
 const week = blocksClock(WEEK);
 
-// ── §1 Werkdag van een moment ─────────────────────────────────────────────────────────────────
 {
   const w = (clock: DayClock, v: string, side: 'start' | 'end') => workdayOfInstant(clock, v, side);
   same('§1 std: einde di 16:00 ⇒ di', w(std, '2026-06-02T16:00', 'end'), '2026-06-02');
@@ -116,7 +96,6 @@ const week = blocksClock(WEEK);
   same('§1 moment met seconden telt als moment', w(std, '2026-06-02T16:00:00', 'end'), '2026-06-02');
 }
 
-// ── §2 D1 en D2 (met D4) ───────────────────────────────────────────────────────────────────────
 {
   same('§2 std D1 ma ⇒ 07:00', dayStartInstant(std, '2026-06-01'), '2026-06-01T07:00');
   same('§2 std D2 ma ⇒ 16:00', dayEndInstant(std, '2026-06-01'), '2026-06-01T16:00');
@@ -138,14 +117,9 @@ const week = blocksClock(WEEK);
   same('§2 geen werkblokken en geen geldige tijd ⇒ null', dayEndInstant(blocksClock(DEAD), '2026-06-02'), null);
   same('§2 een moment is geen datum zonder tijd ⇒ null', dayStartInstant(std, '2026-06-02T07:00'), null);
 
-  // De 24:00-regel (§4.2, T3): urentaak 24 u op een 24-uurskalender eindigt 2026-06-02T00:00, de dagtaak
-  // van 1 d op 2026-06-01; op dagniveau gelijk.
   same('§2 24:00-regel: 24 u en 1 d gelijk op dagniveau',
     workdayOfInstant(h24, '2026-06-02T00:00', 'end'), workdayOfInstant(h24, '2026-06-01', 'end'));
 
-  // Terug en heen: de werkdag van D1(d) en D2(d) is d, voor elke dag van drie weken (ook weekend,
-  // feestdag en uitzondering via D4), op de kalenders zonder nachtblok. Het nachtblok met D4 op een
-  // niet-werkdag valt buiten deze eigenschap (zie het rapport van F0).
   for (const [label, clock] of [['std', std], ['24 uur', h24], ['voorbeeldweek', week], ['kalendertijd', ELAPSED_CLOCK]] as const) {
     const bad: string[] = [];
     for (let i = 0; i < 21; i++) {
@@ -166,7 +140,6 @@ const week = blocksClock(WEEK);
   same('§2 nacht: werkdag(D1(d)) = werkdag(D2(d)) = d op werkdagen', nightBad, []);
 }
 
-// ── §3 D3 per veld en D7 ───────────────────────────────────────────────────────────────────────
 function task(id: string, patch: Omit<Partial<Task>, 'time'> & { time?: Partial<Task['time']> } = {}): Task {
   const { time, ...rest } = patch;
   return {
@@ -233,7 +206,6 @@ function task(id: string, patch: Omit<Partial<Task>, 'time'> & { time?: Partial<
       'externalAnchorStart', 'externalAnchorFinish', 'externalAnchorFinish', 'externalAnchorStart']);
 }
 
-// ── §4 migrateToMinuteModel ────────────────────────────────────────────────────────────────────
 function deepFreeze<T>(o: T): T {
   if (o && typeof o === 'object' && !Object.isFrozen(o)) {
     Object.freeze(o);
@@ -253,7 +225,6 @@ function payloadWith(tasks: Task[], extra: Partial<DocumentPayload> = {}): Docum
   };
 }
 {
-  // Een taak met elk startachtig en eindachtig veld uit §4.2 als datum zonder tijd.
   const full = task('A', {
     time: {
       scheduleStart: '2026-06-01', scheduleFinish: '2026-06-03', earlyStart: '2026-06-01', earlyFinish: '2026-06-03',
@@ -305,8 +276,6 @@ function payloadWith(tasks: Task[], extra: Partial<DocumentPayload> = {}): Docum
     ['2026-05-29T16:00', '2026-06-08T07:00', '2026-06-08T09:00']);
 
   const E = out.tasks.find((t) => t.id === 'E')!;
-  // Probe uit §4.2: kalendertijd-taak van 1 d vanaf ma 1 jun, earlyFinish 2 jun ⇒ di 00:00 (werkdag ma);
-  // FNLT/late finish ma 1 jun ⇒ di 00:00 (24:00 van ma).
   same('§4 E (kalendertijd): earlyStart 00:00, earlyFinish exclusief, lateFinish inclusief',
     [E.time.earlyStart, E.time.earlyFinish, E.time.lateFinish], ['2026-06-01T00:00', '2026-06-02T00:00', '2026-06-02T00:00']);
   same('§4 E: werkdag van earlyFinish ⇒ ma', workdayOfInstant(ELAPSED_CLOCK, E.time.earlyFinish, 'end'), '2026-06-01');
@@ -329,34 +298,25 @@ function payloadWith(tasks: Task[], extra: Partial<DocumentPayload> = {}): Docum
   same('§4 projectdatums blijven zoals ingevoerd', [out.project.startDate, out.project.statusDate, out.project.endDate],
     ['2026-06-01', '2026-06-03', '2026-06-30']);
   same('§4 rapport: oud bestand ⇒ schemamigratie en vlag "omzetting open"', [report.legacyFile, report.conversionPending], [true, true]);
-  // A: 10 tijdvelden + deadline + 2 beperkingen + 2 ankers = 15. E, M, H en N: elk de zes plan- en
-  // rekendatums van `createDefaultTaskTime` = 4 × 6. K en O: geen. Baseline: 4 taken × 2 + projectEnd = 9.
   const expectedCount = 15 + 4 * 6 + 9;
   same('§4 rapport: aantal omgezette waarden', report.normalizedCount, expectedCount);
   same('§4 rapport: onleesbare waarde gemeld en ongemoeid', [report.unresolved.map((u) => [u.id, u.field, u.reason]),
     out.tasks.find((t) => t.id === 'O')!.time.scheduleFinish], [[['O', 'scheduleFinish', 'notADate']], 'morgen']);
 
-  // Idempotent: nog een keer draaien verandert niets en telt niets.
   const again = migrateToMinuteModel(out, { milestonesAtDayEnd: new Set(['H']) });
   same('§4 idempotent: tweede keer dezelfde inhoud', JSON.stringify(again.payload), JSON.stringify(out));
   same('§4 idempotent: tweede keer niets omgezet', again.report.normalizedCount, 0);
-  // Deterministisch: dezelfde invoer, dezelfde uitvoer.
   same('§4 deterministisch', JSON.stringify(migrateToMinuteModel(input, { milestonesAtDayEnd: new Set(['H']) }).payload), JSON.stringify(out));
-  // Alleen momenten: dezelfde payload terug.
   const momentsOnly = payloadWith([already]);
   same('§4 niets om te zetten ⇒ dezelfde payload', migrateToMinuteModel(momentsOnly, { timeModel: MINUTE_MODEL_TIME_MODEL }).payload === momentsOnly, true);
 }
 {
-  // §5.2 geval 9: een bestand mét TimeModel en een datum zonder tijd uit een ander programma ⇒ moment,
-  // geen schemamigratie en geen vlag.
   const p = payloadWith([task('A', { time: { scheduleStart: '2026-06-02', scheduleFinish: '2026-06-02', earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' } })]);
   const { payload: out, report } = migrateToMinuteModel(p, { timeModel: MINUTE_MODEL_TIME_MODEL });
   same('§4 met TimeModel: datum wordt moment', [out.tasks[0].time.scheduleStart, out.tasks[0].time.scheduleFinish], ['2026-06-02T07:00', '2026-06-02T16:00']);
   same('§4 met TimeModel: geen schemamigratie, geen vlag', [report.legacyFile, report.conversionPending, report.calendarRepairs.length], [false, false, 0]);
 }
 {
-  // T1: uren per dag groter dan de spanne (08:00–16:00 met 10 u) ⇒ einde 18:00, één melding, ook al staat
-  // de projectkalender twee keer in de payload. Daarna rekent de normalisatie met het herstelde einde.
   const LONG: WorkCalendar = { ...STD, id: 'cal-long', name: 'Lang', workStartHour: 8, workEndHour: 16, hoursPerDay: 10, holidays: [], workingExceptions: [] };
   LONG.ifcTimePeriods = [{ binding: 'scalar', start: 480, end: 960, startText: '08:00:00', endText: '16:00:00',
     scalarStart: 8, scalarEnd: 16, layout: JSON.stringify([LONG.workDays, null, []]) }];
@@ -377,7 +337,6 @@ function payloadWith(tasks: Task[], extra: Partial<DocumentPayload> = {}): Docum
   same('§4 T1 alleen bij een oud bestand', [withModel.payload.calendar.workEndHour, withModel.report.calendarRepairs.length], [16, 0]);
   same('§4 T1 idempotent', migrateToMinuteModel(out).report.calendarRepairs.length, 0);
 
-  // Een ongeldige pauze (begin buiten de werkdag) vervalt, met melding; daarna de gewone afleiding.
   const BADBREAK: WorkCalendar = { ...STD, id: 'cal-break', name: 'Pauze', simpleBreakStartMinute: 1200, simpleBreakDurationMinutes: 30, holidays: [], workingExceptions: [] };
   const pb = migrateToMinuteModel(payloadWith([], { calendar: BADBREAK, calendars: [BADBREAK] }));
   same('§4 T1: ongeldige pauze vervalt', [pb.payload.calendar.simpleBreakStartMinute, pb.payload.calendar.simpleBreakDurationMinutes,
@@ -393,13 +352,11 @@ function payloadWith(tasks: Task[], extra: Partial<DocumentPayload> = {}): Docum
   same('1120 gecombineerd herstel: nieuwe koppeling, oude bronklok',
     [combined.payload.calendar.ifcTimePeriods?.[0]?.scalarEnd, combined.payload.calendar.ifcTimePeriods?.[0]?.endText], [18, '16:00:00']);
 
-  // Uren per dag past niet vóór middernacht ⇒ geen herstel, wel een melding.
   const LATE: WorkCalendar = { ...STD, id: 'cal-late', name: 'Laat', workStartHour: 20, workEndHour: 22, hoursPerDay: 8, holidays: [], workingExceptions: [] };
   const pl = migrateToMinuteModel(payloadWith([], { calendar: LATE, calendars: [LATE] }));
   same('§4 T1: einde voorbij middernacht ⇒ melding, kalender ongemoeid',
     [pl.payload.calendar.workEndHour, pl.report.unresolved.map((u) => [u.where, u.id, u.reason])], [22, [['calendar', 'cal-late', 'endPastMidnight']]]);
 
-  // Een kalender zonder werkblokken en zonder geldige tijden ⇒ de datum blijft, met melding.
   const pd = migrateToMinuteModel(payloadWith([task('Z', { time: { scheduleStart: '2026-06-02', scheduleFinish: '', earlyStart: '', earlyFinish: '', lateStart: '', lateFinish: '' } })],
     { calendar: DEAD, calendars: [DEAD] }), { timeModel: MINUTE_MODEL_TIME_MODEL });
   same('§4 geen werktijd: datum blijft, melding noWorkTime',

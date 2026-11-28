@@ -32,13 +32,14 @@ lezer zonder uitleg zou terugdraaien. Ze staan hier bij elkaar, per functie; mel
   en haar selecteren zou haar bij het volgende Verwijderen wissen.
 - **Projectkalender in de bibliotheek** (`syncProjectCalendar.ts`) wijst een nieuwe array toe in plaats van `push`:
   `s.calendars` kan daar een door Immer bevroren array zijn die in dezelfde `set` uit een payload of snapshot werd
-  toegewezen (uit het weggehaalde commentaar, niet nagegaan).
+  toegewezen; `restoreSnapshot` doet dat met een bevroren snapshot (in een proef met Immer 11.1.4 geeft `push` daar
+  "object is not extensible").
 - **Undo en het IFC-schema** (`restoreSnapshot` in `snapshot.ts`): `project.ifcSchema` en `ifcSchemaUnconfirmed`
   blijven die van de live state (`withFileIfcSchema`): ze horen bij het bestand, niet bij de bewerkingsgeschiedenis.
 - **Geheugenschatting van de sessiehistorie** (`sessionHistory.ts`): de constanten per element zijn geijkt op een meting
   (Node, 2000 taken, 20 stappen, review 2026-09-28): een naam op alle taken ongeveer 280 B per taak, een bewerking met
   herberekening ongeveer 1550 B per taak, een baseline ongeveer 176 B per vastgelegde taak. Andere elementen zijn niet
-  gemeten en krijgen de taakschatting (uit het weggehaalde commentaar).
+  gemeten en krijgen de taakschatting (`snapshotChangeBytes` rekent elk gewijzigd element van elke lijst gelijk).
 - **Letterlijke kalenders na een export** (`exportHitsOwnFile` in `savedLiteralCalendars.ts`): is niet vast te stellen
   of een export het eigen bestand schreef, dan telt het als het eigen bestand; hooguit blijft dan een kalender te veel
   letterlijk.

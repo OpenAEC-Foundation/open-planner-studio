@@ -81,8 +81,6 @@ eq('Beide oppervlakken starten zonder horizontale scroll', {
   table: defaults.surfaces['full-task-grid'].scrollX,
 }, { gantt: 0, table: 0 });
 
-// "Herstel standaard" in de kolomkiezer gebruikt exact dezelfde standaard als de eerste start,
-// per oppervlak en inclusief de projectgebonden velden van het actieve project.
 const resetFields = { projectId: 'project:1', activityCodeTypeIds: ['fase:1'], customFieldDefIds: ['cf:1'] };
 eq('Herstel standaard (Tabel) = de startstandaard van de Tabel',
   defaultTaskGridSurfaceColumns('full-task-grid', resetFields), defaults.surfaces['full-task-grid'].columns);
@@ -156,8 +154,6 @@ const legacyDocumentColumns: ColumnConfig[] = [
 eq('Documentmigratie neemt alleen zichtbare velden en bindt dynamiek aan het bekende project',
   legacyDocumentColumnsToTaskGridPreferences(legacyDocumentColumns, 'project:1').map(column => column.id),
   ['task.name', activityCodeColumnId('project:1', 'fase:1')]);
-// De oude builtin-velden start/finish waren de GETOONDE datums (`resolveField`: shownStart/
-// shownFinish); ze migreren naar Start/Einde, niet naar de invoerankers Geplande start/einde.
 eq('Legacy start/finish migreren naar de getoonde datums Start/Einde',
   legacyDocumentColumnsToTaskGridPreferences([
     { field: { src: 'builtin', key: 'start' }, visible: true, width: 101 },
@@ -191,8 +187,6 @@ const cleanView = normalizeView(legacyView);
 ok('normalizeView verwijdert het oude documentveld columns', !('columns' in cleanView));
 ok('normalizeView-migratie is idempotent', !('columns' in normalizeView(cleanView)));
 
-// Echte hydrateketen: de documentnormalisatie mag `view.columns` wissen, maar alleen nadat de
-// store-lokale migratiebron veilig is vastgelegd voor de ontbrekende gebruikerssleutel.
 const migrationStore = createAppStore();
 const migrationPayload = capturePayload(migrationStore.getState());
 migrationPayload.project = { ...migrationPayload.project, id: 'project:1' };
@@ -215,7 +209,6 @@ eq('Na geslaagde persist+hydrate staat de oude indeling in de gebruikersvoorkeur
 eq('Pas hydrate ruimt de tijdelijke legacybron op',
   migrationStore.getState().peekPendingLegacyTaskGridColumns(), null);
 
-// Opslagfout: product-bootstrap mag de enige legacybron niet opruimen voordat persist slaagt.
 const failingStore = createAppStore();
 const failingPayload = capturePayload(failingStore.getState());
 failingPayload.project = { ...failingPayload.project, id: 'project:failure' };
@@ -234,7 +227,6 @@ ok('Een opslagfout wordt aan de aanroeper gemeld', saveFailed);
 eq('Een opslagfout ruimt de pending legacybron niet op',
   failingStore.getState().peekPendingLegacyTaskGridColumns()?.projectId, 'project:failure');
 
-// Bestaande geldige nieuwe voorkeur wint altijd van oude documentkolommen.
 const precedenceStore = createAppStore();
 const precedencePayload = capturePayload(precedenceStore.getState());
 precedencePayload.project = { ...precedencePayload.project, id: 'project:precedence' };
@@ -256,7 +248,6 @@ eq('De geldige nieuwe kolomset wordt letterlijk gehydrateerd',
 eq('Geldige voorkeur ruimt de overbodige legacybron op',
   precedenceStore.getState().peekPendingLegacyTaskGridColumns(), null);
 
-// Een corrupte bestaande key heeft eveneens voorrang: geen legacyconversie en geen overschrijving.
 const invalidStore = createAppStore();
 const invalidPayload = capturePayload(invalidStore.getState());
 invalidPayload.project = { ...invalidPayload.project, id: 'project:invalid' };
@@ -276,7 +267,6 @@ eq('Invalid-fallback gebruikt de negen vaste defaults, niet de legacyset',
   invalidStore.getState().taskGridSurfaces['full-task-grid'].columns.map(column => column.id),
   invalidDefaults.surfaces['full-task-grid'].columns.map(column => column.id));
 
-// Na preference-hydrate mogen latere documentwissels geen nieuwe pending bron opbouwen.
 const laterPayload = capturePayload(precedenceStore.getState());
 laterPayload.project = { ...laterPayload.project, id: 'project:later' };
 laterPayload.view = { ...laterPayload.view };
@@ -285,8 +275,6 @@ precedenceStore.setState(state => hydratePayload(state, laterPayload));
 eq('Documenthydrate na preference-bootstrap stage’t geen nieuwe legacybron',
   precedenceStore.getState().peekPendingLegacyTaskGridColumns(), null);
 
-// Zelfs met een kunstmatig trage loader gebruikt missing-migratie het document dat op het moment
-// van migreren actief is, niet een eerder snapshot met een verkeerd project-id.
 const raceStore = createAppStore();
 const raceA = capturePayload(raceStore.getState());
 raceA.project = { ...raceA.project, id: 'project:race-a' };
@@ -406,10 +394,6 @@ historyStore.getState().commitTaskGridColumns(
 eq('Een identieke kolomcommit schrijft geen history-event',
   historyStore.getState().historyEvents.length, eventCountBeforeNoOp);
 
-// Review #851, blokkade 1: "Kolommen automatisch aanpassen" mag vóór het laden van de opgeslagen
-// kolomvoorkeuren niets wegschrijven. Het raster staat al gemount terwijl de herstelkeuze (of een
-// trage lezing) nog loopt; automatisch aanpassen schreef na 250 ms de standaardkolommen weg over de
-// echte voorkeuren (naamkolom 333 px met `manualWidth` werd 240 px zonder markering).
 {
   storage.clear();
   const emptyFields = { projectId: '', activityCodeTypeIds: [], customFieldDefIds: [] };
@@ -426,7 +410,6 @@ eq('Een identieke kolomcommit schrijft geen history-event',
     autoStore.getState().taskGridAutoWriteAllowed, false);
   const defaultWidths = autoStore.getState().taskGridSurfaces['full-task-grid'].columns.map(c => c.width);
   const writesBeforeAuto = storage.writes;
-  // Het herstelvenster staat langer open dan de 250 ms van het meeteffect.
   await new Promise(resolve => setTimeout(resolve, 300));
   for (const surface of ['gantt-task-grid', 'full-task-grid'] as const) {
     autoStore.getState().applyAutoFitTaskGridColumns(
@@ -459,10 +442,6 @@ eq('Een identieke kolomcommit schrijft geen history-event',
   eq('Automatisch aanpassen schrijft geen undo-stap', autoStore.getState().historyEvents.length, 0);
 }
 
-// Review #851 ronde 2, blokkade 1: ook na een afgewezen voorkeur (onbekende versie, `invalid-fallback`)
-// mag "Kolommen automatisch aanpassen" niets schrijven. De in-memory terugval op standaardkolommen is
-// geen bewaarde voorkeur; schreef de automatiek hem weg, dan werd de afgewezen voorkeur stil
-// overschreven (versie 2 werd 1, handmatige breedtes en recente kolommen weg).
 {
   storage.clear();
   const saved = createDefaultTaskGridPreferences({ projectId: '', activityCodeTypeIds: [], customFieldDefIds: [] });
@@ -493,9 +472,6 @@ eq('Een identieke kolomcommit schrijft geen history-event',
       .map(surface => futureStore.getState().taskGridSurfaces[surface].columns.map(c => c.width)), widthsBefore);
 }
 
-// Review #851, blokkade 2: een dubbelklik op de rand wist `manualWidth` ook als de breedte gelijk
-// blijft (bijvoorbeeld 480). De history-vergelijking negeerde dat veld, zag "geen wijziging" en liet
-// de markering staan.
 {
   const freeStore = createAppStore();
   freeStore.getState().hydrateTaskGridPreferences(defaults);

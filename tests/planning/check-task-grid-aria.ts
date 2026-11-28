@@ -210,8 +210,6 @@ const pinnedOverflow = computePinnedColumnLayout([
 eq('Te breed pinned blok schakelt sticky voor het hele blok uit', pinnedOverflow.stickyEnabled, false);
 eq('Overflowfallback publiceert geen sticky offsets', pinnedOverflow.leftByColumnId.size, 0);
 
-// Kopslagen: alleen vastgezette koppen krijgen een eigen laag, aflopend naar rechts, zodat de
-// breedtegreep (die 2 px over de rechterbuur hangt) overal over zijn volle 4 px pakbaar is.
 const twoPinned = computePinnedColumnLayout([
   columns[0],
   { ...columns[1], pinned: true },

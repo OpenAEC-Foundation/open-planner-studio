@@ -31,8 +31,7 @@ als `relatedTarget` buiten de groep en buiten het paneel ligt, want het paneel h
   Anders laat het de toets door, en wat er daarna gebeurt, bepaalt de aanroeper. Onder `useDialogKeys` bevestigt
   dezelfde Enter de dialoog met de nieuwe waarde, als de dialoog een `onConfirm` meegeeft; de filterdialoog
   (`FilterDialog.tsx`) geeft er geen mee, en daar rondt Enter alleen het veld af. Dat steunt op de ref in `useDialogKeys` waarmee de listener de
-  laatste `onConfirm` leest, en op de aanname uit het weggehaalde commentaar dat React de state uit een keydown
-  afrondt voordat het event `document` bereikt; die aanname is niet in een browsertest nagegaan. Blok *f* leest de
+  laatste `onConfirm` leest. Blok *f* leest de
   brontekst op `if (blocked)` en op die ref. De kalenderdialoog vangt een doorgelaten Enter in een tekstvak zelf af
   (`commitOnInputEnter` in `src/components/dialogs/CalendarDialog.tsx`): ze vraagt een tussentijdse vastlegging aan en
   voert die in een layout-effect uit met de buffer van na de toets, alleen als die buffer geldig is, en blijft open.
