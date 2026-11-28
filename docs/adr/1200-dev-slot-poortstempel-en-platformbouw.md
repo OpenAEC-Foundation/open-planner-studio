@@ -8,8 +8,8 @@ Drie keuzes eromheen staan daar niet en zouden een lezer verrassen.
 
 - `acquireLock` behandelt een leeg of half geschreven slot als levend, behalve als zijn mtime ouder is dan
   `emptyAgeMs`. Dat geldt voor elk slot, ook voor het toewijzingsslot met `allowAgeSteal: false`: die regel beschermt
-  een trage toewijzer met een pid in het slot, en een leeg slot noemt geen pid. Een levende maker laat geen leeg slot
-  staan, want `fillOwnLock` ruimt het eigen slot op als schrijven of sluiten mislukt. Zonder deze uitzondering
+  een trage toewijzer met een pid in het slot, en een leeg slot noemt geen pid. Een levende maker laat in de regel geen leeg
+  slot staan: `fillOwnLock` probeert het eigen slot op te ruimen als schrijven of sluiten mislukt. Zonder deze uitzondering
   blokkeert één achtergebleven leeg toewijzingsslot elke worktree, want `allocLockPath` ligt in de gedeelde
   git-common-dir. `emptyAgeMs` (10 s) blijft onder de 15 s die `withAllocLock` wacht, zodat wie achter zo'n slot
   wacht er in dezelfde poging langs komt. Een slot dat niet te lezen is (rechten), geldt niet als leeg.
