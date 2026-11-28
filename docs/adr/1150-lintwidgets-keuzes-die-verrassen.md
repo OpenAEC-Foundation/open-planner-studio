@@ -16,6 +16,6 @@ keuzes daarin zou een collega zonder uitleg terugdraaien; ze staan hieronder.
   ernaast, want de knop zelf wordt uitgeschakeld en de focus zou anders naar `body` vallen, ook uit de popover. Dat
   gebeurt pas na de render (`setTimeout`): `DateTextInput` neemt een nieuwe `value` niet over zolang het de focus
   heeft.
-- De lijst layouts wordt alleen veranderd met `updateLayouts`, op de vers gelezen lijst, nooit met `saveLayouts` op
-  de kopie in een component. De layoutgroep op het lint, `FilterDialog` en `LayoutsDialog` schrijven dezelfde lijst;
+- Een component verandert de lijst layouts alleen met `updateLayouts`, op de vers gelezen lijst, nooit met
+  `saveLayouts` op een eigen kopie. De layoutgroep op het lint, `FilterDialog` en `LayoutsDialog` schrijven dezelfde lijst;
   een kopie mist wat een van de andere net heeft opgeslagen.
