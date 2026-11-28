@@ -1,11 +1,6 @@
-/** Gedeelde lexicale grenzen van STEP, voor tekst en een stroom bytes. */
 export const enum StepStringState { Text, Quote, Back, BackS, Shift, End }
 export const isStepControl = (c: number): boolean => c < 0x20 || c === 0x7f;
 
-/** Eén teken ná de openingsquote. End: dit teken hoort alweer bij de code buiten de string.
- * De regels komen uit de bestandsgrammatica: '' en \\ zijn ontsnapt; \S\ verbruikt één teken,
- * ook een apostrof. Onbekende backslashes blijven letterlijk voor oude eigen JSON-velden.
- */
 export function stepString(state: StepStringState, c: number, literal = false): StepStringState {
   if (literal) return state === StepStringState.Quote
     ? (c === 0x27 ? StepStringState.Text : StepStringState.End)
@@ -29,7 +24,6 @@ export function stepString(state: StepStringState, c: number, literal = false): 
   }
 }
 
-/** Index van de sluitquote, of -1 bij een ongesloten literal. */
 export function stepStringEnd(text: string, at: number, literal = false): number {
   let state = StepStringState.Text;
   let quote = -1;
@@ -42,7 +36,6 @@ export function stepStringEnd(text: string, at: number, literal = false): number
   return state === StepStringState.Quote ? quote : -1;
 }
 
-/** Na commentaar; -1 als hier geen commentaar begint. Stuurtekens splitsen de markeringen niet. */
 export function skipStepComment(text: string, at: number): number {
   if (text.charCodeAt(at) !== 0x2f) return -1;
   let star = at + 1;
@@ -57,7 +50,6 @@ export function skipStepComment(text: string, at: number): number {
   return text.length;
 }
 
-/** Verdubbelde quotes samenvoegen zonder een quote na \S\ met de volgende quote te verwarren. */
 export function unescapeStepQuotes(body: string, literal = false): string {
   let out = '';
   let state = StepStringState.Text;

@@ -1,24 +1,10 @@
-/**
- * STEP-tekst terug naar gewone tekst (ISO 10303-21 §6.4.3). Een eigen bladmodule (#804 fase 1a): de lezer
- * (`ifcReader.ts`) en de scanner (`foreign/stepScanner.ts`) delen deze functie, en de scanner draait in een
- * Worker die zo niet de hele lezer hoeft te laden. `ifcReader.ts` exporteert haar opnieuw.
- */
 const HEX4 = /^[0-9A-Fa-f]{4}$/;
 const HEX8 = /^[0-9A-Fa-f]{8}$/;
 
-/**
- * STEP-stringinhoud (zonder de omsluitende quotes, `''` al samengevoegd) terug naar tekst:
- * `\\` → `\`, `\X2\hhhh…\X0\` (UTF-16), `\X4\hhhhhhhh…\X0\` (codepunten), `\X\hh` (ISO 8859-1)
- * en `\S\c` (teken + 128). `\Px\` (codetabelkeuze) wordt weggelaten; de lezer neemt voor `\S\`
- * altijd ISO 8859-1 aan. Een onbekende reeks blijft letterlijk staan. Tegenhanger van
- * `encodeStepText` (ifcPsets).
- */
 export function decodeStepText(s: string): string {
   return decode(s, false)!;
 }
 
-/** Leest `decodeStepText` elke `\` als een geldige reeks (geen reeks die letterlijk blijft staan)? Een tekst met een
- *  ongeldige reeks leest een strikte lezer anders (fixronde 4 van #867, plek 19). */
 export function stepTextIsValid(s: string): boolean {
   return decode(s, true) !== undefined;
 }

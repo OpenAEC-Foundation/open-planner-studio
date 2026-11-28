@@ -1,36 +1,3 @@
-/**
- * Posities van de slots die de lezer gebruikt in `IfcWorkPlan`/`IfcWorkSchedule` (beide
- * `IfcWorkControl`) en `IfcWorkCalendar`, per lay-out (issue #292).
- *
- * Het schema (IFC4, IFC4X3 en IFC4X3_ADD2 zijn hier gelijk):
- *   - IfcWorkPlan/IfcWorkSchedule, 14 attributen: GlobalId, OwnerHistory, Name, Description, ObjectType,
- *     Identification, CreationDate, Creators, Purpose, Duration, TotalFloat, StartTime (11),
- *     FinishTime (12), PredefinedType (13).
- *   - IfcWorkCalendar, 9 attributen: GlobalId, OwnerHistory, Name, Description, ObjectType,
- *     Identification, WorkingTimes (6), ExceptionTimes (7), PredefinedType (8).
- *
- * Oudere OPS-versies schreven beide verkeerd: het werkplan en de werkschema's met 15 argumenten (één `$`
- * te veel vóór StartTime, dus StartTime op 12, FinishTime op 13 en PredefinedType op 14) en de
- * kalender met 8 (Identification ontbrak, dus WorkingTimes op 5, ExceptionTimes op 6 en
- * PredefinedType op 7). De lezer kiest de lay-out op de ARGUMENTEN van de entiteit zelf, niet op de
- * appversie: zo leest hij die oude bestanden zoals altijd, en een schemaconform bestand (de huidige
- * writer, of een ander pakket) op de juiste plek.
- *
- * Eén geval heeft het schema-aantal maar de oude indeling: IfcOpenShell (MergeProjects, 0.9.0) leest
- * een oud bestand met het schema en schrijft het schema-aantal, maar laat de waarden op hun oude plek.
- * De kalender krijgt dan 9 argumenten met de werkweek (een lijst) op Identification (5); het werkplan
- * en de werkschema's krijgen 14 argumenten met de einddatum (tekst) op PredefinedType (13). Beide zijn
- * nooit schemageldig: Identification is een `IfcIdentifier` (tekst), PredefinedType een enumeratie
- * (`.X.`) of `$`. Daaraan herkent de lezer de oude indeling. Het oude PredefinedType zelf is dan al weg
- * (IfcOpenShell laat het vallen); die slot is leeg, zoals in een bestand zonder type.
- *
- * IFC2X3 telt voor IfcWorkPlan/IfcWorkSchedule ook 15 argumenten, maar met een andere inhoud:
- * StartTime (11) en FinishTime (12) zijn daar verwijzingen (IfcDateTimeSelect), WorkControlType (13) is
- * de enumeratie en UserDefinedControlType (14) een tekst of `$`. De lezer herkent die vorm aan de
- * enumeratie op 13 zonder enumeratie op 14. Een verwijzing is geen datum; dat bewaakt de lezer zelf
- * (alleen een stringliteral telt als tijd).
- */
-
 import type { WorkCalendar } from '@/types/calendar';
 import { ifcStr } from './ifcPsets';
 import {
@@ -127,39 +94,28 @@ export type CalendarSlotKey = (typeof CALENDAR_TABLE)[number]['key'];
 
 export const IFC_CALENDAR_SLOTS: readonly WriteSlot<CalendarWriteCtx, CalendarSlotKey>[] = CALENDAR_TABLE;
 
-/** Het argumentaantal van IfcWorkPlan/IfcWorkSchedule volgens het schema. */
 export const WORK_CONTROL_ARITY = IFC_WORK_PLAN_SLOTS.length;
-/** Het argumentaantal dat oudere OPS-versies voor IfcWorkPlan/IfcWorkSchedule schreven. */
 export const LEGACY_OPS_WORK_CONTROL_ARITY = 15;
-/** Het argumentaantal van IfcWorkCalendar volgens het schema. */
 export const WORK_CALENDAR_ARITY = IFC_CALENDAR_SLOTS.length;
-/** Het argumentaantal dat oudere OPS-versies voor IfcWorkCalendar schreven. */
 export const LEGACY_OPS_WORK_CALENDAR_ARITY = 8;
 
 export type WorkControlSlots = SlotPositions<WorkControlSlotKey>;
 
 export type WorkCalendarSlots = SlotPositions<CalendarSlotKey>;
 
-/** De slots van het schema. IFC2X3 heeft dezelfde posities (StartTime 11, FinishTime 12, de
- *  enumeratie WorkControlType op 13); alleen het argumentaantal (15) en de inhoud verschillen. */
 export const WORK_CONTROL_SLOT: WorkControlSlots = slotIndex(IFC_WORK_PLAN_SLOTS);
 const WORK_CONTROL_LEGACY_OPS: WorkControlSlots = { ...WORK_CONTROL_SLOT, startTime: 12, finishTime: 13, predefinedType: 14 };
 const WORK_CONTROL_AFTER_MERGE_PROJECTS: WorkControlSlots = { ...WORK_CONTROL_LEGACY_OPS, predefinedType: ABSENT_SLOT };
-/** Een STEP-enumeratie als `.BASELINE.`. */
 const isStepEnum = (arg: string | undefined): boolean => /^\.[A-Z0-9_]+\.$/i.test((arg ?? '').trim());
 export const CALENDAR_SLOT: WorkCalendarSlots = slotIndex(IFC_CALENDAR_SLOTS);
 const WORK_CALENDAR_LEGACY_OPS: WorkCalendarSlots = {
   ...CALENDAR_SLOT, identification: ABSENT_SLOT, workingTimes: 5, exceptionTimes: 6, predefinedType: 7,
 };
 
-/** Slotposities van een IfcWorkPlan/IfcWorkSchedule met deze argumenten. Oude OPS-lay-out bij 15 of
- *  meer argumenten (zo las de lezer elk bestand vóór #292), en bij 14 argumenten met tekst op
- *  PredefinedType (13): een oud bestand na MergeProjects. IFC2X3 bij 15 argumenten met de enumeratie op
- *  13 en niet op 14. Anders het schema. */
 export function workControlSlots(args: readonly string[]): WorkControlSlots {
   if (args.length === LEGACY_OPS_WORK_CONTROL_ARITY && isStepEnum(args[WORK_CONTROL_SLOT.predefinedType])
     && !isStepEnum(args[WORK_CONTROL_LEGACY_OPS.predefinedType])) {
-    return WORK_CONTROL_SLOT; // IFC2X3: zelfde posities als het schema
+    return WORK_CONTROL_SLOT;
   }
   if (args.length >= LEGACY_OPS_WORK_CONTROL_ARITY) return WORK_CONTROL_LEGACY_OPS;
   if (args.length === WORK_CONTROL_ARITY && (args[WORK_CONTROL_SLOT.predefinedType] ?? '').trim().startsWith("'")) {
@@ -172,9 +128,6 @@ export function isBaselineWorkControl(args: readonly string[]): boolean {
   return (args[workControlSlots(args).predefinedType] || '').includes('BASELINE');
 }
 
-/** Slotposities van een IfcWorkCalendar met deze argumenten. Oude OPS-lay-out bij 8 of minder
- *  argumenten (zo las de lezer elk bestand vóór #292), en bij 9 argumenten met een lijst op
- *  Identification (5): een oud bestand na MergeProjects. Anders het schema. */
 export function workCalendarSlots(args: readonly string[]): WorkCalendarSlots {
   if (args.length <= LEGACY_OPS_WORK_CALENDAR_ARITY) return WORK_CALENDAR_LEGACY_OPS;
   if (args.length === WORK_CALENDAR_ARITY && (args[CALENDAR_SLOT.identification] ?? '').trim().startsWith('(')) {
