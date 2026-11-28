@@ -26,20 +26,10 @@ import type { AppSliceFactory } from './types';
 import { isSummaryTask } from '@/utils/taskHierarchy';
 import type { AppState } from '../appStore';
 
-/** Puur leesbaarheids-alias: `WorkCalendar` heeft al `id`/`name`, dus geen aparte intersectie
- *  nodig — een resource-kalender IS gewoon een `WorkCalendar`. */
 export type NamedCalendar = WorkCalendar;
 
 type CalendarLibraryState = Pick<AppState, 'calendars' | 'calendar' | 'project' | 'resources' | 'tasks'>;
 
-/**
- * Zou `commitCalendarLibrary(calendars, projectCalendarId)` per saldo iets veranderen? Spiegelt de
- * effecten van die actie één voor één: de bibliotheek zelf, de projectdefault (met dezelfde
- * terugval), het opruimen van verweesde verwijzingen en het gelijkzetten van de projectkalender-
- * cache. Bestaat hier de reden voor: de kalenderdialoog commit bij Toepassen én bij elke Enter de
- * hele buffer; zonder deze toets wordt een ongewijzigde buffer een lege undo-stap, een "gewijzigd"
- * document en — via de herberekening — het einde van de modus "datums zoals opgeslagen".
- */
 function libraryCommitChanges(s: CalendarLibraryState, calendars: WorkCalendar[], projectCalendarId: string): boolean {
   if (!sameValue(s.calendars, calendars)) return true;
   const ids = new Set(calendars.map(c => c.id));
@@ -54,60 +44,23 @@ function libraryCommitChanges(s: CalendarLibraryState, calendars: WorkCalendar[]
 export interface ResourceSlice {
   resources: Resource[];
   assignments: ResourceAssignment[];
-  /** Gedeelde kalender-bibliotheek: project, taken én resources wijzen hierin (legacy-naam:
-   *  `resourceCalendars`). undefined calendarId = projectkalender. */
   calendars: WorkCalendar[];
   addResource: (res: Omit<Resource, 'id'>) => string;
   updateResource: (id: string, updates: Partial<Resource>) => void;
   removeResource: (id: string) => void;
-  /** Leaf-only: geen-op op samenvattingstaken en (behalve voor een kostenresource) op mijlpalen —
-   *  geen assignment, geen snapshot. Een kostenresource (issue #815) krijgt altijd inzet 1 en geen
-   *  curve; `costAmount` (eindig, ≥ 0) is het begrote bedrag. */
   assignResource: (taskId: string, resourceId: string, unitsPerDay: number, curve?: ResourceCurve, costAmount?: number) => void;
-  /** Zet (`number`, eindig en ≥ 0) of wist (`undefined`) het begrote bedrag van een toewijzing aan
-   *  een kostenresource (issue #815). Undoable en `isDirty`, maar GEEN `scheduleStale` en geen
-   *  werkregel of sturingstrigger: een bedrag raakt geen datum. Weigert stil (geen snapshot) bij
-   *  onbekend id, een werk-/materiaaltoewijzing, een ongeldig bedrag of een ongewijzigd bedrag. */
   setAssignmentCost: (assignmentId: string, amount: number | undefined) => void;
-  /** Wijzig eenheden/curve van een bestaande toewijzing (inline-bewerken in de UI). */
   updateAssignment: (assignmentId: string, updates: Partial<Pick<ResourceAssignment, 'unitsPerDay' | 'curve'>>) => void;
   unassignResource: (assignmentId: string) => void;
-  /** Zet het RESTERENDE werk (werkminuten, > 0) van
-   *  één toewijzing; de werkdriehoek leidt daaruit inzet of restduur af volgens de regel van de
-   *  taak (`workTriangle.ts`'s `applyWorkEdit`). Een gewijzigde taakduur zet `scheduleStale`,
-   *  herschaalt de contour en wist het MSP-timephased-venster — precies zoals een duurbewerking.
-   *  Weigert stil (geen snapshot) bij onbekend id, ongeldig werk of een taak waarop de regel niet
-   *  werkt. */
   setAssignmentWork: (assignmentId: string, remainingWorkMinutes: number) => void;
-  /** Contour-UI: zet of vervang de OPGESLAGEN contour van één toewijzing
-   *  (`Task.timephasedContours`, gekoppeld via `resourceId` — `contourEngine.ts`'s
-   *  `matchContoursToAssignments`), of laat 'm los (`null` ⇒ de toewijzing valt terug op de
-   *  curve-formule). Raakt GEEN taakdatum en geen `splitGaps` (de contour verdeelt uren binnen de
-   *  bestaande duur; zie `contourEdit.ts`) — daarom geen `scheduleStale`, wél undo/`isDirty` en een
-   *  verse belasting. `null` op een toewijzing zonder contour is een no-op (geen snapshot). */
   setAssignmentContour: (assignmentId: string, periods: TimephasedContourPeriod[] | null) => void;
-  /** Verplaats een bestaande toewijzing naar een andere taak: `unitsPerDay`/
-   *  `curve` blijven ONGEWIJZIGD, alleen `taskId` + `resourceIds` op beide taken worden bijgewerkt.
-   *  Weigert (false, geen snapshot) bij een milestone/samenvattings-doeltaak of wanneer de resource
-   *  al op de doeltaak is toegewezen (P6/MSP-invariant: geen dubbele resource-op-taak). */
   moveAssignment: (assignmentId: string, newTaskId: string) => boolean;
-  /** Bibliotheek-CRUD. */
   addCalendar: (cal: Omit<WorkCalendar, 'id'>) => string;
-  /** No-op (geen snapshot, geen isDirty/stale) als `updates` per saldo niets verandert — de
-   *  resourcekalenderdialoog stuurt bij Toepassen altijd de hele draft mee. */
   updateCalendar: (id: string, updates: Partial<WorkCalendar>) => void;
-  /** Verwijder een bibliotheek-kalender: task/resource-verwijzingen én (indien de projectdefault)
-   *  de projectkalender vallen terug op een fallback. */
   removeCalendar: (id: string) => void;
-  /** Commit de complete kalender-bibliotheek + projectdefault in één keer (kalenderdialoog-buffer):
-   *  vervangt `calendars`, ruimt verweesde task/resource-verwijzingen op en zet de
-   *  projectkalender. Eén undo-snapshot voor de hele dialoogsessie. Verandert de commit per saldo
-   *  niets, dan is hij een no-op (geen snapshot, geen isDirty/stale) en geeft hij `false` terug, zodat
-   *  de dialoog ook de herberekening overslaat; `true` = er is gecommit. */
   commitCalendarLibrary: (calendars: WorkCalendar[], projectCalendarId: string) => boolean;
 }
 
-/** Oude werkminuten van een taak vóór een driehoekstap (voor de contourherschaling). */
 function workMinutesBefore(s: { calendars: WorkCalendar[]; calendar: WorkCalendar }, task: Task): number {
   return taskWorkMinutesOf(task, taskCalendarHoursPerDay(task, s.calendars, s.calendar));
 }
@@ -120,12 +73,11 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     const id = generateId('res');
     set((s) => {
       runtime.beginUndoable(s);
-      insertResource(s, res, id); // met de automatische paletkleur als default.
+      insertResource(s, res, id);
       runtime.finishMutation(s);
     });
-    // Pure resource-mutatie → histogram direct verversen (geen runCPM, datums onaangeroerd).
     get().recomputeResourceLoad();
-    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
+    get().recomputeViewRows();
     return id;
   },
 
@@ -133,16 +85,11 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       const idx = s.resources.findIndex(r => r.id === id);
       if (idx < 0) return;
-      // Weigeren-met-behoud: een ongeldige max.eenheden-invoer wordt genegeerd,
-      // de rest van de update gaat gewoon door (de oude maxUnits blijft staan).
       let patch = updates;
       if ('maxUnits' in patch && !isValidUnits(patch.maxUnits)) {
         patch = { ...patch };
         delete patch.maxUnits;
       }
-      // Kostenregels (issue #815): geen typewissel over de COST-grens met toewijzingen, en geen
-      // tarief/kalender/stappen/eenheid/ploeg/max. eenheden op een kostenresource. De UI biedt die
-      // keuzes niet aan; hier weigeren-met-behoud als vangnet.
       patch = acceptedCostResourcePatch(s, s.resources[idx], patch).patch;
       if (Object.keys(patch).length === 0) return;
       runtime.beginUndoable(s);
@@ -151,17 +98,14 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       runtime.finishMutation(s);
     });
     get().recomputeResourceLoad();
-    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
+    get().recomputeViewRows();
   },
 
   removeResource: (id) => {
-    // Verlies van MSP-sturing — kan meerdere taken tegelijk raken (elke taak met een toewijzing
-    // van deze resource krijgt de toewijzingen-trigger, zie `purgeResource`), dus tellen zoals
-    // `moveAssignment`/`removeCalendar`; melden buiten de producer.
     let lostCount = 0;
     const before = get();
     set((s) => {
-      if (!s.resources.some(r => r.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
+      if (!s.resources.some(r => r.id === id)) return;
       runtime.beginUndoable(s);
       const outcome = purgeResource(s, id, 'unset');
       lostCount = outcome.lostTaskIds.length;
@@ -170,43 +114,27 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     if (lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     notifyForeignLinksDropped(store, before, before.nextHistorySequence);
     get().recomputeResourceLoad();
-    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
+    get().recomputeViewRows();
   },
 
   assignResource: (taskId, resourceId, unitsPerDay, curve, costAmount) => {
-    // Verlies van MSP-sturing — zie `taskSlice.ts`'s `updateTask` voor de discipline (buiten
-    // de Immer-producer, `notify` doet zelf een `set()`).
     let lostTimephasedGuidance = false;
-    // De bewerking, voor de melding over de uren van anderen (#954).
     let edit: AssignmentEdit | null = null;
     set((s) => {
-      // Leaf-only, geen-milestone-assignment-regel: vroege return, geen snapshot.
       const task = s.tasks.find(t => t.id === taskId);
       if (!task || isSummaryTask(task)) return;
-      // Onbekend (of null/undefined — JS-callers via de dev-bridge omzeilen de compiler)
-      // resourceId: stil weigeren, geen snapshot (zoals removeResource). Een
-      // toewijzing zonder bestaande resource vergiftigt anders élke writeIFC/auto-save
-      // (guidOf leest resourceId.length).
       const resource = s.resources.find(r => r.id === resourceId);
       if (!resource) return;
-      // Een mijlpaal draagt alleen kostentoewijzingen (issue #815, besluit Ethan 2026-11-07).
-      // Een mijlpaal draagt alleen kostenresources (issue #815, besluit Ethan 2026-11-07).
       if (task.isMilestone && !isCostResource(resource)) return;
-      // Weigeren: 0/negatieve eenheden/dag is geen geldige toewijzing.
       if (!isValidUnits(unitsPerDay)) return;
       const cost = isCostResource(resource);
       const amount = cost ? acceptedCostAmount(costAmount) : undefined;
       if (amount === false) return;
-      // Eén resource kan per taak maar één assignment dragen. Zonder deze guard kan dezelfde
-      // invariant via de bestaande eigenschappen-/lint-route alsnog worden omzeild.
       if (s.assignments.some(a => a.taskId === taskId && a.resourceId === resourceId)) return;
 
       const sequence = s.nextHistorySequence;
       runtime.beginUndoable(s);
-      // Het lichaam (en de invalidatie van MSP-sturing en nivelleergaten) deelt deze actie met
-      // `createMcpTransactions.ts`'s `draft.assignResource`, zie `assignmentMutations.ts`.
       const id = generateId('asgn');
-      // Kostenresource: inzet vast 1, geen curve, eventueel een bedrag.
       const outcome = insertAssignment(s, task, cost
         ? { id, taskId, resourceId, unitsPerDay: 1, ...(amount !== undefined ? { costAmount: amount } : {}) }
         : { id, taskId, resourceId, unitsPerDay, curve });
@@ -217,12 +145,10 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     notifyOtherWorkChanged(store, edit);
     get().recomputeResourceLoad();
-    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
+    get().recomputeViewRows();
   },
 
   updateAssignment: (assignmentId, updates) => {
-    // Verlies van MSP-sturing — zie `assignResource` hierboven (alleen relevant wanneer de
-    // werkdriehoek de taakduur verandert).
     let lostTimephasedGuidance = false;
     let edit: AssignmentEdit | null = null;
     set((s) => {
@@ -241,7 +167,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     notifyOtherWorkChanged(store, edit);
     get().recomputeResourceLoad();
-    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
+    get().recomputeViewRows();
   },
 
   setAssignmentWork: (assignmentId, remainingWorkMinutes) => {
@@ -250,19 +176,18 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       const a = s.assignments.find(x => x.id === assignmentId);
       if (!a) return;
-      if (isCostAssignment(s, a)) return; // een kostentoewijzing heeft geen werk (issue #815).
+      if (isCostAssignment(s, a)) return;
       const task = s.tasks.find(t => t.id === a.taskId);
       if (!task) return;
       if (typeof remainingWorkMinutes !== 'number' || !Number.isFinite(remainingWorkMinutes) || remainingWorkMinutes <= 0) return;
       const oldWorkMinutes = workMinutesBefore(s, task);
-      const finishBasis = hourInputFinishBasis(task); // vóór `commitTrianglePlan`.
-      // Eerst plannen (puur), dan pas de snapshot: een weigering laat geen lege undo-stap achter.
+      const finishBasis = hourInputFinishBasis(task);
       const plan = planWorkEdit(task, s.assignments, s, assignmentId, remainingWorkMinutes);
       if (!plan) return;
       const sequence = s.nextHistorySequence;
       runtime.beginUndoable(s);
       const settled = commitTrianglePlan(task, s.assignments, plan);
-      s.taskTypesVisible = true; // documentontsluiting.
+      s.taskTypesVisible = true;
       if (settled.durationChanged) lostTimephasedGuidance = settleDurationAftermath(task, s, oldWorkMinutes, finishBasis);
       runtime.finishMutation(s, { stale: settled.durationChanged });
       edit = { sequence, taskId: task.id, assignmentId };
@@ -283,8 +208,6 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (!edit) return;
       runtime.beginUndoable(s);
       task.timephasedContours = edit.contours;
-      // De bewerkte verdeling IS het werk — een aanwezig werkveld
-      // volgt de contoursom, anders wint het oude getal bij de volgende duurwijziging.
       syncAssignmentWorkToContour(a, periods);
       runtime.finishMutation(s);
     });
@@ -299,13 +222,11 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
       if (accepted === false || a.costAmount === accepted) return;
       runtime.beginUndoable(s);
       applyAssignmentCost(a, accepted);
-      // Geen `stale`: een bedrag raakt geen datum, geen werk en geen sturing.
       runtime.finishMutation(s);
     });
   },
 
   unassignResource: (assignmentId) => {
-    // Verlies van MSP-sturing — zie `assignResource` hierboven.
     let lostTimephasedGuidance = false;
     let edit: AssignmentEdit | null = null;
     set((s) => {
@@ -323,24 +244,18 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     if (lostTimephasedGuidance) notifyTimephasedLoss(get().notify, get().activeDocumentId, 1);
     notifyOtherWorkChanged(store, edit);
     get().recomputeResourceLoad();
-    get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
+    get().recomputeViewRows();
   },
 
   moveAssignment: (assignmentId, newTaskId) => {
     let moved = false;
-    // Verlies van MSP-sturing — aantal taken dat sturing verloor (0, 1 of 2 — oude/nieuwe taak
-    // apart getoetst), zie `assignResource` hierboven voor de discipline.
     let lostCount = 0;
     set((s) => {
       const assignment = s.assignments.find(a => a.id === assignmentId);
       if (!assignment) return;
       const newTask = s.tasks.find(t => t.id === newTaskId);
-      // Zelfde milestone/summary-guard als assignResource — geen toewijzing op zulke taken, behalve
-      // een kostentoewijzing op een mijlpaal (issue #815).
       if (!newTask || isSummaryTask(newTask)) return;
       if (newTask.isMilestone && !isCostAssignment(s, assignment)) return;
-      // Weiger dubbele resource-op-taak (dekt ook het degenererende geval newTaskId === oude taskId:
-      // de bestaande toewijzing zelf telt al mee als "al op de doeltaak").
       const alreadyOnTarget = s.assignments.some(
         a => a.taskId === newTaskId && a.resourceId === assignment.resourceId
       );
@@ -355,7 +270,7 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     if (moved && lostCount > 0) notifyTimephasedLoss(get().notify, get().activeDocumentId, lostCount);
     if (moved) {
       get().recomputeResourceLoad();
-      get().recomputeViewRows(); // resource-naam/toewijzing raakt kolom/groep/filter.
+      get().recomputeViewRows();
     }
     return moved;
   },
@@ -365,8 +280,8 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       runtime.beginUndoable(s);
       s.calendars.push({ ...cal, id });
-      syncProjectCalendar(s); // houd de gedenormaliseerde projectkalender-cache in sync.
-      runtime.finishMutation(s, { stale: true }); // conservatief datum-beïnvloedend.
+      syncProjectCalendar(s);
+      runtime.finishMutation(s, { stale: true });
     });
     get().recomputeResourceLoad();
   return id;
@@ -378,23 +293,18 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
     set((s) => {
       const idx = s.calendars.findIndex(c => c.id === id);
       if (idx < 0) return;
-      // No-op-guard vóór de snapshot (zoals `setCalendar`): de resourcekalenderdialoog stuurt bij
-      // Toepassen de hele draft; ongewijzigd ⇒ geen lege undo-stap, geen isDirty, geen stale.
       const current = s.calendars[idx] as unknown as Record<string, unknown>;
       if (Object.entries(updates).every(([k, v]) => sameValue(current[k], v))) return;
       runtime.beginUndoable(s);
-      // Andere uren per dag ⇒ de werkregel beslist per taak op
-      // deze kalender (momentopnamen vóór de mutatie, want de kalender muteert in-place).
-      const byTask = assignmentsByTask(s.assignments); // O(taken + toewijzingen), zie de helper
+      const byTask = assignmentsByTask(s.assignments);
       const affected = tasksOnCalendar(s, id).map(task => ({ task, before: captureCalendarChange(task, byTask.get(task.id) ?? [], s) }));
       Object.assign(s.calendars[idx], updates);
       syncProjectCalendar(s);
       for (const { task, before } of affected) {
         const settled = settleCalendarChange(task, byTask.get(task.id) ?? [], before, s);
         if (settled.durationChanged) changed++;
-        if (settled.timephasedLost) lost++; // zelfde melding als de andere paden.
+        if (settled.timephasedLost) lost++;
       }
-      // Pure naamswijziging raakt geen datums; elke andere mutatie wél.
       const onlyName = Object.keys(updates).length === 1 && 'name' in updates;
       runtime.finishMutation(s, { stale: !onlyName });
     });
@@ -404,42 +314,29 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
   },
 
   removeCalendar: (id) => {
-    // Verlies van MSP-sturing — deze twee acties kunnen VEEL taken tegelijk raken (loop over
-    // `s.tasks`), dus tellen zelf op i.p.v. één losse boolean; zie `assignResource` hierboven voor
-    // de discipline.
     let lostCount = 0;
     let changed = 0;
     set((s) => {
-      if (!s.calendars.some(c => c.id === id)) return; // onbekend id: geen snapshot, geen loze undo-stap.
+      if (!s.calendars.some(c => c.id === id)) return;
       runtime.beginUndoable(s);
-      // De taken die van kalender wisselen (terugval op de
-      // projectkalender, of een nieuwe projectkalender) volgen hun werkregel, net als `updateCalendar`.
       const k2 = captureCalendarLibraryChange(s);
       s.calendars = s.calendars.filter(c => c.id !== id);
-      // Verweesde verwijzingen opruimen: resources én taken vallen terug op de projectkalender.
       for (const r of s.resources) {
         if (r.calendarId === id) r.calendarId = undefined;
       }
       for (const t of s.tasks) {
         if (t.calendarId === id) {
           t.calendarId = undefined;
-          // Dezelfde "kalender"-trigger als `setTaskCalendar`, alleen via een ander pad
-          // (rechtstreekse mutatie i.p.v. de dedicated actie). Zonder deze aanroep blijft een
-          // bevroren MSP-timephased-venster staan terwijl de taak-kalender onder 'm wegvalt.
           if (clearTimephasedWindow(t)) lostCount++;
-          // Nivelleergaten-invalidatie — zie `clearLevelingGaps` in taskDefaults.ts
-          // (geen melding: app-eigen afgeleide uitvoer, geen importverlies).
           clearLevelingGaps(t);
         }
       }
-      // Was dit de projectdefault, dan de projectkalender op een fallback zetten.
       if (s.project.calendarId === id) {
         const fallback = s.calendars[0];
         if (fallback) {
           s.project.calendarId = fallback.id;
           s.calendar = fallback;
         }
-        // Geen enkele bibliotheek-entry meer: `s.calendar` blijft de laatst-bekende cache staan.
       }
       syncProjectCalendar(s);
       const settled = settleCalendarLibraryChange(s, k2);
@@ -453,35 +350,26 @@ export const createResourceSlice: AppSliceFactory<ResourceSlice> = (runtime) => 
   },
 
   commitCalendarLibrary: (calendars, projectCalendarId) => {
-    // Verlies van MSP-sturing — zie `removeCalendar` hierboven.
     let lostCount = 0;
     let changed = 0;
     let committed = false;
     set((s) => {
-      // No-op-guard vóór de snapshot — zie `libraryCommitChanges`.
       if (!libraryCommitChanges(s, calendars, projectCalendarId)) return;
       committed = true;
       runtime.beginUndoable(s);
-      // Dít is de UI-route voor uren per dag (`CalendarDialog` commit de hele bibliotheek).
-      // Kalenderregel zoals `updateCalendar`: momentopname vóór, werkregel erna.
       const k2 = captureCalendarLibraryChange(s);
       s.calendars = calendars;
       const ids = new Set(calendars.map(c => c.id));
-      // Verweesde verwijzingen opruimen (spiegelt removeCalendar): resources én taken
-      // die naar een niet-langer-bestaande kalender wijzen vallen terug op de projectkalender.
       for (const r of s.resources) {
         if (r.calendarId && !ids.has(r.calendarId)) r.calendarId = undefined;
       }
       for (const t of s.tasks) {
         if (t.calendarId && !ids.has(t.calendarId)) {
           t.calendarId = undefined;
-          // Kalender-trigger — zelfde reden als removeCalendar hierboven.
           if (clearTimephasedWindow(t)) lostCount++;
-          // Nivelleergaten-invalidatie — zie removeCalendar hierboven.
           clearLevelingGaps(t);
         }
       }
-      // Projectdefault: het meegegeven id als het (nog) bestaat, anders de eerste entry.
       if (ids.has(projectCalendarId)) {
         s.project.calendarId = projectCalendarId;
       } else if (calendars[0]) {

@@ -25,37 +25,15 @@ export interface HistorySessionMark {
 }
 
 export interface HistorySlice {
-  /** App-globale, niet-gepersisteerde chronologie over alle geopende documenten en gridsurfaces. */
   historyEvents: SessionHistoryEvent[];
-  /** Volgende sessiebrede sequence; loopt door na pruning en documentwissels. */
   nextHistorySequence: number;
-  /** Registreer een reeds toegepaste, voorbereide wijziging als één atomair event. */
   recordSessionHistoryEvent: (label: string, deltas: readonly SessionHistoryDelta[]) => void;
   undo: () => void;
-  /** Draai precies dit event terug, ook als er nieuwere events staan (Ongedaan maken na F5, #742): een
-   *  kolom of weergave die ná de berekening veranderde, blijft staan. De aanroeper bewaakt dat er
-   *  sindsdien geen projectdata veranderde. */
   undoHistoryEvent: (eventId: string) => void;
   redo: () => void;
-  /**
-   * Een BEWERKSESSIE (de taakdialoog) die relationele secties direct op de
-   * store laat werken (toewijzingen, werkregel, werk) — `historyMark` opent de sessie (runtime-
-   * sleutel + begin-sequence, en breekt undo-coalescing af zodat de eerste dialoogbewerking nooit
-   * bij een ouder event aanschuift), `revertHistorySince` draait bij Annuleren de events van DEZE
-   * sessie terug zonder redo, `squashHistorySince` maakt er bij Opslaan één undo-stap van.
-   *
-   * Alleen events met de `sessionKey` van de sessie tellen: een MCP-, batch- of
-   * extensiemutatie die tijdens de open dialoog landt is geen dialoogwerk en blijft altijd staan.
-   * Omdat een history-event een volledige documentsnapshot draagt, kan een dialoog-event dat ONDER
-   * zo'n vreemd event ligt niet los worden teruggedraaid zonder het vreemde werk mee te nemen;
-   * revert stopt daar dus (de chronologie blijft intact), laat die dialoogstappen als gewone
-   * undo-stappen staan en meldt dat. Squash voegt alleen aaneengesloten sessie-events samen; een
-   * vreemd event ertussen houdt zijn eigen stap.
-   */
   historyMark: () => HistorySessionMark;
   revertHistorySince: (mark: HistorySessionMark) => void;
   squashHistorySince: (mark: HistorySessionMark, label: string) => void;
-  /** Sluit de sessie zonder iets aan de historie te veranderen (dialoog op een andere manier dicht). */
   endHistorySession: (mark: HistorySessionMark) => void;
 }
 
@@ -74,9 +52,6 @@ function withoutSessionKey(event: SessionHistoryEvent): SessionHistoryEvent {
   return rest;
 }
 
-/** Haal de sessiesleutel van events af: alleen die met `key`, of (zonder `key`) van alle events.
- *  Een achtergebleven sleutel pint de ondergrens van het geheugenplafond (`pruneSessionHistory`,
- *  `sessionFloor`) en zet dat zo stil uit (review 2026-09-28). Zelfde array als er niets verandert. */
 function endSessionKeys(events: readonly SessionHistoryEvent[], key?: string): SessionHistoryEvent[] | null {
   if (!events.some(event => event.sessionKey !== undefined && (key === undefined || event.sessionKey === key))) return null;
   return events.map(event => (event.sessionKey !== undefined && (key === undefined || event.sessionKey === key)
@@ -113,11 +88,6 @@ function applyHistoryEvent(
     const stored = state.historyEvents.find(item => item.id === event.id);
     if (!stored || stored.state !== (direction === 'undo' ? 'applied' : 'undone')) return;
     applied = true;
-    // Eigenaarsbesluit 2026-10-19 5b: na elke undo- en redo-stap verdwijnen de weigeringen (rode
-    // meldingen met `refusal` en de strook). Alleen als er echt een stap is gezet; een Ctrl+Z zonder
-    // iets terug te draaien laat ze staan. Hier, aan het BEGIN van dezelfde `set`: alles wat ná de
-    // stap nog meldt, komt later binnen en blijft staan (eerst wissen, dan melden). Echte fouten
-    // blijven — zie `clearRefusals`.
     clearRefusals(state.ui);
 
     for (const target of targets) {
@@ -167,8 +137,6 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
 
   historyMark: () => {
     runtime.resetUndoCoalescing();
-    // Er is hoogstens één bewerkingssessie tegelijk: een nieuwe mark betekent dat een eventuele vorige
-    // (die op een andere manier dichtging) voorbij is.
     const stripped = endSessionKeys(get().historyEvents);
     if (stripped) set({ historyEvents: stripped });
     return { sequence: get().nextHistorySequence, sessionKey: runtime.openHistorySession() };
@@ -183,7 +151,6 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
   revertHistorySince: (mark) => {
     runtime.endHistorySession(mark.sessionKey);
     const documentId = get().activeDocumentId;
-    // Undo zolang het nieuwste toepasbare event een event van DEZE sessie is.
     for (;;) {
       const current = get();
       const event = selectUndoHistoryEvent(current.historyEvents, current.activeDocumentId);
@@ -191,8 +158,6 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
       applyHistoryEvent(runtime, set, get, 'undo');
       if (get().historyEvents.find(item => item.id === event.id)?.state !== 'undone') break;
     }
-    // Annuleren is geen undo: de teruggedraaide sessiestappen horen niet als redo terug te komen.
-    // Sessie-events die onder een vreemd event bleven liggen worden gewone stappen (sleutel weg).
     let stranded = 0;
     const events = get().historyEvents
       .filter(event => !(event.state === 'undone' && isSessionEvent(event, mark, documentId)))
@@ -218,7 +183,6 @@ export const createHistorySlice: AppSliceFactory<HistorySlice> = (runtime) => (s
     const later = current.historyEvents
       .filter(event => event.sequence >= mark.sequence)
       .sort((left, right) => left.sequence - right.sequence);
-    // Aaneengesloten reeksen sessie-events; elk ander event (MCP, ander document, grid) breekt.
     const runs: SessionHistoryEvent[][] = [];
     let run: SessionHistoryEvent[] = [];
     for (const event of later) {
