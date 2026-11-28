@@ -1,34 +1,3 @@
-// MPP-kalenders (fase 3.8 etappe 1, T6): TBkndCal-lezer (`src/services/mpp/mppCalendars.ts`) —
-// synthetische end-to-end-fixture, hostile varianten (T6-kwaliteitsreview: kalenderaantal-/holiday-
-// budgetten, off-by-one, resource-UID-0, base-ketens), en de corpus-/crawl-secties.
-//
-// T6-KWALITEITSREVIEW (M7): dit bestand is GESPLITST uit `check-mpp-import.ts` — dat bestand droeg
-// tot deze taak zowel de T3-T5-taken-/container-checks áls alle T6-kalenderchecks in één, snel
-// groeiend bestand. De T6-fixturebouwers (`buildCalFixedMetaBlob`/`buildCalFixedDataRecord`/
-// `buildCalHoursBlock`/`buildCalExceptionsTail`/`writeCalDayBlock`/`concatBytes`) wonen sinds deze
-// splitsing in `mppFixtures.ts` (gedeeld); `check-mpp-import.ts` blijft T3-T5-territorium (CFB-laag,
-// MPP-containerlaag, taken/hiërarchie), dit bestand is exclusief T6.
-//
-// Twee lagen dekking (zelfde structuur als check-mpp-import.ts):
-//  1. SYNTHETISCHE FIXTURES — draaien ALTIJD, ook zonder corpus.
-//  2. CORPUS-/CRAWL-GEDREVEN checks — optioneel, netjes overgeslagen zonder de map (OPS_MPP_CORPUS/
-//     OPS_MPP_CRAWL), GEEN in-repo fixture (echte bedrijfsbestanden resp. mogelijk auteursrechtelijk
-//     beschermd cursusmateriaal).
-//
-// Draait via run.sh en draait daarna ook mee in de tijdzone-matrix — bewust geen tijdzone-gevoelige
-// logica hierin (zelfde discipline als check-mpp-import.ts).
-//
-// DEKKINGSKAART (T9 — dit bestand is exclusief T6-territorium):
-//   - TBkndCal-lezer end-to-end + hostile varianten (kalenderaantal-/holiday-budgetten,
-//     off-by-one, resource-UID-0, base-ketens)                         → SYNTHETISCH, altijd
-//   - projectkalender workDays + holidays vs. MSPDI-ground-truth        → CORPUS (3 bestanden — de
-//     holidaykant is hier toevallig altijd 0/0, zie de I2-toelichting; dus GEEN bewijslast voor
-//     `parseExceptions` — die levert de crawl-sectie)
-//   - holiday-materialisatie (EIGEN holidays, dubbeltelvrij, over ALLE
-//     kalenders van een bestand)                                       → CRAWL (49 bestanden, T6)
-// Corpus/crawl-afwezig ⇒ nette OK-skip, beïnvloedt nooit de einduitslag. Zie check-mpp-import.ts
-// (taken/container/CFB) en check-mpp-relations.ts (relaties/resources/assignments) voor de andere
-// domeinen.
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { createHash } from 'node:crypto';
@@ -40,9 +9,6 @@ import {
   readCalendars, parseExceptions, promoteCalendarsForHourMode,
   MAX_CALENDARS, MAX_BASE_CHAIN_DEPTH,
 } from '@/services/mpp/mppCalendars';
-// Formaat-neutrale recurrentie-/precedentiekern (chunk-grens-fix, Opus-review) — rechtstreeks uit
-// de bladmodule, niet via mppCalendars.ts's her-export (die bestaat alleen voor bestaande callers
-// zoals mspdiReader.ts totdat T4 zijn eigen import repoint).
 import {
   expandRecurrence, buildContributions, resolveContributions, newHolidayBudget,
   MAX_CALENDAR_EXCEPTIONS, MAX_HOLIDAY_RANGE_DAYS, MAX_TOTAL_HOLIDAY_SLOTS,
@@ -54,9 +20,6 @@ import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { installDOMParser } from './xmldom-shim';
 import { resolveMppCrawlScopes } from './mppCorpus';
 import { formatDate } from '@/utils/dateUtils';
-// B2 (eindreview T16c): het echte "readMPP → solveProject → writeIFC → readIFC → solveProject"-pad
-// voor de "0-feestdagen-blijft-0-feestdagen"-end-to-end-case — dezelfde rekenkern als
-// `mppFidelity.ts` (`solveProject`, niet een losse `CPMSolver`), en de echte IFC-lezer/-schrijver.
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { writeIFC, type WriteIFCInput } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -77,10 +40,6 @@ const truthy = (label: string, cond: boolean) => {
 
 const TIME_LIMIT_MS = 2000;
 
-// ── Kleine, lokale byte-encoders voor de gecombineerde taak+kalender-fixture hieronder (bewust NIET
-// gedeeld met check-mpp-import.ts se eigen taak-fixture-helpers — deze zijn tot een enkele taak
-// geminimaliseerd, alleen om de taak→kalender-koppeling te bewijzen, geen hiërarchie/WBS/milestones;
-// zie check-mpp-import.ts voor de volledige taak-fixture-dekking). ──────────────────────────────────
 const FIXED_META_MAGIC = 0xfadfadba;
 const PASSWORD_FLAG_KEY = 893386752;
 const PROJECT_START_DATE_KEY = 37748738;
@@ -110,8 +69,6 @@ function int32Payload(value: number): Uint8Array {
   return p;
 }
 
-/** Dagen sinds MPP-epoch (SHORT) → ISO-datumstring — voor het vertalen van fixture-`fromDay`-
- *  waarden naar de verwachte `Holiday.startDate`. */
 function mppDayToIso(raw: number): string {
   const buf = new Uint8Array(2);
   new DataView(buf.buffer).setUint16(0, raw, true);
@@ -119,49 +76,29 @@ function mppDayToIso(raw: number): string {
   return d ? formatDate(d) : '';
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// I4/T6 — end-to-end readMPP: één taak + TBkndCal (basis + afgeleide kalender + holiday), bewijst
-// de taak→kalender-koppeling ÉN de kalenderlezer in dezelfde aanroep.
-//
-// De fixture zit sinds de eindreview-fixronde (T16c/B2) in een eigen functie
-// (`buildI4T6FixtureBytes`) — niet meer inline in dit blok — zodat de B2-round-tripcase
-// hieronder (`ifcReader.ts`'s "lege holidays telt als afwezig"-bugfix) DEZELFDE bytes hergebruikt
-// i.p.v. een tweede, kunnen-afdrijven kopie te bouwen. Deze fixture se PROJECTKALENDER (calId=1,
-// "Standaard fixture") draagt bewust GEEN enkele exception — `baseHours` concateneert geen
-// `buildCalExceptionsTail(...)` — en is dus zelf al de "`.mpp` met 0 feestdagen"-casus die B2 nodig
-// heeft; alleen de afgeleide resource-kalender (calId=5) draagt de ene holiday hieronder.
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// Module-scope zodat zowel `buildI4T6FixtureBytes` (die de holiday materialiseert) als de
-// I4/T6-assertieblok hieronder (die de gematerialiseerde datum controleert) 'm zien.
 const HOLIDAY_FROM_DAY = 15005;
 
-/** `baseBands`: de blokken van ma–vr op de basiskalender (calId 1). Standaard één blok 08:00–17:00.
- *  `task`: optioneel de kalender van de taak (standaard calId 5; -1 = geen, dus de projectkalender) en
- *  de speling in tienden van een minuut (free/start/finish slack, fixed-offsets 24/28/32). */
 function buildI4T6FixtureBytes(
   baseBands: { startMinutes: number; durationMinutes: number }[] = [{ startMinutes: 480, durationMinutes: 540 }],
   task: { calendarUniqueId?: number; slackTenths?: number } = {},
 ): Uint8Array {
-  // ── Taak (minimaal — alleen om calendarUniqueId=5 te dragen). FixedData op de LETTERLIJKE
-  // default-offsets uit fieldMap14.ts (geen TASK_FIELD_MAP meegegeven, spiegelt check-mpp-import.ts
-  // se I4-fixture). Index 0-2 zijn dummy (FIRST_TASK_INDEX=3 in mppReader.ts se readTasks). ────────
   function buildTaskFixedDataRecord(opts: { uniqueId: number; id: number; startDays: number; finishDays: number; calendarUniqueId: number }): Uint8Array {
     const out = new Uint8Array(130);
     const view = new DataView(out.buffer);
     view.setInt32(0, opts.uniqueId, true);
     view.setInt32(4, opts.id, true);
-    view.setInt16(40, 1, true); // outlineLevel
-    view.setInt32(42, 4800, true); // 4800 tienden-van-minuut = 8u = 1 dag @480 min/dag
-    view.setInt16(56, 0, true); // constraintType = 0 (ASAP)
+    view.setInt16(40, 1, true);
+    view.setInt32(42, 4800, true);
+    view.setInt16(56, 0, true);
     view.setUint16(64, 0, true);
     view.setUint16(66, opts.startDays, true);
     view.setUint16(68, 0, true);
     view.setUint16(70, opts.finishDays, true);
     view.setInt32(118, opts.calendarUniqueId, true);
     if (task.slackTenths !== undefined) {
-      view.setInt32(24, task.slackTenths, true); // FREE_SLACK
-      view.setInt32(28, task.slackTenths, true); // START_SLACK
-      view.setInt32(32, task.slackTenths, true); // FINISH_SLACK
+      view.setInt32(24, task.slackTenths, true);
+      view.setInt32(28, task.slackTenths, true);
+      view.setInt32(32, task.slackTenths, true);
     }
     return out;
   }
@@ -171,7 +108,7 @@ function buildI4T6FixtureBytes(
     return out;
   }
   const dummy = buildTaskFixedMetaRecord(0);
-  const metaTask = buildTaskFixedMetaRecord(3 * 130); // offset naar het echte taakrecord (index 3) in taskFixedDataBlob
+  const metaTask = buildTaskFixedMetaRecord(3 * 130);
   const taskFixedMetaBlob = new Uint8Array(16 + 4 * 47);
   {
     const v = new DataView(taskFixedMetaBlob.buffer);
@@ -181,7 +118,7 @@ function buildI4T6FixtureBytes(
   }
   const dataTask = buildTaskFixedDataRecord({ uniqueId: 10, id: 1, startDays: 15000, finishDays: 15001, calendarUniqueId: task.calendarUniqueId ?? 5 });
   const taskFixedDataBlob = new Uint8Array(4 * 130);
-  taskFixedDataBlob.set(dataTask, 3 * 130); // index 3 = het echte taakrecord
+  taskFixedDataBlob.set(dataTask, 3 * 130);
 
   const taskVarMetaBytes = buildVarMetaBytes([{ uniqueId: 10, type: 14, offset: 0 }]);
   const taskNamePayload = encodeUnicodeStringAscii('Task1');
@@ -189,9 +126,6 @@ function buildI4T6FixtureBytes(
   new DataView(taskVar2DataBuf.buffer).setInt32(0, taskNamePayload.length, true);
   taskVar2DataBuf.set(taskNamePayload, 4);
 
-  // ── Kalenders: calId=1 (basis, ma/wo/vr 08:00-17:00) + calId=5 (afgeleid, ALLE dagen
-  // defaultFlag=1 ⇒ volledig geërfd, plus één eigen holiday) — calId=5 matcht de taak se
-  // calendarUniqueId hierboven, zodat dit tegelijk de koppeling bewijst. ─────────────────────────
   const baseHours = buildCalHoursBlock([
     { defaultFlag: 0 },
     { defaultFlag: 0, bands: baseBands },
@@ -203,8 +137,6 @@ function buildI4T6FixtureBytes(
   ]);
   const derivedHours = concatBytes(
     buildCalHoursBlock(Array.from({ length: 7 }, () => ({ defaultFlag: 1 as const }))),
-    // freq76 bewust NIET 1 (default 256, zie buildCalExceptionsTail) — bewijst dat materialisatie
-    // bij recurrenceTypeValue=1 (DAILY) onafhankelijk is van @76 (T6-spec-review-fix).
     buildCalExceptionsTail([{ fromDay: HOLIDAY_FROM_DAY, toDay: HOLIDAY_FROM_DAY }]),
   );
   const calFixedMetaBlob = buildCalFixedMetaBlob([0, 12]);
@@ -305,10 +237,6 @@ function buildI4T6FixtureBytes(
   }
 }
 
-// PR #366: MINUTES_PER_DAY blijft na de uur-promotie staan, zoals `<MinutesPerDay>` bij MSPDI. Zonder
-// corpus: blokken met een pauze (07:00–12:00 en 12:30–17:30 = 10 u) wijken af, dus beide kalenders
-// promoveren. De projectkalender houdt 480 min = 8 u; de afgeleide kalender heeft geen eigen waarde en
-// volgt de blokken (10 u). Bewaakt de koppeling `readCalendars` → `readTasks` → `promoteCalendarsForHourMode`.
 {
   const r = readMPP(buildI4T6FixtureBytes([{ startMinutes: 420, durationMinutes: 300 }, { startMinutes: 750, durationMinutes: 300 }]));
   const derived = r.resourceCalendars?.[0];
@@ -317,9 +245,6 @@ function buildI4T6FixtureBytes(
   truthy(`#366 .mpp: afgeleide kalender volgt de blokken, 10 u (kreeg ${derived?.hoursPerDay})`, derived?.hoursPerDay === 10);
 }
 
-// PR #366: de speling van een urentaak telt in werktijd per dag van de taakkalender (`effHoursPerDay`),
-// niet in de opgeslagen `hoursPerDay`. Zonder corpus: de taak staat op de projectkalender (8 u opgeslagen,
-// blokken van 10 u). 6000 tienden = 600 min = 1 dag van 10 u; met `cal.hoursPerDay` zou het 1,25 zijn.
 {
   const r = readMPP(buildI4T6FixtureBytes(
     [{ startMinutes: 420, durationMinutes: 300 }, { startMinutes: 750, durationMinutes: 300 }],
@@ -333,16 +258,6 @@ function buildI4T6FixtureBytes(
   truthy(`#366 .mpp speling: vrije speling 1 dag van 10 u (kreeg ${rec?.freeFloat})`, rec?.freeFloat === 1);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// B2 (eindreview T16c) — de daadwerkelijke ".mpp met 0 feestdagen"-end-to-end-regressie die
-// T14-scenario-4 had moeten zijn: readMPP (projectkalender ZONDER exceptions, zie boven) →
-// solveProject (echte rekenkern, `runCPM`'s exacte keten, `mppFidelity.ts`'s precedent) →
-// writeIFC → readIFC → solveProject nogmaals. De bug (`ifcReader.ts` `buildCalendarFromEntity`,
-// `if (holidays.length > 0) calendar.holidays = holidays`) liet een lege ExceptionTimes-lijst de
-// `createDefaultCalendar()`-bouwmodus-defaults (29 NL-feestdagen) laten staan — deze case bewijst
-// zowel "0 feestdagen blijft 0 feestdagen" als "de datums blijven identiek" in één keten, met
-// mutatiebewijs (zie de opdrachtrapportage: de oude guard teruggezet levert hier 29 feestdagen op).
-// ═══════════════════════════════════════════════════════════════════════════════════════════
 {
   const before = readMPP(buildI4T6FixtureBytes());
   truthy('B2 vóór save: projectkalender 0 feestdagen (voorwaarde van deze case)', before.calendar.holidays.length === 0);
@@ -386,21 +301,9 @@ function buildI4T6FixtureBytes(
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// T6-hostile: mppCalendars.ts tegen vijandige/geprepareerde invoer
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-
-// ── T7-her-review restpunt (b): de ALTIJD-vangende `readCalendars`-wrapper (I1-fix, zie de
-// toelichting bij die functie) had tot deze taak GEEN eigen regressienet — elke andere hostile-test
-// hierboven/hieronder roept al ofwel `readCalendars` MET een geldige FixedMeta/FixedData aan
-// (test het materialisatiegedrag, niet de wrapper zelf), ofwel een low-level primitief los
-// (`parseExceptions`). Dit bewijst specifiek de wrapper: een FOUT FixedMeta-magic-getal op
-// `TBkndCal/FixedMeta` gooit diep in `readCalendarsUnsafe` (via `FixedMeta.withItemSize`) — de
-// wrapper moet dat vangen en `fallbackResult()` teruggeven (`calendarByUniqueId.size === 0`),
-// nooit de fout laten doorlekken naar `readMPP`. ────────────────────────────────────────────────
 {
-  const badMagicFixedMeta = new Uint8Array(16 + 12); // header + 1 item, magic bewust fout
-  new DataView(badMagicFixedMeta.buffer).setUint32(0, 0xdeadbeef, true); // ≠ BLOCK_MAGIC (0xfadfadba)
+  const badMagicFixedMeta = new Uint8Array(16 + 12);
+  new DataView(badMagicFixedMeta.buffer).setUint32(0, 0xdeadbeef, true);
   const fixedData = buildCalFixedDataRecord(1, 1, -1);
   const projectProps = new Props(encodePropsEntries([]), 'T7-her-review-bad-magic');
   const cfb = new CfbFile(buildNestedCfb({
@@ -419,12 +322,6 @@ function buildI4T6FixtureBytes(
   truthy('T7-her-review-b readCalendars-wrapper: projectCalendar blijft een geldige generieke default', !!result?.projectCalendar.workDays.length);
 }
 
-// ── Circulaire base-kalender-verwijzing: calId=10 verwijst naar base 20, calId=20 naar base 10 —
-// GEEN van beide is ooit een "echte" basiskalender (baseId<=0 of ===zichzelf), dus beide belanden
-// in `readCalendars`' Fase 2 (afgeleide kalenders) en verwijzen alleen naar elkaar. Zonder
-// `MAX_BASE_CHAIN_DEPTH` zou de fixed-point-resolutie hier oneindig kunnen doorlopen — bewijst dat
-// de lus na een begrensd aantal ronden stopt en BEIDE kalenders alsnog materialiseert (zonder
-// overerving), i.p.v. te hangen of ze stilzwijgend te laten vallen.
 {
   const fixedMeta = buildCalFixedMetaBlob([0, 12]);
   const fixedData = concatBytes(
@@ -451,7 +348,6 @@ function buildI4T6FixtureBytes(
   truthy('T6-hostile circulaire base-keten: beide kalenders alsnog gematerialiseerd', result?.calendarByUniqueId.size === 2);
 }
 
-// ── resource-uniqueID 0 op een AFGELEIDE kalender blijft gekoppeld (asymmetrische guard). ─────────
 {
   const fixedMeta = buildCalFixedMetaBlob([0, 12]);
   const fixedData = concatBytes(
@@ -474,37 +370,25 @@ function buildI4T6FixtureBytes(
   );
 }
 
-// ── T16-veeglijst: MAX_DAY_HOUR_PERIODS-overlapfout (`mppCalendars.ts`, was 10, nu 5) — bewijst de
-// fantoomband die de oude, te ruime klem toeliet. Maandag krijgt 5 ECHTE periodes (via
-// `writeCalDayBlock`, dus `periodCount` staat na het bouwen op 5, veilig binnen i=0..4) plus een
-// HANDMATIGE patch: `periodCount` naar 7, en start-slot 6 (`8+6*2=20`) is BYTE-IDENTIEK aan
-// duur-slot 0 (`20+0*4=20`) — die bytes dragen al band 0 se eigen duur (600 tienden = 60 min),
-// dus band 6 se "start" wordt `mppTimeToMinutes(600)=60` (01:00) zodra hij gelezen wordt. Duur-slot
-// 6 (`20+6*4=44`) is fysiek ONGEBRUIKT door de 5 echte periodes (die gebruiken 20/24/28/32/36) —
-// een patch daar (450 tienden = 45 min) simuleert restbytes die een geprepareerd bestand daar kan
-// achterlaten. Geklemd op 5 (huidig, gefixt): band 6 wordt nooit gelezen, Maandag blijft op 5
-// banden. MUTATIEBEWIJS (reviewer-repro, handmatig teruggezet naar 10 en herdraaid): met de oude
-// klem van 10 leest de lus i=0..6, Maandag krijgt een 6e band (01:00-01:45) — exact de
-// "fantoomband" die deze klem moet voorkomen. ──────────────────────────────────────────────────────
 {
   const hoursBlock = buildCalHoursBlock([
-    { defaultFlag: 0 }, // zo
+    { defaultFlag: 0 },
     {
       defaultFlag: 0,
       bands: [
-        { startMinutes: 360, durationMinutes: 60 }, // i=0: 06:00-07:00 (duur-slot 0 @+20 = 600 tienden)
-        { startMinutes: 480, durationMinutes: 60 }, // i=1: 08:00-09:00
-        { startMinutes: 600, durationMinutes: 30 }, // i=2: 10:00-10:30
-        { startMinutes: 780, durationMinutes: 60 }, // i=3: 13:00-14:00
-        { startMinutes: 900, durationMinutes: 60 }, // i=4: 15:00-16:00
+        { startMinutes: 360, durationMinutes: 60 },
+        { startMinutes: 480, durationMinutes: 60 },
+        { startMinutes: 600, durationMinutes: 30 },
+        { startMinutes: 780, durationMinutes: 60 },
+        { startMinutes: 900, durationMinutes: 60 },
       ],
-    }, // ma
+    },
     { defaultFlag: 0 }, { defaultFlag: 0 }, { defaultFlag: 0 }, { defaultFlag: 0 }, { defaultFlag: 0 },
   ]);
   const hoursView = new DataView(hoursBlock.buffer);
-  const MONDAY_OFFSET = 60; // dagIndex 1 = maandag, 60 bytes/dag
-  hoursView.setInt16(MONDAY_OFFSET + 2, 7, true); // periodCount: 5 (echt) → 7 (geclaimd, buiten de klem)
-  hoursView.setInt16(MONDAY_OFFSET + 44, 450, true); // duur-slot 6 (@20+6*4): fysiek ongebruikt door i=0..4
+  const MONDAY_OFFSET = 60;
+  hoursView.setInt16(MONDAY_OFFSET + 2, 7, true);
+  hoursView.setInt16(MONDAY_OFFSET + 44, 450, true);
 
   const fixedMeta = buildCalFixedMetaBlob([0, 12]);
   const fixedData = buildCalFixedDataRecord(1, -1, -1);
@@ -550,14 +434,12 @@ function buildI4T6FixtureBytes(
   }
 }
 
-// ── Extreem exception-aantal: MAX_CALENDAR_EXCEPTIONS klemt, ongeacht hoeveel geldige records de
-// buffer daadwerkelijk aanbiedt. ───────────────────────────────────────────────────────────────────
 {
   const EXTREME_COUNT = 5000;
   const exceptions = Array.from({ length: EXTREME_COUNT }, (_, i) => ({ fromDay: 10000 + i, toDay: 10000 + i }));
   const hoursBlock = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ defaultFlag: 0 as const })));
   const tail = buildCalExceptionsTail(exceptions);
-  new DataView(tail.buffer).setInt16(0, 60000, true); // exceptionCount-claim > wat de buffer fysiek nodig heeft
+  new DataView(tail.buffer).setInt16(0, 60000, true);
   const data = concatBytes(hoursBlock, tail);
 
   const start = Date.now();
@@ -572,15 +454,11 @@ function buildI4T6FixtureBytes(
   truthy(`T6-hostile extreem exception-aantal: binnen tijdslimiet (${elapsedMs}ms < ${TIME_LIMIT_MS}ms)`, elapsedMs < TIME_LIMIT_MS);
   truthy(`T6-hostile extreem exception-aantal: gooit niet (${threw ?? ''})`, threw === null);
   truthy(
-    // T3: elk record is nog steeds een LOS 1-dags entry (geen samenvoeging ACROSS records, ook al
-    // zijn de dagen 10000..11999 toevallig aaneengesloten — zie `resolveContributions`'s
-    // toelichting), dus de telling blijft exact op de record-klem staan.
     `T6-hostile extreem exception-aantal: geklemd op MAX_CALENDAR_EXCEPTIONS (${holidays.length}/${MAX_CALENDAR_EXCEPTIONS}, buffer bood ${EXTREME_COUNT} geldige records)`,
     holidays.length === MAX_CALENDAR_EXCEPTIONS,
   );
 }
 
-// ── Extreem bereik (range-lengte): MAX_HOLIDAY_RANGE_DAYS klemt het gematerialiseerde bereik. ──────
 {
   const hoursBlock = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ defaultFlag: 0 as const })));
   const tail = buildCalExceptionsTail([{ fromDay: 0, toDay: 65534 }]);
@@ -596,9 +474,6 @@ function buildI4T6FixtureBytes(
   }
 }
 
-// ── I1-fix-regressie: een 421-byte kalenderdatablob (net boven de 420-byte urensectie, maar te kort
-// om de 2-byte exceptionCount op offset 420 veilig te lezen) mag readMPP niet meer laten falen — de
-// import moet slagen met 0 holidays voor die kalender. ─────────────────────────────────────────────
 {
   const data421 = new Uint8Array(421);
   data421.set(buildCalHoursBlock(Array.from({ length: 7 }, () => ({ defaultFlag: 0 as const }))), 0);
@@ -615,17 +490,6 @@ function buildI4T6FixtureBytes(
   truthy(`I1-fix: binnen tijdslimiet (${Date.now() - start}ms < ${TIME_LIMIT_MS}ms)`, Date.now() - start < TIME_LIMIT_MS);
 }
 
-// ── T3-GEDRAGSWIJZIGING (was: "recurrenceTypeValue=2 (YEARLY) wordt bewust NIET gematerialiseerd"
-// — vóór T3 kende deze module geen enkele recurrente expansie). recurrenceTypeValue=2 = YEARLY
-// absoluut; `freq76` (default 256 = 0x0100 little-endian ⇒ byte@76=0, byte@77=1) levert
-// dayNumber=byte@77=1, monthNumber=byte@76+1=1 ⇒ "elk jaar 1 januari". fromDay=10000/toDay=10100
-// (het RECURRENTIEVENSTER, niet de feestdag zelf) vertaalt naar 2011-05-18..2011-08-26 — geen 1
-// januari daarbinnen. `getYearlyAbsoluteDates` (poort van MPXJ se `RecurringData.
-// getYearlyAbsoluteDates`) evalueert de WHILE-conditie tegen de cursor VÓÓR de
-// `isBefore(startDate) ⇒ +1 jaar`-correctie (zie de toelichting bij die functie in
-// mppCalendars.ts) — dat levert hier `2012-01-01` op, net BUITEN het nominale venster. Dit is
-// LETTERLIJK MPXJ-gedrag (bevestigd door de poort daadwerkelijk te draaien tegen deze fixture,
-// niet aangenomen), geen eigen bug. ─────────────────────────────────────────────────────────────
 {
   const hoursBlock = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ defaultFlag: 0 as const })));
   const tail = buildCalExceptionsTail([{ fromDay: 10000, toDay: 10100, recurrenceTypeValue: 2 }]);
@@ -638,14 +502,6 @@ function buildI4T6FixtureBytes(
   );
 }
 
-// ── T6-spec-review-fix-regressie: recurrenceTypeValue===1 (DAILY) negeert @76 volledig; type 7
-// telt @76 wél mee. T3-GEDRAGSWIJZIGING op de LAATSTE case (was: "type-7 freq76=2 NIET
-// gematerialiseerd" — vóór T3 werd elke recurrente uitzondering overgeslagen): `freq76=2` is nu een
-// ECHTE recurrente DAILY-uitzondering (frequentie 2, niet geflattend). Met fromDate===toDate
-// (20030/20030) genereert `getDailyDates` precies 1 datum: `moreDates(startDate,…)` is waar zodra
-// `startDate<=finishDate` (0<=0), dus de datum wordt toegevoegd vóór de eerstvolgende `+2 dagen`-
-// stap de lus al beëindigt (`startDate+2>finishDate`). Bevestigd door de poort daadwerkelijk te
-// draaien (niet aangenomen). ─────────────────────────────────────────────────────────────────────
 {
   const hoursBlock = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ defaultFlag: 0 as const })));
   const tail = buildCalExceptionsTail([
@@ -664,18 +520,6 @@ function buildI4T6FixtureBytes(
   truthy('T3: type-7 freq76=2 NU OOK gematerialiseerd (1-occurrence recurrente DAILY)', materializedDays.has(mppDayToIso(20030)));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// T3 (fase 3.8, MSP-pariteit) — werkende uitzonderingen, invariant, precedentie, vijandige
-// occurrences+bereik-fixture (plan-§T3-acceptatie 5)
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-
-/** Lokale 92-byte-uitzonderingsrecord-bouwer met VOLLEDIGE controle over periodCount/banden/
- *  recurrentievelden — `buildCalExceptionsTail` (mppFixtures.ts, gedeelde infra buiten mijn
- *  bestandsscope voor T3) ondersteunt alleen niet-werkende, niet-recurrente uitzonderingen; deze
- *  T3-tests hebben zowel werkende uitzonderingen (banden) als alle vier recurrentietypes nodig
- *  (plan-§T3-byte-offsets: WEEKLY dagen-bitmap `+76`(byte)/frequentie `+78`(SHORT); MONTHLY
- *  absoluut dagnummer `+76`(byte)/frequentie `+78`(byte); YEARLY absoluut dagnummer `+77`(byte)/
- *  maand `+76`(byte)+1; DAILY(type 7) frequentie `+76`(SHORT)). */
 interface ExceptionRecordSpec {
   fromDay: number;
   toDay: number;
@@ -721,9 +565,6 @@ function buildExceptionsTailRaw(records: Uint8Array[]): Uint8Array {
 }
 const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ defaultFlag: 0 as const })));
 
-// ── expandRecurrence rechtstreeks (poort van RecurringData.populateDates): YEARLY-absoluut over 3
-// jaar levert precies de 3 verwachte 1-januari-datums. Mutatiebewijs-acceptatie 2 (plan-§T3, hier op
-// FUNCTIENIVEAU — de corpusbrede variant met ≥30 bestanden staat in het eindrapport). ─────────────
 {
   const dates = expandRecurrence({
     type: 'YEARLY', relative: false,
@@ -737,13 +578,11 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   );
 }
 
-// ── Werkende uitzondering (periodCount>0) materialiseert als WorkingException met banden, NIET als
-// Holiday — plan-§T3 verplichte stap. ──────────────────────────────────────────────────────────
 {
   const WORK_DAY = 30000;
   const record = buildExceptionRecord({
-    fromDay: WORK_DAY, toDay: WORK_DAY, recurrenceTypeValue: 0, // niet-recurrent
-    periodCount: 1, bands: [{ startMinutes: 360, durationMinutes: 360 }], // 06:00-12:00
+    fromDay: WORK_DAY, toDay: WORK_DAY, recurrenceTypeValue: 0,
+    periodCount: 1, bands: [{ startMinutes: 360, durationMinutes: 360 }],
   });
   const data = concatBytes(T3_NO_BANDS_HOURS, buildExceptionsTailRaw([record]));
   const { holidays, workingExceptions } = parseExceptions(data, 'T3-working-exception', newHolidayBudget());
@@ -756,16 +595,9 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   }
 }
 
-// ── Invariant (Opus-T2-review-eis, LAAG-6/7): dezelfde datum als holiday ÉN als werkende
-// uitzondering in het bronbestand → de parser levert er EXACT ÉÉN op (nooit beide, nooit géén). Twee
-// NIET-recurrente records met VERSCHILLENDE fromDates maar die BEIDE dezelfde dag claimen (record A
-// een 3-daags holiday-bereik, record B — LATER in het bestand — een 1-dags werkende uitzondering
-// midden in dat bereik) — MPXJ's eigen fromDate-only-sleutelde precedentiekaart zou dit NIET
-// opvangen (de twee fromDates verschillen), maar `resolveContributions`'s per-DAG-autoriteitskaart
-// (identiteit via contributie-index, niet waarde-gelijkheid) wel. ──────────────────────────────────
 {
   const HOLIDAY_START = 31000;
-  const COLLISION_DAY = 31001; // valt binnen het 3-daagse holiday-bereik [31000,31002]
+  const COLLISION_DAY = 31001;
   const holidayRecord = buildExceptionRecord({ fromDay: HOLIDAY_START, toDay: HOLIDAY_START + 2, recurrenceTypeValue: 0 });
   const workingRecord = buildExceptionRecord({
     fromDay: COLLISION_DAY, toDay: COLLISION_DAY, recurrenceTypeValue: 0,
@@ -780,9 +612,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
     `T3 invariant: botsende datum (${collisionIso}) staat in PRECIES ÉÉN van de twee arrays (holidays=${inHolidays}, workingExceptions=${inWorking})`,
     inHolidays + inWorking === 1,
   );
-  // Niet-recurrent+LATER-in-het-bestand wint (record-volgorde bepaalt bij gelijke prioriteit,
-  // spiegelt MPXJ's map-put-per-record-volgorde): de werkende uitzondering (record B) wint dus over
-  // het holidaybereik (record A) op de botsende dag — het holiday-bereik splitst rond de botsing.
   truthy('T3 invariant: de botsende dag is een WERKENDE uitzondering (later record wint)', inWorking === 1 && inHolidays === 0);
   truthy(
     'T3 invariant: het holiday-bereik is rond de botsing GESPLITST (2 losse 1-dags entries, niet 1 doorlopend bereik)',
@@ -790,14 +619,9 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   );
 }
 
-// ── Precedentie WEEKLY→MONTHLY→YEARLY→DAILY (recurrent), dan niet-recurrent als hoogste laag —
-// plan-§T3 verplichte stap + mutatiebewijs-acceptatie 3. Alle vijf lagen claimen DEZELFDE datum
-// (2020-01-01, MPP-dag 13150): WEEKLY (alle dagen aangevinkt, dus triviaal inbegrepen), MONTHLY (dag
-// 1 van elke maand — 1 januari IS dag 1), YEARLY (1 januari), DAILY (recurrent, frequentie 2,
-// venster=exact die ene dag), en tot slot een niet-recurrente werkende uitzondering. ───────────────
 {
-  const TARGET_DAY = 13150; // 2020-01-01 (woensdag)
-  const WINDOW_END = 13515; // 2020-12-31
+  const TARGET_DAY = 13150;
+  const WINDOW_END = 13515;
   const targetIso = mppDayToIso(TARGET_DAY);
   truthy(`T3 precedentie: fixture-aanname TARGET_DAY===2020-01-01 (${targetIso})`, targetIso === '2020-01-01');
 
@@ -810,7 +634,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
     periodCount: 1, bands: [{ startMinutes: 360, durationMinutes: 360 }],
   });
 
-  // (a) zonder niet-recurrente laag: DAILY (hoogste recurrente precedentie) moet winnen.
   {
     const data = concatBytes(T3_NO_BANDS_HOURS, buildExceptionsTailRaw([weekly, monthly, yearly, daily]));
     const { holidays, workingExceptions } = parseExceptions(data, 'T3-precedence-recurrent-only', newHolidayBudget());
@@ -823,7 +646,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
     );
   }
 
-  // (b) MET niet-recurrente laag: die wint over ALLES, ook over DAILY.
   {
     const data = concatBytes(T3_NO_BANDS_HOURS, buildExceptionsTailRaw([weekly, monthly, yearly, daily, nonRecurring]));
     const { holidays, workingExceptions } = parseExceptions(data, 'T3-precedence-with-nonrecurring', newHolidayBudget());
@@ -839,10 +661,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   }
 }
 
-// ── Vijandige invoer (plan-§T3 acceptatie 5): occurrences=65535 + een 165-jaars bereik (1984-2149)
-// moet KLEMMEN (MAX_RECURRENCE_DATES), niet hangen of exploderen. WEEKLY/alle-dagen/frequentie=1 is
-// het ergste geval (zie MAX_RECURRENCE_DATES se meetcommentaar in limits.ts): ongeklemd zou dit
-// ~60.000 datums genereren. ──────────────────────────────────────────────────────────────────────
 {
   const record = buildExceptionRecord({
     fromDay: 1, toDay: 60267, occurrences: 65535, recurrenceTypeValue: 6, byte76: 0x7f, short78: 1,
@@ -859,10 +677,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   const elapsedMs = Date.now() - start;
   truthy(`T3-hostile occurrences=65535+165-jaars-bereik: gooit niet (${threw ?? ''})`, threw === null);
   truthy(`T3-hostile occurrences=65535+165-jaars-bereik: binnen 100ms (${elapsedMs}ms < 100ms)`, elapsedMs < 100);
-  // WEEKLY/alle-dagen genereert LETTERLIJK elke dag in het venster ⇒ de overlevende dagen van deze
-  // ENE contributie zijn allemaal aaneengesloten en worden dus tot ÉÉN Holiday-bereik samengevoegd
-  // (spiegelt het bestaande "MAX_HOLIDAY_RANGE_DAYS klemt de RANGE-lengte"-bewijs hierboven, niet
-  // een entry-AANTAL — de klem zit op het aantal GEGENEREERDE datums, niet op de output-vorm).
   truthy('T3-hostile occurrences=65535+165-jaars-bereik: precies 1 (aaneengesloten) holiday-bereik', result?.holidays.length === 1);
   if (result?.holidays.length === 1) {
     const days = Math.round((new Date(result.holidays[0].endDate).getTime() - new Date(result.holidays[0].startDate).getTime()) / 86_400_000) + 1;
@@ -873,25 +687,7 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// Opus-review-fixronde (na commit eb074986) — HOOG-1 (oneindige-lus-hangs), MIDDEN-1
-// (ongeklemde totale expansie in buildContributions), LAAG-1 (ontbrekende "1-datum-expansie telt
-// als niet-recurrent"-regel), LAAG-2 (schrikkeljaar-rollover in getYearlyAbsoluteDates).
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-
-// ── HOOG-1 (kritiek): MAX_RECURRENCE_DATES alleen klemt de OUTPUT (dates.length) — een
-// generatorlus die NOOIT een datum toevoegt triggert die klem nooit en liep vóór deze fixronde
-// ONEINDIG door. Twee reviewer-bevestigde, timeout-bewezen (≥45s vóór de fix) gevallen; beide nu
-// gedekt door de onafhankelijke `MAX_RECURRENCE_ITERATIONS`-klem in `calendarRecurrence.ts`.
-// Mutatiebewijs (uitgevoerd, niet permanent in dit bestand — een hangende test zou de suite zelf
-// blokkeren): met de `iterations`-klem TIJDELIJK uit beide generatoren verwijderd liep dit blok
-// vast; met `timeout 3 node …` op de gebundelde check kwam de run niet binnen 3s terug (exitcode
-// 124). Hersteld: onderstaande twee gevallen lopen nu binnen milliseconden af. ──────────────────
 {
-  // (a) MONTHLY-relatief: dagnummer 1, dayOfWeekValue=-2 op een maand die op zaterdag begint (hier:
-  // 2021-05-01) laat `ordinalRelativeDay` de cursor TERUGZETTEN in de vorige maand (negatieve
-  // dag-offset); bij frequentie 1 komt de daaropvolgende "reset naar eerste-van-de-maand-plus-1-
-  // maand"-stap exact weer uit op DEZELFDE maand — de cursor staat dan stil, `dates.length` blijft 0.
   const start = Date.now();
   const dates = expandRecurrence({
     type: 'MONTHLY', relative: true,
@@ -906,10 +702,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   truthy('HOOG-1a: 0 datums (cursor kwam nooit voorbij startDate, correct gedegradeerd i.p.v. gehangen)', dates.length === 0);
 }
 {
-  // (b) WEEKLY met een LEGE dagen-bitmap (`weeklyDayMask=0`) + `finishDate=null`: `moreDates()` valt
-  // dan terug op `occurrences`, maar `dates.length` groeit nooit (geen enkele weekdag matcht) — de
-  // vergelijking `dates.length<occurrences` blijft voor altijd waar, ongeacht hoe vaak de cursor
-  // intussen vooruitschuift.
   const start = Date.now();
   const dates = expandRecurrence({
     type: 'WEEKLY', relative: false,
@@ -921,11 +713,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   truthy('HOOG-1b: 0 datums (geen enkele weekdag matcht de lege bitmap)', dates.length === 0);
 }
 
-// ── MIDDEN-1: `buildContributions` moet de TOTALE generatie zelf al tegen het budget klemmen, niet
-// pas `resolveContributions` daarna — anders alloceert een hostile bestand ALLE datums van ALLE
-// records vóórdat er ook maar naar het budget gekeken wordt (gemeten vóór deze fixronde: 2000
-// WEEKLY-records ≈ 5,2s/~1GB). Hier: 50 WEEKLY-alle-dagen-records (elk tot MAX_RECURRENCE_DATES
-// datums potentieel) tegen een budget van slechts 100. ────────────────────────────────────────────
 {
   const raw: RawException[] = Array.from({ length: 50 }, (_, i) => ({
     fromDate: new Date(Date.UTC(2000 + i, 0, 1)),
@@ -952,29 +739,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   );
 }
 
-// ── MIDDEN-A (Opus-review-herronde): MAX_RECURRENCE_ITERATIONS was per RECORD goedkoop (100.000 ×
-// µs-schaal) maar per BESTAND niet — een gedegenereerd record (0 datums, geen budget-aftrek) kost
-// nog steeds de volle klem. Reviewer mat 46,3s voor 2000 gedegenereerde MONTHLY-relatief-records
-// (dezelfde stilstaande-cursor-bug als HOOG-1a hierboven, maar dan 2000× in één kalender — het
-// aantal dat `MAX_CALENDAR_EXCEPTIONS` toestaat). Fix: `MAX_RECURRENCE_ITERATIONS` geklemd op
-// `MAX_RECURRENCE_DATES + 16` i.p.v. een los, groot getal (plus een nevenoptimalisatie: één
-// Date-allocatie minder per doorloop in de cursor-reset, zie `getMonthlyRelativeDates`) én de
-// monotone-cursorcheck die een stilstaande maandcursor direct afbreekt — hier bewezen met exact
-// dat ergste geval: 2000 records, elk gedegenereerd. De test blijft corpusloos en bewaakt de
-// bestaande 5s-poort; de cursorcheck hoort de correcte uitkomst ruim daaronder te houden, terwijl
-// de oude 100.000-iteratievariant zonder deze check de historische 46,3s-regressie terugbrengt.
-//
-// MARGE-HERZIENING (M3, Opus-eindreview 2026-08-17, precedent: check-adapters-hours.ts se
-// T4-marge-herziening): 2s was ASYMMETRISCH krap. Lokaal herhaald gemeten: 1161-1224 ms — dat is
-// maar ~1,65× speling t.o.v. de 2000ms-klem, en deze check draait 6× per `npm run verify`-aanroep
-// (T16-veeglijst-correctie: 1× via run.sh se normale RUN_HOLIDAYS-blok + 5× opnieuw in de
-// tijdzone-matrix — zie run.sh se `for TZONE in UTC America/New_York Pacific/Midway …` — dus 18
-// kansen op gedeelde CI-runners, niet 15: ubuntu/windows/macos ×3 × 6, niet ×5)
-// waar een 3-4× tragere machine niet uitzonderlijk is — dat vals-rode risico weegt zwaarder dan de
-// mutatiedetectie verzwakken. 5000ms herstelt de marge (~4× t.o.v. de gemeten 1,2s) terwijl de
-// regressie die de klem moet vangen (46,3s) er nog altijd ruim >9× overheen zit — de klem blijft
-// dus net zo hard bewijs tegen een teruggekeerde stilstaande-cursor-bug, alleen niet meer krap
-// tegen een normale, correcte run aan. ───────────────────────────────────────────────────────────
 {
   const raw: RawException[] = Array.from({ length: 2000 }, () => ({
     fromDate: new Date(Date.UTC(2021, 4, 1)),
@@ -1000,11 +764,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   truthy('MIDDEN-A: 0 datums over alle 2000 records (allemaal gedegenereerd, geen enkele draagt bij)', totalDates === 0);
 }
 
-// ── T3-hostile occurrences=65535+165-jaars-bereik (regressie ná MIDDEN-A): de bestaande hostile-
-// fixture (hierboven, vóór dit blok) moet met de VERLAAGDE MAX_RECURRENCE_ITERATIONS nog steeds
-// correct klemmen — die assertie draait al mee in de suite (regel "T3-hostile occurrences=65535…"),
-// hier alleen een expliciete herbevestiging dat de WEEKLY/alle-dagen-productieve lus (die WEL elke
-// doorloop een datum toevoegt) niet per ongeluk te vroeg afkapt door de kleinere iteratieklem. ────
 {
   const dates = expandRecurrence({
     type: 'WEEKLY', relative: false,
@@ -1017,11 +776,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   );
 }
 
-// ── LAAG-2 (schrikkeljaar-rollover): de `+1-jaar`-correctie in `getYearlyAbsoluteDates` moet het
-// AL-GEKLEMDE dagnummer van het BRONjaar herklemmen tegen het GECORRIGEERDE jaar — niet het RAUWE
-// gevraagde dagnummer. Reviewer-repro (LAAG-2, eerste ronde): dag 29, maand 2 (februari), startDate
-// 2020-06-01 — 2020 is een schrikkeljaar (29 feb bestaat), 2021 niet; de correctie moet naar
-// 2021-02-28 klemmen, niet doorrollen naar 2021-03-01. ─────────────────────────────────────────────
 {
   const dates = expandRecurrence({
     type: 'YEARLY', relative: false,
@@ -1034,14 +788,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   );
 }
 
-// ── LAAG-A (Opus-review-herronde): de EERSTE LAAG-2-fix klemde het RAUWE `dayNumber` opnieuw tegen
-// het gecorrigeerde jaar — fout, want `LocalDate.plusYears` (MPXJ/Java) klemt het AL-GEKLEMDE
-// dagnummer van het BRONjaar, niet het oorspronkelijk gevraagde getal. Reviewer-repro: dag 29,
-// maand 2, startDate 2019-06-01 — 2019 is GEEN schrikkeljaar (29 feb bestaat niet, klemt naar 28),
-// dus de cursor start op 2019-02-28. Die datum valt vóór startDate, correctie naar 2020 (WEL een
-// schrikkeljaar): met het rauwe dagnummer (29) herklemmen geeft `min(29,29)=29` ⇒ 2020-02-29 — FOUT.
-// Met het AL-28-GEWORDEN `useDay` herklemmen geeft `min(28,29)=28` ⇒ 2020-02-28 — CORRECT (het
-// bronjaar se eigen klem "kleeft", ook al biedt het doeljaar zelf ruimte voor 29). ─────────────────
 {
   const dates = expandRecurrence({
     type: 'YEARLY', relative: false,
@@ -1054,14 +800,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   );
 }
 
-// ── LAAG-1 (ontbrekende MPXJ-regel): `ProjectCalendar.populateExpandedExceptions()` classificeert
-// een uitzondering op `expanded.size()===1` (expandeert tot PRECIES ÉÉN datum), niet op haar
-// recurrentietype — zo'n uitzondering krijgt dan NIET-recurrente (hoogste) prioriteit, ONGEACHT
-// welk type ze heeft. Reviewer-repro: een DAILY-frequentie-2-werkende-uitzondering (record 1,
-// normaliter de HOOGSTE recurrente precedentie) en een YEARLY-absolute holiday die toevallig tot
-// precies 1 datum inklapt (record 2, LATER in het bestand) botsen op dezelfde dag — de YEARLY
-// (tot niet-recurrent gepromoveerd, en LATER in het bestand) moet winnen: een holiday, geen
-// werkende uitzondering. ─────────────────────────────────────────────────────────────────────────
 {
   const dailyRecord: RawException = {
     fromDate: new Date(Date.UTC(2020, 0, 1)), toDate: new Date(Date.UTC(2020, 0, 1)),
@@ -1091,18 +829,15 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   );
 }
 
-// ── T6-kwaliteitsreview (M8-a): ≥3-niveau-keten — transitieve overerving. calId=1 (basis, ma/wo/vr
-// + 1 holiday) → calId=2 (afgeleid van 1, alles default) → calId=3 (afgeleid van 2, alles default).
-// calId=3 moet zowel de workDays ALS de holiday van calId=1 dragen — via TWEE overervingsstappen. ───
 {
   const MWF_HOURS = buildCalHoursBlock([
-    { defaultFlag: 0 }, // zo
-    { defaultFlag: 0, bands: [{ startMinutes: 480, durationMinutes: 540 }] }, // ma
-    { defaultFlag: 0 }, // di
-    { defaultFlag: 0, bands: [{ startMinutes: 480, durationMinutes: 540 }] }, // wo
-    { defaultFlag: 0 }, // do
-    { defaultFlag: 0, bands: [{ startMinutes: 480, durationMinutes: 540 }] }, // vr
-    { defaultFlag: 0 }, // za
+    { defaultFlag: 0 },
+    { defaultFlag: 0, bands: [{ startMinutes: 480, durationMinutes: 540 }] },
+    { defaultFlag: 0 },
+    { defaultFlag: 0, bands: [{ startMinutes: 480, durationMinutes: 540 }] },
+    { defaultFlag: 0 },
+    { defaultFlag: 0, bands: [{ startMinutes: 480, durationMinutes: 540 }] },
+    { defaultFlag: 0 },
   ]);
   const baseData = concatBytes(MWF_HOURS, buildCalExceptionsTail([{ fromDay: 15005, toDay: 15005 }]));
   const allDefault = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ defaultFlag: 1 as const })));
@@ -1144,12 +879,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   }
 }
 
-// ── T6-kwaliteitsreview (M8-b): keten DIEPER dan MAX_BASE_CHAIN_DEPTH — het restanten-pad. Een
-// keten van MAX_BASE_CHAIN_DEPTH+3 afgeleide kalenders, IN OMGEKEERDE VOLGORDE in FixedData gezet
-// (de meest-afhankelijke eerst) zodat elke fixed-point-ronde hoogstens één extra niveau oplost (het
-// worst-case-pad — in oplopende volgorde zou de hele keten al in ronde 1 oplossen, wat de klem niet
-// zou testen). Kalenders binnen het budget erven correct (ma/wo/vr); kalenders erna vallen terug op
-// de project-brede default (ma-vr) — geen crash, geen weggevallen kalenders. ───────────────────────
 {
   const DEPTH = MAX_BASE_CHAIN_DEPTH + 3;
   const MWF_HOURS = buildCalHoursBlock([
@@ -1161,11 +890,8 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
     { defaultFlag: 0, bands: [{ startMinutes: 480, durationMinutes: 540 }] },
     { defaultFlag: 0 },
   ]);
-  // calId 1 = basis (ma/wo/vr); calId (2..DEPTH+1) = keten, calId k erft van calId (k-1).
   const records: Uint8Array[] = [buildCalFixedDataRecord(1, 1, -1)];
   for (let k = 2; k <= DEPTH + 1; k++) records.push(buildCalFixedDataRecord(k, k - 1, -1));
-  // Omgekeerde volgorde voor de AFGELEIDE records (basis blijft vooraan — Fase 1 raakt niet aan
-  // volgorde, alleen Fase 2's fixed-point-lus doet dat): [basis, DEPTH+1, DEPTH, ..., 3, 2].
   const orderedRecords = [records[0], ...records.slice(1).reverse()];
   const offsets: number[] = [];
   let off = 0;
@@ -1207,13 +933,11 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
     result?.calendarByUniqueId.size === DEPTH + 1,
   );
   if (result) {
-    // Binnen budget (diepte MAX_BASE_CHAIN_DEPTH, calId = MAX_BASE_CHAIN_DEPTH+1): correct geketend.
     const withinBudget = result.calendarByUniqueId.get(MAX_BASE_CHAIN_DEPTH + 1);
     truthy(
       `T6-M8b binnen budget (calId=${MAX_BASE_CHAIN_DEPTH + 1}): correct geketend (ma/wo/vr)`,
       !!withinBudget && JSON.stringify(withinBudget.workDays) === JSON.stringify([1, 3, 5]),
     );
-    // Voorbij budget (diepte DEPTH, calId = DEPTH+1): restanten-pad, project-default-terugval (ma-vr).
     const beyondBudget = result.calendarByUniqueId.get(DEPTH + 1);
     truthy(
       `T6-M8b voorbij budget (calId=${DEPTH + 1}): restanten-terugval op project-default (ma-vr), NIET de geketende ma/wo/vr`,
@@ -1222,18 +946,14 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   }
 }
 
-// ── T6-kwaliteitsreview (C1, kritiek): "veel-kalenders"-hostile-fixture — 1100 nep-basiskalender-
-// records (> MAX_CALENDARS=1024) in een FixedData-blok dat via `buildNestedCfb`'s gewone-sectorpad
-// (≥4096 bytes) gaat. Bewijst dat de FixedData-iteratie in `readCalendars` afkapt zodra
-// `rawByUniqueId.size` de klem raakt — NIET dat 1100 volledige `WorkCalendar`-objecten alloceren. ───
 {
   const CAL_COUNT = 1100;
   const records: Uint8Array[] = [];
-  for (let uid = 1; uid <= CAL_COUNT; uid++) records.push(buildCalFixedDataRecord(uid, uid, -1)); // elk zijn eigen base (zelf-referentie)
+  for (let uid = 1; uid <= CAL_COUNT; uid++) records.push(buildCalFixedDataRecord(uid, uid, -1));
   const offsets = records.map((_, i) => i * 12);
   const fixedMeta = buildCalFixedMetaBlob(offsets);
   const fixedData = concatBytes(...records);
-  const varMeta = buildVarMetaBytes([]); // geen namen/uren nodig
+  const varMeta = buildVarMetaBytes([]);
 
   const projectProps = new Props(encodePropsEntries([]), 'T6-C1-many-calendars');
   const cfb = new CfbFile(buildNestedCfb({
@@ -1257,11 +977,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   );
 }
 
-// ── T6-kwaliteitsreview (C1, kritiek): "keten-met-veel-holidays"-hostile-fixture — één basiskalender
-// met 400 holidays + 300 afgeleide kalenders die ELK de volledige 400 erven (300×400=120.000 >
-// MAX_TOTAL_HOLIDAY_SLOTS=100.000). Bewijst dat `budgetedInherit` de OVERERVINGSKOPIE afkapt — de
-// per-kalender-klem (MAX_CALENDAR_EXCEPTIONS) alléén zou dit NIET vangen, want elke individuele
-// kalender (basis: 400 < 2000; elke afgeleide: 0 eigen, alles geërfd) blijft ruim binnen die klem. ──
 {
   const HOLIDAY_COUNT = 400;
   const DERIVED_COUNT = 300;
@@ -1270,7 +985,7 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   const baseData = concatBytes(hoursBlock, buildCalExceptionsTail(exceptions));
 
   const records: Uint8Array[] = [buildCalFixedDataRecord(1, 1, -1)];
-  for (let k = 2; k <= DERIVED_COUNT + 1; k++) records.push(buildCalFixedDataRecord(k, 1, -1)); // allemaal direct van de basis
+  for (let k = 2; k <= DERIVED_COUNT + 1; k++) records.push(buildCalFixedDataRecord(k, 1, -1));
   const offsets = records.map((_, i) => i * 12);
   const fixedMeta = buildCalFixedMetaBlob(offsets);
   const fixedData = concatBytes(...records);
@@ -1304,11 +1019,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   if (result) {
     let totalHolidaySlots = 0;
     for (const cal of result.calendarByUniqueId.values()) totalHolidaySlots += cal.holidays.length;
-    // T7-her-review restpunt (c): `<=` ⇒ `===` — de uitkomst is deterministisch exact
-    // MAX_TOTAL_HOLIDAY_SLOTS (budget.remaining decrementeert per gematerialiseerde holiday en
-    // breekt precies af zodra hij 0 bereikt, zie `budgetedInherit`/`parseExceptions`), geen
-    // "hoogstens"-bovengrens die ook een kleinere, per ongeluk te vroeg afgekapte uitkomst zou
-    // laten slagen.
     truthy(
       `T6-C1 keten-met-veel-holidays: totale holiday-materialisatie exact op MAX_TOTAL_HOLIDAY_SLOTS (${totalHolidaySlots}/${MAX_TOTAL_HOLIDAY_SLOTS}, ongeklemd zou ${(DERIVED_COUNT + 1) * HOLIDAY_COUNT} zijn)`,
       totalHolidaySlots === MAX_TOTAL_HOLIDAY_SLOTS,
@@ -1320,32 +1030,6 @@ const T3_NO_BANDS_HOURS = buildCalHoursBlock(Array.from({ length: 7 }, () => ({ 
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// T6 — kalenders: readMPP vs. de MSPDI-ground-truth (structureel) + de I2-correctie
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-//
-// ⚠️ Zelfde documentversie-waarschuwing als check-mpp-import.ts se T5-sectie (plan-banner,
-// 2026-08-14): kalender-AANTALLEN (13/11/9 in het plan) zijn NIET gezaghebbend voor de `.mpp`'s —
-// dus GEEN harde eis op het aantal kalenders, alleen structurele eigenschappen (≥1 kalender; de
-// projectkalender bestaat en heeft ≥1 werkdag). `workDays` bleek bij meting WÉL 100% stabiel (alle
-// drie bestanden: ma-vr, identiek aan de MSPDI-ground-truth) — dat is een structurele
-// kalendereigenschap die het documentversieverschil niet raakt, en is daarom een harde assert.
-//
-// T6-KWALITEITSREVIEW-FIX (I2, BLOKKEREND — een eerdere versie van deze sectie beweerde onterecht
-// "29 echte feestdagen in de MSPDI-ground-truth"): byte-voor-byte onderzoek van alle drie
-// `.mpp.xml`-bestanden toont 0 `<Exception>`-elementen — er zijn GEEN echte feestdagen in de ground
-// truth. De "29" kwam uit `mspdiReader.ts`'s `parseCalendar`, die start bij `createDefaultCalendar()`
-// (die in bouwmodus de NL-feestdagenset genereert) en `calendar.holidays` ALLEEN overschrijft als er
-// ≥1 echt `<Exception>`-element gevonden wordt (zie `mppCalendars.ts`'s moduleheader, punt 2, voor
-// de volledige toelichting) — bij 0 exceptions bleef die gegenereerde default dus stil staan. Dat is
-// GEEN documentgegeven, het is mspdiReader's eigen "geen data ⇒ behoud de default"-gedrag, en die
-// eerdere versie verwarde het met een echt ground-truth-feit. De .mpp's zelf dragen — onafhankelijk
-// hiervan, byte-voor-byte bevestigd (zie `mppCalendars.ts`'s Fase-1-toelichting) — OOK 0
-// uitzonderingen op hun "Standaard"-basiskalender. Beide kanten zijn dus 0; de vergelijking wordt
-// daarom een HARDE `=== 0`-assert op de MPP-kant (met de correcte verklaring), i.p.v. een budget
-// tegen een besmette XML-telling. De crawl-sectie hieronder blijft de daadwerkelijke bewijslast voor
-// "materialiseert deze lezer holidays uberhaupt correct" — dít blok kan dat per-constructie niet
-// testen (beide kanten zijn hier toevallig 0, ongeacht of `parseExceptions` correct werkt).
 if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/test bestanden voor file implementation')) {
   const CORPUS = process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/test bestanden voor file implementation';
   const corpusFiles = readdirSync(CORPUS).filter((f) => f.toLowerCase().endsWith('.mpp'));
@@ -1353,8 +1037,6 @@ if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/
     console.log(`OK  mpp-calendars: corpusmap aanwezig maar geen .mpp-bestanden erin (${CORPUS}) — corpuslus overgeslagen`);
   } else {
     installDOMParser();
-    // Hash-only (§8, Z20-veeg): zelfde patroon als check-mpp-import.ts/-relations.ts — geen
-    // bedrijfsbestandsnamen in de broncode, alleen hun SHA-256-hash (16 hex).
     const corpusHashToFileT6 = new Map<string, string>();
     for (const f of corpusFiles) {
       try {
@@ -1363,7 +1045,6 @@ if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/
           f,
         );
       } catch {
-        // Onleesbaar bestand — genegeerd; het bestand komt dan simpelweg niet in de index.
       }
     }
     const EXPECTED_HASHES = ['870d339f60603f71', '787efb968ae72fe4', 'a69fec157074d056'];
@@ -1399,7 +1080,6 @@ if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/
         `[T6 ${hash}] projectkalender workDays === MSPDI-ground-truth workDays`,
         JSON.stringify([...mppResult.calendar.workDays].sort((a, b) => a - b)) === JSON.stringify([...xmlResult.calendar.workDays].sort((a, b) => a - b)),
       );
-      // I2-fix: hard `=== 0` i.p.v. een budget tegen de besmette XML-"29" — zie de sectietoelichting.
       truthy(
         `[T6 ${hash}] projectkalender heeft 0 holidays (.mpp draagt zelf geen enkele uitzondering, byte-voor-byte bevestigd — zie de sectietoelichting)`,
         mppResult.calendar.holidays.length === 0,
@@ -1415,18 +1095,6 @@ if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/
   console.log('OK  mpp-calendars: corpus niet aanwezig (OPS_MPP_CORPUS) — corpuslus overgeslagen');
 }
 
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-// T6-crawl — breed corpus (49 `.mpp`, submappen MSP2016_OzBuild/MSP2021_OzBuild): holiday-
-// materialisatie ONAFHANKELIJK van de (toevallig holiday-arme) drie ground-truth-bestanden bewezen
-// ═══════════════════════════════════════════════════════════════════════════════════════════
-//
-// Zie de I2-toelichting hierboven: de T6-corpussectie kan een regressie in `parseExceptions` NOOIT
-// vangen (beide kanten zijn daar 0, per bronbestand). Dit bredere corpus draagt WEL feestdag-
-// uitzonderingen ("Easter <jaar>") en is de daadwerkelijke tegenhanger.
-//
-// T6-KWALITEITSREVIEW (M6): gebruikt nu `openMppProject` (mppReader.ts) i.p.v. een handmatige kopie
-// van de CfbFile/assertReadable/detectApplicationVersion/Props-preambule — voorheen hield deze
-// sectie zo'n kopie apart aan, met het risico dat de twee stilzwijgend uit elkaar liepen.
 {
   const CRAWL = resolveMppCrawlScopes(process.env).smoke;
   if (!existsSync(CRAWL)) {
@@ -1445,14 +1113,6 @@ if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/
     if (crawlFiles.length === 0) {
       console.log(`OK  mpp-calendars: T6-crawl-map aanwezig maar geen .mpp-bestanden erin (${CRAWL}) — crawlsectie overgeslagen`);
     } else {
-      /** Dubbeltelvrije som van EIGEN holidays over ALLE kalenders (project + resource) van één
-       *  bestand — `openMppProject` (mppReader.ts, M6) levert de container-/Props-preambule
-       *  drift-vrij; `readCalendars` rechtstreeks aanroepen (i.p.v. `readMPP`) is nodig omdat
-       *  `ownHolidayCountByUniqueId` (T6-slot) niet in `ImportResult` zit. T3: telt ALLEEN
-       *  `holidays` (ongewijzigde semantiek — zie `ownHolidayCountByUniqueId`'s eigen toelichting in
-       *  mppCalendars.ts); `workingExceptionFileTotal` hieronder is de T3-tegenhanger voor
-       *  `workingExceptions` (géén dubbeltel-vrije EIGEN-telling nodig, want die array wordt niet via
-       *  overerving gedeeld op eenzelfde manier bewaakt — hier volstaat "heeft dit bestand er ≥1"). */
       function ownHolidayTotal(bytes: Uint8Array): number {
         const { cfb, projectProps, applicationVersion } = openMppProject(bytes);
         const calResult = readCalendars(cfb, projectProps, applicationVersion);
@@ -1461,9 +1121,6 @@ if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/
         return total;
       }
 
-      /** T3: heeft minstens één kalender (project of resource) van dit bestand een
-       *  `workingExceptions`-entry? Plan-§T3-acceptatiecriterium 4 ("de 10 bestanden met werkende
-       *  uitzonderingen") als PERMANENTE regressievloer, niet alleen een eenmalige meting. */
       function hasWorkingExceptions(bytes: Uint8Array): boolean {
         const { cfb, projectProps, applicationVersion } = openMppProject(bytes);
         const calResult = readCalendars(cfb, projectProps, applicationVersion);
@@ -1473,21 +1130,7 @@ if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/
         return false;
       }
 
-      // Basislijn vóór T3 (2026-08-14, dit corpus, 49 bestanden): 208 EIGEN holidays — recurrente
-      // uitzonderingen (Easter e.d.) werden toen nog NIET geëxpandeerd. NA T3 (2026-08-15, ONGEWIJZIGD
-      // corpus): 2968 EIGEN holidays (14× — de recurrente expansie is de "grootste enkele winst" uit
-      // het plan). `>=` (geen `===`): een toekomstige verbetering mag dit laten STIJGEN zonder de
-      // poort te breken; een REGRESSIE — óók één die uitsluitend een niet-projectkalender raakt —
-      // laat het zakken en faalt hier.
       const CRAWL_HOLIDAY_BASELINE = 2968;
-      // T3: gemeten 2026-08-15 — dit specifieke 49-bestanden-corpus (crawl-mpp, MSP2016/2021 OzBuild-
-      // workshopmateriaal) draagt 0 werkende uitzonderingen (`periodCount>0`); de "10 bestanden" uit
-      // plan-§1.2.2 slaat op het BREDERE testdata-crawl-corpus (o.a. de MPXJ-junit-testset, die
-      // specifiek voor deze functie gebouwde fixtures bevat). Geen `>=1`-regressievloer HIER dus —
-      // die zou een no-op zijn op deze deelverzameling. De permanente regressiebescherming voor de
-      // werkende-uitzondering-FUNCTIE zelf zit in de synthetische T3-tests hierboven
-      // (T3-working-exception, T3-precedentie); acceptatiecriterium 4 (plan-§T3) is apart, ad-hoc
-      // tegen het bredere corpus geverifieerd — zie het implementatierapport.
       let totalHolidays = 0;
       let filesWithHolidays = 0;
       let filesWithWorkingExceptions = 0;
@@ -1517,30 +1160,6 @@ if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/
         + '(dit corpus draagt er geen — zie de toelichting bij CRAWL_HOLIDAY_BASELINE)',
       );
 
-      // ── ETAPPE 1.5 — DRIFT-PIN, GEEN signaal-regressiepoort (uurmodus-review-correctie, R1):
-      // vergelijkt de FULL-PIPELINE hour-kalendertelling (via `readMPP`, inclusief het taak-(c)-
-      // signaal) tegen een A/B-ALLEEN-baseline (`promoteCalendarsForHourMode` met een LEGE
-      // signaal-set — exact het gedrag van vóór etappe 1.5). BEVINDING (2026-08-15, dit corpus): de
-      // twee tellingen zijn IDENTIEK (321/345 op beide manieren) — niet toevallig gelijk, maar
-      // STRUCTUREEL gegarandeerd gelijk op dit corpus: mutatietest bevestigt dat de 24 kalenders die
-      // NIET via (a)/(b) deviëren NOOIT de effectieve kalender van een taak zijn (0 van 24, over alle
-      // 49 bestanden — geverifieerd door voor elke niet-deviërende kalender-UID te controleren of
-      // enige `Task.calendarId`/de projectkalender ernaar verwijst). Dit corpus kan het taak-signaal
-      // op kalenderpromotie-NIVEAU dus NIET oefenen — elke taak zit al op een kalender die sowieso
-      // via (a)/(b) promoveert (MS Project's standaard-"Standard"-kalender met een lunchpauze-
-      // splitsing, discriminator (a), bestond al sinds T6). EEN EERDERE VERSIE van dit commentaar
-      // beweerde dat een kapotte taak-signaal-berekening (bv. de scalar-vóór-promotie-`hoursPerDay`
-      // per ongeluk vervangen door de ná-promotie-waarde) deze telling zou laten STIJGEN en hier zou
-      // falen — DAT IS ONWAAR gebleken: zo'n mutatie raakt uitsluitend `isSubDayMinutes`/
-      // `hasNonAnchorTime`-uitkomsten op kalenders die al (a)/(b)-gepromoveerd zijn (`promoteHour
-      // Calendar`'s `deviates || signaled`-disjunctie kortsluit al op `deviates`, dus de
-      // signaalwaarde beslist daar niets meer voor de PROMOTIE-uitkomst), dus deze telling blijft
-      // 321/345 ONGEACHT die mutatie. Wat deze poort WEL vangt: een REGRESSIE in de a/b-discriminator
-      // zelf, of een structurele wijziging in
-      // welke kalenders taken feitelijk gebruiken (bv. als een toekomstige crawl-corpusaanvulling wél
-      // een niet-deviërende, taak-gerefereerde kalender bevat — dan zou deze `<=` alsnog zinvol
-      // worden). Zie `check-mpp-import.ts`'s uurmodus-sectie voor de bijbehorende taak-tellingpin, die
-      // dezelfde beperking deelt. `<=`: een bewust ruimere signaal-definitie mag dit laten STIJGEN.
       let fullPipelineHourCalendars = 0;
       let abOnlyHourCalendars = 0;
       let totalCalendarsSeen = 0;
@@ -1571,7 +1190,6 @@ if (existsSync(process.env.OPS_MPP_CORPUS ?? '/home/nozzit/open-aec/voor claude/
   }
 }
 
-// ── Uitslag ────────────────────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  mpp-calendars: alle checks groen (${checks})`);
   process.exit(0);

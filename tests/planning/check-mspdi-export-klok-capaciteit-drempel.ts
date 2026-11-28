@@ -1,16 +1,4 @@
 import './domStub';
-// MSPDI-export: drie contracten tussen OPS en het XML-bestand (issues #555, #556, #561).
-//
-//  §1 #555 kalendertijd: een ELAPSEDTIME-taak schrijft klokminuten (24 u per dag), op elke kalender gelijk;
-//     een dagtaak en een urentaak met dezelfde kalenderduur geven dezelfde XML-duur. WORKTIME telt in de
-//     werktijd per dag van de taakkalender. Orakel: `elapsedMinutesOf` van de motor, los van de writer.
-//  §2 #556 tijdsafhankelijke capaciteit: `availabilitySteps` gaan als `<AvailabilityPeriods>` mee, sluitend
-//     over de hele tijdlijn (vóór de eerste stap de vlakke waarde, na de laatste een open einde), en de
-//     lezer zet ze terug. Gelijke ingangsdatum: de laatste in de lijst wint, zoals `maxUnitsOn`.
-//  §3 #561 kritiek-drempel: met `thresholdHours` (die wint in de motor) schrijft de writer de dagdrempel
-//     niet als `CriticalSlackLimit`; de verliesdetector zegt in dat geval ook dat het verlies is.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import { writeMSPDI } from '@/services/msproject/mspdiWriter';
 import { readMSPDI } from '@/services/msproject/mspdiReader';
 import { availabilityFromPeriods } from '@/services/msproject/mspdiAvailability';
@@ -59,16 +47,12 @@ const task = (id: string, time: Partial<Task['time']>): Task => ({
 });
 const write = (p: Project, cal: WorkCalendar, tasks: Task[], resources: Resource[] = []) =>
   quiet(() => writeMSPDI(p, cal, tasks, [], resources, []));
-/** De tekst van `<tag>` in het `<Task>`-blok van taak `name`. */
 function taskField(xml: string, name: string, tag: string): string | undefined {
   const block = xml.split('<Task>').find(b => b.includes(`<Name>${name}</Name>`));
   return block?.match(new RegExp(`<${tag}>([^<]*)</${tag}>`))?.[1];
 }
 const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes % 60}M0S`;
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §1 #555 — kalendertijd in klokuren
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const calendars: [string, WorkCalendar][] = [
     ['7,5 u', calendarOf(8, 16, 7.5)],
@@ -98,23 +82,17 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
   }
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §2 #556 — tijdsafhankelijke capaciteit
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const cal = calendarOf(7, 16, 8);
   const res = (id: string, extra: Partial<Resource>): Resource =>
     ({ id, name: id, type: 'LABOR', description: '', maxUnits: 1, ...extra });
   const resources: Resource[] = [
-    // Ongeordend, fractioneel en met een nul-periode.
     res('R', { availabilitySteps: [{ from: '2026-11-09', maxUnits: 0.5 }, { from: '2026-11-02', maxUnits: 2 }, { from: '2026-11-16', maxUnits: 0 }] }),
-    // Gelijke ingangsdatum: de laatste in de lijst wint (maxUnitsOn).
     res('D', { maxUnits: 3, availabilitySteps: [{ from: '2026-11-05', maxUnits: 1 }, { from: '2026-11-05', maxUnits: 4 }] }),
     res('V', { maxUnits: 2 }),
   ];
   const xml = write(project(), cal, [task('T', {})], resources);
   const resBlock = (name: string) => xml.split('<Resource>').find(b => b.includes(`<Name>${name}</Name>`)) ?? '';
-  // De writer zet elk element op een eigen regel; voor de vergelijking de witruimte eruit.
   const flat = (s: string) => s.replace(/>\s+</g, '><');
   const periodsFlat = (name: string) => {
     const block = flat(resBlock(name));
@@ -135,7 +113,6 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
   ]);
   same('§2 V: vlakke resource zonder periodes', resBlock('V').includes('AvailabilityPeriod'), false);
 
-  // Terug inlezen: dezelfde capaciteit vóór, op en na elke grens.
   const back = quiet(() => readMSPDI(xml));
   const byName = new Map(back.resources.map(r => [r.name, r]));
   const days = ['2026-10-30', '2026-11-01', '2026-11-02', '2026-11-08', '2026-11-09', '2026-11-15', '2026-11-16', '2027-06-01'];
@@ -146,8 +123,6 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
   }
   same('§2 V: terug ingelezen zonder stappen', byName.get('V')?.availabilitySteps, undefined);
 
-  // Een tabel uit MS Project zelf: één standaardrij NA–NA geeft geen stappen; een gat en een einde vóór NA
-  // tellen als 0 (niet beschikbaar).
   same('§2 lezer: standaardrij NA–NA is vlak',
     availabilityFromPeriods(1, [{ from: '1984-01-01', to: '2049-12-31', units: 1 }]), { maxUnits: 1 });
   same('§2 lezer: gat en einde vóór NA tellen als 0',
@@ -157,8 +132,6 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
     ]), { maxUnits: 1.5, availabilitySteps: [
       { from: '2026-11-07', maxUnits: 0 }, { from: '2026-11-16', maxUnits: 2 }, { from: '2026-11-21', maxUnits: 0 },
     ] });
-  // Vóór de eerste periode is de resource niet beschikbaar (MPXJ `mspdiavailability.xml`, Resource Two): een
-  // stap naar 0 op NA, want `maxUnits` blijft groter dan 0.
   const late = availabilityFromPeriods(1, [{ from: '2009-06-01', to: '2049-12-31', units: 1 }]);
   same('§2 lezer: eerste periode na NA', late, { maxUnits: 1, availabilitySteps: [
     { from: '1984-01-01', maxUnits: 0 }, { from: '2009-06-01', maxUnits: 1 },
@@ -168,7 +141,6 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
   same('§2 lezer: nulperiode vanaf NA blijft 0',
     availabilityFromPeriods(1, [{ from: '1984-01-01', to: '2026-11-01', units: 0 }, { from: '2026-11-02', to: '2049-12-31', units: 1 }]),
     { maxUnits: 1, availabilitySteps: [{ from: '1984-01-01', maxUnits: 0 }, { from: '2026-11-02', maxUnits: 1 }] });
-  // Ontbrekende grenzen zijn het open begin of einde (beide elementen zijn optioneel in het schema).
   const openXml = write(project(), cal, [task('T', {})], [res('O', {})]).replace('<MaxUnits>1</MaxUnits>',
     '<MaxUnits>1</MaxUnits><AvailabilityPeriods>'
     + '<AvailabilityPeriod><AvailableTo>2026-11-01T23:59:00</AvailableTo><AvailableUnits>0.5</AvailableUnits></AvailabilityPeriod>'
@@ -177,21 +149,17 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
   const open = quiet(() => readMSPDI(openXml)).resources.find(r => r.name === 'O');
   same('§2 lezer: ontbrekende grenzen = NA', open && { maxUnits: open.maxUnits, availabilitySteps: open.availabilitySteps },
     { maxUnits: 0.5, availabilitySteps: [{ from: '2026-11-02', maxUnits: 2 }] });
-  // Heen en terug blijft een stap naar 0 op NA staan, zonder extra periode ervoor.
   const zeroFirst = write(project(), cal, [task('T', {})], [res('Z', { availabilitySteps: late.availabilitySteps })]);
   same('§2 Z: stap op NA geeft geen periode ervoor', flat(zeroFirst).match(/<AvailableFrom>[^<]*/g)?.map(m => m.slice(15, 25)), ['1984-01-01', '2009-06-01']);
-  // Een stap na NA (2049-12-31) loopt tot de uiterste datum van MS Project, niet achterstevoren tot 2049.
   const far = res('F', { availabilitySteps: [{ from: '2050-01-03', maxUnits: 2 }] });
   const farXml = write(project(), cal, [task('T', {})], [far]);
   const farBack = quiet(() => readMSPDI(farXml)).resources.find(r => r.name === 'F');
   same('§2 F: capaciteit na 2049 heen en terug', farBack && ['2049-12-31', '2050-01-02', '2050-01-03', '2120-01-01'].map(d => maxUnitsOn(farBack, d)), [1, 1, 2, 2]);
-  // Een vreemd bestand met periodes na 2049: een echte einddatum sluit af met 0, een ontbrekend einde is open.
   const after = (to: string) => availabilityFromPeriods(1, [{ from: '2050-01-03', to, units: 2 }]);
   const curve = (r: { maxUnits: number; availabilitySteps?: Resource['availabilitySteps'] }) =>
     ['2050-01-02', '2050-01-03', '2050-01-07', '2050-01-08'].map(d => maxUnitsOn(r as Resource, d));
   same('§2 lezer: eindige periode na 2049', curve(after('2050-01-07')), [0, 2, 2, 0]);
   same('§2 lezer: periode na 2049 zonder einde', curve(after('')), [0, 2, 2, 2]);
-  // Een einde op NA met een latere periode erna is een echte grens: het gat erna blijft 0.
   const pastNa = availabilityFromPeriods(1, [
     { from: '2049-12-20', to: '2049-12-31', units: 1 },
     { from: '2050-01-03', to: '2050-01-07', units: 2 },
@@ -209,9 +177,6 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
   same('§2 Z: terug ingelezen', quiet(() => readMSPDI(zeroFirst)).resources.find(r => r.name === 'Z')?.availabilitySteps, late.availabilitySteps);
 }
 
-// ════════════════════════════════════════════════════════════════════════════════════════════════
-// §3 #561 — kritiek-drempel met thresholdHours
-// ════════════════════════════════════════════════════════════════════════════════════════════════
 {
   const cal = calendarOf(7, 16, 8);
   const slack = (cd: NonNullable<NonNullable<Project['schedulingOptions']>['criticalDefinition']>) =>
@@ -219,10 +184,8 @@ const isoHours = (minutes: number) => `PT${Math.floor(minutes / 60)}H${minutes %
   same('§3 alleen hele dagdrempel: CriticalSlackLimit blijft', slack({ mode: 'totalFloat', threshold: 2 }), '2');
   same('§3 dagdrempel én thresholdHours: geen CriticalSlackLimit', slack({ mode: 'totalFloat', threshold: 1, thresholdHours: 4 }), undefined);
   same('§3 alleen thresholdHours: geen CriticalSlackLimit', slack({ mode: 'totalFloat', thresholdHours: 16 }), undefined);
-  // 0 uur is op elke kalender precies 0 dagen (de P6-standaard), ook met een andere dagdrempel ernaast.
   same('§3 thresholdHours 0: CriticalSlackLimit 0', slack({ mode: 'totalFloat', threshold: 2, thresholdHours: 0 }), '0');
   same('§3 longestPath: geen CriticalSlackLimit', slack({ mode: 'longestPath', threshold: 0 }), undefined);
-  // Writer en verliesdetector zijn het eens: wat de writer niet schrijft, meldt de detector als verlies.
   const lossFor = (cd: NonNullable<NonNullable<Project['schedulingOptions']>['criticalDefinition']>) =>
     detectXerExportLoss('mspdi', {
       sourceArchive: createXerSourceArchive(new Uint8Array(), {
