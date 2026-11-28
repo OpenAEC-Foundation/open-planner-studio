@@ -6,13 +6,6 @@ import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { answerSiteSave } from '@/state/siteDialogBridge';
 import { ensureExtension } from '@/utils/filePath';
 
-/**
- * "Opslaan op de site" (issue #309). Rendert alleen bij `ui.pendingSiteSave`; het antwoord gaat via
- * `answerSiteSave` (`state/siteDialogBridge.ts`). Een naamveld (voorgevuld, eindigt op `.ifc`), de
- * hoofdknop "Op de site opslaan" en "Op deze pc…" voor de bestaande route.
- *
- * Geen backdrop-klik: de dialoog heeft een invoerveld (regel uit `Dialog.tsx`, issue #158).
- */
 export function SiteSaveDialog() {
   const pending = useAppStore((s) => s.ui.pendingSiteSave);
   if (!pending) return null;
@@ -25,8 +18,6 @@ function SiteSaveDialogBody({ defaultName }: { defaultName: string }) {
   const trimmed = name.trim();
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // De focus-trap van `Dialog` zet de focus eerst op het kruisje (een kind-effect loopt vóór dit
-  // effect); daarna hoort hij in het naamveld, met de naam zonder `.ifc` geselecteerd.
   useEffect(() => {
     const input = inputRef.current;
     if (!input) return;
@@ -38,12 +29,9 @@ function SiteSaveDialogBody({ defaultName }: { defaultName: string }) {
   const cancel = () => answerSiteSave(null);
   const submit = () => {
     if (!trimmed) return;
-    // Opslaan schrijft altijd IFC: de naam eindigt dus op `.ifc`, ook als de gebruiker hem weghaalde.
     answerSiteSave({ kind: 'site', name: ensureExtension(trimmed, 'ifc') });
   };
 
-  // Ctrl/⌘+S en Ctrl/⌘+O in deze dialoog niet doorlaten naar de globale sneltoetsen: dan zou er na
-  // het antwoord nóg een opslag- of openronde starten.
   const stopFileShortcuts = (e: KeyboardEvent) => {
     if ((e.ctrlKey || e.metaKey) && ['s', 'o'].includes(e.key.toLowerCase())) {
       e.preventDefault();
@@ -55,12 +43,7 @@ function SiteSaveDialogBody({ defaultName }: { defaultName: string }) {
     <Dialog
       onCancel={cancel}
       onConfirm={submit}
-      // Deze vraag kan midden in een andere handeling komen, bijv. "Opslaan" in de sluitvraag van een
-      // tabblad (`data-ops-close-dialog`, z-index 80). Ze moet daar bovenop liggen, anders vangt die
-      // laag elke klik af en hangt het sluiten.
       overlayClassName="bg-black/60 z-[90]"
-      // Enter op een gefocuste knop activeert díé knop: Enter op "Op deze pc…" mag niet stil naar
-      // de site opslaan.
       focusedButtonOwnsEnter
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[440px] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-site-save-dialog': true, onKeyDown: stopFileShortcuts }}

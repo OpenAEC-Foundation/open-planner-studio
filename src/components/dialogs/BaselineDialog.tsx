@@ -7,11 +7,6 @@ import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { ConfirmDialog } from './ConfirmDialog';
 import { BASELINES_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
-/**
- * Baseline-dialoog. Lijst met inline-hernoemen, actief-radio en verwijderen
- * (bevestiging als het de actieve is); "nieuwe baseline opslaan" met default-naam en een
- * scheduleStale-hint ("herbereken eerst") — een hint, geen harde blokkade.
- */
 export function BaselineDialog() {
   const { t } = useTranslation('common');
   const baselines = useAppStore(s => s.baselines);
@@ -32,19 +27,13 @@ export function BaselineDialog() {
   }, [baselines.length, t, notation]);
 
   const [newName, setNewName] = useState(defaultName);
-  // Heeft de gebruiker de naam zelf aangeraakt? Dan vervangt een nieuwe defaultnaam (een taalwissel,
-  // ook van de host via `openaec-host-preferences`, #818) zijn invoer niet.
   const [nameTouched, setNameTouched] = useState(false);
-  // Lokale bevestigings-state i.p.v. `window.confirm()` (geen globale singleton).
   const [pendingConfirm, setPendingConfirm] = useState<{ message: string; onConfirm: () => void } | null>(null);
 
-  // Nieuwe default-naam wanneer het aantal baselines, de taal of de datumnotatie wijzigt, maar alleen
-  // zolang de gebruiker het veld niet aanraakte.
   useEffect(() => { if (!nameTouched) setNewName(defaultName); }, [defaultName, nameTouched]);
 
   const save = () => {
     saveBaseline(newName.trim() || defaultName);
-    // Na opslaan begint het veld weer met de (nieuwe) defaultnaam.
     setNameTouched(false);
   };
 
@@ -67,7 +56,6 @@ export function BaselineDialog() {
         <DialogHeader title={t('baseline.dialog.title')} onClose={close} help={{ articleId: BASELINES_HELP_ARTICLE_ID }} />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
-          {/* Lijst van baselines */}
           {baselines.length === 0 ? (
             <span className="text-text-secondary">{t('baseline.dialog.noBaselines')}</span>
           ) : (
@@ -113,7 +101,6 @@ export function BaselineDialog() {
             </table>
           )}
 
-          {/* Nieuwe baseline opslaan */}
           <div className="flex flex-col gap-2 border-t border-border pt-3">
             <span className="ui-card-header !text-small !leading-4">{t('baseline.dialog.saveNew')}</span>
             {scheduleStale && (
@@ -141,7 +128,6 @@ export function BaselineDialog() {
           </button>
         </div>
 
-      {/* Bevestiging stapelt bóven deze dialoog (eigen fixed overlay op z-[60]). */}
       {pendingConfirm && (
         <ConfirmDialog
           message={pendingConfirm.message}

@@ -3,13 +3,6 @@ import { Icon } from '@/components/icons';
 import { useAppStore } from '@/state/appStore';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 
-/**
- * Ingebed met `settings` van de host (#818, besluit van Ethan, 7 november 2026): de host antwoordde niet
- * binnen 5 s, of wees de lezing af. De app werkt met de standaardinstellingen en wacht op de achtergrond
- * verder (`siteHostSettings.ts`). Deze pop-up zegt dat, in gewone taal. Alleen informatie, dus OK, het
- * kruisje, Escape en Enter sluiten hem. Komen de instellingen alsnog binnen, dan sluit
- * `useSiteHostPreferences` hem en volgt een korte melding.
- */
 export function SettingsDelayDialog() {
   const { t } = useTranslation('common');
   const close = () => useAppStore.getState().setUI({ showSettingsDelayDialog: false });

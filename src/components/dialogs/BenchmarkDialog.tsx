@@ -12,11 +12,8 @@ import {
 import { formatBytes } from '@/utils/formatBytes';
 import { copyViaTextarea, useCopyFeedback } from '@/hooks/useCopyFeedback';
 
-/** Grootte waarboven de "kan lang duren"-waarschuwing verschijnt. */
 const LARGE_SIZE_THRESHOLD = 2500;
 
-/** Gelokaliseerde Detail-kolomtekst per fase, opgebouwd uit de gestructureerde resultaatvelden
- *  — geen hardgecodeerde strings uit de runner. */
 function phaseDetail(phase: PhaseId, r: BenchmarkResult, t: TFunction): string {
   switch (phase) {
     case 'generate': return t('benchmark.detailGenerate', { tasks: r.tasks, sequences: r.sequences });
@@ -32,12 +29,6 @@ function phaseDetail(phase: PhaseId, r: BenchmarkResult, t: TFunction): string {
   }
 }
 
-/**
- * Ingebouwde benchmark-tool. Kiest een planningsgrootte, draait een meetreeks over vijf
- * fasen (genereren, CPM-kern, IFC-schrijven, IFC-lezen, Gantt-render) en toont mediaan/min/max per
- * fase. ISOLATIE: alles draait op lokaal gegenereerde data via direct geïnstantieerde engine-
- * klassen — de store en het open project blijven ongemoeid (geen mutaties, geen undo, geen dirty).
- */
 export function BenchmarkDialog() {
   const { t } = useTranslation('common');
   const setUI = useAppStore((s) => s.setUI);
@@ -58,7 +49,6 @@ export function BenchmarkDialog() {
     setResult(null);
     resetCopied();
     setProgress(null);
-    // Yield eerst één frame zodat de "bezig"-status rendert vóór de zware synchrone fasen.
     await new Promise((r) => setTimeout(r, 0));
     try {
       const r = await runBenchmark({
@@ -78,7 +68,6 @@ export function BenchmarkDialog() {
     if (!result) return;
     const text = formatResultsMarkdown(result);
     if (await copyToClipboard(text)) return;
-    // Klembord-API kan ontbreken of geblokkeerd zijn (headless/permissies).
     if (copyViaTextarea(text)) markCopied('copied');
   }, [result, copyToClipboard, markCopied]);
 
@@ -90,7 +79,6 @@ export function BenchmarkDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-benchmark-dialog': true }}
     >
-      {/* Kop */}
       <DialogHeader
         title={t('benchmark.title')}
         icon={<Icon id="diagnostics.benchmark" size={16} />}
@@ -101,7 +89,6 @@ export function BenchmarkDialog() {
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
         <p className="text-text-secondary">{t('benchmark.intro')}</p>
 
-        {/* Grootte-keuze */}
         <div>
           <div className="font-semibold mb-2">{t('benchmark.sizeLabel')}</div>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('benchmark.sizeLabel')}>
@@ -132,7 +119,6 @@ export function BenchmarkDialog() {
           )}
         </div>
 
-        {/* Aantal resources */}
         <div>
           <div className="font-semibold mb-2">{t('benchmark.resourceLabel')}</div>
           <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('benchmark.resourceLabel')}>
@@ -158,7 +144,6 @@ export function BenchmarkDialog() {
           <p className="mt-2 text-text-secondary">{t('benchmark.networkHint')}</p>
         </div>
 
-        {/* Run-knop + voortgang */}
         <div className="flex items-center gap-3">
           <button
             onClick={() => { void run(); }}
@@ -186,7 +171,6 @@ export function BenchmarkDialog() {
           )}
         </div>
 
-        {/* Resultaten */}
         {result && (
           <div className="flex flex-col gap-3" data-ops-benchmark-result>
             <div className="flex items-center justify-between">
@@ -197,7 +181,6 @@ export function BenchmarkDialog() {
               </button>
             </div>
 
-            {/* Samenvatting */}
             <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-text-secondary bg-surface-hover rounded-[8px] p-3">
               <SummaryRow label={t('benchmark.summaryTasks')} value={`${result.tasks} (${result.leafTasks} leaf)`} />
               <SummaryRow label={t('benchmark.summarySequences')} value={String(result.sequences)} />
@@ -211,7 +194,6 @@ export function BenchmarkDialog() {
               />
             </div>
 
-            {/* Fase-tabel */}
             <div className="overflow-x-auto">
               <table className="w-full border-collapse text-small leading-4">
                 <thead>

@@ -10,13 +10,6 @@ import { CODES_FIELDS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 const inputCls = 'input !text-small !leading-4 !px-2 !py-1 w-full';
 const FIELD_TYPES: CustomFieldType[] = ['text', 'number', 'integer', 'cost', 'date', 'boolean'];
 
-/**
- * Beheerdialoog voor projectstructuur: activity-code-types met waarden
- * (code + omschrijving + kleur, in een eigen volgorde via ↑/↓) en getypeerde custom fields. Wijzigingen gaan zonder concept-kopie
- * de store in, maar per VOLTOOIDE bewerking (`CommitTextInput`/`CommitColorInput`): tekst bij het
- * verlaten van het veld of Enter, kleur bij het kiezen — één undo-stap per bewerking, niet één per
- * toetsaanslag of sleepstap in de kleurkiezer.
- */
 export function StructureDialog() {
   const { t } = useTranslation('task');
   const setUI = useAppStore(s => s.setUI);
@@ -47,7 +40,6 @@ export function StructureDialog() {
         <DialogHeader title={t('structure.title')} onClose={close} closeIconSize={14} help={{ articleId: CODES_FIELDS_HELP_ARTICLE_ID }} />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-5 text-small leading-4">
-          {/* Activity-code-types */}
           <div className="flex flex-col gap-2">
             <span className="ui-card-header !text-small !leading-4">{t('structure.activityCodes')}</span>
             <p className="text-text-secondary">{t('structure.activityCodesHint')}</p>
@@ -145,7 +137,6 @@ export function StructureDialog() {
 
           <div className="h-px" style={{ background: 'var(--theme-border-light)' }} />
 
-          {/* Custom fields */}
           <div className="flex flex-col gap-2">
             <span className="ui-card-header !text-small !leading-4">{t('structure.customFields')}</span>
             <p className="text-text-secondary">{t('structure.customFieldsHint')}</p>

@@ -6,17 +6,10 @@ import { SCHEDULING_PROFILE_HELP_ARTICLE_ID } from './helpArticles';
 import type { NotifyInput } from './slices/types';
 
 export interface ExportProfileAdvice {
-  /** Het profiel waarmee het project nu rekent. */
   current: ProfileLabel;
-  /** Het ingebouwde profiel dat bij het doelformaat past. */
   target: BuiltInProfileId;
 }
 
-/**
- * Advies bij een exportkeuze: rekent het project met een ander profiel dan het profiel dat bij het
- * doelformaat past (`recommendedProfile` in `EXPORT_FORMATS`)? Een aangepast ingebouwd profiel telt als
- * ander profiel. Een formaat zonder bijpassend profiel krijgt nooit advies (eigenaar, 2026-10-31).
- */
 export function exportProfileAdvice(format: ExportFormat, profile: SchedulingProfile | undefined): ExportProfileAdvice | null {
   const meta = EXPORT_FORMATS.find(f => f.format === format);
   const target = meta && 'recommendedProfile' in meta ? meta.recommendedProfile : undefined;
@@ -26,8 +19,6 @@ export function exportProfileAdvice(format: ExportFormat, profile: SchedulingPro
   return { current, target };
 }
 
-/** De invulwaarden van `menu:export.profileHint`. De naam van een aangepast profiel is vertaalde tekst:
- *  de aanroeper geeft die vertaling mee, want de store heeft geen `t()`. */
 export function exportProfileAdviceParams(
   advice: ExportProfileAdvice,
   modifiedName: (name: string) => string,
@@ -40,8 +31,6 @@ export function exportProfileAdviceParams(
   };
 }
 
-/** Hetzelfde advies als melding na een geslaagde export, zolang de verliesmelding het nog niet gaf
- *  (de XER-regel *Rekenregels*). */
 export function exportProfileNotice(
   format: ExportFormat,
   profile: SchedulingProfile | undefined,

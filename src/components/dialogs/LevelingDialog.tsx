@@ -11,17 +11,10 @@ import { levelInBackground, LevelingCancelledError, type BackgroundLeveling } fr
 import { LEVELING_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { LevelingPreviewTable } from './LevelingPreviewTable';
 
-/**
- * Nivelleer-dialoog. Opties → Berekenen (roept `levelResources` aan, GEEN
- * mutatie) → preview-diff (taak, oude start, nieuwe start, dagen verschoven) + einddatum-regel +
- * resterende-conflicten-sectie → Toepassen (`applyLeveling`) / Annuleren.
- */
 export function LevelingDialog() {
   const { t, i18n } = useTranslation('common');
   const resources = useAppStore(s => s.resources);
   const tasks = useAppStore(s => s.tasks);
-  // Datums in de notatie van de app en volgens B4: een start of einde met tijd alleen midden op de
-  // werkdag, zoals in de tabel en de statusbalk.
   const dd = useDisplayDate();
   const taskDate = useTaskIdDateText();
   const projectCalendar = useAppStore(s => s.calendar);
@@ -37,12 +30,10 @@ export function LevelingDialog() {
   const [constrainToFloat, setConstrainToFloat] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(() => new Set(renewables.map(r => r.id)));
   const [result, setResult] = useState<LevelingResult | null>(null);
-  // Berekening op de achtergrond (Web Worker): de app blijft bruikbaar en "Stoppen" breekt hem af.
   const [running, setRunning] = useState(false);
   const [problem, setProblem] = useState<string | null>(null);
   const runRef = useRef<BackgroundLeveling | null>(null);
   useEffect(() => () => { runRef.current?.cancel(); }, []);
-  /** Opties gewijzigd: een lopende berekening hoort bij de oude opties — stoppen en het voorstel wissen. */
   const resetResult = () => {
     runRef.current?.cancel();
     runRef.current = null;
@@ -68,15 +59,12 @@ export function LevelingDialog() {
     if (needsCPM || running) return;
     const input = levelingInput({ constrainToFloat, resourceIds: [...selectedIds] });
     if (!input) return;
-    // Wat de berekening zag: wijzigt een van deze bronnen intussen, dan hoort het voorstel niet meer
-    // bij de planning (Immer levert bij elke wijziging een nieuwe referentie).
     const seen = useAppStore.getState();
     const unchanged = () => {
       const now = useAppStore.getState();
       return now.tasks === seen.tasks && now.sequences === seen.sequences && now.resources === seen.resources
         && now.assignments === seen.assignments && now.calendar === seen.calendar
         && now.calendars === seen.calendars && now.cpmResult === seen.cpmResult
-        // Profiel, statusdatum en projectstart (`solveOptionsFor(project)`) sturen de berekening ook.
         && now.project === seen.project;
     };
     const run = levelInBackground(input);
@@ -106,7 +94,6 @@ export function LevelingDialog() {
     setRunning(false);
   };
 
-  /** Toepassen; `false` = er is (nog) geen voorstel om toe te passen, de dialoog blijft open. */
   const apply = (): boolean => {
     if (!result || running) return false;
     applyLeveling(result);
@@ -114,8 +101,6 @@ export function LevelingDialog() {
     return true;
   };
 
-  // Preview-rijen uit `result.shifts`: ELKE taak wiens start wijzigt — ook niet-geresourcete
-  // FS-opvolgers die alleen via de forward pass meeschuiven (die zaten niet in `delays`).
   const rows = useMemo(() => {
     if (!result) return [];
     const tasksById = new Map(tasks.map(task => [task.id, task]));
@@ -142,13 +127,10 @@ export function LevelingDialog() {
         <DialogHeader
           title={t('resource.leveling.dialogTitle')}
           onClose={close}
-          // Altijd eerst vragen (besluit eigenaar): opties en voorstel staan pas na Toepassen in de
-          // planning. Opslaan = Toepassen; zonder voorstel past hij niets toe en blijft het venster open.
           help={{ articleId: LEVELING_HELP_ARTICLE_ID, confirmLeave: { onSave: apply } }}
         />
 
         <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
-          {/* Opties */}
           <label className="flex items-start gap-2">
             <input
               type="checkbox"
@@ -210,7 +192,6 @@ export function LevelingDialog() {
             <div className="!text-body" role="alert" style={{ color: 'var(--error)' }}>{problem}</div>
           )}
 
-          {/* Preview */}
           {result && (
             <div className="flex flex-col gap-3 border-t border-border pt-3">
               <div className="!text-body" style={{ color: endChanged ? 'var(--error)' : 'var(--theme-text-dim)' }}>
@@ -234,11 +215,6 @@ export function LevelingDialog() {
                     const task = tasks.find(t => t.id === taskId);
                     const reason = result?.unresolvedReasons[taskId];
                     const intrinsic = result?.intrinsicOverruns?.[taskId];
-                    // Reden-specifieke uitleg, gededupliceerd met
-                    // de leveler-classificatie via `LEVELING_REASON_KEY`: de leveler kiest de reden,
-                    // de motor levert ook de dagvraag en capaciteit voor de weergave. `INTRINSIC_OVERRUN` draagt
-                    // interpolatie (resource/peak/capacity) en krijgt daarom zijn eigen tak; de
-                    // overige zes lopen via de gedeelde mapping.
                     let explain: string | null = null;
                     if (reason === 'INTRINSIC_OVERRUN' && intrinsic) {
                       explain = t(LEVELING_REASON_KEY.INTRINSIC_OVERRUN, {

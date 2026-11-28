@@ -13,27 +13,9 @@ import { statusDateAsUsed } from '@/utils/statusDateTime';
 import { isHourModeCalendar } from '@/types/calendar';
 import type { ActualStartQuestionItem, ActualStartQuestionRequest } from '@/state/slices/types';
 
-/**
- * De startvraag (`engine/progressEntry.ts`). Voortgang op
- * een taak die volgens de planning pas NA de statusdatum begint, maar nog geen werkelijke start heeft:
- * de app verzint die datum niet, ze vraagt ernaar vóór de voortgang wordt toegepast.
- *
- *  - Eén regel per taak (het contextmenu of een plakactie kan er meerdere raken), met de
- *    statusdatum — of het opgegeven werkelijke einde — als voorstel. De gebruiker bevestigt zelf.
- *  - Een datum ná de statusdatum of ná het werkelijke einde bestaat niet: de regel toont waarom en
- *    Toepassen blijft uit (melden, niet raden). Dezelfde toets als de store (`actualStartAnswerIssue`).
- *  - Annuleren (knop, Escape) = er verandert niets. Een klik naast het paneel doet niets: de dialoog
- *    heeft invoervelden (backdrop-regel in `Dialog.tsx`).
- *
- * Stapelt boven "Taak bewerken" (`z-[60]`); de gedeelde dialoogstapel laat alleen de bovenste
- * dialoog op Escape/Enter reageren. Enter op de ?-knop opent Help, zonder te bevestigen.
- * Help verbergt de vraag tijdelijk, zoals bij het herstelvenster: de invoer en de resolver blijven
- * staan. Ook "Taak bewerken" verbergt zich zolang deze vraag vanuit Help wordt gelezen.
- */
 export function ActualStartDialog() {
   const pending = useAppStore(s => s.ui.pendingActualStartQuestion);
   if (!pending) return null;
-  // Nieuwe vraag ⇒ verse invoerstaat.
   return <ActualStartDialogBody key={pending.items.map(item => item.taskId).join('|')} request={pending} />;
 }
 
@@ -52,7 +34,6 @@ function ActualStartDialogBody({ request }: { request: ActualStartQuestionReques
   const helpOpen = useAppStore(s => s.ui.activeRibbonTab === 'file' && s.ui.backstageSection === 'help');
   const [inHelp, setInHelp] = useState(false);
   const hiddenForHelp = inHelp && helpOpen;
-  // De statusdatum mét tijd als de solver die tijd gebruikt (uur-modus; besluit orkestrator 2026-10-19).
   const timeNotation = useAppStore(s => s.ui.timeNotation);
   const usesTime = useAppStore(s => isHourModeCalendar(s.calendar));
   const statusText = (iso: string) => displayDateTime(statusDateAsUsed(iso, usesTime), notation, timeNotation);
@@ -64,15 +45,12 @@ function ActualStartDialogBody({ request }: { request: ActualStartQuestionReques
   const issues = request.items.map(item => issueOf(answers[item.taskId] ?? '', item));
   const valid = issues.every(issue => issue === null);
   const confirm = () => {
-    // Een onbestaande datum blijft lokaal in DateTextInput: bevestig nooit de oudere geldige waarde.
     const invalid = bodyRef.current?.querySelector<HTMLInputElement>('input[aria-invalid="true"]');
     if (invalid) { invalid.focus(); return; }
     if (valid) answerActualStartQuestion({ ...answers });
   };
   const cancel = () => answerActualStartQuestion(null);
 
-  // De focus-trap kiest dit veld bij openen én hervatten. Een los effect zou bij hervatten met
-  // de opnieuw gemounte trap concurreren, die anders de ?-knop als eerste focusbare element kiest.
   const initialFocus = useCallback(() => bodyRef.current?.querySelector<HTMLInputElement>('input') ?? null, []);
 
   const first = request.items[0];
@@ -107,7 +85,6 @@ function ActualStartDialogBody({ request }: { request: ActualStartQuestionReques
               <span className="font-semibold text-text-primary">{item.taskName}</span>
               <DateTextInput
                 value={answers[item.taskId] ?? ''}
-                // Lokale invoerstaat mét live foutmelding: `live` is hier de bedoelde modus.
                 commitMode="live"
                 onCommit={value => setAnswers(current => ({ ...current, [item.taskId]: value }))}
                 ariaLabel={t('actualStartQuestion.fieldLabel', { name: item.taskName })}

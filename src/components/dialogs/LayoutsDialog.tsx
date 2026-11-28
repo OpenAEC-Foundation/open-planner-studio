@@ -24,7 +24,6 @@ import type { BarColorSelection } from '@/types/barColor';
 import { LAYOUTS_HELP_ARTICLE_ID } from '@/state/helpArticles';
 import { useStoredSettingRefresh } from '@/hooks/useStoredSettingRefresh';
 
-/** Label- en tooltipsleutel per layoutdeel; de vijf klassieke delen hergebruiken hun eigen titel. */
 type LayoutKey = ParseKeys<['common', 'menu']>;
 
 const PART_KEYS: Record<LayoutPart, { label: LayoutKey; info: LayoutKey }> = {
@@ -37,12 +36,9 @@ const PART_KEYS: Record<LayoutPart, { label: LayoutKey; info: LayoutKey }> = {
   overlays: { label: 'common:view.layout.partOverlays', info: 'common:view.layout.infoOverlays' },
 };
 
-/** De rijen van de dialoog. De relatielijnen staan onder de kop Overlay: in de data
- *  zijn ze een eigen deel, in de dialoog legt het vinkje Overlay beide vast. */
 const DIALOG_ROWS = LAYOUT_PARTS.filter(part => part !== 'showRelations');
 const partsOfRow = (row: LayoutPart): LayoutPart[] => (row === 'overlays' ? ['showRelations', 'overlays'] : [row]);
 
-/** Aan/uit-overlays in lintvolgorde (Beeld → Basislijnen & voortgang), met hun lintlabel. */
 const OVERLAY_FLAGS: { key: Exclude<keyof LayoutOverlays, 'barColors'>; label: LayoutKey }[] = [
   { key: 'baseline', label: 'menu:ribbon.toggleBaselineOverlay' },
   { key: 'progressLine', label: 'menu:ribbon.toggleProgressLine' },
@@ -51,7 +47,6 @@ const OVERLAY_FLAGS: { key: Exclude<keyof LayoutOverlays, 'barColors'>; label: L
   { key: 'floatBand', label: 'menu:ribbon.toggleFloatBand' },
 ];
 
-/** Eén keuzelijst voor de balkkleur: `critical`, `auto`, of `category:<veld>`. */
 function encodeBarColors(selection: BarColorSelection): string {
   return selection.mode === 'category' ? `category:${encodeFieldRef(selection.field)}` : selection.mode;
 }
@@ -60,14 +55,6 @@ function decodeBarColors(value: string): BarColorSelection {
   return { mode: 'category', field: decodeFieldRef(value.slice('category:'.length)) };
 }
 
-/**
- * Layoutdialoog: maakt een nieuwe layoutknop of bewerkt een bestaande
- * (`ui.layoutDialogTargetId`). De dialoog werkt op een CONCEPT: filter, groepering, sortering,
- * tijdschaal en relatielijnen stel je hier zelf in (dezelfde editors als de klassieke lintknoppen),
- * en alleen de AANGEVINKTE delen worden vastgelegd. "Toepassen zonder opslaan" zet het concept op
- * het scherm zonder er een knop van te maken (een snel, tijdelijk filter).
- * Opslag app-globaal via `settingsStore`.
- */
 export function LayoutsDialog() {
   const { t } = useTranslation(['common', 'menu']);
   const setUI = useAppStore(s => s.setUI);
@@ -86,33 +73,21 @@ export function LayoutsDialog() {
   const filterFields = useMemo(() => filterFieldList(ctx), [ctx]);
   const barColorFields = useMemo(() => barColorFieldOptions(ctx), [ctx]);
 
-  // Het concept begint als het huidige scherm; bij bewerken winnen de opgeslagen delen.
-  // De overlays zijn app-brede `ui`-velden; alleen gelezen op het moment dat het concept wordt gevuld.
   const fromScreen = () => snapshotLayout(view, columns, currentOverlays(useAppStore.getState().ui), '');
   const [layouts, setLayouts] = useState<Layout[] | null>(null);
   const [name, setName] = useState('');
   const [icon, setIcon] = useState<string>('layout');
   const [parts, setParts] = useState<LayoutPart[]>([...LAYOUT_PARTS]);
   const [draft, setDraft] = useState<Layout>(fromScreen);
-  // Legt de layout de overlays vast? Een oudere layout draagt alleen de relatielijnen; bewerken
-  // (zelfs alleen hernoemen) mag er niet stil de overlays van het scherm van nu bij stoppen. Pas als
-  // de gebruiker hier een overlay omzet, gaan ze mee.
   const [overlaysStored, setOverlaysStored] = useState(true);
 
-  // De eerste lijst die gelezen wordt, vult ook het formulier met de layout die je bewerkt. Mislukt de eerste
-  // lezing (opslag even niet te lezen) en lukt een latere verversing, dan vult die het formulier; anders zou
-  // Opslaan de bestaande layout vervangen door een leeg formulier (knownbug 1362).
   const filledRef = useRef(false);
-  // Bewerk je een bestaande layout, dan is het formulier vergrendeld tot die layout gelezen is: invoer van vóór
-  // die tijd zou het vullen anders overschrijven (review Terra #905, ronde 3).
   const [filled, setFilled] = useState(false);
   const waiting = targetId !== null && !filled;
   const receive = useCallback((all: Layout[]) => {
     setLayouts(all);
     if (filledRef.current) return;
     const target = targetId ? all.find(l => l.id === targetId) : undefined;
-    // De layout die je bewerkt, staat (nog) niet in de lijst: het formulier is dan nog niet gevuld. Komt ze later
-    // binnen, dan vult die lijst het formulier alsnog (review Terra #905, ronde 2).
     if (targetId && !target) return;
     filledRef.current = true;
     setFilled(true);
@@ -126,15 +101,12 @@ export function LayoutsDialog() {
     setDraft(current => ({ ...current, ...structuredClone(target) }));
   }, [targetId]);
 
-  // Nieuwere layouts in de opslag (de host na de start, #818, of een ander tabblad): alleen de lijst
-  // verversen, niet wat de gebruiker hier invult. Opslaan leest de lijst toch opnieuw (`updateLayouts`).
   useStoredSettingRefresh('ops-taskGridLayouts', () => { void loadLayouts().then(receive, ignoreUnreadable); });
 
   useEffect(() => {
     let cancelled = false;
     filledRef.current = false;
     setFilled(false);
-    // Niet te lezen: de lijst blijft ongeladen en Opslaan staat uit.
     void loadLayouts().then(all => { if (!cancelled) receive(all); }, ignoreUnreadable);
     return () => { cancelled = true; };
   }, [receive]);
@@ -151,7 +123,6 @@ export function LayoutsDialog() {
   const filterRoot: GroupNode = draft.filter && draft.filter.kind === 'group' ? draft.filter : defaultGroup();
   const setFilterRoot = (root: GroupNode) => setDraft(d => ({ ...d, filter: root.children.length === 0 ? null : root }));
 
-  /** De aangevinkte delen van het concept, als layout. */
   const build = (id: string, layoutName: string): Layout => ({
     ...pickLayoutParts({ ...draft, id, name: layoutName }, overlaysStored ? parts : parts.filter(p => p !== 'overlays')),
     icon,
@@ -161,7 +132,6 @@ export function LayoutsDialog() {
     if (!layouts || waiting || parts.length === 0) return;
     const finalName = name.trim() || t('common:view.layout.name');
     const layout = build(target?.id ?? fromScreen().id, finalName);
-    // Op de vers gelezen lijst, niet op `layouts`: die mist wat intussen elders is opgeslagen.
     void updateLayouts(current => (target ? current.map(l => (l.id === target.id ? layout : l)) : [...current, layout]))
       .then(close, layoutsNotSaved);
   };
@@ -235,8 +205,6 @@ export function LayoutsDialog() {
           })),
         ];
         const colorValue = encodeBarColors(overlays.barColors);
-        // Een categorieveld dat in dit project niet bestaat, blijft zichtbaar als wat het is — anders
-        // toonde de keuzelijst "kritiek pad" terwijl de layout iets anders opsloeg.
         if (!colorOptions.some(option => option.value === colorValue)) {
           colorOptions.push({ value: colorValue, label: t('common:view.layout.missingColorField') });
         }
@@ -251,8 +219,6 @@ export function LayoutsDialog() {
                 {t('common:view.layout.overlaysNotStored')}
               </div>
             )}
-            {/* Eén vinkje per overlay, en dat is meteen de waarde — hetzelfde model als voor de
-                relatielijnen. */}
             <label className="flex items-center gap-2">
               <input
                 type="checkbox"
@@ -304,7 +270,6 @@ export function LayoutsDialog() {
         onClose={close}
         help={{
           articleId: LAYOUTS_HELP_ARTICLE_ID,
-          // Altijd vragen: een nieuwe layout staat pas na Opslaan in de lijst.
           confirmLeave: { onSave: () => { if (!layouts || parts.length === 0) return false; save(); } },
         }}
       />
@@ -334,7 +299,6 @@ export function LayoutsDialog() {
                 data-ops-layout-icon={key}
                 onClick={() => setIcon(key)}
                 className={`ribbon-btn small${icon === key ? ' active' : ''}`}
-                // De lint-'active'-stijl draagt een afwijkende randkleur; hier valt de rand samen met de vulling.
                 style={{ minWidth: 0, padding: 6, ...(icon === key ? { borderColor: 'var(--theme-active)' } : {}) }}
               >
                 {layoutIcon(key, 18)}

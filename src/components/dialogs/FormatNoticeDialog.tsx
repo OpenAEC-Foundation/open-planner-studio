@@ -15,7 +15,6 @@ import {
   XER_IMPORT_HELP_ARTICLE_ID,
 } from '@/state/helpArticles';
 
-/** "Lees meer" per formaat: de eigen gids voor .xer en .mpp, anders het kopje in de formatenreferentie. */
 const HELP_ARTICLE: Record<FormatNoticeKind, string> = {
   xer: XER_IMPORT_HELP_ARTICLE_ID,
   mpp: MPP_TIMEPHASED_HELP_ARTICLE_ID,
@@ -24,14 +23,6 @@ const HELP_ARTICLE: Record<FormatNoticeKind, string> = {
   csv: FORMAT_NOTICE_CSV_HELP_ARTICLE_ID,
 };
 
-/**
- * Uitleg na het openen van een ander formaat dan IFC (eigenaarsbesluit 2026-10-12): wat de app
- * overnam (groen), wat niet of beperkt (amber) en hoe opslaan en terugschrijven werken (blauw), met
- * "Lees meer" en "Niet meer tonen voor <formaat>". Rendert op `ui.pendingFormatNotice`; App mount hem
- * met `key={kind}`, zodat het vinkje bij elke nieuwe uitleg leeg begint. Het project staat er al
- * achter: sluiten (knop, kruisje of Escape) zet alleen het vinkje door. Geen backdrop-sluiten: het
- * vinkje is invoer (regel in `Dialog.tsx`, `check-dialog-backdrop.ts`).
- */
 export function FormatNoticeDialog({ kind }: { kind: FormatNoticeKind }) {
   const { t } = useTranslation('common');
   const [dontShowAgain, setDontShowAgain] = useState(false);
@@ -44,7 +35,6 @@ export function FormatNoticeDialog({ kind }: { kind: FormatNoticeKind }) {
     }
     useAppStore.getState().setUI({ pendingFormatNotice: null });
   };
-  // Eerst sluiten, dan Help openen: anders opent Help áchter de dialoog.
   const readMore = () => { close(); openHelpArticleGuarded(HELP_ARTICLE[kind]); };
 
   return (

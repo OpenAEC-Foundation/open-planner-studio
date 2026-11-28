@@ -1,9 +1,3 @@
-// *Afhankelijke projecten zoeken…* (stap 1.11 van "relaties tussen projecten", keuze 7,
-// `docs/relaties-tussen-projecten.md` §7.3). De zoekroute van de app: de map kiezen of de onthouden map
-// gebruiken, de IFC-bestanden alleen-lezen lezen, de geopende documenten meetellen en het resultaat per
-// document in `ui.dependentProjects` zetten. Het resultaat is sessiedata: niet in het IFC-bestand.
-//
-// App-module (importeert de gemounte store), net als de bridges; de headless kern laadt hem niet.
 import { useAppStore } from '@/state/appStore';
 import { summarizeDependentLinks } from '@/engine/dependentProjects';
 import type { ImportLabels } from '@/services/importTypes';
@@ -16,8 +10,6 @@ import type { DependentCandidate } from '@/engine/dependentProjects';
 
 const isTauri = () => '__TAURI_INTERNALS__' in window;
 
-/** Leest de map en zet het resultaat bij `documentId`. `null` als het document intussen niet meer
- *  actief is of het project-id veranderde: dan blijft het resultaat weg. */
 async function searchIn(
   ref: DependentFolderRef, documentId: string, projectId: string, labels?: ImportLabels,
   read: (ref: DependentFolderRef) => Promise<DependentFolderFile[]> = readDependentFolder,
@@ -37,12 +29,6 @@ async function searchIn(
   return summarizeDependentLinks(links);
 }
 
-/**
- * De knop: de planner kiest een map (of in andere browsers: bestanden), OPS zoekt en meldt het
- * resultaat. Desktop: het pad wordt een projectinstelling (`Project.dependentProjectsFolder`, één
- * undo-stap, het document is daarna gewijzigd). Chromium: het maphandvat gaat per project-id naar
- * IndexedDB.
- */
 export async function searchDependentProjectsManually(labels?: ImportLabels): Promise<void> {
   const before = useAppStore.getState();
   const documentId = before.activeDocumentId;
@@ -82,14 +68,9 @@ export async function searchDependentProjectsManually(labels?: ImportLabels): Pr
     });
 }
 
-/** Documenten (document-id + project-id) waarvoor de achtergrondzoektocht in deze sessie een resultaat
- *  plaatste. Pas na het plaatsen: een zoektocht die afbreekt (tabwissel tijdens het lezen) of mislukt,
- *  telt niet, zodat de volgende keer dat het document actief is opnieuw gezocht wordt (review #857). */
 const autoSearched = new Set<string>();
-/** Zoektochten die nu lopen; een tweede start voor hetzelfde document wacht niet en doet niets. */
 const autoSearching = new Set<string>();
 
-/** Naden voor de tests: waar de map vandaan komt en hoe hij gelezen wordt. */
 export interface AutoSearchDeps {
   resolveRef?: (project: { id: string; dependentProjectsFolder?: string }) => Promise<DependentFolderRef | null>;
   read?: (ref: DependentFolderRef) => Promise<DependentFolderFile[]>;
@@ -103,13 +84,6 @@ async function defaultAutoRef(project: { id: string; dependentProjectsFolder?: s
   return handle && await dependentFolderPermission(handle) ? { kind: 'handle', handle } : null;
 }
 
-/**
- * Bij het openen van een document (of de eerste keer dat het actief is): zoekt vanzelf, op de
- * achtergrond en zonder vraag, als er een onthouden map is. Desktop: het pad uit het project.
- * Chromium: een onthouden handvat met toestemming `granted`; anders niets (toestemming vragen mag alleen
- * bij een klik). Geen melding; een fout blijft stil. Eén keer per document en project-id per sessie,
- * geteld vanaf een geplaatst resultaat.
- */
 export async function autoSearchDependentProjects(labels?: ImportLabels, deps: AutoSearchDeps = {}): Promise<void> {
   const s = useAppStore.getState();
   const documentId = s.activeDocumentId;

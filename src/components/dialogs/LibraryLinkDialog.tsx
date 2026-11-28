@@ -5,29 +5,10 @@ import { Select } from '@/components/common/Select';
 import { Dialog, DialogHeader } from '@/components/common/Dialog';
 import { LIBRARY_LINK_HELP_ARTICLE_ID } from '@/state/helpArticles';
 
-/**
- * Het gedeelde koppel-/afwijkingenscherm. Twee secties met gedeelde vormtaal:
- *  - Herkennen: niet-gestempelde projectitems met hun unieke naam-match; per stuk of "alle voorstellen".
- *  - Afwijkingen: gestempelde items die deviated/removed zijn; per item bedrijfs- óf bestandswaarden.
- * Anti-dialoog-clausule: NOOIT poolitems één voor één een project in kopiëren — koppelen/optillen
- * bij een koppelmoment. "Later beslissen" sluit het scherm; markeringen blijven; heropbaar via de
- * Projectweergave.
- *
- * NB (verplicht): ELKE uitgang (Escape, X, "Later beslissen") loopt
- * door dezelfde `close()` die `showLibraryLinkDialog` op false zet. Data komt live uit de store (geen
- * transient payload) — een openFile naar een ander document terwijl dit scherm openstaat laat dus geen
- * stale inhoud achter (de document-/bibliotheekgrenzen resetten de vlag zelf, zie librarySlice/documentSlice).
- *
- * Stapel-gedrag: "Escape sluit dit scherm" klopt ook wanneer dit scherm gestapeld openstaat boven
- * (of onder) een andere dialoog, bv. WelcomeDialog — `useDialogKeys` houdt een module-globale
- * dialoog-stapel bij en levert Escape/Enter alleen aan de BOVENSTE dialoog.
- */
 export function LibraryLinkDialog() {
   const { t } = useTranslation('common');
   const open = useAppStore((s) => s.ui.showLibraryLinkDialog);
   const setUI = useAppStore((s) => s.setUI);
-  // Live afgeleid uit de store (geen transient payload): abonneer op de bronnen zodat het scherm
-  // herrendert bij elke oplossing/koppeling.
   const resources = useAppStore((s) => s.resources);
   const calendars = useAppStore((s) => s.calendars);
   const pools = useAppStore((s) => s.pools);
@@ -44,13 +25,11 @@ export function LibraryLinkDialog() {
   const candidates = companyId ? computeRecognition() : [];
   const withMatch = candidates.filter((c) => c.suggestedPoolId);
   const pool = companyId ? pools[companyId] : undefined;
-  // Eén lijst per soort en render; alle kandidaten en Select-props delen dezelfde opties.
   const manualOptions = {
     resource: pool?.resources.map(item => ({ value: item.id, label: item.name })) ?? [],
     calendar: pool?.calendars.map(item => ({ value: item.id, label: item.name })) ?? [],
   };
 
-  // Afwijkingen: gestempelde items die deviated/removed zijn (scope via de getters).
   const deviatedResources = resources.filter((r) => {
     const st = onOpenStatusForResource(r.id); return st === 'deviated' || st === 'removed';
   }).map((r) => ({ id: r.id, name: r.name, status: onOpenStatusForResource(r.id)! }));
@@ -68,11 +47,9 @@ export function LibraryLinkDialog() {
       panelClassName="bg-surface border border-border rounded-[14px] shadow-[var(--shadow-pop)] w-[640px] max-h-[88vh] flex flex-col overflow-hidden"
       panelProps={{ 'data-ops-library-link-dialog': true }}
     >
-      {/* ?-knop zonder vraag: elke keuze hier werkt meteen, er staat niets onopgeslagen open. */}
       <DialogHeader title={t('companyLibrary.linkTitle')} onClose={close} help={{ articleId: LIBRARY_LINK_HELP_ARTICLE_ID }} />
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4 text-small leading-4">
-        {/* ── Herkennen ── */}
         {candidates.length > 0 && (
           <section className="flex flex-col gap-2">
             <div className="flex items-center justify-between">
@@ -118,7 +95,6 @@ export function LibraryLinkDialog() {
           </section>
         )}
 
-        {/* ── Afwijkingen ── */}
         {(deviatedResources.length > 0 || deviatedCalendars.length > 0) && (
           <section className="flex flex-col gap-2">
             <h3 className="font-semibold" style={{ fontFamily: 'var(--font-heading)' }}>{t('companyLibrary.deviationsHeading')}</h3>
