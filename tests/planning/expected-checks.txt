@@ -260,6 +260,7 @@ check-kalender-ms-wandeling.ts matrix
 check-keyboard-event-routing.ts matrix
 check-knownbug-114.ts matrix
 check-knownbug-4.ts matrix
+check-knownbug-5.ts matrix
 check-knownbug-7.ts matrix
 check-lag-format.ts matrix
 check-lange-keten.ts matrix
