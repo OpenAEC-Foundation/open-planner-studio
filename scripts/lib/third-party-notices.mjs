@@ -1,13 +1,10 @@
-// Licenties van MEEGEBUNDELDE dependencies, afgeleid uit een esbuild-metafile (niet uit een vaste
-// lijst): per pakket naam, versie, licentie en de volledige licentietekst uit node_modules. Gedeeld
-// door `build-core.mjs` (headless kern) en `build-mcpb.mjs` (Claude Desktop-bundel).
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 
 /**
- * @param {string[]} inputs  de inputpaden uit `metafile.inputs` (met `/` als scheiding)
- * @returns {{ packages: string[], sections: string }}  pakketnamen (gesorteerd) en de Markdown-secties
- * @throws {Error} als een gebundeld pakket geen licentiebestand heeft
+ * @param {string[]} inputs
+ * @returns {{ packages: string[], sections: string }}
+ * @throws {Error}
  */
 export function thirdPartyNotices(inputs) {
   const bundledPackages = new Map();

@@ -1,7 +1,4 @@
 #!/usr/bin/env node
-// Knownbug 1107: meet vóór de bouw de extra volledige open-route op de echte merge-uitvoer.
-// Draai onder flock /tmp/ops-zwaar.lock. Geen productiebuild; alleen deze gerichte proef bundelen.
-// De generator is letterlijk die van meet-scanner.mjs (#867); geen tweede modelgenerator.
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
@@ -73,12 +70,9 @@ try {
   const maxId = Math.max(...[...example.matchAll(/^#(\d+)=/gm)].map(m => Number(m[1])));
   const base = readFileSync(join(work, 'basis.ifc'), 'utf8').split('\n')
     .filter(line => { const m = /^#(\d+)=/.exec(line); return !m || Number(m[1]) <= maxId; }).join('\n');
-  // De grootste opgeslagen IFC in de repo is 481752 bytes. Maak eenvoudig een groter model van 10 MiB.
-  // Twee groottes, dezelfde planning: daarmee is de groei met modelbytes zichtbaar. Geen 300 MB-run.
   writeFileSync(join(work, 'basis-gezette.ifc'), base);
   for (const mb of (process.argv.includes('--groot') ? [10] : [5, 10])) {
     const file = join(work, `model-${mb}.ifc`);
-    // Generator en grote-modelproef zitten in de gerichte bundel, niet in productie.
     execFileSync(process.execPath, [bundle, 'genereren', file, String(mb), join(work, 'basis-gezette.ifc')], {stdio:'inherit'});
     execFileSync(process.execPath, ['--expose-gc', bundle, process.argv.includes('--groot') ? 'groot' : 'meten', file], {stdio:'inherit'});
   }

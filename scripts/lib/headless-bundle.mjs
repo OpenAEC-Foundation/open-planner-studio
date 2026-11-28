@@ -1,15 +1,7 @@
-// Gedeelde bouwstenen voor de headless bundels: de kern (`scripts/build-core.mjs`) en de headless
-// MCP-server (`scripts/build-mcp-server.mjs`). Beide bundelen app-code voor Node zonder React, Tauri,
-// de app-singleton en de i18n-UI-config; deze module houdt die grens op één plek. De licenties van
-// meegebundelde pakketten komen uit `third-party-notices.mjs` (gedeeld met `build-mcpb.mjs`).
-
-// Modules die een headless bundel niet nodig heeft en die alleen bereikbaar zijn via een dynamische
-// import of binnen een React-hook. De stub gooit pas bij GEBRUIK, niet bij het laden.
 export const STUBBED = [
   /^react$/, /^react-dom(\/.*)?$/, /^react-i18next$/, /^@tauri-apps\//, /^@\/i18n\/config$/,
 ];
 
-// Inputs die nooit in een headless bundel mogen landen (padfragmenten, relatief aan de metafile).
 export const FORBIDDEN_INPUTS = [
   'src/state/appStore.ts',
   'src/components/',
@@ -20,9 +12,6 @@ export const FORBIDDEN_INPUTS = [
   'node_modules/@tauri-apps/',
 ];
 
-/** De bron van `zustand` zonder React: `create` geeft een functie-object met de store-API, net als zustand zelf, maar
- *  zonder `useSyncExternalStore`; de hook gooit pas bij gebruik. Ook gebruikt voor de workerbundels van Vite
- *  (`vite.config.ts`: de opslagworker laadt de storefabriek). */
 export function zustandWithoutReactSource(label) {
   return `
           import { createStore } from 'zustand/vanilla';
@@ -33,7 +22,6 @@ export function zustandWithoutReactSource(label) {
           export { createStore };`;
 }
 
-/** De bron van een module uit `STUBBED`: laden mag, gebruiken gooit. Ook gebruikt voor de workerbundels van Vite. */
 export function stubModuleSource(path, label) {
   return `
           const fail = () => { throw new Error(${JSON.stringify(`"${path}" is not available in ${label}`)}); };
@@ -41,13 +29,10 @@ export function stubModuleSource(path, label) {
           export default stub;`;
 }
 
-/** esbuild-plugin: zustand zonder React-hook, en een gooiende stub voor elke module uit `STUBBED`. */
 export function headlessStubPlugin(root, label) {
   return {
     name: 'ops-headless-stubs',
     setup(build) {
-      // zustand: alleen de vanilla store, zonder React-hook (`create` geeft een functie-object met de
-      // store-API, net als zustand zelf, maar zonder `useSyncExternalStore`).
       build.onResolve({ filter: /^zustand$/ }, () => ({ path: 'zustand', namespace: 'ops-core-zustand' }));
       build.onLoad({ filter: /.*/, namespace: 'ops-core-zustand' }, () => ({
         resolveDir: root,
@@ -63,12 +48,10 @@ export function headlessStubPlugin(root, label) {
   };
 }
 
-/** De inputpaden van een esbuild-metafile, met voorwaartse slashes. */
 export function metafileInputs(metafile) {
   return Object.keys(metafile.inputs).map((p) => p.replace(/\\/g, '/'));
 }
 
-/** Inputs die op de verboden lijst staan (leeg = in orde). */
 export function forbiddenInputs(inputs, extra = []) {
   const list = [...FORBIDDEN_INPUTS, ...extra];
   return inputs.filter((p) => list.some((f) => p.includes(f)));
