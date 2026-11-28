@@ -1,82 +1,27 @@
-// MCP-bridge — `planner_get_planning_guide`: de agentgids en de twee agent-skills bij de agent
-// brengen.
-//
-// WAAROM EEN TOOL EN NIET ALLEEN `instructions`. De initialize-respons draagt de kernregels mee
-// (`MCP_INSTRUCTIONS` in `dispatcher.ts`), maar die tekst moet kort blijven — hij gaat in élke
-// systeemprompt mee. De volledige gids haalt een agent hier op wanneer hij hem nodig heeft. Daarnaast
-// levert deze tool de twee agent-SKILLS plus de aanwijzing waar hij die zelf kan neerzetten, zodat ze
-// ook in een vólgende sessie meekomen zonder dat de gebruiker iets doet.
-//
-// KORT. Agents betalen per token. Gids en skills zijn regels, geen lesstof: elk principe één keer, in
-// de gids (ook de volgorde); `goed-plannen` verwijst alleen naar de gids, `progress-update` is zelfstandig;
-// parameters staan in `tools/list` (besluit eigenaar, 2026-11-07, #818). Bij `guide` en `progress-update` laat
-// het antwoord de frontmatter en de eerste kop weg (`readingText`): die zeggen de toolbeschrijving en
-// `skills[].name` al. Een installatiepart (met `install`) geeft de volle bestanden: de agent schrijft `text` naar
-// het installatiepad, en zonder frontmatter start de skill nooit vanzelf (#818, ronde 11).
-//
-// AGENTGIDS ≠ HELP-ARTIKEL. Tot oktober 2026 leverde deze tool het Help-artikel voor mensen
-// (`public/docs/<taal>/gids-goed-plannen.md`). Een mens drukt op F5 en klikt in het lint; een agent
-// gebruikt tools en het rekenen gaat vanzelf. Daarom is er een aparte, Engelse agentgids
-// (`public/agent/planning-guide.md`) met per principe de tools. Het Help-artikel is sinds november
-// 2026 weg (besluit eigenaar, 2026-11-02: de Help beschrijft alleen hoe de app werkt); het oude id is
-// een alias in het manifest. `npm run verify:docs` (poort 11) bewaakt dat de agentgids geen
-// helpviewer-links bevat.
-//
-// TAAL. Gids en skills zijn alleen Engels (alles wat de agent leest is Engels). De parameter
-// `language` blijft voor oudere clients geaccepteerd, maar verandert de inhoud niet.
-//
-// DE BRON. Gids en skills zijn RUNTIME-ASSETS in `public/` — geen bundelinhoud. We halen ze op met
-// `fetchTextAsset` (`@/utils/textAsset`), precies zoals `HelpPanel.tsx` dat doet: `BASE_URL`-
-// relatief, met de SPA-fallback-body-sniff als "bestaat dit echt?"-poort. In Tauri werkt dat pad
-// ook (`tauri://`-protocol op de gebundelde assets). Daarom is dit de enige ASYNCHRONE leestool:
-// de dispatcher awaits een handler sowieso.
-//
-// GUARDS. Bewust GEEN `runReadTool`-wikkel en dus geen dialoog-guard: deze tool leest de PLANNING
-// niet — er is geen half-bewerkte state die hij verkeerd kan zien. Hij is ook zinvol juist wanneer
-// er een dialoog openstaat (de agent oriënteert zich dan). `ensureFreshSchedule` is om dezelfde
-// reden niet nodig: er wordt geen berekende waarde gelezen. Read-only-modus en pauze raken alleen
-// mutaties, dus deze tool blijft daar gewoon werken.
-
 import { fetchTextAsset, type TextAssetFetch } from '@/utils/textAsset';
 import { buildEnvelope, toolError } from './runtime';
 import type { McpContext, McpToolDef, McpToolResult } from '../contracts';
 import { READ_ANNOTATIONS } from './helpers';
 
-/** Publieke basis-URL van de webbuild — de plek waar een agent gids en skills zelf kan downloaden. */
 export const GUIDE_PUBLIC_BASE = 'https://open-planner-studio.open-aec.com';
 
-/** Pad van de agentgids binnen `public/` (dus ook in `dist/` en de Tauri-bundel). Bewust NIET onder
- *  `public/docs/`: daar staan alleen Help-artikelen (verify:docs, helpviewer, wiki). */
 export const AGENT_GUIDE_PATH = 'agent/planning-guide.md';
-/** Publieke download-URL van de agentgids (o.a. de uitweg bij `te_groot` in `siteAppTools.ts`). */
 export const AGENT_GUIDE_URL = `${GUIDE_PUBLIC_BASE}/${AGENT_GUIDE_PATH}`;
 
-/** De agent-skills, in de volgorde waarin de tool ze levert. `goed-plannen` behoudt zijn
- *  Nederlandse slug: oudere app-versies installeren hem op dat pad. */
 export const AGENT_SKILLS = [{ name: 'goed-plannen' }, { name: 'progress-update' }] as const;
 
 export type AgentSkillName = (typeof AGENT_SKILLS)[number]['name'];
 
-/** Pad van een skill binnen `public/` (bron; `.claude/skills/...` is de byte-identieke kopie). */
 export function skillAssetPath(name: AgentSkillName): string {
   return `skills/${name}/SKILL.md`;
 }
 
-/** Publieke download-URL van een bestand binnen `public/`. */
 export function publicAssetUrl(path: string): string {
   return `${GUIDE_PUBLIC_BASE}/${path}`;
 }
 
-/** De twee waarden die `language` nog accepteert (compatibiliteit; de inhoud is altijd Engels). */
 export type GuideLanguage = 'nl' | 'en';
 
-/**
- * Wat elk `part` levert. Eén part per taak (#818): een agent die gaat opbouwen haalt de gids (`guide`, de
- * standaard), een voortgangsronde alleen `progress-update` (die skill is zelfstandig). `goed-plannen` levert
- * de gids plus die skill, `skill` beide skills: dat zijn de parts om te installeren, en alleen die krijgen
- * `install` (een voortgangsronde betaalt die tekst niet elke keer; #818, ronde 5). `both` blijft werken voor
- * oudere clients.
- */
 export const GUIDE_PARTS = {
   'goed-plannen': { guide: true, skills: ['goed-plannen'], install: true },
   'progress-update': { guide: false, skills: ['progress-update'], install: false },
@@ -87,26 +32,12 @@ export const GUIDE_PARTS = {
 
 export type GuidePart = keyof typeof GUIDE_PARTS;
 
-/** Zonder `part`: alleen de gids. Wie zonder keuze leest, gaat meestal opbouwen of herstructureren (zo noemt de
- *  beschrijving van deze tool hem; voor voortgang noemt die `part: "progress-update"`). De gids heeft de hele
- *  volgorde; de skill `goed-plannen` zegt alleen deze tool te lezen, dus die hoeft niet mee (#818, ronde 4). */
 export const DEFAULT_GUIDE_PART: GuidePart = 'guide';
 
-/** Waar een agent een skill bewaart voor latere sessies. Eén tekst voor alle skills (#818). Het volle
- *  bestand (mét frontmatter) staat in het antwoord van een installatiepart en op de publieke URL. De tekst
- *  noemt beide skillnamen: bij `goed-plannen` komt alleen die skill mee, maar wie installeert, wil ook
- *  `progress-update` (dat part zelf krijgt geen `install`). */
 export const SKILL_INSTALL_HINT =
   `Install ${GUIDE_PUBLIC_BASE}/skills/<name>/SKILL.md to .claude/skills/<name>/SKILL.md (project or ~/); ` +
   `names: ${AGENT_SKILLS.map((s) => s.name).join(', ')}.`;
 
-/**
- * De tekst om te LEZEN: zonder frontmatter (`---`-blok op regel 1) en zonder de eerste kop (`# …`), met
- * de lege regels erna. Die zeggen niets wat de agent niet al weet (toolbeschrijving, `skills[].name`).
- * Lege regels worden één regeleinde: koppen (`## `) en lijsten (`- `) blijven herkenbaar, en het scheelt
- * tekens in elk antwoord (#818, ronde 9). Alleen voor de parts zonder `install`; een installatiepart geeft het
- * bestand zoals het is (#818, ronde 11).
- */
 export function readingText(markdown: string): string {
   let text = markdown.replace(/\r\n/g, '\n');
   const fm = /^---\n[\s\S]*?\n---\n/.exec(text);
@@ -124,38 +55,18 @@ export interface MissingAsset {
 }
 
 export interface PlanningGuidePayload {
-  /** Alleen gezet wanneer om een andere taal werd gevraagd (de inhoud is altijd Engels). */
   languageNote?: string;
-  /** Markdowntekst van de agentgids (alleen bij een part met gids): `readingText`, of bij een installatiepart
-   *  het volle bestand. */
   guide?: string;
-  /** De skills van dit part: bij `progress-update` als `readingText`, bij een installatiepart het volle bestand
-   *  (mét frontmatter, om te installeren). Het oude veld `skill` (een tweede kopie van `goed-plannen`)
-   *  is weg: het kostte de agent elke keer duizenden tokens (besluit eigenaar, 2026-11-07). */
   skills?: { name: AgentSkillName; text: string }[];
-  /** Alleen gezet wanneer een deel niet laadde: welk bestand, waarom, en waar het publiek staat. De
-   *  rest komt gewoon mee — één ontbrekende skill blokkeert de gids niet. */
   missing?: MissingAsset[];
-  /** Waar de agent een skill neerzet (alleen bij de installatieparts, zie `GUIDE_PARTS`). Het veld `part` is
-   *  weg: de agent weet wat hij vroeg (#818, ronde 5). */
   install?: string;
 }
 
-/**
- * Basis waarop de asset-URL's worden opgebouwd. Losse helper omdat `import.meta.env` in de
- * headless testbundel alleen via de esbuild-defines bestaat; de terugval houdt dit bestand
- * importeerbaar zonder Vite-omgeving (zelfde patroon als `MCP_SERVER_VERSION`).
- */
 function assetBase(): string {
   const base: unknown = import.meta.env?.BASE_URL;
   return typeof base === 'string' && base !== '' ? base : '/';
 }
 
-/**
- * Haal gids en/of skills op, elk bestand APART: een ontbrekend bestand komt in `missing` (met de
- * publieke URL als alternatief) en houdt de andere niet tegen. `fetchImpl` is injecteerbaar zodat de
- * poort headless testbaar is — dezelfde naad als `fetchTextAsset` zelf.
- */
 export async function loadPlanningGuide(
   part: GuidePart,
   fetchImpl?: TextAssetFetch,
@@ -172,9 +83,6 @@ export async function loadPlanningGuide(
   };
   const out: Pick<PlanningGuidePayload, 'guide' | 'skills' | 'missing'> = {};
   const wanted = GUIDE_PARTS[part];
-  // Een installatiepart geeft de bestanden zoals ze zijn: een agent schrijft `text` naar het pad uit `install`,
-  // en een skill zonder frontmatter (`name`, `description`) start nooit vanzelf (#818, ronde 11). De andere parts
-  // geven leestekst.
   const shape = wanted.install ? (text: string) => text : readingText;
   if (wanted.guide) {
     const guide = await load(AGENT_GUIDE_PATH);
@@ -192,19 +100,12 @@ export async function loadPlanningGuide(
   return out;
 }
 
-/**
- * Injecteerbare bron voor gids en skills. Leeg in de app: daar haalt `fetchTextAsset` ze met `fetch` uit
- * de eigen bundel. De headless MCP-server (`headless/mcp-server/`, issue #570) heeft geen webserver en
- * zet hier een functie die de in de serverbundel ingebedde teksten teruggeeft.
- */
 export const guideToolDeps: { fetchImpl?: TextAssetFetch } = {};
 
 export const guideTools: McpToolDef[] = [
   {
     name: 'planner_get_planning_guide',
     description:
-      // Leesplicht plus beide routes: zonder `part` de gids (opbouwen, herstructureren), voor voortgang de skill
-      // (#818, ronde 6). De parts om te installeren staan bij `part`.
       'Read before building or restructuring; for progress, `part: "progress-update"`.',
     kind: 'read',
     batchable: false,
@@ -229,8 +130,6 @@ export const guideTools: McpToolDef[] = [
       const a = (args ?? {}) as { language?: GuideLanguage; part?: GuidePart };
       const part = a.part ?? DEFAULT_GUIDE_PART;
       const texts = await loadPlanningGuide(part, guideToolDeps.fetchImpl);
-      // Niets geladen ⇒ een nette NOT_FOUND mét de publieke URL's van wat ontbrak. Een deel geladen ⇒
-      // gewoon `ok`, met `missing` voor wat ontbrak.
       if (texts.guide === undefined && (texts.skills?.length ?? 0) === 0) {
         const missing = texts.missing ?? [];
         return toolError(
