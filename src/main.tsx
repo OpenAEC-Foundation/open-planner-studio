@@ -1,7 +1,5 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
-// De module-side-effect (i18n.init met en) draait synchroon bij deze import; initLocale()
-// laadt daarna de actieve taal-chunk vóór de eerste paint (geen Engelse flits).
 import { initLocale } from './i18n/config';
 import { appLog } from '@/services/debug/appLog';
 import { installSiteAppTools } from '@/services/mcp/siteAppTools';
@@ -9,7 +7,6 @@ import { PLATFORM_BUILD } from '@/utils/buildFlags';
 import { hydrateSiteHostSettings } from '@/services/fileAccess/siteHostSettings';
 import { showFatalError } from './startup/fatalError';
 
-// OpenAEC stylebook fonts (self-hosted via @fontsource, bundled with app for offline use)
 import '@fontsource/inter/400.css';
 import '@fontsource/inter/500.css';
 import '@fontsource/inter/600.css';
@@ -25,47 +22,23 @@ import './components/icons/icons.css';
 
 appLog.init();
 
-// Ingebed met `settings` van de host (#818): eerst de bewaarde `ops-`-instellingen in localStorage
-// zetten, en pas DAARNA de app (en dus de store) laden. De store leest bij het maken al instellingen,
-// bijv. de bouwmodus voor de kalender van het eerste document; een statische import van `App` zou dat
-// vóór de host doen. Wacht hoogstens 5 s (`HYDRATE_TIMEOUT_MS`) en geeft nooit een fout; zonder `settings`
-// direct klaar. Te laat of een afwijzing: de app start met standaardinstellingen, en `siteHostSettings.ts`
-// wacht op de achtergrond verder (de app past een laat antwoord live toe, `useSiteHostPreferences`). Een
-// laat antwoord verandert de kalender van het eerste document niet meer. Alles
-// hieronder dat de store laadt, wacht hierop. `check-site-host-preferences.ts` bewaakt dat de statische
-// imports van dit bestand de store niet bereiken.
 const hostSettingsReady = hydrateSiteHostSettings();
 
-// Nep-site voor opslag via de site (issue #309), alleen in DEV en met `?fakeSite=1`: valt uit elke
-// productiebouw, net als de zelftesthaak hieronder.
 if (import.meta.env.DEV && new URLSearchParams(window.location.search).get('fakeSite') === '1') {
   void import('@/services/fileAccess/fakeSiteHost').then(({ installFakeSiteHost }) => installFakeSiteHost());
 }
 
-// Wacht tot de actieve taal geladen is voordat we renderen (voorkomt een Engelse flits).
-// Faalt de taal-load, dan valt i18next terug op de eager 'en'-resources en renderen we alsnog.
-// De app zelf komt pas na de instellingen van de host (zie `hostSettingsReady` hierboven).
-// De DEV-haken hieronder (zelftesthaak, kijkscène, iconenblad) laden de store ook; ze komen pas ná de
-// render. Zo bestaat `window.__OPS__` pas als de app mount, net als vóór #818: browsertests wachten op
-// `__OPS__` en rekenen erop dat de app dan al bezig is (zie `tests/browser/fixtures/ops.ts`).
 hostSettingsReady
   .then(() => initLocale())
-  .catch(() => { /* taal-load faalde → en-fallback; toch renderen */ })
+  .catch(() => {})
   .then(() => {
-    // De assistent van de site bedient de tool via `window.__OPDS_APP__` (alleen de platformbouw). Pas ná de
-    // instellingen van de host: de eerste aanroep laadt de MCP-laag en daarmee de store, en die leest bij het
-    // maken al instellingen (bouwmodus → startkalender). Vóór de app, zodat het koppelvlak er staat als de app
-    // het startbestand opent. Bewaakt door `tests/planning/check-site-start-order.ts`.
     if (PLATFORM_BUILD) installSiteAppTools();
-    // De bewaarde instellingen gaan vóór de eerste render in de store (#895), zodat de eerste weergave al
-    // het gekozen uiterlijk heeft; zie `startup/initialSettings.ts`.
     return Promise.all([
       import('./App'),
       import('./startup/initialSettings').then(({ loadSettingsBeforeFirstRender }) => loadSettingsBeforeFirstRender()),
     ]);
   })
   .then(([{ default: App }]) => {
-    // Een fout die niemand opving, haalt de hele boom weg; dan het foutscherm in plaats van een leeg venster.
     ReactDOM.createRoot(document.getElementById('root')!, { onUncaughtError: showFatalError }).render(
       <React.StrictMode>
         <App />
@@ -73,18 +46,13 @@ hostSettingsReady
     );
     installDevHooks();
   })
-  // De start liep vast (bijv. de app-bundel laadde niet): het foutscherm, en het venster komt tevoorschijn.
   .catch(showFatalError);
 
 function installDevHooks(): void {
-  // Zelftesthaak (window.__OPS__) voor geautomatiseerd testen via Playwright MCP en de expliciete
-  // productiebenchmark. Gewone productiebuilds zetten VITE_OPS_BENCH_BRIDGE niet en tree-shaken de
-  // dynamische import dus nog steeds volledig weg; de benchmarkbuild gebruikt wel React/Vite PROD.
   if (import.meta.env.DEV || import.meta.env.VITE_OPS_BENCH_BRIDGE === '1') {
     void import('@/utils/devBridge').then(({ installDevBridge }) => installDevBridge());
   }
 
-  // Kijkscène voor handmatige controle, alleen in DEV en met `?qaScene=<naam>` (zie qaScenes.ts).
   const qaScene = import.meta.env.DEV ? new URLSearchParams(window.location.search).get('qaScene') : null;
   if (qaScene) {
     void import('@/utils/qaScenes').then(({ runQaScene }) => runQaScene(qaScene)).catch(e => console.error(e));

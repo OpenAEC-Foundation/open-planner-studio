@@ -5,28 +5,9 @@ export type { IconId };
 
 const ICONS: Readonly<Record<IconId, IconDef>> = B2_ICONS;
 
-/**
- * OpenAEC Blueprint-iconen (huisstijl 0.4).
- * Alle iconen van de app lopen hierlangs: één betekenis per
- * icoon, dus de `id` is de FUNCTIE (`task.add`, `calendar.holiday-add`), niet de vorm (`Plus`).
- *
- * - Master zoals de Style Repo voorschrijft: tot en met 18 px de 16 px-tekening, daarboven de 24 px-tekening;
- *   de `viewBox` schaalt naar `size`. Boven 18 px gaat de 16 px-tekening verborgen mee, voor plekken waar CSS
- *   het icoon op 16 px zet (zie `icons.css`).
- * - Hoofdkleur `currentColor`, accent `var(--icon-accent)` (gezet in `icons.css` per thema; `oa-icon--mono`
- *   schakelt het accent uit). Een icoon met `semantic` kleurt mee met de statuskleur van het thema.
- * - Grijs is de basis, oranje het accent: een icoon is nooit helemaal oranje (Blueprint `docs/iconen.md`, "Grijs en
- *   oranje"). Geeft een plek het icoon de oranje tekstkleur, dan wordt het toch helemaal oranje; geef het icoon
- *   daar een grijze tekstkleur (`text-text-secondary`). `tests/planning/check-icon-accent-text.ts` en
- *   `tests/browser/icon-orange.spec.ts` bewaken dat.
- * - Standaard decoratief (`aria-hidden`); met `aria-label` of `title` wordt het een `role="img"`.
- * - `data-icon` draagt het id voor tests en de self-test-harness.
- */
 export interface IconProps extends Omit<SVGAttributes<SVGSVGElement>, 'children' | 'viewBox' | 'width' | 'height'> {
   id: IconId;
-  /** Zijde in px (standaard 16, zoals `.oa-icon` in de Style Repo). */
   size?: number;
-  /** Accent uitzetten: alles in `currentColor` (Style Repo `oa-icon--mono`). */
   mono?: boolean;
   title?: string;
 }
@@ -41,7 +22,6 @@ export function Icon({ id, size = 16, mono = false, className, style, title, ...
   const def = ICONS[id];
   const master = masterFor(id, size);
   const box = size <= 18 ? 16 : 24;
-  // Geeft de plek zelf een tekstkleur op, dan gaat die voor op de statuskleur van het icoon.
   const ownColor = /(^|\s)text-/.test(className ?? '');
   const classes = ['oa-icon', mono ? 'oa-icon--mono' : '', def.semantic && !ownColor ? `oa-icon--${def.semantic}` : '', className ?? '']
     .filter(Boolean).join(' ');
@@ -64,8 +44,6 @@ export function Icon({ id, size = 16, mono = false, className, style, title, ...
         : (
           <>
             <g className="oa-icon__m24">{renderParts(master)}</g>
-            {/* De 16 px-master op het 24-raster (×1,5). `icons.css` toont hem waar het lint een groot icoon
-                op 16 px zet (mini-stand, ingeklapt lint); dan staat hij op ware grootte en blijft hij scherp. */}
             <g className="oa-icon__m16" transform="scale(1.5)">{renderParts(def.s16)}</g>
           </>
         )}
@@ -82,7 +60,6 @@ function renderParts(master: IconMaster) {
   });
 }
 
-/** Typeguard voor ids uit opgeslagen data (layouts, extensies): onbekend ⇒ `undefined`. */
 export function toIconId(value: unknown): IconId | undefined {
   return typeof value === 'string' && Object.prototype.hasOwnProperty.call(ICONS, value) ? value as IconId : undefined;
 }
