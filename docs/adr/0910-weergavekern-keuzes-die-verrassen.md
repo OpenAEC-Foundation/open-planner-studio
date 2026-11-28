@@ -7,9 +7,9 @@ commentaar meer. Drie keuzes daarin zie je niet aan de code af.
 
 - **De indexen hangen aan de context zelf.** `indexesFor` in `filterEval.ts` bouwt de toewijzingen per taak en de
   resources per id één keer per `ViewContext` en bewaart ze in een `WeakMap` op dat object, in plaats van extra velden
-  op de context die elke bouwplek zelf moet vullen. Dat is alleen juist zolang wie een `ViewContext` bouwt, hem per
-  berekening nieuw maakt en niet vasthoudt over een wijziging van taken, resources of toewijzingen heen. Een context
-  bewaren of hergebruiken geeft verouderde resourcenamen in filter, groepering en sortering.
+  op de context die elke bouwplek zelf moet vullen. Dat is alleen juist zolang wie een `ViewContext` bouwt, een nieuwe
+  maakt zodra resources of toewijzingen veranderen; anders geven filter, groepering en sortering verouderde
+  resourcenamen.
 - **Resourcetypen staan in een vaste volgorde, niet op naam.** `RESOURCE_TYPE_BAND_ORDER` (arbeid, ploeg,
   onderaannemer, materieel, materiaal, kosten) bepaalt de bandvolgorde en de sortering op resourcetype, op het scherm
   en in het rapport Resourcediagram. Sorteren op het vertaalde label zou een uitgedeeld vel in elke taal een andere
