@@ -1,14 +1,3 @@
-// Audit-nasleep — STILLE FAALGEVALLEN in de kalender-/resource-/lees-tools (bevindingen K6, K7,
-// H6-H11, L1/L4, M7). Elke case pint één geval vast waarin de bridge `ok` teruggaf ZONDER te doen
-// wat er gevraagd werd, of waarin een foute invoerwaarde stil een ANDERE verzameling opleverde.
-//
-// De rode draad: een tool die liegt dat het gelukt is, is voor een AI-agent onherstelbaar — hij kan
-// er niet omheen werken, want er is geen signaal. Elke fix hier maakt van een stille no-op een
-// EXPLICIETE weigering (zacht per item waar dat kan, hard bij een enkelvoudige tool).
-//
-// Draait headless tegen de ECHTE store, net als cases-mutate-cal-res.ts / cases-read.ts: de
-// muterende tools worden RECHTSTREEKS op hun module-array aangeroepen (buiten de dispatcher om, dus
-// onafhankelijk van generieke schemavalidatie daar); de leestools via de registry.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { getTool } from '@/services/mcp/toolRegistry';
@@ -21,9 +10,6 @@ import { capturePayload } from '@/state/documentContract';
 
 const S = () => useAppStore.getState();
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`; het
-// restore-pad promoot de projectkalender-cache tot bibliotheek-entry. Eén edit + undo zorgt dat die
-// benigne promotie niet in een undoStack-assert opduikt.
 S().addTask({ name: 'warmup' });
 S().undo();
 
@@ -48,7 +34,6 @@ function okData(res: McpToolResult): any {
 function rejections(res: McpToolResult): { id: string; reason: string }[] {
   return (res as McpToolOk).itemRejections ?? [];
 }
-/** Leestool via de registry; retourneert het volledige resultaat (ok óf fout). */
 function read(name: string, args: unknown = {}): McpToolResult {
   const t = getTool(name);
   assert(!!t, `leestool ${name} niet geregistreerd`);
@@ -59,7 +44,6 @@ function readOk(name: string, args: unknown = {}): any {
   assert(res.ok, `leestool ${name} gaf een fout: ${res.ok ? '' : res.error}`);
   return (res as McpToolOk).data;
 }
-/** Verwacht een FOUT met VALIDATION-code waarvan de boodschap `needle` bevat. */
 function expectValidation(res: McpToolResult, needle: string, what: string): void {
   assert(!res.ok, `${what}: verwachtte een fout, kreeg ok`);
   const err = res as { ok: false; code?: string; error: string };
@@ -68,7 +52,6 @@ function expectValidation(res: McpToolResult, needle: string, what: string): voi
 }
 
 const CLEAN_WORKDAYS = [1, 2, 3, 4, 5];
-/** Schoon ma-vr-project vanaf 2026-06-01 (maandag). `holidays` naar keuze. */
 function cleanProject(holidays: Holiday[] = []): void {
   S().newProject();
   const base = S().calendar;
@@ -79,10 +62,6 @@ function cleanProject(holidays: Holiday[] = []): void {
 const VORST: Holiday = { name: 'Vorstverlet', startDate: '2026-06-10', endDate: '2026-06-10' };
 const SLUITING: Holiday = { name: 'Bedrijfssluiting', startDate: '2026-07-20', endDate: '2026-07-24' };
 
-// =================================================================================================
-// K6 — `rawHolidays` was ALLEEN-TOEVOEGEN, en `rawHolidays: []` was een succesvol gemelde no-op.
-// =================================================================================================
-
 test('K6: `rawHolidays: []` in toevoeg-modus ⇒ zachte weigering, GEEN transactie, feestdagen onaangeroerd', async () => {
   cleanProject([VORST, SLUITING]);
   const calId = S().calendar.id;
@@ -90,8 +69,6 @@ test('K6: `rawHolidays: []` in toevoeg-modus ⇒ zachte weigering, GEEN transact
 
   const res = await call('planner_update_calendar', { calendars: [{ id: calId, rawHolidays: [] }] });
 
-  // Vóór de fix: ok met een rij `{created:false, promoted:true, becameLiteral:false}` — niet te
-  // onderscheiden van een echte wijziging, terwijl er niets veranderde.
   const rej = rejections(res);
   assertEq(rej.length, 1, 'precies één zachte weigering');
   assert(/empty|replace/i.test(rej[0].reason), `weigering moet de lege lijst benoemen: ${rej[0].reason}`);
@@ -104,7 +81,6 @@ test('K6: `holidaysMode: "replace"` VERVANGT de lijst — een feestdag kan echt 
   cleanProject([VORST, SLUITING]);
   const calId = S().calendar.id;
 
-  // De agent-opdracht "draai de vorstverletdag terug": stuur de OVERBLIJVENDE dagen in replace-modus.
   const res = await call('planner_update_calendar', {
     calendars: [{ id: calId, holidaysMode: 'replace', rawHolidays: [SLUITING] }],
   });
@@ -152,10 +128,6 @@ test('K6: onbruikbare rawHolidays-vorm ⇒ zachte weigering i.p.v. rommel in de 
   assertEq(S().calendar.holidays.length, 0, 'niets in de store beland');
 });
 
-// =================================================================================================
-// H7 — `generate.country` zonder enum: een foute waarde gooide een kale JS-TypeError.
-// =================================================================================================
-
 test('H7: onbekend `country` ⇒ ZACHTE weigering die de geldige verzameling noemt (geen TypeError)', async () => {
   cleanProject([]);
   const calId = S().calendar.id;
@@ -186,7 +158,6 @@ test('H7: landcode is HOOFDLETTERGEVOELIG — `nl` wordt geweigerd, niet stil ge
 test('H7: `country: "none"` is een GELDIGE waarde en wist de gegenereerde feestdagen', async () => {
   cleanProject([]);
   const calId = S().calendar.id;
-  // Eerst NL genereren, dan met 'none' terug naar leeg.
   okData(await call('planner_update_calendar', { calendars: [{ id: calId, generate: { country: 'NL' } }] }));
   assert(S().calendars.find((c) => c.id === calId)!.holidays.length > 0, 'precondition: NL-feestdagen gegenereerd');
 
@@ -204,10 +175,6 @@ test('H7: het schema draagt een enum op `country` en de beschrijving noemt `none
   assert(/none/.test(country.description), '`none` moet gedocumenteerd zijn');
 });
 
-// =================================================================================================
-// M7 — een "leeg" aangemaakte kalender erfde stil de app-default-feestdagen (NL).
-// =================================================================================================
-
 test('M7: create zonder generate/rawHolidays MELDT expliciet dat de app-default-feestdagen zijn overgenomen', async () => {
   cleanProject([]);
   const res = await call('planner_update_calendar', {
@@ -217,7 +184,6 @@ test('M7: create zonder generate/rawHolidays MELDT expliciet dat de app-default-
   const row = data.calendars[0];
   assertEq(row.created, true, 'aangemaakt');
   const cal = S().calendars.find((c) => c.id === row.id)!;
-  // De inhoud is niet het punt (dat is een app-default-keuze); het STIL zijn erover wél.
   assertEq(row.holidayCount, cal.holidays.length, 'de rij meldt het aantal feestdagen van de nieuwe kalender');
   if (cal.holidays.length > 0) {
     assertEq(row.holidaysFrom, 'app-default', 'herkomst expliciet benoemd');
@@ -225,10 +191,6 @@ test('M7: create zonder generate/rawHolidays MELDT expliciet dat de app-default-
       `er hoort een waarschuwing over de overgenomen feestdagen te staan: ${JSON.stringify(data.warnings)}`);
   }
 });
-
-// =================================================================================================
-// K7 — `update_project` dropte onbekende sleutels stil zodra er één bekende bij zat.
-// =================================================================================================
 
 test('K7: `{name, endDate}` ⇒ endDate wordt ECHT geschreven (was: stil gedropt)', async () => {
   cleanProject([]);
@@ -252,7 +214,6 @@ test('K7: `progressMode` is schrijfbaar (enum) en een foute waarde wordt geweige
   cleanProject([]);
   okData(await call('planner_update_project', { progressMode: 'PROGRESS_OVERRIDE' }));
   assertEq(S().project.progressMode, 'PROGRESS_OVERRIDE', 'progressMode geschreven');
-  // Leeswijzer-consistentie: get_project_info geeft hem terug.
   assertEq(readOk('planner_get_project_info').project.progressMode, 'PROGRESS_OVERRIDE', 'leeskant spiegelt');
 
   const bad = await call('planner_update_project', { progressMode: 'SNEL' });
@@ -280,11 +241,6 @@ test('K7: een ongeldige endDate-vorm wordt geweigerd; lege string wist hem', asy
   assertEq(S().project.endDate, '', 'lege string wist de einddatum');
 });
 
-// =================================================================================================
-// H8 — `dryRun` werd niet getypecheckt: `dryRun: "true"` voerde een ECHTE nivellering uit.
-// =================================================================================================
-
-/** Klein project met één overbelaste resource, zodat nivelleren daadwerkelijk iets doet. */
 function overloadedProject(): void {
   cleanProject([]);
   const r = S().addResource({ name: 'Ploeg', type: 'LABOR', description: '', maxUnits: 1 });
@@ -338,11 +294,6 @@ test('move_project: niet-bestaande of vervuilde datum ⇒ VALIDATION, niets vers
   }
 });
 
-// =================================================================================================
-// H9 — `ensureFreshSchedule` miste het NOOIT-berekende document (cpmResult null, scheduleStale false).
-// =================================================================================================
-
-/** Herstel-achtige toestand: een geladen project ZONDER doorrekenen ⇒ cpmResult null + niet-stale. */
 function neverCalculatedProject(): void {
   const gen = generateBenchmarkProject(30);
   S().applyLoadedProject({ ...gen, timeModel: 'MINUTES-1' }, { filePath: null, recompute: false });
@@ -428,10 +379,6 @@ test('H9: al-berekend + niet-stale ⇒ nog steeds GEEN recompute (referentie ide
   assert(S().cpmResult === before, 'cpmResult-referentie ongewijzigd');
 });
 
-// =================================================================================================
-// H10 — `list_tasks`-filters waren ongevalideerd: een fout filter gaf STIL de verkeerde verzameling.
-// =================================================================================================
-
 test('H10: `kritiek: "true"` ⇒ VALIDATION-fout (was: de VOLLEDIGE lijst als "kritiek")', () => {
   neverCalculatedProject();
   S().runCPM();
@@ -457,7 +404,6 @@ test('L1: `limit: 0` / `limit: 5000` ⇒ VALIDATION-fout i.p.v. een stille klem'
   expectValidation(read('planner_list_tasks', { limit: 0 }), 'limit', 'limit 0');
   expectValidation(read('planner_list_tasks', { limit: 5000 }), 'limit', 'limit boven de bovengrens');
   expectValidation(read('planner_list_tasks', { offset: -1 }), 'offset', 'negatieve offset');
-  // Geldige waarden blijven werken.
   assert(readOk('planner_list_tasks', { limit: 1000, offset: 0 }).tasks.length > 0, 'geldige paginering werkt');
 });
 
@@ -494,7 +440,6 @@ test('H10: histogram met een ONBEKEND resource-id ⇒ VALIDATION-fout die het id
 test('H10: histogram — geldige scope blijft werken, en de validatie draait VÓÓR de recompute', () => {
   neverCalculatedProject();
   const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
-  // Ongeldige args op een NIET-doorgerekend document: er mag niet eerst duur herrekend worden.
   expectValidation(read('planner_get_resource_histogram', { bucket: 'day' }), 'bucket', 'bucket vóór recompute');
   assert(S().cpmResult === null, 'validatie vóór de recompute: er is niets gerekend');
   assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen undo-effect');
@@ -502,10 +447,6 @@ test('H10: histogram — geldige scope blijft werken, en de validatie draait VÓ
   const data = readOk('planner_get_resource_histogram', { resourceIds: [S().resources[0].id], bucket: 'dag' });
   assertEq(data.mode, 'detail', 'gescopte call blijft detail leveren');
 });
-
-// =================================================================================================
-// H11 — onbekende `resourceIds` in `level_resources` gaven een stille nul-effect-run.
-// =================================================================================================
 
 test('H11: onbekend resource-id ⇒ VALIDATION-fout die het id noemt (was: "niets te nivelleren")', async () => {
   overloadedProject();
@@ -525,10 +466,6 @@ test('H11: een geldige resourceIds-selectie blijft werken — regressie', async 
   assertEq(data.dryRun, true, 'preview gedraaid');
 });
 
-// =================================================================================================
-// H6 — `get_project_overview` gaf geen id's terug, terwijl het DE call voor structuurwerk heet.
-// =================================================================================================
-
 test('H6: elke overview-rij draagt `id` (== Task.id), zodat mutatietools er direct op kunnen sleutelen', () => {
   cleanProject([]);
   const a = S().addTask({ name: 'A' });
@@ -540,8 +477,6 @@ test('H6: elke overview-rij draagt `id` (== Task.id), zodat mutatietools er dire
   const ids = data.tasks.map((r: any) => r.id);
   assert(ids.includes(a) && ids.includes(b), `overview mist taak-id's: ${JSON.stringify(ids)}`);
 
-  // De relatienotatie draagt het sequence-id, zodat remove_dependencies (die op sequence-id's werkt)
-  // uit DEZE ene call gevoed kan worden.
   const aRow = data.tasks.find((r: any) => r.id === a);
   assertEq(aRow.rels.length, 1, 'één uitgaande relatie');
   assert(aRow.rels[0].includes(seq), `relatienotatie moet het seq-id dragen: ${aRow.rels[0]}`);
@@ -551,21 +486,11 @@ test('H6: elke overview-rij draagt `id` (== Task.id), zodat mutatietools er dire
 test('H6/L4: de beschrijvingen benoemen de naamdrift lezen↔schrijven', () => {
   const ov = getTool('planner_get_project_overview')!.description;
   assert(/\bid\b/.test(ov), 'overview-description moet de id-velden benoemen');
-  // Sinds #818 zonder eigen zin in de leestools: het schema biedt `wbs`/`wbsCode` niet als schrijfveld aan, en
-  // `fields` heeft `additionalProperties: false` (de handler weigert met de lijst toegestane velden).
   const fields = (getTool('planner_update_tasks')!.inputSchema as any).properties.updates.items.properties.fields;
   assertEq(fields.additionalProperties, false, 'fields kent geen extra sleutels');
   for (const k of ['wbs', 'wbsCode']) assert(!(k in fields.properties), `${k} is geen schrijfveld van update_tasks`);
 });
 
-// =================================================================================================
-// BATCH-PAD — `planner_batch` dispatcht via `batchStep` en komt dus NIET langs de schemavalidatie
-// in de dispatcher. Voor deze toolmodule is dat geen gat: elke `batchStep` loopt door exact dezelfde
-// `parse*`-functies als de losse handler, dus alle validaties hierboven gelden ook binnen een batch.
-// Deze twee cases pinnen dat vast, zodat het niet stil kan wegrotten.
-// =================================================================================================
-
-/** Draai `planner_batch` met de echte, geregistreerde tools. */
 async function batch(steps: { tool: string; args: unknown }[]): Promise<McpToolResult> {
   const def = getTool('planner_batch');
   assert(!!def, 'planner_batch niet geregistreerd');
@@ -610,10 +535,6 @@ test('BATCH: een VERSCHREVEN leesfilter wordt ook als batch-stap geweigerd (lees
   const totaal = S().tasks.length;
   assert(totaal > 1, 'precondition: meer dan één taak');
 
-  // `kritisch` i.p.v. `kritiek`. LOS wordt dat door de schemapoort in de dispatcher geweigerd, maar
-  // planner_batch roept leestools via `def.handler(...)` aan en slaat die poort dus over. Zonder een
-  // EIGEN sleutelpoort in de leestool kreeg de aanroeper hier `status:"uitgevoerd"` met ALLE taken —
-  // een plausibel-maar-onjuist antwoord waarop hij zijn volgende stap bouwt.
   const res = await batch([{ tool: 'planner_list_tasks', args: { kritisch: true, limit: 1000 } }]);
 
   assert(!res.ok, 'een verschreven filter hoort ook binnen een batch te worden geweigerd');
@@ -630,7 +551,6 @@ test('leestools: een onbekende sleutel wordt LOS geweigerd, ook op de argumentlo
   expectValidation(read('planner_get_resource_histogram', { van: '2026-06-01', granulariteit: 'dag' }),
     'granulariteit', 'verzonnen histogram-parameter');
   expectValidation(read('planner_get_project_overview', { limit: 10 }), 'limit', 'overview neemt geen argumenten');
-  // Geen argumenten meegeven blijft gewoon werken (batch geeft vaak `{}` door).
   assert(readOk('planner_get_project_overview', {}).tasks.length > 0, 'lege args blijven geldig');
   assert(readOk('planner_get_project_info').statistics.totalTasks > 0, 'geen args blijft geldig');
 });

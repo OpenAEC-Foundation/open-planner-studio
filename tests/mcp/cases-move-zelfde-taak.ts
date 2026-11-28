@@ -1,22 +1,3 @@
-// `planner_manage_assignments` — een `move` naar de taak waar de toewijzing AL op staat.
-//
-// De bug: `classifyAssignments` sloot bij de dubbelcheck van `move` de toewijzing zélf uit
-// (`x.id !== cur.id`), dus een move naar de eigen taak kwam als geldig plan door de pre-validatie.
-// Daarna gooide `draft.moveAssignment` ("resource … is al toegewezen aan taak …") en rolde de HELE
-// call terug met `ok=false code=VALIDATION` en een interne `draft.`-tekst — geldige items in dezelfde
-// call (bv. een `add`) gingen mee verloren, ook binnen `planner_batch`.
-//
-// Het gekozen gedrag: net als een dubbele `add` wordt zo'n move ZACHT geweigerd — alleen dat item in
-// `itemRejections` ("staat al op taak …"), de rest van de call gaat gewoon door.
-//
-// Alles loopt via de ECHTE dispatch-weg (`handleMcpMessage` → `tools/call`), zodat de schemapoort en
-// de batch-executor meegetest worden.
-//
-// Testlijst:
-//   1. move naar dezelfde taak + geldige add in ÉÉN call ⇒ ok, add toegepast, move zacht geweigerd
-//   2. hetzelfde binnen `planner_batch` ⇒ ok, add toegepast, weigering in `rejections`, niets teruggerold
-//   3. een gewone move naar een ANDERE taak werkt ongewijzigd
-//   4. (bestaand gedrag, vastgepind) move naar een andere taak waar dezelfde resource al staat ⇒ zacht
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -24,17 +5,13 @@ import type { McpContext } from '@/services/mcp/contracts';
 
 const store = useAppStore;
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`; het
-// restore-pad promoot de projectkalender-cache tot bibliotheek-entry.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
-// --- helpers -------------------------------------------------------------------------------------
 function makeCtx(): McpContext {
   return makeMcpContext(appStoreContext, { expectedDocId: store.getState().activeDocumentId });
 }
 
-/** Roep een tool aan via de ECHTE JSON-RPC-weg en geef het uitgepakte `McpToolResult` terug. */
 async function rpc(name: string, args: unknown): Promise<any> {
   const raw = await handleMcpMessage(
     JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name, arguments: args } }),
@@ -55,7 +32,6 @@ function undoLen(): number {
   return store.getState().historyEvents.filter((event) => event.state === 'applied').length;
 }
 
-/** Leaf-taak met een expliciete duur (store-actie; buiten de tools om). */
 function addTask(name: string): string {
   const id = store.getState().addTask({ name });
   const t = store.getState().tasks.find((x) => x.id === id)!;
@@ -63,7 +39,6 @@ function addTask(name: string): string {
   return id;
 }
 
-/** Twee bladtaken, twee resources en één bestaande toewijzing van `r1` op `a`. */
 async function fixture(): Promise<{ a: string; b: string; r1: string; r2: string; asg: string }> {
   store.getState().newProject();
   registerAllTools();
@@ -79,9 +54,6 @@ async function fixture(): Promise<{ a: string; b: string; r1: string; r2: string
   return { a, b, r1, r2, asg };
 }
 
-// =================================================================================================
-// 1) move naar dezelfde taak + geldige add in één call
-// =================================================================================================
 test('move naar de taak waar de toewijzing al staat ⇒ zacht geweigerd; add in dezelfde call WEL toegepast', async () => {
   const { a, r1, r2, asg } = await fixture();
   const before = undoLen();
@@ -109,9 +81,6 @@ test('move naar de taak waar de toewijzing al staat ⇒ zacht geweigerd; add in 
   assertEq(undoLen(), before + 1, 'één undo-stap voor de hele call');
 });
 
-// =================================================================================================
-// 2) hetzelfde binnen planner_batch
-// =================================================================================================
 test('planner_batch: move naar dezelfde taak ⇒ zacht geweigerd; add en volgende stap blijven staan', async () => {
   const { a, b, r1, r2, asg } = await fixture();
   const before = undoLen();
@@ -146,9 +115,6 @@ test('planner_batch: move naar dezelfde taak ⇒ zacht geweigerd; add en volgend
   assertEq(undoLen(), before + 1, 'de hele batch is één undo-stap');
 });
 
-// =================================================================================================
-// 3) gewone move naar een andere taak — ongewijzigd
-// =================================================================================================
 test('move naar een ANDERE taak werkt ongewijzigd', async () => {
   const { a, b, r1, asg } = await fixture();
   const res = await rpc('planner_manage_assignments', {
@@ -162,9 +128,6 @@ test('move naar een ANDERE taak werkt ongewijzigd', async () => {
   assertEq(store.getState().tasks.find((t) => t.id === b)!.resourceIds, [r1], 'resourceIds op B bijgewerkt');
 });
 
-// =================================================================================================
-// 4) bestaand gedrag, vastgepind: move naar een andere taak waar dezelfde resource al staat
-// =================================================================================================
 test('move naar een andere taak waar dezelfde resource al staat ⇒ zacht geweigerd (bestaand gedrag)', async () => {
   const { a, b, r1, r2, asg } = await fixture();
   expectOk(await rpc('planner_manage_assignments', {

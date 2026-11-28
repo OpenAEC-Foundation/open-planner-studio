@@ -1,26 +1,3 @@
-// BASELINEBEHEER — `src/services/mcp/tools/baselineTools.ts` (list/activate/rename/delete).
-//
-// Achtergrond: `planner_save_baseline` kon er één maken, en `compare_baseline`/`analyze_delay`
-// weigerden zonder actieve baseline met "activeer er een" — terwijl er geen tool bestond om dat te
-// doen. Deze suite pint zowel de nieuwe tools vast als de gerepareerde foutmeldingen.
-//
-// Testlijst:
-//   1. list op een leeg document ⇒ count 0 + hint die naar planner_save_baseline wijst
-//   2. save → list ⇒ id/naam/taskCount/isActive kloppen met de store
-//   3. activate ⇒ verschuift de meetlat; compare_baseline meet daarna tegen de GEKOZEN baseline
-//   4. activate van de al-actieve ⇒ changed:false ZONDER undo-stap of gewiste redo-stack
-//   5. activate null ⇒ geen actieve; compare_baseline weigert nu NETJES en noemt de nieuwe tools
-//   6. activate/rename/delete met onbekend id ⇒ weigering die planner_list_baselines noemt
-//   7. rename happy path + lege naam + zelfde naam (no-op) + dubbele naam (warning)
-//   8. delete van een NIET-actieve ⇒ actieve blijft staan
-//   9. delete van de ACTIEVE met andere over ⇒ terugval, rapport == echte store-staat
-//  10. delete van de laatste ⇒ geen actieve; compare_baseline/analyze_delay netjes VALIDATION
-//  11. delete onbekend id ⇒ geen undo-stap, niets gewijzigd
-//  12. onbekende argumentsleutel ⇒ weigering die de SLEUTEL noemt (tool zelf én schemapoort)
-//  13. batch: activate+rename+delete = ÉÉN undo-stap; undo herstelt alles
-//  14. batch met onbekend veld / onbekend id ⇒ hele batch teruggedraaid, niets gewijzigd
-//  15. IFC-round-trip: meerdere baselines, namen mét apostrof, en de actief-markering
-//  16. registratie/tools-list-vorm: vier tools, prefix, description, annotaties, batch-kern
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { baselineTools } from '@/services/mcp/tools/baselineTools';
 import { getTool, registerAllTools } from '@/services/mcp/toolRegistry';
@@ -37,9 +14,6 @@ const S = () => store.getState();
 
 registerAllTools();
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`; het
-// restore-pad promoot de projectkalender-cache tot bibliotheek-entry. Eén edit + undo haalt die
-// benigne promotie weg uit latere byte-vergelijkingen.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
@@ -68,7 +42,6 @@ async function callErr(name: string, args: unknown = {}, ctx: McpContext = makeC
   return res as McpToolErr;
 }
 
-/** Vers document met `n` taken van 5 dagen, doorgerekend. */
 function reset(n = 3): string[] {
   S().newProject();
   const ids: string[] = [];
@@ -82,15 +55,11 @@ function reset(n = 3): string[] {
   return ids;
 }
 
-/** Sla een baseline op via de bestaande tool en geef zijn id terug. */
 async function save(name: string): Promise<string> {
   const data = await callOk('planner_save_baseline', { name });
   return data.baselineId as string;
 }
 
-// =================================================================================================
-// 1) list op een leeg document — de hint moet naar een BESTAANDE tool wijzen
-// =================================================================================================
 test('1. list_baselines op een document zonder baselines ⇒ count 0 + bruikbare hint', async () => {
   reset(0);
   const d = await callOk('planner_list_baselines');
@@ -101,9 +70,6 @@ test('1. list_baselines op een document zonder baselines ⇒ count 0 + bruikbare
     `hint moet planner_save_baseline noemen, kreeg: ${String(d.hint)}`);
 });
 
-// =================================================================================================
-// 2) save → list: de lijst spiegelt de store
-// =================================================================================================
 test('2. save_baseline → list_baselines toont id, naam, taskCount en actief-markering', async () => {
   reset(3);
   const id = await save('Nulmeting');
@@ -120,9 +86,6 @@ test('2. save_baseline → list_baselines toont id, naam, taskCount en actief-ma
   assert(d.hint === undefined, `geen hint nodig, kreeg: ${String(d.hint)}`);
 });
 
-// =================================================================================================
-// 3) activate verschuift de meetlat van compare_baseline
-// =================================================================================================
 test('3. activate_baseline maakt de gekozen baseline actief én compare_baseline meet daartegen', async () => {
   reset(2);
   const first = await save('Eerste');
@@ -141,13 +104,9 @@ test('3. activate_baseline maakt de gekozen baseline actief én compare_baseline
   assertEq(cmp.baselineName, 'Eerste', 'en noemt zijn naam');
 });
 
-// =================================================================================================
-// 4) al actief ⇒ changed:false, en GEEN spurious undo-stap / gewiste redo-stack
-// =================================================================================================
 test('4. activate van de al-actieve baseline ⇒ changed:false zonder undo-stap of redo-wipe', async () => {
   reset(1);
   const id = await save('Enige');
-  // Iets ongedaan maken zodat er een redo-stack ligt die een no-op niet mag wissen.
   S().addTask({ name: 'weg' });
   S().undo();
   const undoBefore = S().historyEvents.filter(event => event.state === 'applied').length;
@@ -162,9 +121,6 @@ test('4. activate van de al-actieve baseline ⇒ changed:false zonder undo-stap 
   assertEq(S().activeBaselineId, id, 'de actieve is ongewijzigd');
 });
 
-// =================================================================================================
-// 5) activate null ⇒ geen actieve; compare_baseline weigert NETJES en wijst naar de nieuwe tools
-// =================================================================================================
 test('5. activate null ⇒ geen actieve baseline; compare_baseline noemt de tools die wél bestaan', async () => {
   reset(2);
   await save('Nulmeting');
@@ -179,15 +135,11 @@ test('5. activate null ⇒ geen actieve baseline; compare_baseline noemt de tool
   assert(err.error.includes('planner_activate_baseline'), `fout moet planner_activate_baseline noemen: ${err.error}`);
   assert(err.error.includes('planner_list_baselines'), `fout moet planner_list_baselines noemen: ${err.error}`);
 
-  // En de lijst zelf vertelt wat er nu moet gebeuren.
   const l = await callOk('planner_list_baselines');
   assert(typeof l.hint === 'string' && l.hint.includes('planner_activate_baseline'),
     `hint moet naar activate wijzen: ${String(l.hint)}`);
 });
 
-// =================================================================================================
-// 6) onbekend id ⇒ weigering die naar planner_list_baselines wijst (alle drie de mutatietools)
-// =================================================================================================
 test('6. onbekend baselineId ⇒ VALIDATION met verwijzing naar planner_list_baselines', async () => {
   reset(1);
   const id = await save('Echt');
@@ -205,9 +157,6 @@ test('6. onbekend baselineId ⇒ VALIDATION met verwijzing naar planner_list_bas
   assertEq(S().activeBaselineId, id, 'de actieve is ongemoeid');
 });
 
-// =================================================================================================
-// 7) rename: happy path, lege naam, zelfde naam (no-op), dubbele naam (warning)
-// =================================================================================================
 test('7. rename_baseline: hernoemt echt, weigert leeg, no-opt op dezelfde naam, waarschuwt bij dubbel', async () => {
   reset(1);
   const a = await save('Oud');
@@ -228,13 +177,9 @@ test('7. rename_baseline: hernoemt echt, weigert leeg, no-opt op dezelfde naam, 
 
   const b = await save('Nieuw');
   const dup = await callOk('planner_rename_baseline', { baselineId: b, name: 'Nieuw' });
-  // b heette al 'Nieuw' (net opgeslagen onder die naam) ⇒ geen wijziging, maar wél de botsing melden.
   assert(typeof dup.warning === 'string' && dup.warning.includes('Nieuw'), `botsing moet gemeld worden: ${JSON.stringify(dup)}`);
 });
 
-// =================================================================================================
-// 8) delete van een NIET-actieve baseline laat de actieve staan
-// =================================================================================================
 test('8. delete_baseline van een niet-actieve ⇒ actieve blijft, telling klopt', async () => {
   reset(2);
   const oud = await save('Oud');
@@ -251,9 +196,6 @@ test('8. delete_baseline van een niet-actieve ⇒ actieve blijft, telling klopt'
   assertEq(S().activeBaselineId, nieuw, 'store: actieve ongewijzigd');
 });
 
-// =================================================================================================
-// 9) delete van de ACTIEVE met andere over ⇒ terugval, en het rapport klopt met de store
-// =================================================================================================
 test('9. delete van de ACTIEVE ⇒ terugval op de laatst overgebleven, eerlijk gerapporteerd', async () => {
   reset(2);
   const a = await save('A');
@@ -269,7 +211,6 @@ test('9. delete van de ACTIEVE ⇒ terugval op de laatst overgebleven, eerlijk g
   assertEq(d.remainingCount, 1, 'één over');
   assert(typeof d.note === 'string' && d.note.includes('planner_activate_baseline'),
     `de note moet de meetlat-verschuiving uitleggen: ${String(d.note)}`);
-  // Het rapport MOET de echte store beschrijven — dat is de les van de delete_tasks-onderrapportage.
   assertEq(S().activeBaselineId, d.activeBaselineId, 'rapport == store (actieve)');
   assertEq(S().baselines.length, d.remainingCount, 'rapport == store (telling)');
 
@@ -277,9 +218,6 @@ test('9. delete van de ACTIEVE ⇒ terugval op de laatst overgebleven, eerlijk g
   assertEq(cmp.baselineId, b, 'compare_baseline meet nu tegen de teruggevallen baseline');
 });
 
-// =================================================================================================
-// 10) delete van de LAATSTE ⇒ geen actieve; de leestools weigeren netjes i.p.v. te crashen
-// =================================================================================================
 test('10. delete van de laatste baseline ⇒ geen actieve; compare/analyze geven nette VALIDATION', async () => {
   reset(2);
   const enige = await save('Enige');
@@ -300,15 +238,11 @@ test('10. delete van de laatste baseline ⇒ geen actieve; compare/analyze geven
   const err = await callErr('planner_analyze_delay');
   assert(err.error.includes('planner_activate_baseline'), `analyze_delay moet activate noemen: ${err.error}`);
 
-  // Undo brengt de verwijderde baseline terug — één stap.
   S().undo();
   assertEq(S().baselines.length, 1, 'undo herstelt de baseline');
   assertEq(S().activeBaselineId, enige, 'inclusief de actief-markering');
 });
 
-// =================================================================================================
-// 11) delete met onbekend id ⇒ geen undo-stap, niets gewijzigd
-// =================================================================================================
 test('11. delete met onbekend id laat geen undo-stap of wijziging achter', async () => {
   reset(1);
   const id = await save('Blijft');
@@ -320,9 +254,6 @@ test('11. delete met onbekend id laat geen undo-stap of wijziging achter', async
   assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore, 'geen achtergebleven undo-stap');
 });
 
-// =================================================================================================
-// 12) onbekende argumentsleutel ⇒ weigering die de SLEUTEL noemt — door de tool ZELF én de schemapoort
-// =================================================================================================
 test('12. onbekend argument ⇒ weigering die de sleutel noemt (tool zelf)', async () => {
   reset(1);
   const id = await save('X');
@@ -355,8 +286,6 @@ test('12b. de schemapoort in de dispatcher weigert dezelfde sleutels (additional
   assert(String(sc.error).includes('cascade'), `de sleutel staat in de fout: ${sc.error}`);
   assertEq(S().baselines.length, 1, 'niets verwijderd');
 
-  // …maar `baselineId: null` MOET door diezelfde poort komen (type: ['string','null']) — anders zou
-  // "geen baseline actief" via de echte JSON-RPC-weg onbereikbaar zijn.
   const raw2 = await handleMcpMessage(JSON.stringify({
     jsonrpc: '2.0', id: 2, method: 'tools/call',
     params: { name: 'planner_activate_baseline', arguments: { baselineId: null } },
@@ -377,9 +306,6 @@ test('12c. ontbrekend verplicht veld ⇒ weigering die het veld noemt', async ()
   assert(d.error.includes('baselineId'), `delete moet baselineId eisen: ${d.error}`);
 });
 
-// =================================================================================================
-// 13) planner_batch — dezelfde tools als stap: ÉÉN undo-stap voor het geheel
-// =================================================================================================
 test('13. batch met activate + rename + delete ⇒ één undo-stap, alles uitgevoerd', async () => {
   reset(2);
   const a = await save('A');
@@ -401,7 +327,6 @@ test('13. batch met activate + rename + delete ⇒ één undo-stap, alles uitgev
   assertEq(S().activeBaselineId, a, 'A is actief');
   assertEq(S().historyEvents.filter(event => event.state === 'applied').length, undoBefore + 1, 'precies ÉÉN undo-stap voor de hele batch');
 
-  // De slot-leesstap ziet de eindtoestand.
   const last = data.substeps[data.substeps.length - 1];
   assert(String(last.resultJson).includes('A-hernoemd'), `de leesstap ziet de nieuwe naam: ${last.resultJson}`);
 
@@ -448,9 +373,6 @@ test('14b. save_baseline blijft uitgesloten van planner_batch (ongewijzigd spec-
   assert(err.error.includes('save_baseline'), `de melding noemt de tool: ${err.error}`);
 });
 
-// =================================================================================================
-// 15) IFC-ROUND-TRIP — IFC is het native formaat: wat de tools beheren moet het bestand overleven
-// =================================================================================================
 test('15. baselines (meerdere, namen met apostrof) + actief-markering overleven writeIFC→readIFC', async () => {
   reset(3);
   const a = await save("Nulmeting 'A', v2");
@@ -477,9 +399,6 @@ test('15b. "geen actieve baseline" round-trippt óók (activate null blijft null
   assertEq(back.activeBaselineId, null, 'en er is nog steeds geen actieve');
 });
 
-// =================================================================================================
-// 16) Registratie + tools/list-vorm
-// =================================================================================================
 test('16. vier baselinetools: prefix, description, vier annotaties, batch-kern waar nodig', async () => {
   registerAllTools();
   assertEq(baselineTools.length, 4, 'vier tools in de module');
@@ -494,9 +413,6 @@ test('16. vier baselinetools: prefix, description, vier annotaties, batch-kern w
   for (const t of baselineTools) {
     assert(t.name.startsWith('planner_'), `${t.name}: prefix`);
     assert(t.description.trim().length > 40, `${t.name}: een description waarop de AI kan kiezen`);
-    // Sleutel-lijst `as const` ⇒ indexeert `McpToolAnnotations` rechtstreeks; de oude cast naar
-    // `Record<string, unknown>` was onmogelijk (geen index-signatuur) en verloor bovendien de
-    // koppeling met het type: een hernoemde hint zou hier stil als `undefined` doorlopen.
     for (const k of ['readOnlyHint', 'destructiveHint', 'idempotentHint', 'openWorldHint'] as const) {
       assertEq(typeof t.annotations[k], 'boolean', `${t.name}: annotatie ${k}`);
     }
@@ -513,17 +429,10 @@ test('16. vier baselinetools: prefix, description, vier annotaties, batch-kern w
   assertEq(getTool('planner_activate_baseline')!.annotations.readOnlyHint, false, 'activate muteert');
 });
 
-// =================================================================================================
-// 17) Veiligheidsvlaggen — ook het no-op-snelpad staat achter de guards
-//
-// Het `okDirect`-pad omzeilt `runMutateTool` (en daarmee zijn guards); zonder de expliciete
-// `guardNonTransactional` ervoor zou een gepauzeerde of alleen-lezen bridge een "geslaagde" mutatie-
-// call beantwoorden. Dat is precies het soort gat dat je pas merkt als het te laat is.
-// =================================================================================================
 test('17. pauze / alleen-lezen weigeren zowel de echte mutatie als het no-op-snelpad', async () => {
   reset(1);
   const a = await save('A');
-  const b = await save('B'); // B is actief ⇒ activate(B) is het no-op-pad, activate(A) het mutatie-pad
+  const b = await save('B');
 
   for (const flag of ['paused', 'readOnly'] as const) {
     const ctx = makeCtx({ [flag]: true } as McpContextOverrides);
@@ -539,7 +448,6 @@ test('17. pauze / alleen-lezen weigeren zowel de echte mutatie als het no-op-sne
   assertEq(S().baselines.length, 2, 'niets verwijderd');
   assertEq(S().activeBaselineId, b, 'niets geactiveerd');
 
-  // Lezen mag wél tijdens pauze/alleen-lezen (spec: die vlaggen raken alleen mutaties).
   const l = await callOk('planner_list_baselines', {}, makeCtx({ paused: true, readOnly: true }));
   assertEq(l.count, 2, 'list_baselines blijft beschikbaar');
 });

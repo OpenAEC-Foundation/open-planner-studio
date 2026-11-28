@@ -1,12 +1,3 @@
-// De AI-koppeling en de invoerregels voor voortgang (besluit eigenaar, regel 4): de UI zet zonder
-// statusdatum die op vandaag (Z1) en vraagt de werkelijke start van een taak die pas ná de statusdatum
-// zou beginnen (Z1b). De AI-koppeling doet van beide NIETS automatisch:
-//   - voortgang zonder statusdatum blijft geweigerd, en de reden zegt wat de AI moet doen
-//     (`planner_update_project` → `statusDate`, daarna de update herhalen);
-//   - voortgang op zo'n later geplande taak zonder meegegeven `actualStart` wordt geweigerd met de
-//     uitleg dat de AI de werkelijke start moet meegeven — hetzelfde criterium als de vraag in de UI
-//     (`actualStartQuestionFor`). Mét `actualStart` werkt het gewoon.
-// Via de echte JSON-RPC-dispatcher (schema's, stale-guard, transactie).
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -35,7 +26,6 @@ async function rpc(name: string, args: unknown): Promise<any> {
 const timeOf = (id: string): TaskTime => S().tasks.find((t) => t.id === id)!.time;
 const reasons = (res: any): string[] => (res.itemRejections ?? []).map((r: { reason: string }) => r.reason);
 
-/** Taak V (5 wd) vanaf 1 juni en taak L (5 wd) vanaf 1 juli; een mijlpaal M op 1 juli. */
 function setup(statusDate: string | undefined): { V: string; L: string; M: string } {
   S().newProject();
   S().setProject({ startDate: '2026-06-01', ...(statusDate ? { statusDate } : {}) });
@@ -74,7 +64,6 @@ test('later geplande taak mét actualStart: toegepast, zoals opgegeven', async (
   const { L } = setup('2026-06-10');
   const res = await rpc('planner_update_tasks', { updates: [{ id: L, progress: { completion: 40, actualStart: '2026-06-08' } }] });
   assertEq(reasons(res), [], 'geen weigering');
-  // F2 (spec §3.6, invoer; §4.2 D1): de opgegeven datum wordt het begin van de werkdag. Fixronde 1 deel B, B1.
   assertEq({ as: timeOf(L).actualStart, c: timeOf(L).completion }, { as: '2026-06-08T07:00', c: 0.4 }, 'start en voortgang');
 });
 
@@ -90,10 +79,6 @@ test('later geplande mijlpaal met een werkelijke datum: gewoon toegepast (start 
   const { M } = setup('2026-06-10');
   const res = await rpc('planner_update_tasks', { updates: [{ id: M, progress: { actualFinish: '2026-06-09' } }] });
   assertEq(reasons(res), [], 'geen weigering');
-  // Een mijlpaal heeft één moment. Afgemeld met alleen een datum houdt hij de klokketijd uit de planning:
-  // deze losse mijlpaal zonder soort staat in OPS om 16:00 (B6). Besluit Ethan 2026-10-29 (vloot-wiki,
-  // `besluiten/2026-10-29 afgemelde mijlpaal houdt de geplande tijd.md`); het vervangt D7 (07:00) voor
-  // afmelden. Net als in het paneel (`check-progress-entry.ts`, "3d mijlpaal").
   assertEq(timeOf(M).earlyStart?.slice(11), '16:00', 'geplande tijd');
   assertEq({ as: timeOf(M).actualStart, af: timeOf(M).actualFinish }, { as: '2026-06-09T16:00', af: '2026-06-09T16:00' }, 'mijlpaal afgemeld');
 });
@@ -241,7 +226,6 @@ for (const batch of [false, true]) {
   }
 }
 
-// F1: dezelfde drie statusgevallen via de echte dispatcher en de mutatietransactie.
 for (const [statusDate, actualFinish, want] of [
   ['2026-06-03', '2026-06-03', '2026-06-03T16:00'],
   ['2026-06-03T12:00', '2026-06-03', '2026-06-03T12:00'],
