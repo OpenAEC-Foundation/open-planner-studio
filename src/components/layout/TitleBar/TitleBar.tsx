@@ -14,13 +14,11 @@ import { canWriteToRefWithoutPrompt, saveTargetRef } from '@/services/fileAccess
 import { isFeatureEnabled } from '@/utils/featureFlags';
 import { FEEDBACK_AVAILABLE } from '@/utils/buildFlags';
 
-// Het label van de feedback-knop roteert elke 10 minuten door deze drie.
 const FEEDBACK_LABEL_KEYS = ['feedback.rotateFeedback', 'feedback.rotateBug', 'feedback.rotateFeature'] as const;
 const FEEDBACK_ROTATE_MS = 10 * 60 * 1000;
 
 type AppWindow = import('@tauri-apps/api/window').Window;
 
-/** Voer `fn` uit op het Tauri-venster; in de browser een no-op. De Tauri-API alleen dynamisch. */
 async function withAppWindow(fn: (appWindow: AppWindow) => unknown): Promise<void> {
   if (!isTauri()) return;
   const { getCurrentWindow } = await import('@tauri-apps/api/window');
@@ -36,7 +34,6 @@ export function TitleBar() {
   const redo = useAppStore(s => s.redo);
   const undoAvailable = useAppStore(canUndo);
   const redoAvailable = useAppStore(canRedo);
-  // Ook in Help blijft de wachtende vraag modaal; geschiedenis en instellingen moeten wachten.
   const questionPending = useAppStore(s => isGlobalShortcutFrozen(s.ui));
   const isDirty = useAppStore(s => s.isDirty);
   const setUI = useAppStore(s => s.setUI);
@@ -50,11 +47,6 @@ export function TitleBar() {
 
   const [maximized, setMaximized] = useState(false);
 
-  // De gecentreerde titel staat absoluut op 50% en moet aan beide kanten evenveel ruimte
-  // vrijhouden als het breedste zijcluster inneemt — anders schuift hij bij een lange
-  // projectnaam over de feedbackknop heen. Die breedte is niet statisch (AutoSave-label,
-  // roterend feedbacklabel, taal, vensterknoppen alleen in Tauri), dus we meten hem en
-  // geven hem als CSS-variabele door; `.title-bar-center` rekent daar zijn breedte uit.
   const rootRef = useRef<HTMLDivElement>(null);
   const leftRef = useRef<HTMLDivElement>(null);
   const rightRef = useRef<HTMLDivElement>(null);
@@ -73,10 +65,8 @@ export function TitleBar() {
     if (leftRef.current) observer.observe(leftRef.current);
     if (rightRef.current) observer.observe(rightRef.current);
     return () => observer.disconnect();
-    // De rechterzijde bestaat alleen in Tauri; die conditie verandert nooit tijdens de sessie.
   }, []);
 
-  // Roteer het feedback-knoplabel elke 10 minuten.
   const [feedbackLabelIdx, setFeedbackLabelIdx] = useState(0);
   useEffect(() => {
     const id = setInterval(
@@ -86,9 +76,6 @@ export function TitleBar() {
     return () => clearInterval(id);
   }, []);
 
-  // De opruimfunctie moet uit het effect zélf komen: een `return` binnen de async IIFE bereikte
-  // React nooit, waardoor de onResized-listener bleef hangen. `disposed` vangt een unmount op die
-  // valt vóórdat de dynamische import of de listen-registratie klaar is.
   useEffect(() => {
     if (!isTauri()) return;
     let disposed = false;
@@ -115,18 +102,12 @@ export function TitleBar() {
   }), []);
   const handleClose = useCallback(() => withAppWindow(w => { void w.close(); }), []);
 
-  // Een naamloos document heeft geen bestaand doel dat veilig overschreven mag worden. Recovery
-  // draait onafhankelijk hiervan door; de schakelaar belooft uitsluitend échte bestandsopslag.
-  // Eén afleiding van het opslagdoel (`saveTargetRef`), dezelfde als Opslaan en de AutoSave-timer.
-  // Een site-bestand telt hier NIET als doel: automatisch opslaan naar de site staat uit, want elke
-  // ronde zou een nieuwe versie maken (besluit #309). De knop is dan grijs, met een eigen uitleg.
   const autoSaveTarget = useMemo(
     () => saveTargetRef({ filePath, fileHandle, siteFileId }),
     [fileHandle, filePath, siteFileId],
   );
   const autoSaveOnSite = autoSaveTarget?.kind === 'site';
   const autoSaveRef = autoSaveOnSite ? null : autoSaveTarget;
-  // Zonder site-doel precies zoals vroeger: de knop volgt `autoSaveToFile`.
   const autoSaveActive = autoSaveToFile && !autoSaveOnSite;
   const autoSaveTitle = autoSaveOnSite
     ? tCommon('autosave.siteDisabled')
@@ -136,8 +117,6 @@ export function TitleBar() {
   const toggleAutoSave = useCallback(() => {
     if (!autoSaveRef) return;
     if (autoSaveToFile) { setAutoSaveToFile(false); return; }
-    // Een FSA-handle die alleen leesrecht heeft mag nooit vanuit een timer een permissieprompt
-    // opleveren. Pas na een bewuste handmatige Opslaan is de knop beschikbaar.
     void canWriteToRefWithoutPrompt(autoSaveRef).then((canWrite) => {
       if (canWrite) setAutoSaveToFile(true);
     });
@@ -153,8 +132,6 @@ export function TitleBar() {
           <AppLogo size={18} className="title-bar-app-icon" />
           <div className="quick-access-separator" />
 
-          {/* Nieuw/Openen/Opslaan staan hier bewust niet (review 2026-10-06): ze staan al op Start en in
-              Bestand, en de oude Opslaan-knop droeg het misleidende label "Opslaan als…". */}
           <button
             className={`title-bar-autosave${autoSaveActive ? ' active' : ''}`}
             role="switch"
@@ -190,8 +167,6 @@ export function TitleBar() {
 
           <div className="quick-access-separator" />
 
-          {/* Sleutelnaam bewust gelijk gebleven: `ribbon.projectSettings` = App-instellingen
-              (`ribbon.projectInfo` = Projectinstellingen). */}
           <button
             className="quick-access-btn"
             title={tMenu('ribbon.projectSettings')}
@@ -201,15 +176,10 @@ export function TitleBar() {
             <Icon id="ui.settings" size={16} />
           </button>
 
-          {/* Platformbouw (#818): geen feedbackknop; de werkplek heeft er zelf een. Stap 7 van de
-              rondleiding vervalt dan ook (`tourSteps.ts`). */}
           {FEEDBACK_AVAILABLE && (
             <>
               <div className="quick-access-separator" />
 
-              {/* data-tour-anchor (tourstap 7): altijd zichtbaar bovenin,
-                  geen prepare() nodig — de "elk wissewasje mag"-afsluitstap van de rondleiding wijst
-                  hier direct naar toe i.p.v. naar een externe GitHub-link. */}
               <button
                 className="title-bar-feedback-btn"
                 data-tour-anchor="feedback-button"
@@ -229,8 +199,6 @@ export function TitleBar() {
         ) : (
           <>
             <span className="title-bar-app-name" data-ops-title-app-name>Open Planner Studio v{__APP_VERSION__}</span>
-            {/* Een naamloos project blijft in de data naamloos; de weergave valt terug op de
-                vertaalde tekst (i.p.v. hier niets te tonen). */}
             <span className="title-bar-file-name" data-ops-title-file-name>
               {isDirty ? '* ' : ''}{nameWithProjectCode(project.name, activeCode) || tCommon('project.untitled')}
             </span>
@@ -238,11 +206,6 @@ export function TitleBar() {
         )}
       </div>
 
-      {/* Eigen vensterknoppen alleen op Windows/Linux; macOS gebruikt de native titelbalk.
-          In de browserbuild — die productie-live staat op
-          open-planner-studio.open-aec.com — beheert de browser het venster en beginnen alle drie
-          de handlers hierboven met `if (!isTauri()) return;`. Ze renderden tot nu toe
-          onvoorwaardelijk, dus de webgebruiker zag drie knoppen die niets deden. */}
       {isTauri() && !isMacPlatform() && (
         <div ref={rightRef} className="window-controls">
           <button className="window-btn" title={tCommon('window.minimize')} onClick={() => { void handleMinimize(); }}>

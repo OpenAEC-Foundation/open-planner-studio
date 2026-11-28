@@ -1,11 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-/**
- * Kleine "Esc of F11 om te sluiten"-hint die een paar seconden zichtbaar is bij het
- * betreden van presentation mode en daarna vervaagt (CSS-transitie op opacity). Puur decoratief —
- * geen interactie, `pointer-events: none` zodat hij nooit de Gantt-input blokkeert.
- */
 export function PresentationHint() {
   const { t } = useTranslation('common');
   const [visible, setVisible] = useState(true);

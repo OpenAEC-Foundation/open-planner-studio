@@ -12,18 +12,15 @@ import { formatClock } from '@/utils/displayTime';
 import { saveStatusOf } from '@/state/documentSaveState';
 import { useStatusFold } from './useStatusFold';
 
-// De balk is altijd één rij. Past niet alles, dan valt dit samen, in deze volgorde: eerst wat de
-// planner elders ook ziet, als laatste wat om actie vraagt. Wat weg is, staat in de tooltip van de
-// ⋯-knop; de waarschuwingen staan onder hun kopje, dat altijd blijft.
 const FOLD_ORDER = [
-  'view', // Schaal en Zoom: staan ook op de tijdas.
-  'baselineNames', // De kleuren blijven; de namen staan in hun tooltip.
-  'warnings', // Eén kopje dat het Waarschuwingenpaneel opent.
-  'counts', // Taken en Mijlpalen.
+  'view',
+  'baselineNames',
+  'warnings',
+  'counts',
   'critical',
-  'selection', // Ook zichtbaar in de Gantt en de tabel.
+  'selection',
   'end',
-  'saveState', // De opslagstand. "Niet opgeslagen" staat ook in de titelbalk en op het tabblad.
+  'saveState',
   'stale',
 ] as const;
 
@@ -36,11 +33,8 @@ export function StatusBar() {
   const scheduleStale = useAppStore(s => s.scheduleStale);
   const autoCalcCPM = useAppStore(s => s.ui.autoCalcCPM);
   const selectedTaskIds = useAppStore(s => s.selectedTaskIds);
-  // Alleen de zoom: een abonnement op de hele `view` renderde de balk (en de tellers hieronder over
-  // alle taken) opnieuw bij elke scroll.
   const zoom = useAppStore(s => s.view.zoom);
   const isDirty = useAppStore(s => s.isDirty);
-  // #804 stap 5: de opslagstand hoort bij het document dat je ziet (`documentSaveState.ts`).
   const saveState = useAppStore(s => s.documents.find(d => d.id === s.activeDocumentId)?.saveState);
   const timeNotation = useTimeNotation();
   const debugTerminalEnabled = useAppStore(s => s.ui.debugTerminalEnabled);
@@ -59,12 +53,9 @@ export function StatusBar() {
   const leafCount = useMemo(() => tasks.filter(isLeafTask).length, [tasks]);
   const milestoneCount = useMemo(() => tasks.filter(t => t.isMilestone).length, [tasks]);
   const criticalCount = cpmResult?.criticalPath.length || 0;
-  // Elke teller is een ingang naar het Waarschuwingenpaneel met de details.
   const overallocatedCount = resourceLoadResult
     ? Object.values(resourceLoadResult.overallocatedDays).filter(days => days.length > 0).length
     : 0;
-  // Op de IFC- en Rapport-werkruimte bestaat de rail niet (App.tsx rendert 'm daar niet), dus
-  // alleen de vlag zetten zou een dode klik zijn; spring dan mee naar de Gantt-werkruimte.
   const openWarnings = () => setUI({
     showWarningsPanel: true,
     ...(activeRibbonTab === 'ifc' || activeRibbonTab === 'report' ? { activeRibbonTab: 'start' as const } : {}),
@@ -97,18 +88,11 @@ export function StatusBar() {
   const tasksText = `${t('status.tasks')} ${leafCount}`;
   const milestonesText = `${t('status.milestones')} ${milestoneCount}`;
   const criticalText = cpmResult ? t('status.criticalPath', { count: criticalCount, duration: cpmResult.projectDuration }) : '';
-  // Een leeg project heeft geen projecteinde (solver geeft dan ''); toon dan geen kale "Einde:"-label
-  // zonder waarde. B4: een tijd alleen als het einde midden op de werkdag van de projectkalender valt.
   const endText = cpmResult?.projectEnd ? `${t('status.end')} ${dd.dateTime(momentLabel(calendarClock(projectCalendar), cpmResult.projectEnd, 'end'))}` : '';
-  // Bij auto-calc is een verse stale-vlag alleen de korte wachttijd tot de geplande solve.
-  // Een fout houdt de vlag juist vast en blijft daarom zichtbaar.
   const staleText = scheduleStale && (!autoCalcCPM || !!cpmResult?.error) ? t('status.scheduleStale') : '';
   const selectionText = selectedTaskIds.length > 0 ? t('status.selection', { count: selectedTaskIds.length }) : '';
-  // Afgeleid uit zoom — kan niet desyncen van de getekende as.
   const scaleText = `${t('status.scale')} ${t(`ribbon.${scaleFromZoom(zoom)}`)}`;
   const zoomText = t('status.zoom', { level: Math.round(zoom) });
-  // "Opslaan…" tijdens een opslag van dit document, daarna "Opgeslagen 14:32" (de tijd van die opslag, in de tijdnotatie
-  // van de app), en "Niet opgeslagen" zodra het weer gewijzigd is. Een fout is een gewone melding, geen stand hier.
   const saveStatus = saveStatusOf(saveState, isDirty);
   const savedText = (at: number) => {
     const savedAt = new Date(at);
