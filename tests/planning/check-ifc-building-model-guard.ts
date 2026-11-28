@@ -1,4 +1,3 @@
-// Knownbug 110: gecombineerde 4D-bestanden weigeren vóór documentaanmaak, niet pas bij opslaan.
 import './domStub';
 import { readIFC } from '@/services/ifc/ifcReader';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
@@ -24,7 +23,6 @@ function eq(label: string, actual: unknown, expected: unknown): void {
 function rejected(text: string): boolean {
   return readReason(text) === 'building-model';
 }
-/** De reden waarom `readIFC` weigert, of 'geopend'. */
 function readReason(text: string): string {
   try { readIFC(text); return 'geopend'; }
   catch (error) { return error instanceof IfcParseError ? error.reason : 'andere fout'; }
@@ -35,8 +33,6 @@ async function main(): Promise<void> {
   S().addTask({ name: 'Bestaande planning' });
   const planning = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
   const add = (record: string) => planning.replace('DATA;', `DATA;\n${record}\n`);
-  // Alle schema-subtypen, niet alleen muren of entiteiten met geometrie. Minimale records zijn
-  // opzettelijk genoeg: de veiligheidsbeslissing hangt af van het type, niet van referenties.
   for (const type of IFC_BUILDING_MODEL_TYPES) {
     eq(`weigert ${type}`, rejected(add(`#900001=${type}($);`)), true);
   }
@@ -47,16 +43,10 @@ async function main(): Promise<void> {
   eq('gewone planning opent', readIFC(planning).tasks.length, 1);
   eq('geen tekstmatch in commentaar', readIFC(add('/* #900001=IFCWALL($); */')).tasks.length, 1);
   eq('geen tekstmatch in propertywaarde', readIFC(add("#900001=IFCPROPERTYSINGLEVALUE('test',$,IFCTEXT('#9=IFCWALL($);'),$);")).tasks.length, 1);
-  // Meer DATA-secties (ISO 10303-21): een wand in een tweede sectie telt mee. Vóór deze fix stopte de lezer bij de eerste
-  // `ENDSEC;`: zo'n bestand opende zonder melding, en opslaan wiste de wand. Sinds ronde 10 (besluit Trias) leest de lezer
-  // nog steeds zoals main; de grammatica van het hele bestand (`stepFileGrammar.ts`) ziet de wand.
   const second = (record: string) => planning.replace(/ENDSEC;(\s*END-ISO-10303-21;)/, `ENDSEC;\nDATA;\n${record}\nENDSEC;$1`);
   eq('weigert een wand in een tweede DATA-sectie', rejected(second("#900001=IFCWALL('x',$);")), true);
   eq('weigert een wand in een tweede DATA-sectie met sectiekop',
     rejected(second("#900001=IFCWALL('x',$);").replace(/\nDATA;\n#900001/, "\nDATA('deel 2',('IFC4X3_ADD2'));\n#900001")), true);
-  // #870, ronde 8 (Terra): een lijst als naam van de sectiekop is buiten de norm (§11.1): het bestand breekt, en dan leest
-  // `readIFC` precies zoals main (tot de eerste `ENDSEC;`). De wand erna ziet hij dan niet; de doelcontrole leest een
-  // eigen bestand ook zoals main (knownbug 1052 voor een vreemd bestand met de kop van OPS).
   eq('kapotte sectiekop DATA((…),(…)): opent zoals main',
     readIFC(second("#900001=IFCWALL('x',$);").replace(/\nDATA;\n#900001/, "\nDATA(('deel 2'),('IFC4X3_ADD2'));\n#900001")).tasks.length, 1);
   eq('een tweede DATA-sectie zonder model opent', readIFC(second("#900001=IFCPROPERTYSINGLEVALUE('x',$,IFCTEXT('y'),$);")).tasks.length, 1);
@@ -65,28 +55,20 @@ async function main(): Promise<void> {
     await parseOpenedFile({ name: 'fix3-twee-data.ifc', text: readFileSync(resolve('tests/fixtures/ifc-foreign/council/fix3-twee-data.ifc'), 'utf8') });
   } catch (error) { twoDataReason = error instanceof IfcParseError ? error.reason : 'andere fout'; }
   eq('fix3-twee-data (wand in de tweede DATA-sectie): de open-pijplijn zonder flag weigert', twoDataReason, 'building-model');
-  // Sol en Terra (review van #870): parameters bij de EERSTE sectiekop. Vóór de fix: `no-data-section`.
   const firstParam = (text: string) => text.replace(/^DATA;$/m, "DATA('deel 1',('IFC4X3_ADD2'));");
   eq('weigert een wand in de enige DATA-sectie met sectiekop', rejected(firstParam(add("#900001=IFCWALL('x',$);"))), true);
-  // Ronde 10 (besluit Trias): openen is precies main, en main kent alleen `DATA;`. Zonder model opent zo'n geldige
-  // planning dus niet, net als op main (knownbug 1061).
   eq('een enige DATA-sectie met sectiekop zonder model: geen datasectie (zoals main)', readReason(firstParam(planning)), 'no-data-section');
-  // De tabel van de kopvormen uit ISO 10303-21 (`DATA_KOP_VORMEN`): een wand in de enige sectie wordt geweigerd, en
-  // zonder model opent de planning niet (zoals main).
   {
     const showcase = readFileSync(resolve('public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
     const eigenPlus = readFileSync(resolve('tests/fixtures/ifc-foreign/eigen-plus-model.ifc'), 'utf8');
     for (const vorm of DATA_KOP_VORMEN) {
       eq(`kopvorm ${vorm.id}: een wand in de enige sectie wordt geweigerd`, rejected(metDataKop(add("#900001=IFCWALL('x',$);"), vorm)), true);
       eq(`kopvorm ${vorm.id}: eigen-plus-model wordt geweigerd`, rejected(metDataKop(eigenPlus, vorm)), true);
-      // Zoals main: alleen een `DATA;` dat main vindt, opent (`stepDataSection.ts` is gelijk aan main).
       const formed = metDataKop(showcase, vorm);
       eq(`kopvorm ${vorm.id}: de showcase opent alleen met een DATA; voor main`, readReason(formed),
         indexOfStepDataSection(formed) >= 0 ? 'geopend' : 'no-data-section');
     }
   }
-  // Ronde 3 (Sol en Terra): `DATA (` in een kapotte bestandsnaam is geen sectiekop. Zoals op main: dezelfde planning,
-  // hetzelfde schema, en een wand in de echte sectie geeft de modelweigering.
   {
     const showcase = readFileSync(resolve('public/examples/showcase-verbouwing-eengezinswoning.ifc'), 'utf8');
     const model = readFileSync(resolve('tests/fixtures/ifc-foreign/model-ifc4.ifc'), 'utf8');
@@ -95,8 +77,6 @@ async function main(): Promise<void> {
       eq(`${name}: de planning opent met 20 taken en schema IFC4X3_ADD2`, [parsed.tasks.length, parsed.project.ifcSchema], [20, 'IFC4X3_ADD2']);
       eq(`${name}: model-ifc4 wordt geweigerd`, rejected(modelText), true);
     }
-    // Terra (ronde 4): de kapotte naam met elke kopvorm. De planning opent met al haar taken, of `readIFC` weigert het
-    // bestand; nooit opent hij een deel of niets.
     for (const [name, text] of brokenHeaderDataFiles(showcase)) {
       let outcome: string;
       try { outcome = `${(await readIFCWithXerReconstruction(text)).tasks.length} taken`; }
@@ -109,7 +89,6 @@ async function main(): Promise<void> {
       eq(`${name}: model-ifc4 wordt geweigerd`, ['building-model', 'no-data-section'].includes(reason), true);
     }
   }
-  // De echte opgeslagen voorbeelden bewaken context, taken, resources, kalenders en lege modellen.
   for (const file of readdirSync(resolve('public/examples')).filter(f => f.endsWith('.ifc'))) {
     const content = readFileSync(resolve('public/examples', file), 'utf8');
     const parsed = await readIFCWithXerReconstruction(content);
