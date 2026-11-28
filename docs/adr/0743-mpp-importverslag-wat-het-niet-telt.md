@@ -1,8 +1,8 @@
 # MPP lezen: wat het importverslag bewust niet telt
 
-`scanMppImportLoss` (`mppImportLoss.ts`, issue #391) telt per soort wat `readMPP` niet overneemt, met dezelfde
-recordselectie als de lezer (`mppRecords.ts`). Een fout in een deel laat dat deel op 0: het verslag mag het openen
-nooit breken. Een paar dingen die op verlies lijken, telt het bewust niet, omdat ze wel meekomen of al elders tellen.
+`scanMppImportLoss` (`mppImportLoss.ts`, issue #391) telt per soort wat `readMPP` niet overneemt, met de
+voorselectie van records die het met de lezer deelt (`mppRecords.ts`). Een fout stopt alleen dat deel van de scan:
+het verslag mag het openen nooit breken. Een paar dingen die op verlies lijken, telt het bewust niet, omdat ze wel meekomen of al elders tellen.
 
 ## Gevolgen
 
