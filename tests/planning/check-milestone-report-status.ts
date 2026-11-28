@@ -1,13 +1,3 @@
-// Mijlpalen-overzicht: "Kritiek" volgt de kritiek-definitie van de solver (audit weergaven, bevinding 9).
-//
-// AANLEIDING. Gantt, raster, tooltip, kritiek-rapport en MCP lezen `isCritical`: de solverdefinitie
-// met drempel (Rekenopties), "langste pad", "voltooid is nooit kritiek" en hammock. Het
-// Mijlpalen-overzicht (scherm én vector-PDF) rekende zelf `tf <= 0`. Met een drempel van 2 wd stond
-// een rode, kritieke mijlpaal (TF 1) daardoor groen als "Op schema"; en een voltooide mijlpaal met
-// TF 0 stond als "Kritiek" terwijl de solver zegt dat hij het niet is. De eigen te-laat-regel van het
-// rapport (geschonden constraint, gemiste deadline of tf < 0) blijft bewust staan.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { computeMilestoneRows } from '@/components/panels/MilestoneReport';
@@ -34,7 +24,6 @@ function project(schedulingOptions?: SchedulingOptions): void {
 const rowOf = (id: string) => computeMilestoneRows(S().tasks, S().cpmResult).find(r => r.id === id);
 const taskOf = (id: string) => S().tasks.find(t => t.id === id)!;
 
-// ── 1. Drempel "kritiek bij TS ≤ 2 wd": M (TF 1) is kritiek ─────────────────
 {
   project({ criticalDefinition: { mode: 'totalFloat', threshold: 2 } } as SchedulingOptions);
   const A = S().addTask({ name: 'A', time: { scheduleDuration: 5 } as TaskTime });
@@ -49,7 +38,6 @@ const taskOf = (id: string) => S().tasks.find(t => t.id === id)!;
   eq('1a Mijlpalen-overzicht: M staat als kritiek', rowOf(M)?.status, 'critical');
 }
 
-// ── 2. Standaarddefinitie, voltooide mijlpaal met TF 0: nooit kritiek ────────
 {
   project();
   S().setProject({ statusDate: '2026-06-10' });
@@ -59,7 +47,6 @@ const taskOf = (id: string) => S().tasks.find(t => t.id === id)!;
   S().addSequence({ predecessorId: A, successorId: M, type: 'FINISH_START', lagDays: 0 });
   S().addSequence({ predecessorId: M, successorId: E, type: 'FINISH_START', lagDays: 0 });
   S().runCPM();
-  // A volgens plan afgerond, daarna M op zijn (herberekende) datum vóór de statusdatum.
   eq('2 opzet: actuals van A geaccepteerd', [S().setActualStart(A, '2026-06-01'), S().setActualFinish(A, '2026-06-05')], [true, true]);
   S().runCPM();
   eq('2 opzet: actual van M geaccepteerd', S().setActualFinish(M, taskOf(M).time.earlyStart.slice(0, 10)), true);
@@ -69,7 +56,6 @@ const taskOf = (id: string) => S().tasks.find(t => t.id === id)!;
   eq('2a Mijlpalen-overzicht: M staat NIET als kritiek', rowOf(M)?.status, 'onSchedule');
 }
 
-// ── 3. De eigen te-laat-regel blijft: TF < 0 ⇒ te laat, ook als hij kritiek is ─
 {
   project();
   const A = S().addTask({ name: 'A', time: { scheduleDuration: 5 } as TaskTime });
@@ -82,7 +68,6 @@ const taskOf = (id: string) => S().tasks.find(t => t.id === id)!;
   eq('3a Mijlpalen-overzicht: M staat als te laat', rowOf(M)?.status, 'late');
 }
 
-// ── 4. Gewoon geval: speling > 0, niet kritiek ⇒ op schema ───────────────────
 {
   project();
   const A = S().addTask({ name: 'A', time: { scheduleDuration: 2 } as TaskTime });
@@ -97,9 +82,6 @@ const taskOf = (id: string) => S().tasks.find(t => t.id === id)!;
   eq('4a Mijlpalen-overzicht: M op schema', rowOf(M)?.status, 'onSchedule');
 }
 
-// 5. De bewaakte datum houdt haar kant, onafhankelijk van de soort mijlpaal (knownbug 286).
-// Ook de bestaande terugval blijft staan: een deadline is eindachtig, een ongedateerd type met
-// toch een datum startachtig. Geen herberekening nodig voor deze pure rapportprojectie.
 const sample = S().tasks.find(t => t.isMilestone)!;
 for (const milestoneKind of ['START', 'FINISH', undefined] as const) {
   for (const [type, side] of [

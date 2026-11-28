@@ -1,18 +1,3 @@
-// Een AUTOMATISCH ingevulde werkelijke start valt nooit ná het werkelijke einde (critreview claim 9,
-// eigenaarsregel). Vóór de fix kon de app een onmogelijk paar opslaan:
-//   - 100% zetten terwijl de statusdatum vóór de geplande start ligt ⇒ werkelijk einde = statusdatum,
-//     werkelijke start = de (latere) vroege/geplande start (bv. start 2026-07-08, einde 2026-06-10) —
-//     via het taakraster (enkele cel), de store (`setTaskProgress`) én MCP (zie tests/mcp/);
-//   - in het taakraster met MEERDERE cellen tegelijk (naam + Actual Finish) vulde de regel de start
-//     met de vroege start in, terwijl het enkele-celpad al start = einde gaf;
-//   - daarna weigerde een meer-cellen-plak met voortgang over meerdere rijen het HELE blok zodra één
-//     rij zo'n kapot paar had (`actualFinishBeforeStart`).
-// De regel: ligt de in te vullen start later dan het werkelijke einde, dan wordt de werkelijke start
-// gelijk aan het genormaliseerde einde-instant, ook bij een dagtaak. Een expliciet
-// opgegeven werkelijke start wordt nooit stil aangepast. Eén gedeelde helper in
-// `taskMutationRules.ts` (`fillMissingActualStart`), gebruikt door raster, store, dialoog en MCP.
-//
-// Draait via run.sh (ook in de tijdzone-matrix). Exit 0 = alles groen.
 import './domStub';
 import { createAppStore } from '@/state/appStore';
 import { applyCompletionEdit, isActualFinishBeforeStart } from '@/engine/taskMutationRules';
@@ -38,13 +23,6 @@ function paste(writes: CellEditIntent[]): GridIntent {
 type Kind = 'dag' | 'uur';
 const BAND = [{ start: 480, end: 1020 }];
 
-/**
- * Een voorganger van 20 werkdagen (of 160 uur) met daarachter `rows` taken van 5 werkdagen (of 16 uur)
- * via FS. Met een statusdatum op 10 juni liggen die opvolgers dus ruim ná de statusdatum: precies de
- * situatie waarin "100%" een einde (= statusdatum) vóór de geplande start oplevert. `statusDate`
- * `undefined` ⇒ geen statusdatum. Met `standaloneStart` krijgen de taken een eigen gepland begin
- * en is er geen voorganger.
- */
 function setup(kind: Kind, statusDate: string | undefined, rows = 1, standaloneStart?: string) {
   const store = createAppStore();
   const S = () => store.getState();
@@ -70,7 +48,6 @@ function setup(kind: Kind, statusDate: string | undefined, rows = 1, standaloneS
   return { S, ids, time$, status$ };
 }
 
-/** De automatisch geklemde start is het genormaliseerde einde: D2/D6, daarna N0. */
 function expectClamped(label: string, time: TaskTime, status: string | undefined, finish: string, start?: string): void {
   const finishInstant = finish.includes('T') ? finish : `${finish}T16:00`;
   eq(`${label}: werkelijke datums blijven op hun precieze momenten`,
@@ -79,7 +56,6 @@ function expectClamped(label: string, time: TaskTime, status: string | undefined
   eq(`${label}: voltooid`, { completion: time.completion, status }, { completion: 1, status: 'COMPLETED' });
 }
 
-// Dagtaak met een date-only statusdatum; uurtaak met een statusdatum mét tijd (het einde-instant).
 const SCENARIOS: readonly { kind: Kind; statusDate: string }[] = [
   { kind: 'dag', statusDate: '2026-06-10' },
   { kind: 'uur', statusDate: '2026-06-10T12:00' },
@@ -88,14 +64,12 @@ const SCENARIOS: readonly { kind: Kind; statusDate: string }[] = [
 for (const { kind, statusDate } of SCENARIOS) {
   const tag = `${kind} (statusdatum ${statusDate})`;
 
-  // Voorwaarde: de geplande start ligt echt ná de statusdatum, anders bewijst dit niets.
   {
     const { ids, time$ } = setup(kind, statusDate);
     eq(`${tag} voorwaarde: vroege start ná de statusdatum`,
       isActualFinishBeforeStart({ actualStart: time$(ids[0]!).earlyStart, actualFinish: statusDate }), true);
   }
 
-  // 1. Taakraster, enkele cel: % voltooid = 100%.
   {
     const { S, ids, time$, status$ } = setup(kind, statusDate);
     const t = ids[0]!;
@@ -104,8 +78,6 @@ for (const { kind, statusDate } of SCENARIOS) {
     expectClamped(`${tag} raster enkel 100%`, time$(t), status$(t), statusDate);
   }
 
-  // 2. Taakraster, meerdere cellen tegelijk: naam + Actual Finish (taak zonder Actual Start).
-  //    Het enkele-celpad gaf hier al start = einde; het meer-cellenpad vulde de vroege start in.
   {
     const { S, ids, time$, status$ } = setup(kind, statusDate);
     const t = ids[0]!;
@@ -119,7 +91,6 @@ for (const { kind, statusDate } of SCENARIOS) {
     eq(`${tag} raster meer (naam + Actual Finish): naam geschreven`, S().tasks.find(x => x.id === t)!.name, 'T (geplakt)');
   }
 
-  // 2b. Zelfde, maar het enkele-celpad met Actual Finish — dat was al goed en moet zo blijven.
   {
     const { S, ids, time$, status$ } = setup(kind, statusDate);
     const t = ids[0]!;
@@ -129,7 +100,6 @@ for (const { kind, statusDate } of SCENARIOS) {
     expectClamped(`${tag} raster enkel Actual Finish`, time$(t), status$(t), finish);
   }
 
-  // 3. Taakraster, meerdere cellen: naam + 100%.
   {
     const { S, ids, time$, status$ } = setup(kind, statusDate);
     const t = ids[0]!;
@@ -141,7 +111,6 @@ for (const { kind, statusDate } of SCENARIOS) {
     expectClamped(`${tag} raster meer (naam + 100%)`, time$(t), status$(t), statusDate);
   }
 
-  // 4. Taakraster, enkele cel Werkelijke duur = de volle duur ⇒ 100% (zelfde afleiding).
   {
     const { S, ids, time$, status$ } = setup(kind, statusDate);
     const t = ids[0]!;
@@ -150,7 +119,6 @@ for (const { kind, statusDate } of SCENARIOS) {
     expectClamped(`${tag} raster enkel Werkelijke duur = volle duur`, time$(t), status$(t), statusDate);
   }
 
-  // 5. Store: setTaskProgress(1) (eigenschappenpaneel, schuif, contextmenu).
   {
     const { S, ids, time$, status$ } = setup(kind, statusDate);
     const t = ids[0]!;
@@ -158,7 +126,6 @@ for (const { kind, statusDate } of SCENARIOS) {
     expectClamped(`${tag} store setTaskProgress(1)`, time$(t), status$(t), statusDate);
   }
 
-  // 6. Taakdialoog-draft: dezelfde `applyCompletionEdit` als de store, op een losse kopie.
   {
     const { S, ids, time$ } = setup(kind, statusDate);
     const draft = { ...S().tasks.find(t => t.id === ids[0])!, time: { ...time$(ids[0]!) } };
@@ -167,8 +134,6 @@ for (const { kind, statusDate } of SCENARIOS) {
       draft.time.actualStart, statusDate);
   }
 
-  // 7. Het blok van 3 rijen × (naam, 100%). Vóór de fix liet stap (a) een omgekeerd paar achter en
-  //    weigerde stap (b) daarom het HELE blok (`actualFinishBeforeStart`).
   {
     const { S, ids, time$, status$ } = setup(kind, statusDate, 3);
     const a = S().runGridMutation([cell(ids[1]!, 'task.time.completion', 'task-progress', 1)]);
@@ -182,13 +147,10 @@ for (const { kind, statusDate } of SCENARIOS) {
       b.ok ? true : b.errors.map(e => e.code), true);
     eq(`${tag} blok (b) alle namen geschreven`, ids.map(id => S().tasks.find(x => x.id === id)!.name), ['T1*', 'T2*', 'T3*']);
     ids.forEach((id, i) => expectClamped(`${tag} blok (b) rij ${i + 1}`, time$(id), status$(id), statusDate));
-    // En nog eens: een tweede plak over dezelfde (inmiddels voltooide) rijen blijft slagen.
     const c = S().runGridMutation([blok()]);
     eq(`${tag} blok (c) dezelfde plak nogmaals: geaccepteerd`, c.ok ? true : c.errors.map(e => e.code), true);
   }
   {
-    // Variant zonder voorafgaande enkele cel: de eerste plak zelf mag geen kapot paar achterlaten,
-    // anders weigert de volgende plak.
     const { S, ids, time$, status$ } = setup(kind, statusDate, 3);
     const blok = () => paste(ids.flatMap((id, i) => [
       cell(id, 'task.name', 'task-field', `T${i + 1}*`),
@@ -200,7 +162,6 @@ for (const { kind, statusDate } of SCENARIOS) {
     eq(`${tag} dubbele plak (2e): geaccepteerd`, tweede.ok ? true : tweede.errors.map(e => e.code), true);
   }
 
-  // 8. Een EXPLICIET opgegeven werkelijke start blijft onaangeroerd.
   const explicitStart = kind === 'uur' ? '2026-06-03T09:00' : '2026-06-03';
   const explicitStartInstant = kind === 'uur' ? explicitStart : `${explicitStart}T07:00`;
   const statusFinishInstant = kind === 'uur' ? statusDate : `${statusDate}T16:00`;
@@ -234,7 +195,6 @@ for (const { kind, statusDate } of SCENARIOS) {
       { as: time$(t).actualStart, af: time$(t).actualFinish }, { as: explicitStartInstant, af: statusFinishInstant });
   }
   {
-    // Een opgegeven paar met einde vóór start blijft geweigerd — niet stil geklemd.
     const { S, ids, time$ } = setup(kind, statusDate);
     const t = ids[0]!;
     const before = JSON.stringify(time$(t));
@@ -249,8 +209,6 @@ for (const { kind, statusDate } of SCENARIOS) {
     eq(`${tag} expliciet omgekeerd paar: taak ongemoeid`, JSON.stringify(time$(t)), before);
   }
   {
-    // Op helperniveau: een aanwezige start, zelfs een die ná het (afgeleide) einde ligt, wordt
-    // nooit stil verplaatst — alleen een ONTBREKENDE start wordt ingevuld.
     const { S, ids } = setup(kind, statusDate);
     const time = { ...createDefaultTaskTime('2026-07-08', 5), actualStart: '2026-07-01' };
     applyCompletionEdit({ ...S().tasks.find(t => t.id === ids[0])!, time }, 1, '2026-06-10');
@@ -258,8 +216,6 @@ for (const { kind, statusDate } of SCENARIOS) {
   }
 }
 
-// 9. F1/D6: een datumloze status op de startdag geeft het werkelijke einde van die werkdag.
-//    De afgeleide start krijgt D1; het paar blijft geldig zonder klem naar middernacht.
 {
   const { S, ids, time$, status$ } = setup('uur', '2026-06-10', 1, '2026-06-10');
   const t = ids[0]!;
@@ -273,17 +229,13 @@ for (const { kind, statusDate } of SCENARIOS) {
   eq('uur zelfde dag: percentage 100%', time$(t).completion, 1);
 }
 {
-  // Dagtaak op dezelfde dag: de geplande start blijft vóór het afgeleide einde.
   const { S, ids, time$, status$ } = setup('dag', '2026-06-10', 1, '2026-06-10');
   const t = ids[0]!;
   eq('dag zelfde dag: vroege start volgt D1 van de statusdag', time$(t).earlyStart, '2026-06-10T07:00');
   S().setTaskProgress(t, 1);
-  // De start lag al vóór het afgeleide einde: D1 blijft 07:00, er is geen klem nodig.
   expectClamped('dag zelfde dag: store setTaskProgress(1)', time$(t), status$(t), '2026-06-10', '2026-06-10T07:00');
 }
 
-// #998: de statusdatum kan de taak op de statusdag laten lijken terwijl haar anker eerder ligt.
-// Als alleen het percentage wordt ingevuld, blijven het oorspronkelijke begin en einde gelden.
 for (const { kind, start, finish } of [
   { kind: 'uur', start: '2026-06-01T08:00', finish: '2026-06-05T12:00' },
   { kind: 'dag', start: '2026-06-01T07:00', finish: '2026-06-05T16:00' },
@@ -297,8 +249,6 @@ for (const { kind, start, finish } of [
     { accepted: true, start, finish });
 }
 
-// 10. Geen onnodige klem: zonder statusdatum is het afgeleide einde de eigen geplande finish, die ná
-//     de geplande start ligt — de start blijft dan de geplande start (ongewijzigd gedrag).
 for (const kind of ['dag', 'uur'] as const) {
   const { S, ids, time$ } = setup(kind, undefined);
   const t = ids[0]!;
@@ -316,7 +266,6 @@ for (const kind of ['dag', 'uur'] as const) {
   eq(`${kind} zonder statusdatum: raster meer start = geplande start`, time2$(t2).actualStart, es2);
 }
 
-// 11. Status "Gestart" vult de start nog steeds met de geplande start (er is dan geen einde).
 {
   const { S, ids, time$, status$ } = setup('dag', '2026-06-10');
   const t = ids[0]!;

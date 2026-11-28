@@ -1,8 +1,3 @@
-// Geweigerde webopslag voor crashherstel, deel "ontbreekt" (issue #582): `indexedDB` bestaat niet in
-// deze browser of omgeving. Dat telt als weigering bij de start: crashherstel gaat stil uit.
-// Eigen proces, want de sessievlag blijft de sessie lang staan; zie `check-recovery-refused.ts`.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen — alleen de exitcode telt.
 import {
   clearRecovery, fullRecoverySave, holdRecoveryForLater, loadRecovery, saveRecovery,
   recoveryStorageUnavailable, RecoveryStorageUnavailableError,
@@ -18,7 +13,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
 
 const g = globalThis as unknown as Record<string, unknown>;
 g.window = g.window ?? {};
-// Node kent geen `indexedDB`: niets installeren is precies deze variant.
 eq('V0 voorwaarde: indexedDB ontbreekt', typeof (globalThis as { indexedDB?: unknown }).indexedDB, 'undefined');
 const infoLines: unknown[][] = [];
 const originalInfo = console.info;

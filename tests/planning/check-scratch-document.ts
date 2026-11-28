@@ -1,7 +1,3 @@
-// check-scratch-document.ts — B1c-plan3 taak 5 (spec §5). Een slapende payload wordt in een eigen
-// storecontext bewerkt, en die context laat GEEN sporen na in de app-globale registers.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { runInScratchDocument } from '@/state/runtime/scratchDocument';
 import { createAppStoreContext, appStoreContext } from '@/state/appStore';
 import { DOCUMENT_FIELDS, capturePayload, freshPayload, type DocumentPayload } from '@/state/documentContract';
@@ -56,11 +52,6 @@ function basePayload(): DocumentPayload {
   };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 1: de payload gaat er heel in en heel uit — een no-op-functie mag GEEN enkel documentveld
-// veranderen. Loop over DOCUMENT_FIELDS in plaats van met de hand op te sommen: een toekomstig
-// documentveld rijdt automatisch mee.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- scratch-document: geval 1, round-trip --');
 {
   const payload = basePayload();
@@ -71,18 +62,6 @@ console.log('-- scratch-document: geval 1, round-trip --');
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 2: de ECHTE actie draait — `applyLeveling` schrijft de delay op B, strijkt de M10-velden
-// glad, zet `isDirty` en draait zelf `runCPM`, zodat de datums doorgerekend terugkomen.
-//
-// AANGEPAST NA MERGE MET MAIN (sessiehistorie, 2026-09-04). Hier stond "één undo-stap op de eigen
-// stack van dat document": undo/redo was toen een `undoStack` PER document(payload). Dat model
-// bestaat niet meer — undo/redo is één app-globale sessiechronologie (`AppState.historyEvents`), en
-// die van een scratch-context wordt mét de context weggegooid. De opbrengst van deze functie is dus
-// uitsluitend de nieuwe payload (+ de meldingen); het history-event registreert de AANROEPER zelf in
-// de echte store (zie `librarySlice.applyDistribution`). Dat de payload per constructie géén historie
-// kán dragen, pinnen we hieronder op het documentcontract zelf.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- scratch-document: geval 2, echte acties --');
 {
   const payload = basePayload();
@@ -96,20 +75,11 @@ console.log('-- scratch-document: geval 2, echte acties --');
   ok('geval 2: er is een verse cpmResult', out.payload.cpmResult !== null);
   eq('geval 2: en het document staat als gewijzigd', out.payload.isDirty, true);
   ok('geval 2: nieuwe datums geschreven', out.payload.tasks.find(t => t.id === 'B')!.time.earlyStart !== beforeStart);
-  // De historie hóórt hier niet: `DOCUMENT_FIELDS` is de enige bron van wat een document draagt, en
-  // de sessiechronologie staat daar bewust NIET in (hij is app-globaal). Zet iemand hem er alsnog
-  // in, dan valt deze assert om — en de `f.key`-vergelijking hierboven zou zelfs al een COMPILE-fout
-  // geven zolang hij er niet in staat, dus die kant is by construction al dicht.
   ok('geval 2: een payload draagt geen sessiehistorie',
     !('historyEvents' in (out.payload as unknown as Record<string, unknown>))
     && !('nextHistorySequence' in (out.payload as unknown as Record<string, unknown>)));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 3: de extensie-emitter zwijgt in de scratch-context, maar niet in een gewone context — de
-// app-globale bus (`subscribeExtensionEvent`) is hetzelfde kanaal in beide gevallen; alleen de
-// context bepaalt of hij er iets op zet.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- scratch-document: geval 3, de extensie-emitter zwijgt --');
 {
   const seen: unknown[] = [];
@@ -134,14 +104,6 @@ console.log('-- scratch-document: geval 3, de extensie-emitter zwijgt --');
   unsubNormal();
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 4: meldingen komen naar buiten in plaats van te verdwijnen. Een relatiecyclus laat `runCPM`
-// zelf `notify({ messageKey: 'notifications.scheduleFailed', ... })` aanroepen (scheduleSlice.ts) —
-// in de scratch-context rendert niemand `ui.notifications`, dus die melding moet bij de AANROEPER
-// terugkomen. Structureel gedekt: `DocumentPayload` bevat `ui.notifications` sowieso niet (het zit
-// niet in DOCUMENT_FIELDS behalve `collapsedTaskIds`), dus de teruggegeven payload kan de melding
-// per constructie nooit dragen — alleen `notifications` in het resultaat kan hem tonen.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- scratch-document: geval 4, meldingen bubbelen op --');
 {
   const taskC1 = task('C1', '2026-06-01', '2026-06-02', 1);
@@ -160,10 +122,6 @@ console.log('-- scratch-document: geval 4, meldingen bubbelen op --');
     out.notifications.some(n => n.messageKey === 'notifications.scheduleFailed'));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 5: geen sporen in de app-globale registers — de gemounte productinterface (`appStoreContext`)
-// blijft byte-identiek, want elke scratch-run bouwt zijn EIGEN, wegwerpbare context.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- scratch-document: geval 5, geen sporen in de app-store --');
 {
   const appBefore = JSON.stringify(capturePayload(appStoreContext.store.getState()));
@@ -172,23 +130,12 @@ console.log('-- scratch-document: geval 5, geen sporen in de app-store --');
   eq('geval 5: de app-store is onaangeraakt', appAfter, appBefore);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// Geval 5b (fixronde B1c-etappe-3, bevinding B2): ook de APP-GLOBALE, SESSIE-PERMANENTE registraties
-// buiten de store blijven onaangeraakt. `state/timephasedLossNotice.ts` houdt de "al gemeld"-gates
-// bij in module-`Set`s op DOCUMENT-ID — geen store-state, dus `capturePayload` hierboven ziet er
-// niets van. Zolang elke contextinstantie hetzelfde `INITIAL_DOC_ID` deelde, claimde een scratch-run
-// met M10-verlies (`levelingDelayMinutes` gezet ⇒ `applyLeveling` telt 'm) de gate van het ECHTE
-// eerste document, dat de melding daarna deze sessie nooit meer kreeg. Twee poorten: het scratch-id
-// is niet dat van de app, en de gate van het app-document is na de run nog vrij.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- scratch-document: geval 5b, de sessie-gates van de app blijven vrij --');
 {
   __resetTimephasedLossNoticeForTests();
   const appDocId = appStoreContext.store.getState().activeDocumentId;
   const scratchPayload: DocumentPayload = {
     ...basePayload(),
-    // `levelingDelayMinutes` gezet ⇒ `applyLeveling` telt deze taak als sub-dag-precisieverlies (M10)
-    // en roept `notifyLevelingDelayRounded(notify, activeDocumentId, 1)` aan.
     tasks: [task('A', '2026-06-01', '2026-06-03', 3), task('B', '2026-06-01', '2026-06-03', 3, { levelingDelayMinutes: 120 })],
   };
   let scratchDocId = '';
@@ -202,8 +149,6 @@ console.log('-- scratch-document: geval 5b, de sessie-gates van de app blijven v
   ok('geval 5b: de scratch-context draait onder een EIGEN document-id', scratchDocId !== '' && scratchDocId !== appDocId);
   ok('geval 5b: de M10-gate van het app-document is nog vrij', claimLevelingDelayRoundedNotice(appDocId));
 
-  // En mét een expliciet docId landt de claim op precies DAT document (het pad dat
-  // `librarySlice.applyDistribution` gebruikt) — niet op een fantoom-id van de scratch-context.
   __resetTimephasedLossNoticeForTests();
   const realDocId = 'doc-echt-slapend';
   runInScratchDocument(scratchPayload, (s) => { s.applyLeveling({ delays: { B: 1 }, gaps: {} }); }, realDocId);
@@ -212,7 +157,6 @@ console.log('-- scratch-document: geval 5b, de sessie-gates van de app blijven v
   __resetTimephasedLossNoticeForTests();
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  scratch-document: alle checks groen (${checks})`);
   process.exit(0);

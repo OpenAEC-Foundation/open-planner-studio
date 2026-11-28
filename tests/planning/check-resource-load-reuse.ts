@@ -1,5 +1,3 @@
-// Vergelijk volledige uitvoer met een invoer waarin geen taak dagen kan delen tussen toewijzingen.
-// De schaalpoort telt echt kalenderwerk; wandkloktijden staan alleen in de aparte CI-meting.
 import assert from 'node:assert/strict';
 import { CalendarEngine } from '@/engine/scheduler/CalendarEngine';
 import {
@@ -55,7 +53,6 @@ function parity(input: HistogramInput, label: string): void {
   eq(JSON.stringify(input), before, `${label}: invoer blijft ongewijzigd`);
 }
 
-// De actuele werkplaatsing verdeelt acht uur vanaf maandag 11:00 over twee halve dagen.
 const shifted = makeResourceLoadReuseFixture(1, 1);
 Object.assign(shifted.calendar, { workStartHour: 7, workEndHour: 15, hoursPerDay: 8 });
 shifted.calendars = [];
@@ -72,7 +69,6 @@ const mixed = makeResourceLoadReuseFixture(24, 8);
 parity(mixed, 'kalenders, uitzonderingen, elapsed, voltooid, voortgang, urensplits en contourlengtes');
 mixed.assignments.reverse();
 parity(mixed, 'omgekeerde toewijzingen en contourkoppeling');
-// Zelfde objecten en ids, nieuwe toestand: geen cache mag een volgende aanroep overleven.
 const previousLoad = load(mixed);
 mixed.calendar.holidays.push({ name: 'Nieuw vrij', startDate: '2026-10-20', endDate: '2026-10-21' });
 mixed.calendars[0].hoursPerDay = 4;
@@ -87,7 +83,6 @@ parity(mixed, 'volgende aanroep na kalender-, datum-, split-, voltooiings- en co
 const skipped = makeResourceLoadReuseFixture(8, 4);
 skipped.tasks[1].isMilestone = true;
 skipped.tasks[2].childIds = ['samenvattingskind'];
-// Nulduur heeft geen plaatsingsdagen, ongeacht het aantal toewijzingen.
 skipped.tasks[0].time.scheduleDuration = 0;
 const zeroDuration = {
   ...skipped, tasks: [skipped.tasks[0]],
@@ -109,8 +104,6 @@ function calendarCalls<T>(run: () => T): { value: T; calls: number } {
 function scaleInput(taskCount: number, count: number): HistogramInput {
   const input = makeResourceLoadReuseFixture(taskCount, count);
   for (const task of input.tasks) {
-    // Hier mag geen kalenderconflict ontstaan: veroorzakers verschillen terecht bij opsplitsen.
-    // De gemengde taak-/resourcekalenders zijn hierboven al met volledige attributie vergeleken.
     task.calendarId = undefined;
     task.time.durationType = 'WORKTIME';
     task.time.scheduleDuration = 32;

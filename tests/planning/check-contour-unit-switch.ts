@@ -1,20 +1,3 @@
-// check-contour-unit-switch.ts — aanval a04 na #600 (knownbug 265): dezelfde kalendertijd in een andere
-// eenheid mag contour en splits niet herschalen.
-//
-// Invoer uit het rapport: kalender ma–vr 08:00–16:00, taak Uitharden in kalendertijd van ma 1 juni 2026
-// 00:00 tot wo 3 juni 00:00 (2 d = 48 klokuren). Toezicht (capaciteit 3) heeft een contour van 240 min op
-// maandag en 480 min op dinsdag: samen 12 u. De eenheidskeuze naar uren schrijft `durationUnit: 'hours'`,
-// `durationMinutes: 2880` en het verborgen dagengetal 6. Begin en einde blijven gelijk.
-//
-// Vóór de fix mat de herschaling de oude duur als 2 × 480 = 960 werkminuten en de nieuwe als 2880
-// klokminuten: de contour werd 2160 min (36 u), de belasting op dinsdag 4 (overallocatie), en opslaan
-// bewaarde dat. Nu meten vóór en na op dezelfde as (`taskAxisMinutes`: klokdagen × werktijd per dag).
-//
-// Routes: de store (`updateTask` met de patch van de eenheidskeuze) en het taakraster (de eenheidscel en
-// de duurcel via de echte gridtransactie), plus opslaan en heropenen via IFC. De MCP-route
-// (`planner_update_tasks` via de echte dispatch) staat in tests/mcp/cases-contour-eenheidswissel.ts.
-//
-// MOET de eerste import blijven: zie domStub.ts.
 import './domStub';
 import { createAppStoreContext, type AppState } from '@/state/appStore';
 import { makeBands } from '@/utils/effectiveWorkTime';
@@ -36,7 +19,6 @@ function eq(label: string, actual: unknown, expected: unknown): void {
 }
 function ok(label: string, cond: boolean): void { checks++; if (!cond) diffs.push(label); }
 
-// ── Fixture uit het rapport ─────────────────────────────────────────────────
 const CAL: WorkCalendar = {
   id: 'c', name: 'c', description: '', workDays: [1, 2, 3, 4, 5], workStartHour: 8, workEndHour: 16,
   hoursPerDay: 8, holidays: [], workTime: makeBands([1, 2, 3, 4, 5], [{ start: 480, end: 960 }]),
@@ -50,13 +32,11 @@ const DAYS_TIME: TaskTime = {
   lateStart: '2026-06-01T00:00', lateFinish: '2026-06-03T00:00',
   freeFloat: 0, totalFloat: 0, isCritical: false, completion: 0,
 };
-/** Dezelfde 48 klokuren in de urenmaat, zoals de eenheidskeuze ze schrijft (verborgen dagengetal 6). */
 const HOURS_TIME: TaskTime = { ...DAYS_TIME, durationUnit: 'hours', durationMinutes: 2880, scheduleDuration: 6 };
 const remaining = (afterMinutes: number, minutes: number, workMinutes: number): TimephasedContourPeriod =>
   ({ afterMinutes, minutes, workMinutes, kind: 'remaining' });
 const actual = (afterMinutes: number, minutes: number, workMinutes: number): TimephasedContourPeriod =>
   ({ afterMinutes, minutes, workMinutes, kind: 'actual' });
-/** 240 min op maandag, 480 op dinsdag: 12 u, op de as van één slot van 480 per werkdag. */
 const CONTOUR: TimephasedContourPeriod[] = [remaining(0, 480, 240), remaining(480, 480, 480)];
 
 function taskWith(time: TaskTime, periods: TimephasedContourPeriod[]): Task {
@@ -87,7 +67,6 @@ const workOf = (periods: readonly TimephasedContourPeriod[]): number => periods.
 
 type Route = 'store' | 'raster-eenheid' | 'raster-duur';
 
-/** Eén bewerking naar `target` langs `route`. De store krijgt de patch van de eenheidskeuze of de duur. */
 function edit(S: () => AppState, route: Route, target: { unit: 'days'; days: number } | { unit: 'hours'; hours: number }): void {
   const t = S().tasks[0];
   if (route === 'store') {
@@ -106,12 +85,8 @@ function edit(S: () => AppState, route: Route, target: { unit: 'days'; days: num
   if (!res.ok) diffs.push(`${route}: gridtransactie geweigerd ${JSON.stringify(res)}`);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 1. Dezelfde 48 klokuren: dagen → uren en uren → dagen laten de contour staan
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- contour-unit-switch: dezelfde kalendertijd in een andere eenheid --');
 for (const route of ['store', 'raster-eenheid', 'raster-duur'] as const) {
-  // Dagen → uren (het geval uit het rapport).
   {
     const S = storeWith(taskWith(DAYS_TIME, CONTOUR));
     S().runCPM();
@@ -127,7 +102,6 @@ for (const route of ['store', 'raster-eenheid', 'raster-duur'] as const) {
     eq(`[${route}] d→u: 12 u werk`, load?.hours.r, 12);
     eq(`[${route}] d→u: geen overallocatie`, load?.overallocatedDays, {});
   }
-  // Uren → dagen (de omgekeerde wissel): vóór de fix kromp de contour tot een derde.
   {
     const S = storeWith(taskWith(HOURS_TIME, CONTOUR));
     edit(S, route, { unit: 'days', days: 2 });
@@ -137,8 +111,6 @@ for (const route of ['store', 'raster-eenheid', 'raster-duur'] as const) {
   }
 }
 
-// Een importgat (zonder `source`) schaalt met de contour mee (`rescaleSplitGaps`): bij dezelfde
-// klokuren blijft het staan. Vóór de fix verschoof het naar 1440 met 720 pauze (d→u) of 160/80 (u→d).
 console.log('-- contour-unit-switch: een importgat blijft staan --');
 for (const route of ['store', 'raster-eenheid', 'raster-duur'] as const) {
   const GAP = [{ afterMinutes: 480, gapMinutes: 240 }];
@@ -152,9 +124,6 @@ for (const route of ['store', 'raster-eenheid', 'raster-duur'] as const) {
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 2. Opslaan en heropenen bewaart de 12 u en dezelfde belasting
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- contour-unit-switch: opslaan en heropenen --');
 {
   const S = storeWith(taskWith(DAYS_TIME, CONTOUR));
@@ -185,13 +154,6 @@ console.log('-- contour-unit-switch: opslaan en heropenen --');
   eq('heropenen: geen overallocatie', load?.overallocatedDays, {});
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 3. Een echte duurwijziging schaalt nog steeds mee, in beide eenheden met dezelfde uitkomst
-// ═══════════════════════════════════════════════════════════════════════════
-// 48 → 72 klokuren is factor 1,5 op de as: 0..720 met 360 min en 720..1440 met 720 min. Vóór de fix gaf
-// 2 d → 72 u factor 4,5 (960 → 4320). Met een actual-periode op de eerste dag groeit alleen de rest, van
-// één naar twee dagen (factor 2 op 480..960); vóór de fix gaf 48 u → 72 u daar factor 1,6 (2400 → 3840),
-// omdat de klokminuten van de urentaak tegen de as-minuten van de actual werden afgezet.
 console.log('-- contour-unit-switch: een echte duurwijziging schaalt in beide eenheden gelijk --');
 {
   const longer = [remaining(0, 720, 360), remaining(720, 720, 720)];
@@ -214,9 +176,6 @@ console.log('-- contour-unit-switch: een echte duurwijziging schaalt in beide ee
   }
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// 4. Werktijd blijft zoals het was: 2 d ↔ 16 u is dezelfde werkduur, 2 d → 24 u is factor 1,5
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- contour-unit-switch: werktijd ongewijzigd --');
 {
   const work = (t: TaskTime): TaskTime => ({
@@ -233,7 +192,6 @@ console.log('-- contour-unit-switch: werktijd ongewijzigd --');
   }
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) { console.log(`OK  contour-unit-switch: alle checks groen (${checks})`); process.exit(0); }
 console.log(`XX  contour-unit-switch: ${diffs.length} afwijking(en) van ${checks}`);
 for (const d of diffs) console.log(`   - ${d}`);

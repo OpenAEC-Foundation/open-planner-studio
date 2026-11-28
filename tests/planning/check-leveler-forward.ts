@@ -1,6 +1,3 @@
-// De herbruikbare PF-pass moet per wijziging dezelfde starts geven als een verse forward-pass.
-// Inclusief teruggenomen delays/gaten, samenvallende wijzigingen, late takken vóór vroege takken,
-// voortgangsvensters en alle profielen. De kostentoets telt kalenderwerk i.p.v. wandkloktijd.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { levelResources, LEVELER_TEST_HOOKS, type LevelingPoolLedger } from '@/engine/scheduler/ResourceLeveler';
 import { applyCpmResult } from '@/engine/scheduler/applyCpmResult';
@@ -39,7 +36,6 @@ for (const baseId of ['ops', 'msproject', 'p6'] as const satisfies readonly Buil
   for (const hours of [false, true]) {
     const cal = hours ? hour : calendar;
     const tasks = Array.from({ length: 9 }, (_, i) => task(i, hours));
-    // Twee takken met een samenkomst, plus een dubbele relatie en een geïsoleerde taak.
     const sequences = [relation(0, 1), relation(1, 2, 'START_START', -1), relation(2, 3),
       relation(0, 4), relation(4, 5, 'FINISH_FINISH', 1), relation(5, 6, 'START_FINISH'),
       relation(3, 7), relation(6, 7), { ...relation(3, 7), id: 'dubbel' }];
@@ -56,7 +52,6 @@ for (const baseId of ['ops', 'msproject', 'p6'] as const satisfies readonly Buil
     if (!forward) throw new Error('geldige DAG afgewezen');
     const verify = (label: string) => {
       const expected = new CPMSolver(tasks, sequences, cal, [cal], options).solveEarlyStarts();
-      // Bewust niet topologisch opvragen: ook een uitgestelde vroege tak moet later vers zijn.
       for (const i of [8, 6, 1, 7, 0, 5, 2, 4, 3]) {
         eq(`${baseId}/${hours}/${label}/t${i}`, forward.earlyStart(`t${i}`), expected?.get(`t${i}`));
       }
@@ -99,9 +94,6 @@ for (const baseId of ['ops', 'msproject', 'p6'] as const satisfies readonly Buil
     eq('hammock blijft volledige solve', new CPMSolver(tasks, sequences, cal, [cal], options).createIncrementalForwardPass(), null);
   }
 }
-// Review P2: een voltooidvenster uit de resultaatpass is geen rauwe forward-start. Zonder
-// actualFinish blijft deze taak actief, zodat zowel het voorstel als de poolboeking die start nodig
-// hebben. De prefix dwingt óók een gewijzigde PF vóór die taak af (na de luie sessie-initialisatie).
 for (const prefix of [false, true]) {
   for (const actualStart of ['2026-06-01T08:00', undefined]) {
     const a = task(0, true), b = task(1, true);
@@ -156,8 +148,6 @@ function calendarWork(n: number): number {
   const tasks = Array.from({ length: n }, (_, i) => task(i));
   const sequences = tasks.slice(1).map((_, i) => relation(i, i + 1));
   const options = solveOptionsFor({ endDate: '', startDate: '2026-06-01' });
-  // F3 (alleen uren §3.14): een dagtaak loopt in het OPS-profiel met de dagenmaat-loper
-  // (`addMeasuredWorkdaysChecked`); tel beide lopers, zodat de kostentoets kalenderwerk blijft meten.
   const original = CalendarEngine.prototype.addWorkDaysChecked;
   const originalMeasured = CalendarEngine.prototype.addMeasuredWorkdaysChecked;
   let calls = 0;

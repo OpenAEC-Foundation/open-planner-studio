@@ -1,25 +1,3 @@
-// Auditbevinding H5 — EEN KALENDER MOET ÉCHT OVERZETBAAR ZIJN.
-//
-// `planner_get_calendars` belooft de VOLLEDIGE WorkCalendar-definitie ("genoeg om een kalender in een
-// ANDER document te herbouwen") en levert die ook. De schrijfkant kende drie van die velden niet:
-// `workTime` (uurbanden), `shift` (ploeg) en `generation` — die laatste onder ANDERE sleutelnamen dan
-// de leeskant hem teruggaf. Gevolg: een UURkalender bouwde in het doeldocument stil op als
-// DAGkalender, en dat herdefinieert de duur van elke taak eraan (`durationMinutes` telt uitsluitend
-// op een uur-kalender, `engine/scheduler/duration.ts`).
-//
-// Dit bestand pint de reparatie vast:
-//   1. leesvorm → schrijfkant LETTERLIJK: uurkalender uit doc A in doc B herbouwen, veld voor veld identiek
-//   2. hetzelfde op het UPDATE-pad: de projectkalender van doc B gelijkmaken aan die van doc A
-//   3. ongeldige uurbanden ⇒ zachte weigering + kalender ONAANGEROERD (geen half toegepaste kalender)
-//   4. dag→uur ⇒ de gewijzigde effectieve duur staat in de respons (nooit stil)
-//   5. uur→dag (`workTime: null`) ⇒ idem, en de kalender is echt weer dag-modus
-//   6. `shift` overleeft het schrijven en is wisbaar
-//   7. generation-round-trip: de leesvorm wordt geaccepteerd; `generate` + `generation` is tegenstrijdig;
-//      de oude/verkeerde sleutelnamen wijzen de weg
-//   8. `holidays` (leesvorm) vervangt exact en combineert met `generation`
-//   9. onbekende velden ketsen af; de afgeleide leesvelden komen terug als `ignoredFields`
-//  10. ALLES ook via `planner_batch` (de schemapoort + batchStep-pad)
-//  11. IFC-round-trip van workTime/shift/generation — het native formaat moet het dragen
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import { calendarResourceTools } from '@/services/mcp/tools/calendarResourceTools';
 import { readTools } from '@/services/mcp/tools/readTools';
@@ -36,13 +14,10 @@ import type { WorkCalendar, WorkTimeBands } from '@/types/calendar';
 const store = useAppStore;
 const S = () => store.getState();
 
-// Warm-up (zelfde reden als cases-mutate-cal-res.ts): een verse store heeft `calendars: []`.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
 registerToolModules([readTools, calendarResourceTools, batchTools]);
-
-// --- helpers -------------------------------------------------------------------------------------
 
 function makeCtx(overrides: McpContextOverrides = {}): McpContext {
   return makeMcpContext(appStoreContext, {
@@ -69,21 +44,16 @@ function rejections(res: McpToolResult): { id: string; reason: string }[] {
   return (res as McpToolOk).itemRejections ?? [];
 }
 
-/** De leeskant, zoals een AI hem ziet. */
 async function readCalendars(): Promise<any> {
   return okData(await call('planner_get_calendars', {}));
 }
 
-/** Eén zachte weigering verwachten (en die teruggeven) — het lege-batch-snelpad levert `ok` mét
- *  `itemRejections`, dus dat is de vorm waarin een geweigerd item terugkomt. */
 function soleRejection(res: McpToolResult): string {
   const rej = rejections(res);
   assertEq(rej.length, 1, `precies één weigering verwacht, kreeg ${JSON.stringify(rej)}`);
   return rej[0].reason;
 }
 
-/** De vergelijkbare KERN van een kalender — vaste sleutelvolgorde, zonder het per-document-`id`
- *  en zonder de afgeleide leesvelden. Dit is wat "identiek overgezet" betekent. */
 function calShape(c: Partial<WorkCalendar> | undefined): unknown {
   assert(!!c, 'kalender ontbreekt');
   return {
@@ -102,14 +72,12 @@ function calShape(c: Partial<WorkCalendar> | undefined): unknown {
 
 const calById = (id: string): WorkCalendar | undefined => S().calendars.find((c) => c.id === id);
 
-/** Ma-vr 08:00-16:00 (8 netto uur) als uurbanden — de eenvoudigste échte uur-kalender. */
 function bands8to16(): WorkTimeBands {
   const byWeekday = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } as WorkTimeBands['byWeekday'];
   for (const d of [1, 2, 3, 4, 5] as const) byWeekday[d] = [{ start: 480, end: 960 }];
   return { byWeekday };
 }
 
-/** Blad-taak met een expliciete dag- of uurduur. */
 function addTask(name: string, durationDays: number, durationMinutes?: number): string {
   const id = S().addTask({ name });
   const t = S().tasks.find((x) => x.id === id)!;
@@ -128,12 +96,8 @@ function reset(): void {
   S().newProject();
 }
 
-// =================================================================================================
-// 1) LETTERLIJKE OVERDRACHT — get_calendars → update_calendar (create) in een TWEEDE document
-// =================================================================================================
 test('uurkalender uit doc A letterlijk terugschrijven in doc B ⇒ veld voor veld identiek', async () => {
   reset();
-  // Doc A: een echte ploegenkalender in de bibliotheek, precies zoals de kalenderdialoog hem maakt.
   const preset = shiftPresetPatch('two-shift');
   const srcId = S().addCalendar({
     name: 'Ploegen 2x8',
@@ -143,8 +107,6 @@ test('uurkalender uit doc A letterlijk terugschrijven in doc B ⇒ veld voor vel
     workEndHour: preset.workEndHour,
     hoursPerDay: preset.hoursPerDay,
     holidays: [{ name: 'Vorstverlet', startDate: '2026-01-12', endDate: '2026-01-14' }],
-    // Herkomst-metadata erbij: dan dekt deze test óók de generation-round-trip over het CREATE-pad
-    // (de nieuwe kalender start uit de app-default, die zijn EIGEN NL-herkomst draagt).
     generation: { ruleSetId: 'NL', region: undefined, breakChoice: 'noord', generatedFromYear: 2025, generatedToYear: 2028 },
     workTime: preset.workTime,
     shift: preset.shift,
@@ -156,11 +118,9 @@ test('uurkalender uit doc A letterlijk terugschrijven in doc B ⇒ veld voor vel
   assert(!!src.workTime && src.shift === 'SECOND', 'de leeskant draagt workTime én shift');
   assertEq(src.generation.breakChoice, 'noord', 'de leeskant draagt de herkomst in de LEESVORM');
 
-  // Doc B: leeg tweede document.
   store.getState().newDocument();
   assertEq(S().calendars.some((c) => c.id === srcId), false, 'doc B kent dit kalender-id nog niet');
 
-  // DE ECHTE TEST: de lezing ONGEWIJZIGD doorgeven aan de schrijfkant (alleen `create` erbij).
   const res = await call('planner_update_calendar', { calendars: [{ ...src, create: true }] });
   const data = okData(res);
   assertEq(rejections(res), [], 'geen enkele weigering op de letterlijke lezing');
@@ -175,15 +135,11 @@ test('uurkalender uit doc A letterlijk terugschrijven in doc B ⇒ veld voor vel
   assertEq(calShape(copy), calShape(src as WorkCalendar), 'de kopie is veld voor veld gelijk aan de lezing');
   assertEq(copy!.hoursPerDay, 16, 'de netto uren per dag zijn meegekomen (2 × 8u banden)');
 
-  // Ook de lezing IN doc B moet weer identiek zijn — de round-trip sluit.
   const readB = await readCalendars();
   assertEq(calShape(readB.calendars.find((c: any) => c.id === row.id)), calShape(src as WorkCalendar),
     'de lezing in doc B is gelijk aan de lezing in doc A');
 });
 
-// =================================================================================================
-// 2) UPDATE-PAD — de PROJECTkalender van een ander document gelijkmaken
-// =================================================================================================
 test('projectkalender gelijkmaken aan een lezing uit een ander document (update-pad)', async () => {
   reset();
   const projId = S().project.calendarId;
@@ -202,7 +158,6 @@ test('projectkalender gelijkmaken aan een lezing uit een ander document (update-
   const targetId = readB.projectDefaultId;
   assertEq(calById(targetId)!.workTime, undefined, 'doc B start met een DAG-kalender');
 
-  // Schrijven op het id uit `projectDefaultId` van doc B (dat is de gedocumenteerde route).
   const res = await call('planner_update_calendar', { calendars: [{ ...src, id: targetId }] });
   const row = okData(res).calendars[0];
   assertEq(rejections(res), [], 'geen weigeringen');
@@ -210,13 +165,9 @@ test('projectkalender gelijkmaken aan een lezing uit een ander document (update-
   assertEq(row.modeChangedFrom, 'day', 'de omschakeling dag→uur wordt gemeld');
   assertEq(row.mode, 'hour', 'de projectkalender van doc B is nu uur-modus');
   assertEq(calShape(calById(targetId)), calShape(src as WorkCalendar), 'inhoudelijk identiek aan doc A');
-  // De gedenormaliseerde cache (`s.calendar`) moet meelopen — anders rekent de solver op de oude vorm.
   assertEq(S().calendar.workTime, calById(targetId)!.workTime, 'de projectkalender-cache volgt de entry');
 });
 
-// =================================================================================================
-// 3) ONGELDIGE UURBANDEN — zachte weigering + kalender ONAANGEROERD
-// =================================================================================================
 test('ongeldige uurbanden ⇒ weigering met uitleg; de kalender blijft onaangeroerd', async () => {
   reset();
   const projId = S().project.calendarId;
@@ -231,7 +182,6 @@ test('ongeldige uurbanden ⇒ weigering met uitleg; de kalender blijft onaangero
     { naam: 'gelijk begin en eind', workTime: week({ '1': [{ start: 480, end: 480 }] }), verwacht: /does not lie after/i },
     { naam: 'overlappende banden', workTime: week({ '2': [{ start: 480, end: 720 }, { start: 600, end: 960 }] }), verwacht: /overlap or are out of order/i },
     { naam: 'start buiten de dag', workTime: week({ '3': [{ start: 1500, end: 1600 }] }), verwacht: /falls outside the day/i },
-    // Het schema noemt de grenzen alleen nog in tekst (#818); de handler weigert ook een negatieve start.
     { naam: 'negatieve start', workTime: week({ '3': [{ start: -30, end: 480 }] }), verwacht: /falls outside the day/i },
     { naam: 'eind voorbij 2880', workTime: week({ '4': [{ start: 1400, end: 3000 }] }), verwacht: /exceeds 2880/i },
     { naam: 'ontbrekende weekdag', workTime: { byWeekday: { '1': [{ start: 480, end: 960 }] } }, verwacht: /must contain ALL weekdays/i },
@@ -265,9 +215,6 @@ test('een uur-kalender zónder één band ⇒ harde fout + VOLLEDIGE rollback (g
   const undoVoor = S().historyEvents.filter(event => event.state === 'applied').length;
   const leeg = { byWeekday: { '1': [], '2': [], '3': [], '4': [], '5': [], '6': [], '7': [] } };
   const res = await call('planner_update_calendar', { calendars: [{ id: projId, workTime: leeg }] });
-  // Banden op geen enkele dag ⇒ afgeleide `workDays` is leeg ⇒ de eind-runCPM van de transactie
-  // weigert, en die weigering rolt de HELE call terug (transactie-invariant). Dat is precies goed:
-  // een kalender zonder werktijd komt er niet half in. De boodschap moet wel uitlegbaar zijn.
   assertEq(res.ok, false, 'de call faalt hard i.p.v. een onbruikbare kalender te committen');
   assertEq((res as any).error, 'Calendar has no working days configured', 'begrijpelijke Engelse kalenderfout');
   assertEq(JSON.stringify(S().calendars), voor, 'de kalender is volledig teruggerold');
@@ -284,15 +231,10 @@ test('een item met alleen afgeleide leesvelden is een no-op ⇒ zachte weigering
     `de weigering somt de bruikbare velden op: ${reden}`);
 });
 
-// =================================================================================================
-// 4) DAG → UUR — de taakeenheid en hoeveelheid blijven behouden
-// =================================================================================================
 test('dag→uur op de projectkalender ⇒ native taakduren blijven behouden', async () => {
   reset();
   const projId = S().project.calendarId;
   S().ensureProjectCalendarInLibrary();
-  // Een expliciete urentaak blijft 240 minuten; de verouderde scheduleDuration-afleiding bepaalt
-  // haar identiteit niet meer en wordt door de kalenderwissel niet als invoer hergebruikt.
   const halve = addTask('Halve dag werk', 2, 240);
   const gewoon = addTask('Gewone taak', 3);
 
@@ -316,15 +258,11 @@ test('dag→uur op de projectkalender ⇒ native taakduren blijven behouden', as
   const dayTask = S().tasks.find((t) => t.id === gewoon)!;
   assertEq(dayTask.time.durationUnit, 'days', 'dagtaak blijft dagen');
   assertEq(dayTask.time.scheduleDuration, 3, 'dagtaak blijft exact drie dagen');
-  // Taken zónder eigen calendarId hangen aan de projectkalender — dat is precies waarom dit telt.
   assertEq(S().tasks.find((t) => t.id === halve)!.calendarId, undefined, 'de taak had geen eigen kalender');
   assertEq(calById(projId)!.workDays, [1, 2, 3, 4, 5], 'workDays is uit de banden afgeleid');
   assertEq(calById(projId)!.hoursPerDay, 8, 'hoursPerDay is uit de banden afgeleid');
 });
 
-// =================================================================================================
-// 5) UUR → DAG — effectieve scalaire blokken blijven geldig, zonder conversie van taakminuten
-// =================================================================================================
 test('uur→dag met bestaande urentaak ⇒ effectieve scalaire blokken behouden de taakminuten', async () => {
   reset();
   const projId = S().project.calendarId;
@@ -341,9 +279,6 @@ test('uur→dag met bestaande urentaak ⇒ effectieve scalaire blokken behouden 
   assertEq(S().calendar.workTime, calById(projId)!.workTime, 'projectkalender-cache blijft consistent');
 });
 
-// Speling staat in WERKDAGEN van de taakkalender, ook bij een uurtaak (`CPMSolver.signedFloat`: werkminuten ÷
-// (uren per dag × 60)). Zonder die eenheid in de beschrijving leest een agent `freeFloat: 0.5` als een half uur
-// (council-ronde 3 op #836). Deze stap bindt de zin in de beschrijving aan het gedrag.
 test('speling van een uurtaak staat in werkdagen: 4 uur naast een taak van 8 uur ⇒ 0.5', async () => {
   reset();
   const projId = S().project.calendarId;
@@ -364,9 +299,6 @@ test('speling van een uurtaak staat in werkdagen: 4 uur naast een taak van 8 uur
   }
 });
 
-// =================================================================================================
-// 6) SHIFT — schrijfbaar en wisbaar
-// =================================================================================================
 test('`shift` is schrijfbaar, leesbaar en wisbaar', async () => {
   reset();
   const projId = S().project.calendarId;
@@ -387,15 +319,11 @@ test('`shift` is schrijfbaar, leesbaar en wisbaar', async () => {
     'een onbekende ploeg wordt geweigerd MÉT de geldige waarden');
 });
 
-// =================================================================================================
-// 7) GENERATION — de naamdrift is opgelost: de schrijfkant spreekt de leesvorm
-// =================================================================================================
 test('generation: de leesvorm is schrijfbaar, wisbaar, en de generator-sleutels wijzen de weg', async () => {
   reset();
   const projId = S().project.calendarId;
   S().ensureProjectCalendarInLibrary();
 
-  // 7a. De leesvorm LETTERLIJK terugschrijven.
   const gen = { ruleSetId: 'DE', region: 'Bayern', breakChoice: 'zuid', generatedFromYear: 2025, generatedToYear: 2028 };
   const ok = await call('planner_update_calendar', {
     calendars: [{ id: projId, generation: gen, holidays: [{ name: 'Neujahr', startDate: '2026-01-01', endDate: '2026-01-01' }] }],
@@ -406,13 +334,10 @@ test('generation: de leesvorm is schrijfbaar, wisbaar, en de generator-sleutels 
   assertEq((await readCalendars()).calendars.find((c: any) => c.id === projId).generation, gen,
     'lezen levert exact hetzelfde object op — de round-trip sluit');
 
-  // 7b. Wissen.
   const weg = await call('planner_update_calendar', { calendars: [{ id: projId, generation: null }] });
   assertEq(rejections(weg), [], 'null wist de herkomst');
   assertEq('generation' in (calById(projId) as object), false, '`generation` is echt verwijderd');
 
-  // 7c. De GENERATOR-sleutels in `generation` wijzen naar het juiste veld (dit was de val: de
-  //     leeskant gaf `ruleSetId`, de schrijfkant wilde `country` — en dat was een kale TypeError).
   const drift = await call('planner_update_calendar', {
     calendars: [{ id: projId, generation: { country: 'NL', bouwvak: 'noord', generatedFromYear: 2025, generatedToYear: 2028 } }],
   });
@@ -420,13 +345,11 @@ test('generation: de leesvorm is schrijfbaar, wisbaar, en de generator-sleutels 
   assert(/`generation.country` does not exist/.test(reden) && /ruleSetId/.test(reden),
     `de weigering wijst naar de juiste sleutel: ${reden}`);
 
-  // 7d. `generate` (actie) en `generation` (metadata) samen is tegenstrijdig.
   const beide = await call('planner_update_calendar', {
     calendars: [{ id: projId, generate: { country: 'NL', bouwvak: 'geen' }, generation: { ruleSetId: 'NL', generatedFromYear: 2025, generatedToYear: 2028 } }],
   });
   assert(/`generate` OR `generation`/.test(soleRejection(beide)), 'de tegenstrijdigheid wordt uitgelegd');
 
-  // 7e. Onzin-jaren en een onbekende ruleSetId ketsen af.
   const jaren = await call('planner_update_calendar', {
     calendars: [{ id: projId, generation: { ruleSetId: 'NL', generatedFromYear: 2030, generatedToYear: 2025 } }],
   });
@@ -437,9 +360,6 @@ test('generation: de leesvorm is schrijfbaar, wisbaar, en de generator-sleutels 
   assert(/unknown `generation.ruleSetId` 'none'/.test(soleRejection(land)), "'none' bestaat niet in de leesvorm");
 });
 
-// =================================================================================================
-// 8) HOLIDAYS (leesvorm) — vervangt EXACT, geen stille unie met de app-default
-// =================================================================================================
 test('`holidays` vervangt de lijst exact en botst niet met rawHolidays/generate', async () => {
   reset();
   const projId = S().project.calendarId;
@@ -457,12 +377,10 @@ test('`holidays` vervangt de lijst exact en botst niet met rawHolidays/generate'
   assertEq(okData(res).calendars[0].becameLiteral, true, 'zonder herkomst wordt de kalender letterlijk');
   assertEq('generation' in (calById(projId) as object), false, 'de generator-herkomst is vervallen');
 
-  // Leegmaken mag (dat is de betekenis van een lege lijst in de LEESvorm) — anders dan bij rawHolidays.
   const leeg = await call('planner_update_calendar', { calendars: [{ id: projId, holidays: [] }] });
   assertEq(rejections(leeg), [], 'een lege leeslijst is een geldige opdracht');
   assertEq(calById(projId)!.holidays, [], 'alle feestdagen weg');
 
-  // Conflicten.
   for (const [item, patroon] of [
     [{ id: projId, holidays: lijst, rawHolidays: lijst }, /`holidays` OR `rawHolidays`/],
     [{ id: projId, holidays: lijst, holidaysMode: 'replace' }, /`holidaysMode` belongs to `rawHolidays`/],
@@ -475,9 +393,6 @@ test('`holidays` vervangt de lijst exact en botst niet met rawHolidays/generate'
   }
 });
 
-// =================================================================================================
-// 9) ONBEKENDE VELDEN — ketsen af mét de toegestane lijst (K7-patroon)
-// =================================================================================================
 test('een onbekend kalenderveld wordt geweigerd, niet stil weggegooid', async () => {
   reset();
   const projId = S().project.calendarId;
@@ -491,9 +406,6 @@ test('een onbekend kalenderveld wordt geweigerd, niet stil weggegooid', async ()
   assertEq(calById(projId)!.name !== 'Nieuw', true, 'de rest van het item is NIET half toegepast');
 });
 
-// =================================================================================================
-// 10) VIA planner_batch — de schemapoort en het batchStep-pad doen exact hetzelfde
-// =================================================================================================
 test('kalender overzetten binnen een draaiboek (planner_batch, via de dispatcher)', async () => {
   reset();
   const preset = shiftPresetPatch('continuous');
@@ -528,7 +440,6 @@ test('kalender overzetten binnen een draaiboek (planner_batch, via de dispatcher
   assertEq(stap1.calendars[0].mode, 'hour', 'de overgezette kalender is uur-modus (via de batch)');
   const kopie = calById(stap1.calendars[0].id);
   assertEq(calShape(kopie), calShape(src as WorkCalendar), 'veld voor veld identiek — ook via de batch');
-  // De leesstap in dezelfde batch ziet hem al staan.
   const gelezen = payload.data.steps[1].data.calendars.find((c: any) => c.id === stap1.calendars[0].id);
   assert(!!gelezen && !!gelezen.workTime, 'de leesstap in dezelfde batch ziet de uurbanden');
 });
@@ -563,16 +474,10 @@ test('ongeldige banden binnen een batch: zachte weigering, de batch loopt door',
   assertEq(S().project.name, 'Loopt door', 'de volgende stap is gewoon uitgevoerd');
 });
 
-// =================================================================================================
-// 11) IFC-ROUND-TRIP — IFC is het native formaat; wat de bridge schrijft moet het dragen
-// =================================================================================================
 test('IFC-round-trip: generation, shift en per-weekdag-verschillende banden overleven', async () => {
   reset();
   const projId = S().project.calendarId;
   S().ensureProjectCalendarInLibrary();
-  // Een uur-kalender die AFWIJKT van het enkelvoudige dagpatroon (twee banden) — alleen dan
-  // promoveert de reader hem terug naar uur-modus (subdayIo, discriminator a/b).
-  // Vrijdag krijgt bewust een AFWIJKENDE (korte) dag — zo wordt zichtbaar wat IFC wél en niet draagt.
   const tweeBanden = {
     byWeekday: {
       1: [{ start: 360, end: 840 }, { start: 840, end: 1320 }],
@@ -604,10 +509,6 @@ test('IFC-round-trip: generation, shift en per-weekdag-verschillende banden over
   assertEq(cal.workTime!.byWeekday[1], [{ start: 360, end: 840 }, { start: 840, end: 1320 }],
     'de banden van maandag komen exact terug');
   assertEq(cal.hoursPerDay, 16, 'de afgeleide netto uren komen terug');
-  // Per-weekdag VERSCHILLENDE banden overleven het native formaat (B7, zie docs/ifc-round-trip.md
-  // "Kalenders: werkblokken per weekdag"): elke groep weekdagen met dezelfde banden krijgt een eigen
-  // `IfcWorkTime`. Vóór B7 kwam vrijdag terug als een kopie van maandag. Dit pint het herstel vast,
-  // zodat de beschrijving van `planner_update_calendar` eerlijk blijft.
   assertEq(cal.workTime!.byWeekday[5], [{ start: 360, end: 840 }],
     'vrijdag komt terug als de korte dag die het bestand in ging');
   assertEq(cal.workTime!.byWeekday[4], [{ start: 360, end: 840 }, { start: 840, end: 1320 }],
@@ -621,25 +522,13 @@ test('IFC: één gewone band per dag overleeft — ook op een kalender zonder ge
   const projId = S().project.calendarId;
   S().ensureProjectCalendarInLibrary();
   await call('planner_update_calendar', { calendars: [{ id: projId, workTime: bands8to16() }] });
-  addTask('Hele dagen', 2); // zelfs ZONDER sub-dag-duur
+  addTask('Hele dagen', 2);
   assert(!!calById(projId)!.workTime, 'testvoorwaarde: in de store is het een uur-kalender');
 
-  // De IFC-reader promoveert naar uur-modus bij een echte afwijking van het enkelvoudige dagpatroon
-  // (>1 band of een wrap) óf bij een sub-dag-signaal elders in het bestand (`subdayIo`,
-  // discriminator a/b/c). Eén band 08:00-16:00 wijkt niet af — maar de taken van een uur-kalender
-  // worden mét tijd-van-de-dag weggeschreven, en dát is signaal (c). Dus: overleeft.
   const terug = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
   assert(!!terug.calendar.workTime, 'de uur-modus overleeft dankzij de uur-taken in hetzelfde bestand');
   assertEq(terug.calendar.workTime!.byWeekday[1], [{ start: 480, end: 960 }], 'de band komt exact terug');
 
-  // OPGEHEVEN BEPERKING (B1.1, issue #19 — de "A2-fix" in `ifcReader.extractCalendarLibrary`). Deze
-  // test pinde tot dan het OMGEKEERDE: de reader bouwde de bibliotheek uitsluitend uit
-  // IFCRELASSIGNSTOCONTROL-relaties, dus een kalender zonder taak én zonder resource werd wél
-  // geschreven maar niet teruggelezen — stil verlies, precies in het overzet-scenario ("maak de
-  // kalender aan in het doeldocument"). De bedrijfsbibliotheken hadden daar zelf last van (een
-  // gepromote kalender verloor zo zijn `libraryOrigin`-stempel), en de reader vangt sindsdien álle
-  // overige IFCWORKCALENDAR-entiteiten op. Een ongebruikte kalender overleeft dus nu wél — dát pinnen
-  // we hier vast, zodat de oude beperking niet ongemerkt terugkeert.
   reset();
   const res = await call('planner_update_calendar', {
     calendars: [{ id: 'los', create: true, name: 'Ongebruikte uurkalender', workTime: bands8to16(), holidays: [] }],
@@ -651,11 +540,8 @@ test('IFC: één gewone band per dag overleeft — ook op een kalender zonder ge
   assert(!!ongebruikt, 'een bibliotheek-kalender ZONDER taak/resource komt sinds de A2-fix terug uit IFC');
   assertEq(ongebruikt!.workTime?.byWeekday[1], [{ start: 480, end: 960 }], 'ongebruikte kalender behoudt ook zijn uurbanden');
   const description = toolDef('planner_update_calendar').description;
-  // Het behoud zelf bewijst de round-trip hierboven. De beschrijving noemt het sinds #818 niet meer (er gaat niets
-  // verloren, dus geen zin nodig), maar mag ook geen oude waarschuwing voor verlies terugkrijgen.
   assert(!/does NOT survive save\+reload/.test(description), 'geen achterhaalde waarschuwing voor kalenderverlies');
 
-  // MÉT een taak eraan overleeft hij volledig — inclusief de uurbanden.
   const t = addTask('Werk op de ploegenkalender', 2);
   S().updateTask(t, { calendarId: losId });
   const metGebruiker = readIFC(writeIFC(buildWriteIFCInput(S(), 'planOnly')));
@@ -664,10 +550,6 @@ test('IFC: één gewone band per dag overleeft — ook op een kalender zonder ge
   assertEq(los!.workTime?.byWeekday[1], [{ start: 480, end: 960 }], 'inclusief de uurbanden');
 });
 
-// =================================================================================================
-// 12) UUR → DAG mét een pauzeduur — de pauze die het item niet noemt, volgt de dagregel (12:00), niet het
-//     gat tussen de oude blokken (`inferredSimpleBreak`, besluit eigenaar 2026-10-13, optie 2).
-// =================================================================================================
 function twoBlocks(a: [number, number], b: [number, number]): WorkTimeBands {
   const byWeekday = { 1: [], 2: [], 3: [], 4: [], 5: [], 6: [], 7: [] } as WorkTimeBands['byWeekday'];
   for (const d of [1, 2, 3, 4, 5] as const) byWeekday[d] = [{ start: a[0], end: a[1] }, { start: b[0], end: b[1] }];

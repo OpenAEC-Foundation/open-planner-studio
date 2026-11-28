@@ -1,12 +1,3 @@
-// Knownbug 336: het bronbestand van een externe relatie leest de app zoals ze het opent.
-//
-// Vroeger las `parseExternalSource` het bestand met de kale lezer. Een eigen IFC geeft dan een
-// datum zonder tijd, en de eigen taak maakte daar de verkeerde kant van de dag van: FS naar een
-// startmijlpaal werd 16:00 (bron 07:00), SS naar een eindmijlpaal 07:00 (bron 16:00). Een koppeling
-// die al klopte, kreeg zo bij "Bron vernieuwen" toch een nieuw anker en een undo-stap.
-//
-// Bron: `examples/showcase-groot-terrein-onderaannemer.ifc` (het meegeleverde bronproject van
-// De Vaart). De check leest het bestand via dezelfde `readExternalSource` als de app, met Node-fs.
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
@@ -29,7 +20,6 @@ const eq = (label: string, actual: unknown, expected: unknown) => {
   }
 };
 
-// `run.sh` schrijft de bundel in `tests/planning/`, dus de repo-root ligt twee mappen hoger.
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const sourcePath = resolve(root, 'examples/showcase-groot-terrein-onderaannemer.ifc');
 const nodeIo: FormatIO = {
@@ -45,11 +35,9 @@ if (!startMilestone || !endMilestone) {
   process.exit(1);
 }
 
-// (1) De bron draagt de momenten die de app bij openen toont (D7: één moment per mijlpaal).
 eq('1a startmijlpaal: start 07:00', computedStart(startMilestone), '2027-03-01T07:00');
 eq('1b eindmijlpaal: einde 16:00', computedFinish(endMilestone), '2027-04-06T16:00');
 
-// (2) Verversen via de store: het anker volgt de bron, aan de goede kant van de dag.
 const { store } = createAppStoreContext();
 const S = () => store.getState();
 store.setState({
@@ -75,7 +63,6 @@ eq('2b FS naar de startmijlpaal: 07:00; SS naar de eindmijlpaal: 16:00', anchors
   ['ss-end', '2027-04-06T16:00'],
 ]);
 
-// (3) Een tweede verversing op een ongewijzigde bron verandert niets en maakt geen undo-stap.
 const applied = () => S().historyEvents.filter(event => event.state === 'applied').length;
 const before = applied();
 const second = await S().refreshExternalAnchorsFrom(sourcePath);
@@ -87,8 +74,6 @@ eq('3b het anker blijft gelijk', anchors(), [
 eq('3c geen nieuwe undo-stap bij een actuele koppeling', applied(), before);
 eq('3d het document blijft rekenkundig actueel', S().scheduleStale, false);
 
-// (4) Knownbug 509: de koppeling in De Vaart wijst naar het meegeleverde bronbestand. Verversen
-// vindt haar op project- en taak-id, en het bevroren anker klopt al.
 {
   const grootPath = resolve(root, 'examples/showcase-appartementencomplex.ifc');
   const groot = createAppStoreContext().store;
@@ -108,11 +93,6 @@ eq('3d het document blijft rekenkundig actueel', S().scheduleStale, false);
     groot.getState().tasks.find(task => task.id === own)!.externalLinks![0].anchorDate, original.anchorDate);
 }
 
-// (5) Review PR #792 ronde 1: de bron houdt de modus "datums zoals opgeslagen" aan, zoals openen.
-// Bron: de fixture van issue #63. Taak B staat in het bestand op 16–20 maart 2026; de berekening
-// geeft 9–13 maart. Een eigen IFC dat IN de modus is opgeslagen, opent weer in de modus, met B op
-// 20 maart 16:00. De bronlezer gaf eerst B op 13 maart (de berekening), en dan schoof het
-// gekoppelde werk na "Bron vernieuwen" van 23 naar 16 maart.
 {
   const memoryIo = (text: string): FormatIO => ({
     readTextFile: async () => text,

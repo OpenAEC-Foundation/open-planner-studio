@@ -1,8 +1,3 @@
-// Voortgang van een verzameltaak via de MCP-LEESKANT. De schrijfkant weigert al voortgang op een
-// verzameltaak ("voortgang, status en werkelijke datums worden afgeleid uit de bladtaken"); deze
-// batterij bewijst dat de leestools dan ook de AFGELEIDE waarde tonen (duurgewogen over de bladen,
-// dezelfde helper als het WBS-rapport) en niet de opgeslagen 0% of een bevroren importwaarde — ook
-// voor de werkelijke start en het werkelijke einde van de fase.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { getTool } from '@/services/mcp/toolRegistry';
 import type { McpToolOk, McpToolResult } from '@/services/mcp/contracts';
@@ -29,7 +24,6 @@ function setup() {
   };
   const A = leaf('A', 5);
   const B = leaf('B', 15);
-  // Een "bevroren" opgeslagen fasewaarde, zoals na een MSP-import: niets mag die nog tonen.
   const p = S().tasks.find(x => x.id === P)!;
   S().updateTask(P, { status: 'STARTED', time: { ...p.time, completion: 0.62 } });
   S().runCPM();
@@ -42,7 +36,6 @@ test('get_task op een fase toont de afgeleide, duurgewogen voortgang', () => {
   S().setTaskProgress(B, 0.2);
   S().runCPM();
   const data = callOk('planner_get_task', { taskId: P });
-  // (5×1 + 15×0.2) / 20 = 0.4 ⇒ 40%
   assertEq(data.progress.completion, 40, 'fase-voortgang = 40% (afgeleid)');
   assertEq(data.status, 'STARTED', 'fase-status = STARTED');
 });

@@ -1,4 +1,3 @@
-// Workergrens en races van crashherstel: echte IFC-writer en recovery-backend, vertraagde transportdubbel.
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -66,7 +65,6 @@ class Transport implements RecoveryWorker {
 }
 const turn = async () => { for (let i = 0; i < 20; i++) await Promise.resolve(); };
 
-// Werkelijke payload kan niet-clonebare filehandles en UI-functies dragen. Die mogen de grens niet over.
 const withHandle = { ...old, fileHandle: { cannotClone: () => undefined }, siteFileId: 'site-a' };
 const transport = new Transport();
 let starts = 0;
@@ -94,7 +92,6 @@ assert.equal(starts, 1, 'dezelfde worker wordt hergebruikt');
 client.dispose();
 assert.equal(transport.terminated, true);
 
-// No-Worker, opstartfout en postMessage-/clonefout blijven inhoudelijk gelijk aan de oude writer.
 for (const factory of [() => null, () => { throw new Error('CSP'); }, () => ({
   ...new Transport(), postMessage: () => { throw new Error('DataCloneError'); }, terminate: () => undefined,
 })]) {
@@ -125,8 +122,6 @@ writerFailure.reply(1);
 parity(newer, await nextSerialization);
 reusable.dispose();
 
-// XER: de writer gebruikt alleen de verwijzing en selectorgeldigheid. Geen bytes, readModel,
-// diagnostiekcatalogus of importmetadata in het bericht; ook geen getter op die grote velden lezen.
 const xer = readXER(new TextEncoder().encode([
   'ERMHDR\t23.12\t2026-01-01', '%T\tPROJECT', '%F\tproj_id\tproj_short_name', '%R\tP1\tProject',
   '%T\tTASK', '%F\ttask_id\tproj_id\ttask_code\ttask_name', '%R\tT1\tP1\tA1\tTaak', '%E',
@@ -151,8 +146,6 @@ for (const selector of [undefined, 'bestaat-niet']) {
   assert.throws(() => serializeRecoverySnapshot(invalid), /selector/);
 }
 
-// Twee vertraagde versies: jongere tick kan niet eerder committen dan oudere; metadata en bron
-// worden uit precies dezelfde payload vastgelegd, ook als de live store ondertussen wijzigt.
 let release!: (ifc: string) => void;
 let serializations = 0;
 const tracker = new RecoveryDeltaTracker();
@@ -177,7 +170,6 @@ assert.equal(loaded.docs[0]!.siteFileId, 'site-a');
 assert.equal(await runRecoveryTick(tracker, 'a', [doc(newer)], serialize), false);
 assert.equal(serializations, 2, 'ongewijzigde versie doet geen extra workerwerk');
 
-// Stop en clean quit terwijl de worker nog werkt: late voltooiing zet gewiste snapshots niet terug.
 let enabled = true;
 const stoppedTracker = new RecoveryDeltaTracker();
 const stopped = runRecoveryTick(stoppedTracker, 'a', [doc(old)], async () =>
@@ -190,7 +182,6 @@ assert.equal(await stopped, false);
 assert.equal((await loadRecovery()).docs.length, 0);
 assert.equal(stoppedTracker.hasPersistedSnapshot, false);
 
-// Een serialisatiefout promoveert de basis niet, blokkeert de rij niet en verliest geen documenten.
 const retryTracker = new RecoveryDeltaTracker();
 await assert.rejects(runRecoveryTick(retryTracker, 'a', [doc(old)], async () => { throw new Error('writerfout'); }));
 assert.equal(retryTracker.hasPersistedSnapshot, false);
@@ -199,12 +190,9 @@ const cached = new RecoveryDeltaTracker();
 let count = 0;
 const cachedSerialize = async (source: IFCSaveSource) => { count++; return serializeRecoverySnapshot(source); };
 await cached.prepareAsync('a', [doc(old)], cachedSerialize);
-// Geen commit = storagefout; opnieuw aanbieden met dezelfde tekst uit de cache.
 assert.equal((await cached.prepareAsync('a', [doc(old)], cachedSerialize))!.upserts.length, 1);
 assert.equal(count, 1);
 
-// Expliciete flush tijdens workerwerk wacht ook op de nieuwere documentversie. Geen tijdslimiet,
-// geen losgestarte vervolgronde en geen verlies van een verzoek dat tijdens de eerste ronde kwam.
 let releaseRound!: () => void;
 let currentVersion = 'oud';
 const rounds: string[] = [];
@@ -250,9 +238,6 @@ await assert.rejects(rejectingQueue(), /synchrone fout/);
 await rejectingQueue();
 assert.equal(attempts, 2, 'ook een synchrone fout houdt de flushrij niet bezet');
 
-// Review PR #483 P2: zoek het microtaskvenster aan het EINDE van een drain deterministisch.
-// Dit draait de productiehelper van useAutoSave met de echte delta/IFC/opslagketen. Een losse
-// .finally(() => inFlight = null) verliest op minstens één diepte de tweede expliciete flush.
 for (let depth = 0; depth <= 64; depth++) {
   await clearRecovery();
   const gapTracker = new RecoveryDeltaTracker();
@@ -286,7 +271,6 @@ for (let depth = 0; depth <= 64; depth++) {
     `microtask-flush op diepte ${depth} resolveert vóór persistentie van de nieuwe versie`);
 }
 
-// Unmount stopt ook een actieve én al wachtende opdracht zonder fallback of hangende beloften.
 const disposedTransport = new Transport();
 const disposable = createRecoverySnapshotSerializer(() => disposedTransport);
 const active = disposable.serialize(old);
@@ -298,8 +282,6 @@ await rejected;
 assert.equal(disposedTransport.requests.length, 1);
 await checkRecoveryUpdateFlush(error => { writeError = error; });
 
-// Een getypeerde kalenderweigering is lokaal aan het document: andere wijzigingen
-// worden opgeslagen, de geweigerde bron blijft opnieuw aangeboden worden.
 {
   await clearRecovery();
   const partial = new RecoveryDeltaTracker();
@@ -328,7 +310,6 @@ await checkRecoveryUpdateFlush(error => { writeError = error; });
     await runRecoveryTick(partial, 'b', [doc(unwriteable), secondDoc(other)], serializePartial);
     assert.equal(refused, 2, 'geweigerde wijziging wordt opnieuw geprobeerd');
   } finally { console.warn = warn; }
-  // Zonder vorige snapshot wordt alleen dat nieuwe document overgeslagen.
   const initial = new RecoveryDeltaTracker();
   console.warn = () => {};
   try { await runRecoveryTick(initial, 'a', [doc(unwriteable), secondDoc(other)], serializePartial); }
@@ -336,8 +317,6 @@ await checkRecoveryUpdateFlush(error => { writeError = error; });
   assert.deepEqual((await loadRecovery()).docs.map(d => d.id), ['b']);
 }
 
-// De workergrens behoudt de getypeerde weigering; een inhoudsfout schakelt de
-// worker niet uit en start geen synchrone tweede poging voor hetzelfde document.
 {
   const transport = new Transport();
   const client = createRecoverySnapshotSerializer(() => transport);
@@ -354,6 +333,5 @@ await checkRecoveryUpdateFlush(error => { writeError = error; });
   parity(old, await next);
   client.dispose();
 }
-// Als laatste: de bestandsbrug van deze proef vervangt `window`.
 await checkUpdaterFinalPhase();
 console.log('OK  recovery-worker: pariteit, archiefgrens, volgorde, cache, fallback, afzonderlijke kalenderweigering en stopraces groen');

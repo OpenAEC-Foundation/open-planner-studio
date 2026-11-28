@@ -1,11 +1,3 @@
-// MCP "constraint wissen" en de SECUNDAIRE constraint (audit taakmutaties §5).
-//
-// Paneel en raster canonicaliseren het constraint-paar al: ASAP (of leeg) wist beide, ALAP wist de
-// secundaire, en een datumtype moet met de bestaande secundaire een geldig paar vormen
-// (`validateConstraintPair`). Via `planner_update_tasks` bleef `constraint2` na `constraint: null`
-// of `{ type: 'ASAP' }` stil staan: de agent kreeg `ok`, de taak bleef aan de secundaire grens
-// vastzitten en het paneel verborg de oorzaak. Deze cases lopen via de ECHTE dispatcher (inclusief
-// schemavalidatie), precies zoals een agent de tool aanroept.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';
@@ -13,13 +5,11 @@ import { handleMcpMessage } from '@/services/mcp/dispatcher';
 const store = useAppStore;
 registerAllTools();
 
-// Warm-up (zelfde reden als de andere case-bestanden): promoot de projectkalender-cache vooraf.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
 const S = () => store.getState();
 
-/** Taak met een geldig P6-paar: primair FNLT (bovengrens) + secundair SNET (ondergrens). */
 function seedPair(): string {
   S().newProject();
   S().setProject({ startDate: '2026-03-02' });
