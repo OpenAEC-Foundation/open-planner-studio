@@ -67,6 +67,11 @@ Besluiten van `cfb.ts`, `mppContainer.ts`, `mppPrimitives.ts`, `fieldMap14.ts`, 
 `0741-mpp-veldkaart-uit-het-bestand-alles-of-niets.md`, `0742-mpp-relaties-resources-en-toewijzingen-lezen.md` en
 `0743-mpp-importverslag-wat-het-niet-telt.md`.
 
+### De kalenderfabriek (`mppCalendars.ts`)
+
+Besluiten van `readCalendars`: `docs/adr/1020-mpp-lezen-kalenders-zijn-letterlijke-bestandsdata.md`, naast
+`0283-mpp-lezen-uurkalender-en-tijd-van-een-datum.md` en de ADR's van de kalenderherhaling hieronder.
+
 ### De kalenderherhaling (`calendarRecurrence.ts`)
 
 Besluiten van de gedeelde kern voor uitzonderingen van de `.mpp`- en de MSPDI-lezer:
