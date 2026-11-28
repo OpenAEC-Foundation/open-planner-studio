@@ -22,4 +22,4 @@ hetzelfde datumbereik "10d" is.
   van die dag, dus "…-05" eindigt ná "…-05T13:00", terwijl het als tekst ervóór sorteert.
 - De voortgangsstaat van een blad (`progressState`) neemt de meest afgeronde lezing: een blad met een werkelijk
   einde en voortgang 0,9 telt als voltooid. Het gezondheidsrapport meldt zo'n inconsistentie apart. Een fase krijgt
-  pas een werkelijk einde als al haar bladen voltooid zijn, zodat 100% en een werkelijk einde ook op de fase samengaan.
+  pas een werkelijk einde als al haar bladen voltooid zijn.

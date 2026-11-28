@@ -13,3 +13,6 @@ optie-object hetzelfde object.
 - Een ingestelde projecteinddatum is een eindmoment: een datum zonder tijd wordt het einde van de dag op de
   projectklok, gesnapt op of vóór een werkmoment van de projectkalender. De regel dat een mijlpaal op het berekende
   projecteinde de laatste werkdag opent (ADR 0014), geldt dan niet.
+- De klem op vrije speling 0 geldt alleen voor een open eindmijlpaal met een voorganger (`computeScheduleResults`,
+  `scheduleAnalysis.ts`): volgens het weggehaalde commentaar verslechterde de brede variant 19 publieke taken en de
+  variant die ook losse eindmijlpalen meenam nog één.

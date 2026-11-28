@@ -20,9 +20,9 @@ in de ADR's 0010 tot en met 0031, die van het oprollen van verzameltaken in ADR 
   `scheduleAnalysis.ts`), anders dan een hammock: haar einde is een echt anker en geen afgeleide.
 - `findLongFreePeriods` (`freePeriods.ts`) waarschuwt alleen voor een lange vrije periode met minstens één dag uit
   `calendar.holidays`. Een periode die alleen uit het weekpatroon bestaat, hoe lang ook, heeft geen uitzondering om
-  voor te waarschuwen. De getoonde periode is wel de hele aaneengesloten vrije periode, ook buiten de taak, en draagt
+  voor te waarschuwen. De getoonde periode loopt ook buiten de taak door (tot `MAX_EXPAND_SCAN` dagen per richting) en draagt
   alleen de naam van een feestdag die minstens de helft ervan beslaat.
 - `buildShiftReport` (`shiftExplanation.ts`) geeft de reden `unknown` als de vorige invoer ontbreekt of het verschil
-  niet verklaart, en ook als twee oorzaken tegelijk veranderden. Een gok tonen we niet als feit.
+  niet verklaart. Een gok tonen we niet als feit.
 - A17, B3, B4, C1 en C4 staan in elk ingebouwd profiel uit (`CONVENTIONS` in `conventions/registry.ts`): aan of uit
   verandert geen cel van een door P6 doorgerekend bestand; alleen `rehab-2.xer`, P3-uitvoer, droeg ze (ADR 0182).
