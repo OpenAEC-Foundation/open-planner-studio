@@ -1,14 +1,3 @@
-// Issue #868 deel A — mijlpalen op één regel (besluit Ethan 14-11-2026, "alles ja").
-//
-// Een REEKS is twee of meer nulduurmijlpalen direct achter elkaar onder dezelfde ouder (of bovenaan).
-// Een gewone taak, een mijlpaal met duur of een fase ertussen breekt de reeks. De reeks klapt in zoals
-// een fase: het id van de eerste mijlpaal staat dan in `ui.collapsedTaskIds` (per document onthouden,
-// niet in het bestand) en de rijenlijst toont één rij `kind: 'milestones'` met alle mijlpalen.
-// Uitgeklapt draagt de eerste mijlpaal `runSize` (voor het pijltje). Bij filteren, groeperen of
-// sorteren staan reeksen altijd uitgeklapt. Inklappen/Uitklappen (alles) nemen de reeksen mee.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 import './domStub';
 import { useAppStore } from '@/state/appStore';
 import { createTaskGridAdapter } from '@/engine/taskGrid/taskGridAdapter';
@@ -69,15 +58,12 @@ const shape = (rows: readonly ViewRow[]) => rows.map(r =>
   r.kind === 'milestones' ? `[${r.tasks.map(t => t.name).join('|')}]@${r.depth}`
     : r.kind === 'task' ? `${r.task.name}${r.runSize ? `(${r.runSize})` : ''}` : `#${r.label}`);
 
-// ── Reeksen herkennen ──
 eq('koppen van reeksen: onder de fase en bovenaan', milestoneRunHeads(S().tasks).sort(), [M1, T1].sort());
 
-// ── Uitgeklapt: alle rijen, de kop draagt het aantal ──
 eq('uitgeklapt', shape(S().viewRows),
   ['Ruwbouw', 'Fundering', 'Start ruwbouw(3)', 'Keuring wapening', 'Betonstort', 'Kolommen', 'Los',
     'Oplevering(2)', 'Nazorg klaar', 'Mijlpaal met duur', 'Eind']);
 
-// ── Eén reeks inklappen ──
 S().toggleCollapse(M1);
 eq('reeks onder de fase ingeklapt', shape(S().viewRows),
   ['Ruwbouw', 'Fundering', '[Start ruwbouw|Keuring wapening|Betonstort]@1', 'Kolommen', 'Los',
@@ -88,13 +74,11 @@ const idx = firstRowIndexByTask(S().viewRows);
 eq('elke mijlpaal van de reeks hoort bij de reeksrij', [idx.get(M1), idx.get(M2), idx.get(M3)], [2, 2, 2]);
 eq('de reeksrij telt mee in de taakselectie', uniqueTaskIds([runRow]), [M1, M2, M3]);
 
-// ── Fase ingeklapt: de reeks verdwijnt mee ──
 S().toggleCollapse(P);
 eq('fase ingeklapt', shape(S().viewRows),
   ['Ruwbouw', 'Oplevering(2)', 'Nazorg klaar', 'Mijlpaal met duur', 'Eind']);
 S().toggleCollapse(P);
 
-// ── Alles inklappen en uitklappen nemen de reeksen mee ──
 S().expandTasks();
 eq('alles uitklappen klapt ook de reeks uit', S().ui.collapsedTaskIds, []);
 S().collapseTasks();
@@ -103,10 +87,9 @@ S().expandTasks([P]);
 eq('na fase uitklappen staan de reeksen nog in', shape(S().viewRows),
   ['Ruwbouw', 'Fundering', '[Start ruwbouw|Keuring wapening|Betonstort]@1', 'Kolommen', 'Los',
     '[Oplevering|Nazorg klaar]@0', 'Mijlpaal met duur', 'Eind']);
-S().collapseTasks([T1, A]); // T1 is al in, A is een blad: niets nieuws
+S().collapseTasks([T1, A]);
 eq('inklappen met een doellijst accepteert reekskoppen, geen bladen', [...S().ui.collapsedTaskIds].sort(), [M1, T1].sort());
 
-// ── Inklappen/Uitklappen met een gekozen mijlpaal uit een reeks: de reeks doet mee ──
 S().expandTasks();
 S().collapseTasks([M2]);
 eq('inklappen met een mijlpaal midden in de reeks klapt de reeks in', S().ui.collapsedTaskIds, [M1]);
@@ -114,11 +97,9 @@ S().expandTasks([M3]);
 eq('uitklappen met een mijlpaal uit de reeks klapt de reeks uit', S().ui.collapsedTaskIds, []);
 S().collapseTasks([M1, T1]);
 
-// ── Een verborgen mijlpaal tonen klapt zijn reeks uit ──
 S().expandAncestorsOf(M3);
 eq('expandAncestorsOf klapt de eigen reeks uit', S().ui.collapsedTaskIds.includes(M1), false);
 
-// ── Bij sorteren, filteren of groeperen: altijd uitgeklapt ──
 S().collapseTasks([M1]);
 S().setSort([{ field: { src: 'builtin', key: 'name' }, dir: 'asc' }]);
 eq('gesorteerd: geen reeksrij', S().viewRows.some(r => r.kind === 'milestones'), false);
@@ -126,7 +107,6 @@ eq('gesorteerd: geen pijltje', S().viewRows.some(r => r.kind === 'task' && r.run
 S().setSort([]);
 eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milestones'), true);
 
-// ── Tabelcellen van de ingeklapte regel (punt 5): Start = vroegste, Einde = laatste, rest leeg ──
 {
   S().setSort([]);
   S().expandTasks();
@@ -152,7 +132,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   eq('de rij kent de mijlpalen van de reeks', adapter.rowMetaByKey.get(key)?.kind, 'milestones');
 }
 
-// ── Neerzetten rond een ingeklapte regel (punt 8): vóór de eerste of ná de laatste mijlpaal ──
 {
   S().expandTasks();
   S().collapseTasks([M1, T1]);
@@ -166,7 +145,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   const rootOrder = S().tasks.filter(t => !t.parentId).map(t => t.id);
   eq('ná de reeks bovenaan telt alle mijlpalen mee', resolveDropTarget(rows, rootIdx, 'after', byId),
     { parentId: null, childIndex: rootOrder.indexOf(T2) + 1 });
-  // Een gesleepte reeks (kop M1) die vóór B neerkomt: de kop telt mee in de compensatie.
   const bIdx = rows.findIndex(r => r.kind === 'task' && r.task.id === B);
   eq('reeks onder B neerzetten', resolveDropTarget(rows, bIdx, 'after', byId, M1), { parentId: P, childIndex: 4 });
   S().moveTasksTo([M1, M2, M3], { parentId: P, childIndex: 4 });
@@ -174,7 +152,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
     ['Fundering', 'Kolommen', 'Start ruwbouw', 'Keuring wapening', 'Betonstort', 'Los']);
 }
 
-// ── Relatielijnen naar, vanuit en binnen een ingeklapte reeks blijven getekend (review Sol #956) ──
 {
   S().expandTasks();
   const lijnen = (sequences: Sequence[]): number => {
@@ -195,7 +172,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
     }).render();
     return n;
   };
-  // Naast de inkomende relaties van Fundering: één uitgaande en één binnen de reeks.
   S().addSequence({ predecessorId: M3, successorId: M4, type: 'FINISH_START', lagDays: 0 });
   S().addSequence({ predecessorId: M1, successorId: M2, type: 'START_START', lagDays: 0 });
   S().runCPM();
@@ -204,8 +180,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   S().collapseTasks([M1]);
   eq('opzet: de reeks is ingeklapt', S().viewRows.some(r => r.rowKey === `milestones:${M1}`), true);
   const kaal = lijnen([]);
-  // M3→M4 (FS, lag 0) zet Betonstort en Los (sinds de verhuizing hierboven het einde van de reeks) op
-  // dezelfde dag: één groepsruitje, en een pijl van dat ruitje naar zichzelf vervalt.
   const groepen = milestoneGroups(S().viewRows);
   eq('opzet: Betonstort en Los delen een ruitje, M1 en M2 niet',
     [groepen.get(M4)?.map(t => t.id), groepen.has(M1), groepen.has(M2)], [[M3, M4], false, false]);
@@ -216,7 +190,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   }
 }
 
-// ── Toetsenbord en muis kiezen de ingeklapte regel op dezelfde manier (review Sol #956) ──
 {
   S().expandTasks();
   S().collapseTasks([M1]);
@@ -230,7 +203,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   const vorige = { rowKey: rowKeys[runPos - 1], columnId: col };
   const volgende = { rowKey: rowKeys[runPos + 1], columnId: col };
   const opA = updateGridSelection(createEmptyGridSelection(), vorige, index, cols, 'replace');
-  // Pijl omlaag stuurt de cursor naar de volgende gegevensrij: de reeksregel.
   const opRegel = updateGridSelection(opA, { rowKey: runKey, columnId: col }, index, cols, 'replace');
   eq('pijl omlaag: de cursor staat op de reeksregel', opRegel.active?.rowKey, runKey);
   eq('pijl omlaag: de hele reeks is gekozen', [...opRegel.selectedTaskIds].sort(), [...leden].sort());
@@ -244,7 +216,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   const blijft = reconcileGridSelection(opRegel, index, createTaskGridRowIndex(S().viewRows), cols, cols);
   eq('na een nieuwe rijenlijst blijft de cursor op de reeksregel', blijft.active?.rowKey, runKey);
 
-  // Kopiëren (review Sol ronde 2): de gekozen regel kopieert als haar mijlpalen, één regel per mijlpaal.
   const adapter = adapterFor();
   const omgeving = (selection: typeof opRegel) => ({
     selection, rowIndex: index, columns: cols, descriptors: adapter.descriptorsById, context: adapter.context, dateNotation: 'dmy' as const,
@@ -257,7 +228,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   eq('Ctrl+C over taak, reeks en taak: alle regels in volgorde', drie.ok ? drie.value.trim().split(/\r?\n/).length : drie, leden.length + 2);
   eq('plakken op de ingeklapte regel weigert (welke mijlpaal?)', planTaskGridPaste('X', omgeving(opRegel)).ok, false);
 
-  // Cursor (review Sol ronde 2): een klik op een ruitje publiceert een mijlpaal uit de reeks; de cursor gaat naar de reeksregel.
   const gesynct = syncActiveCellToPublishedTask(opA, leden[1], leden, index, cols);
   eq('ruitjesklik: de cursor springt naar de reeksregel', gesynct.active?.rowKey, runKey);
   eq('ruitjesklik: de gekozen taken blijven die van het ruitje', [...gesynct.selectedTaskIds], leden);
@@ -265,7 +235,6 @@ eq('zonder sortering weer ingeklapt', S().viewRows.some(r => r.kind === 'milesto
   S().expandTasks();
 }
 
-// ── Mijlpalen op dezelfde dag: één ruitje met hun aantal (#868 punt 3, keuze Ethan: optie 2) ──
 {
   S().newProject();
   const at = (moment: string) => ({

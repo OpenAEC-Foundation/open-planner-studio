@@ -1,6 +1,3 @@
-// check-split-edit.ts — het pure bewerkmodel voor gebruikerssplits (issue #146, spec
-// 2026-09-19-taken-splitsen-bewerken-design.md). Fixtures zijn GECOMMIT: het .mpp-corpus staat
-// niet in de repo en is dus geen poort.
 import type { Task, TaskSplitGap, TaskTime } from '@/types/task';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import {
@@ -22,19 +19,17 @@ function eq(label: string, actual: unknown, expected: unknown): void {
   }
 }
 
-// ── T1: het type draagt 'user' ───────────────────────────────────────────────
 const userGap: TaskSplitGap = { afterMinutes: 480, gapMinutes: 480, source: 'user' };
 eq('T1 source user typeert', userGap.source, 'user');
 const importGap: TaskSplitGap = { afterMinutes: 480, gapMinutes: 480 };
 ok('T1 source blijft optioneel', importGap.source === undefined);
 
-// ── T2: wélgevormdheid en de heen-en-terug-vertaling ─────────────────────────
 const NEAT: TaskSplitGap[] = [{ afterMinutes: 480, gapMinutes: 480 }, { afterMinutes: 1440, gapMinutes: 480 }];
 const WITH_SOURCE: TaskSplitGap[] = [{ afterMinutes: 480, gapMinutes: 960, source: 'leveling' }];
 const SUBDAY: TaskSplitGap[] = [{ afterMinutes: 480, gapMinutes: 100 }];
 const FRACTION: TaskSplitGap[] = [{ afterMinutes: 0.1 + 0.2, gapMinutes: 0.7 }, { afterMinutes: 3.3, gapMinutes: 1.1 }];
 const OVERLAP: TaskSplitGap[] = [{ afterMinutes: 480, gapMinutes: 960 }, { afterMinutes: 960, gapMinutes: 480 }];
-const BEYOND: TaskSplitGap[] = [{ afterMinutes: 1440, gapMinutes: 5760 }]; // werk = 960
+const BEYOND: TaskSplitGap[] = [{ afterMinutes: 1440, gapMinutes: 5760 }];
 const UNSORTED: TaskSplitGap[] = [{ afterMinutes: 1440, gapMinutes: 480 }, { afterMinutes: 480, gapMinutes: 480 }];
 
 ok('T2 netjes wélgevormd', isWellFormedSplit(NEAT, 1440));
@@ -59,9 +54,8 @@ for (const [name, g, w] of [['NEAT', NEAT, 1440], ['WITH_SOURCE', WITH_SOURCE, 9
   ok(`T2 round-trip ${name}: werk`, Math.abs(back.totalWorkMinutes - w) < 1e-6);
 }
 
-// ── T3: de bewerkingen ───────────────────────────────────────────────────────
-const U = 480; // dag-eenheid bij 8u
-const one = toSplitPieces(undefined, 4800)!; // 10 werkdagen
+const U = 480;
+const one = toSplitPieces(undefined, 4800)!;
 const s1 = splitAt(one, 2400, 2400, U);
 ok('T3 splitAt ok', s1.ok);
 eq('T3 splitAt 5+5+5', s1.ok && s1.pieces, [
@@ -82,17 +76,13 @@ eq('T3 werkstuk minimaal één eenheid', (() => { const r = setWorkLength(p5, 0,
 eq('T3 onbekende index', setGapLength(p5, 3, U, U), { ok: false, reason: 'index-out-of-range' });
 eq('T3 removeAllGaps', removeAllGaps(p5), [{ kind: 'work', minutes: 4800 }]);
 
-// Alleen het BEWERKTE stuk wordt gesnapt: een sub-dag-importgat blijft 100 minuten.
 const sub = toSplitPieces([{ afterMinutes: 480, gapMinutes: 100 }, { afterMinutes: 1540, gapMinutes: 480 }], 2400)!;
 eq('T3 onaangeraakt sub-dag-gat blijft', (() => { const r = setGapLength(sub, 1, 960, U); return r.ok && r.pieces.map(p => p.minutes); })(), [480, 100, 960, 960, 960]);
 ok('T3 onaangeraakt gat houdt (geen) source', (() => { const r = setGapLength(sub, 1, 960, U); return r.ok && !('source' in r.pieces[1]); })());
 
-// Adoptie: na een gebruikersbewerking zijn nivelleergaten van de gebruiker.
 const lev = toSplitPieces([{ afterMinutes: 480, gapMinutes: 480, source: 'leveling' }, { afterMinutes: 1440, gapMinutes: 480 }], 1440)!;
 eq('T3 adoptLevelingGaps', adoptLevelingGaps(lev).filter(p => p.kind === 'gap').map(p => (p as { source?: string }).source), ['user', undefined]);
 
-// ── T4: splitsbaarheid, voltooid werk en de gat-klip ─────────────────────────
-/** Minimale, volledige `Task` — zelfde vorm als `mkTask` in `check-advanced-cpm.ts`. */
 function mk(o: {
   days: number; isMilestone?: boolean; isHammock?: boolean; manuallyScheduled?: boolean;
   durationType?: TaskTime['durationType']; splitGaps?: TaskSplitGap[];
@@ -127,9 +117,6 @@ eq('T4 klip: gat voorbij nieuw werk vervalt', clipUserGapsToWork([{ afterMinutes
   [{ afterMinutes: 480, gapMinutes: 480, source: 'user' }]);
 eq('T4 klip raakt importgat niet', clipUserGapsToWork(BEYOND, 960), BEYOND);
 
-// ── T5: datum → positie op de werk-as (etappe 2, het splitsgebaar) ───────────
-// Dag-kalender ma–vr 8u zonder `workTime` — zelfde vorm als `check-split-walk.ts`s `DAY_CAL`
-// (dwingt het `addWorkingDaysSigned`/`workDaysBetween`-pad af).
 const T5_DAY_CAL: WorkCalendar = {
   id: 'cal-day-split-edit', name: 'dag', description: '', workDays: [1, 2, 3, 4, 5],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
@@ -144,8 +131,8 @@ const T5_HOUR_CAL: WorkCalendar = {
 };
 const t5HourEng = new CalendarEngine(T5_HOUR_CAL);
 
-const t5Start = parseDate('2026-06-01');            // maandag
-const t5Ten = toSplitPieces(undefined, 4800)!;      // 10 werkdagen, geen gaten
+const t5Start = parseDate('2026-06-01');
+const t5Ten = toSplitPieces(undefined, 4800)!;
 const offs = (at: string, pieces = t5Ten) => workOffsetAtDate(pieces, t5Start, parseDate(at), t5Eng, false);
 
 eq('T5 start zelf ⇒ 0', offs('2026-06-01'), { workMinutes: 0, inGap: false });
@@ -153,7 +140,6 @@ eq('T5 woensdag ⇒ twee werkdagen', offs('2026-06-03'), { workMinutes: 960, inG
 eq('T5 zaterdag telt het weekend niet mee', offs('2026-06-06'), { workMinutes: 2400, inGap: false });
 eq('T5 vóór de taakstart ⇒ 0', offs('2026-05-28'), { workMinutes: 0, inGap: false });
 
-// Met een pauze van 5 werkdagen in het midden: [2400 werk][2400 pauze][2400 werk].
 const t5Split = splitAt(t5Ten, 2400, 2400, 480);
 ok('T5 fixture splitst', t5Split.ok);
 const t5Pieces = t5Split.ok ? t5Split.pieces : t5Ten;
@@ -163,11 +149,9 @@ eq('T5 eerste werkdag ná de pauze', offs('2026-06-15', t5Pieces), { workMinutes
 eq('T5 tweede werkdag ná de pauze', offs('2026-06-16', t5Pieces), { workMinutes: 2880, inGap: false });
 eq('T5 voorbij het taakeinde klemt op het werktotaal', offs('2026-08-01', t5Pieces), { workMinutes: 4800, inGap: false });
 
-// Uur-modus: de as is de werkminutenafstand, niet het aantal dagen.
 eq('T5 uur-modus middaginstant', workOffsetAtDate(toSplitPieces(undefined, 2400)!, parseInstant('2026-06-01T08:00'),
   parseInstant('2026-06-01T12:00'), t5HourEng, true), { workMinutes: 240, inGap: false });
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) { console.log(`OK  split-edit: alle checks groen (${checks})`); process.exit(0); }
 console.log(`XX  split-edit: ${diffs.length} afwijking(en) van ${checks}`);
 for (const d of diffs) console.log(`   - ${d}`);

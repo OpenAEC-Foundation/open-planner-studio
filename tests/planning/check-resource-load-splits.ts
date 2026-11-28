@@ -1,29 +1,3 @@
-// check-resource-load-splits.ts — computeResourceLoad wordt split- en taakkalender-bewust
-// (B1c-W0.1). Drie groepen:
-//
-// (a) Splits: pauzedagen dragen geen last. `computeResourceLoad` mapte de curve-array vóór deze
-//     wijziging op AANEENGESLOTEN werkdagen van de projectkalender tussen earlyStart/earlyFinish
-//     (`enumerateWorkDays`) — dat slaat de `splitGaps`-pauzedagen van de taak zelf niet over, dus
-//     een gesplitste taak boekte ten onrechte op de pauzedag. Referentiegeval identiek aan
-//     `check-split-walk.ts`: taak 06-01..06-05, twee gaten van 1 werkdag na resp. dag 1 en
-//     aspositie 1440 ⇒ de taak werkt op 06-01/06-03/06-05, niet op 06-02/06-04. Een FRONT_LOADED-
-//     variant toetst daarbovenop dat de CURVE-VOLGORDE de echte werkdagen volgt (werkdag k draagt
-//     gewicht k), niet de kalenderdagen inclusief de gaten.
-//
-// (b) Taakkalender: de dag-mapping moet de kalender van de TAAK volgen (dezelfde engine als de CPM-
-//     duur/splits, `CPMSolver.calendarFor`/`resolveCalendar`), niet onvoorwaardelijk de project-
-//     kalender. Een taak op een 6-daagse kalender (zaterdag werkdag) moet dus ook op zaterdag boeken
-//     — én de CAPACITEITSZIJDE (die op de RESOURCE-kalender rekent, niet de taakkalender) moet die
-//     zaterdag als een echt conflict zien: de resource kán daar simpelweg niet werken.
-//
-// (c) ELAPSEDTIME: `scheduleDuration` is voor zo'n taak KALENDERdagen, niet werkdagen
-//     (`duration.ts`'s `elapsedMinutesOf`-docblok). De mapping moet dat getal dus NIET als
-//     werkdagen-telling lezen (dat zou voorbij `earlyFinish` doorlopen), maar terugvallen op de
-//     oude, op de spanne geklemde mapping. Reviewbevinding (reviewronde taak 3): duur 10, spanne
-//     06-01..06-10 (met een weekend erin) belastte t/m 06-12 — twee dagen voorbij `earlyFinish`.
-//
-// Draait via run.sh. Exit 0 = alles groen.
-
 import { computeResourceLoad } from '@/engine/scheduler/ResourceLoad';
 import type { Resource, ResourceAssignment } from '@/types/resource';
 import type { Task } from '@/types/task';
@@ -43,14 +17,11 @@ function ok(label: string, cond: boolean): void {
   if (!cond) diffs.push(label);
 }
 
-// Projectkalender: ma-vr, 8u/dag — zelfde vorm als `check-split-walk.ts`s `DAY_CAL`.
 const PROJECT_CAL: WorkCalendar = {
   id: 'cal-project', name: 'project', description: '', workDays: [1, 2, 3, 4, 5],
   workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
 };
 
-/** Leaf-taak met doorgerekende datums (earlyStart/earlyFinish sturen de dag-mapping), zelfde
- *  veldvorm als `tests/library/check-occupancy.ts`s `task()`. */
 function task(id: string, earlyStart: string, earlyFinish: string, durationDays: number, extra?: Partial<Task>): Task {
   return {
     id, name: id, description: '', wbsCode: '1', taskType: 'CONSTRUCTION', status: 'NOT_STARTED',
@@ -73,9 +44,6 @@ function assign(id: string, taskId: string, resourceId: string, unitsPerDay: num
   return { id, taskId, resourceId, unitsPerDay, curve: 'UNIFORM' };
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (a) Splits: pauzedagen dragen geen last.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- resource-load-splits: splits slaan pauzedagen over --');
 {
   const taskA = task('t-a', '2026-06-01', '2026-06-05', 3, {
@@ -98,10 +66,6 @@ console.log('-- resource-load-splits: splits slaan pauzedagen over --');
   eq('geen extra dagen dan de drie werkdagen', Object.keys(daily).sort(), ['2026-06-01', '2026-06-03', '2026-06-05']);
 }
 
-// FRONT_LOADED-variant: de curve moet de ECHTE werkdagen aflopen (index i → i-de werkdag), niet de
-// kalenderdagen mét gaten erin — anders zou de piek op een pauzedag terechtkomen of verschuiven.
-// distributeUnits(1, 3, FRONT_LOADED) = [2, 1, 0] (aflopend); die drie waarden horen dus exact op
-// de drie werkdagen 06-01/06-03/06-05 te landen, in die volgorde.
 console.log('-- resource-load-splits: FRONT_LOADED-curve volgt de echte werkdagen (niet de kalenderdagen) --');
 {
   const taskAFront = task('t-a-front', '2026-06-01', '2026-06-05', 3, {
@@ -122,28 +86,13 @@ console.log('-- resource-load-splits: FRONT_LOADED-curve volgt de echte werkdage
   eq('pauzedagen blijven buiten de mapping', [daily['2026-06-02'], daily['2026-06-04']], [undefined, undefined]);
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (b) Taakkalender: de last volgt de kalender van de taak, niet de projectkalender.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- resource-load-splits: taak met eigen (6-daagse) kalender --');
 {
-  // 6-daagse kalender: ma-za werkdagen (za = 6 is werkdag, zo = 7 is vrij).
   const SIX_DAY_CAL: WorkCalendar = {
     id: 'cal-six-day', name: 'zesdaags', description: '', workDays: [1, 2, 3, 4, 5, 6],
     workStartHour: 8, workEndHour: 16, hoursPerDay: 8, holidays: [],
   };
-  // Taak B: 3 werkdagen vanaf vrijdag 2026-06-05 op de 6-daagse kalender ⇒ vr 06-05, za 06-06
-  // (projectkalender zou hier overslaan), ma 06-08 (zondag 06-07 is vrij ook op de 6-daagse
-  // kalender). `earlyFinish` (06-09) is bewust ruimer dan de drie werkdagen die de mapping oplevert
-  // — dat is GEEN toeval-vermijding meer maar het echte, sinds W0.1 bewuste gedrag: de mapping
-  // negeert `earlyFinish` volledig en loopt exact `scheduleDuration` (3) werkdagen vanaf `earlyStart`
-  // op de taakkalender (zie het earlyFinish-besluit in `ResourceLoad.ts`'s docblok). Was de mapping
-  // wél op `earlyFinish` geklemd geweest, dan had 06-09 nog binnen de spanne gevallen; de test op
-  // "di 06-09 draagt geen last" hieronder bewijst dus specifiek dát de mapping earlyFinish negeert.
   const taskB = task('t-b', '2026-06-05', '2026-06-09', 3, { calendarId: 'cal-six-day' });
-  // Resource B heeft BEWUST géén eigen calendarId: haar capaciteit rekent dus op de projectkalender
-  // (ma-vr) — een andere kalender dan de taak (6-daags). Dat maakt za 06-06 een taak-werkdag waarop
-  // de RESOURCE niet kan werken: een gewenst, geen vals-positief conflict (zie docblok punt 4).
   const resourceR = res('r-b', 1);
   const assignments = [assign('a-b', 't-b', 'r-b', 1)];
 
@@ -157,22 +106,13 @@ console.log('-- resource-load-splits: taak met eigen (6-daagse) kalender --');
   eq('zo 06-07 draagt geen last (vrij, ook op de taakkalender)', daily['2026-06-07'], undefined);
   eq('geen extra dagen dan de drie werkdagen', Object.keys(daily).sort(), ['2026-06-05', '2026-06-06', '2026-06-08']);
 
-  // Capaciteitszijde: za 06-06 is 0 op de RESOURCE-kalender (projectkalender, ma-vr) en dus een
-  // conflictdag — de resource kan er simpelweg niet werken, ongeacht wat de taak plant.
   eq('capaciteit op za 06-06 (resource-kalender) is 0', result.capacity['r-b']?.['2026-06-06'], 0);
   ok('za 06-06 is overallocated (taak werkt, resource-kalender niet)',
     (result.overallocatedDays['r-b'] ?? []).includes('2026-06-06'));
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (c) ELAPSEDTIME: scheduleDuration is kalenderdagen — de mapping mag niet voorbij earlyFinish lopen.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- resource-load-splits: ELAPSEDTIME — belasting stopt op earlyFinish --');
 {
-  // 2026-06-01 is een maandag (zelfde ankerdag als groep a/check-split-walk.ts). Spanne 06-01..06-10
-  // bevat één weekend (06-06/06-07) ⇒ 8 werkdagen (01,02,03,04,05,08,09,10). scheduleDuration=10 is
-  // hier KALENDERdagen (ELAPSEDTIME) — géén werkdagen-telling. Vóór deze fix las de mapping 10 als
-  // werkdagen-telling en liep door tot en met 06-12 (twee werkdagen voorbij earlyFinish).
   const base = task('t-c', '2026-06-01', '2026-06-10', 10);
   const taskC: Task = { ...base, time: { ...base.time, durationType: 'ELAPSEDTIME' } };
   const resourceR = res('r-c', 10);
@@ -191,21 +131,8 @@ console.log('-- resource-load-splits: ELAPSEDTIME — belasting stopt op earlyFi
   );
 }
 
-// ═══════════════════════════════════════════════════════════════════════════
-// (d) VOLTOOID (eindpoortronde W0): een voltooide taak (`completion>=1 && actualFinish`) mapt op
-// `earlyStart..earlyFinish` — GEEN `scheduleDuration`-werkdagenwandeling — omdat `earlyFinish` voor
-// zo'n taak GEZAGHEBBEND is (CPMSolver.forwardPass's VOLTOOID-tak leidt hem onvoorwaardelijk uit de
-// actuals af), niet stale. Nagebouwde showcase-bevinding "rijwoningen-de-akkers" in het klein: taak
-// D (completion=1, actualStart/-Finish 06-01..06-03) is echt in 3 kalenderdagen klaar, maar draagt
-// nog `scheduleDuration=5` (het oorspronkelijke, ingehaalde plan). Een feestdagenblok op 06-04/06-05
-// (net ná haar echte earlyFinish) zit precies in het gat tussen "waar earlyFinish zegt dat ze stopt"
-// en "waar een 5-WERKDAGEN-wandeling vanaf earlyStart zou landen als de feestdagen worden
-// overgeslagen" — vóór deze fix zou die wandeling doorlopen tot 06-08/06-09 (twee dagen voorbij haar
-// echte einde), precies het "House 1 duwt een fantoomlast op House 2's startdag"-patroon.
-// ═══════════════════════════════════════════════════════════════════════════
 console.log('-- resource-load-splits: VOLTOOIDE taak mapt op earlyStart..earlyFinish, niet voorbij (geval d) --');
 {
-  // Ma-vr, met een feestdagenblok op do 06-04/vr 06-05 — net ná de taak se echte einde (06-03).
   const HOLIDAY_CAL: WorkCalendar = {
     id: 'cal-holiday-load', name: 'feestdagen', description: '', workDays: [1, 2, 3, 4, 5],
     workStartHour: 8, workEndHour: 16, hoursPerDay: 8,
@@ -213,7 +140,7 @@ console.log('-- resource-load-splits: VOLTOOIDE taak mapt op earlyStart..earlyFi
       { name: 'blokvakantie', startDate: '2026-06-04', endDate: '2026-06-05' },
     ],
   };
-  const base = task('t-d', '2026-06-01', '2026-06-03', 5); // scheduleDuration=5: het (stale) oorspronkelijke plan
+  const base = task('t-d', '2026-06-01', '2026-06-03', 5);
   const taskD: Task = {
     ...base,
     time: { ...base.time, completion: 1, actualStart: '2026-06-01', actualFinish: '2026-06-03' },
@@ -234,7 +161,6 @@ console.log('-- resource-load-splits: VOLTOOIDE taak mapt op earlyStart..earlyFi
   );
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK  resource-load-splits: alle checks groen (${checks})`);
   process.exit(0);

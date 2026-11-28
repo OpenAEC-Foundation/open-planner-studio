@@ -1,15 +1,3 @@
-// check-resource-cost-hours.ts — audit resources-kalenders R6: de kolom "Totaal" in het
-// resourcepaneel rekent met de uren per dag van de TAAKkalender.
-//
-// AANLEIDING. `ResourcePanel` rekende Σ belaste eenheden × uren/dag van de PROJECTkalender × tarief.
-// De urenverdeling zelf (`computeResourceLoad`), de contourdialoog en `<Work>` in de MSPDI-export
-// gebruiken sinds W0/#159 de uren per dag van de taakkalender. Gemeten: taak van 5 d op een
-// 10-uurskalender (projectkalender 8 u), €50/u ⇒ contourdialoog 50 u, MSPDI PT50H, paneel €2.000
-// (= 40 u). Nu levert de belasting per resource een urentotaal mee (`ResourceLoadResult.hours`) en
-// rekent het paneel uren × tarief — hier nagebouwd als `panelCost`, letterlijk de formule uit
-// `ResourcePanel.costByResource`.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { createAppStore } from '@/state/appStore';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
@@ -32,12 +20,10 @@ function eq(label: string, actual: unknown, expected: unknown): void {
 }
 const r2 = (n: number | undefined) => (n === undefined ? undefined : Math.round(n * 100) / 100);
 
-/** Kolom "Totaal" van het resourcepaneel: dezelfde functie die `ResourcePanel.costByResource` gebruikt. */
 function panelCost(s: AppState, resourceId: string): number | undefined {
   return resourceCostTotals(s.resources, s.assignments, s.resourceLoadResult?.hours)[resourceId];
 }
 
-/** Urentotaal zoals de contourdialoog het toont (`ContourDialog`: taakengine, eenheden × mpd). */
 function contourDialogHours(s: AppState, taskId: string, resourceId: string): number {
   const task = s.tasks.find((t) => t.id === taskId)!;
   const a = s.assignments.find((x) => x.taskId === taskId && x.resourceId === resourceId)!;
@@ -47,7 +33,6 @@ function contourDialogHours(s: AppState, taskId: string, resourceId: string): nu
   return assignmentDayUnits(task, a, mpd, undefined, siblings).reduce((sum, u) => sum + u * mpd, 0) / 60;
 }
 
-/** `<Work>` van de toewijzing in de MSPDI-export, in uren. */
 function mspdiWorkHours(s: AppState, resourceId: string): number | undefined {
   const xml = writeMSPDI(s.project, s.calendar, s.tasks, s.sequences, s.resources, s.assignments, s.calendars);
   const uid = /<Resource>[\s\S]*?<UID>(\d+)<\/UID>[\s\S]*?<Name>([^<]*)<\/Name>/g;
@@ -63,7 +48,6 @@ function mspdiWorkHours(s: AppState, resourceId: string): number | undefined {
 const store = createAppStore();
 const S = () => store.getState();
 S().setProject({ startDate: '2026-06-01' });
-// Taakkalender "Lange dagen": ma–vr 06:00–16:00, 10 netto uren. Projectkalender: 8 u.
 const longCal = S().addCalendar({
   name: 'Lange dagen', description: '', workDays: [1, 2, 3, 4, 5],
   workStartHour: 6, workEndHour: 16, hoursPerDay: 10, holidays: [],
@@ -74,21 +58,18 @@ const timmerman = S().addResource({ name: 'Timmerman', type: 'LABOR', descriptio
 S().assignResource(lang, timmerman, 1);
 S().runCPM();
 
-// 1. Het auditscenario: 5 d × 1 × 10 u = 50 u ⇒ €2.500, gelijk aan contourdialoog en MSPDI.
 eq('1a projectkalender blijft 8 u (anders toetst dit niets)', S().calendar.hoursPerDay, 8);
 eq('1b belaste uren = 5 d × 10 u (taakkalender)', r2(S().resourceLoadResult?.hours?.[timmerman]), 50);
 eq('1c contourdialoog zegt hetzelfde', r2(contourDialogHours(S(), lang, timmerman)), 50);
 eq('1d MSPDI <Work> zegt hetzelfde', mspdiWorkHours(S(), timmerman), 50);
 eq('1e kolom Totaal = 50 u × €50', r2(panelCost(S(), timmerman)), 2500);
 
-// 2. Een tweede toewijzing op een taak op de projectkalender telt met 8 u per dag.
 const kort = S().addTask({ name: 'Stort', time: createDefaultTaskTime('2026-06-08', 2) });
 S().assignResource(kort, timmerman, 0.5);
 S().runCPM();
 eq('2a uren tellen per toewijzing op de eigen taakkalender (50 + 2 × 0,5 × 8)', r2(S().resourceLoadResult?.hours?.[timmerman]), 58);
 eq('2b kolom Totaal volgt', r2(panelCost(S(), timmerman)), 2900);
 
-// 3. Een opgeslagen contour: de uren zijn de contoururen (niet eenheden × een andere uren/dag).
 const mpdLang = 10 * 60;
 const asg = S().assignments.find((a) => a.taskId === lang && a.resourceId === timmerman)!;
 S().setAssignmentContour(asg.id, workDaySlotsToPeriods([600, 600, 300, 300, 0], undefined, mpdLang));
@@ -96,7 +77,6 @@ eq('3a contour: de contourdialoog telt 30 u', r2(contourDialogHours(S(), lang, t
 eq('3b contour: de belasting telt 30 u + 8 u', r2(S().resourceLoadResult?.hours?.[timmerman]), 38);
 eq('3c contour: kolom Totaal volgt', r2(panelCost(S(), timmerman)), 1900);
 
-// 4. Zonder tarief of zonder belasting blijft de kolom leeg ("—").
 const kraan = S().addResource({ name: 'Kraan', type: 'EQUIPMENT', description: '', maxUnits: 1 });
 S().assignResource(kort, kraan, 1);
 const reserve = S().addResource({ name: 'Reserve', type: 'LABOR', description: '', maxUnits: 1, costPerHour: 40 });
@@ -104,7 +84,6 @@ S().runCPM();
 eq('4a geen tarief ⇒ geen bedrag', panelCost(S(), kraan), undefined);
 eq('4b geen toewijzing ⇒ geen bedrag', panelCost(S(), reserve), undefined);
 
-// 5. Kostenresource (#815): Totaal = som van de bedragen; geen uren, geen tarief.
 const leges = S().addResource({ name: 'Leges', type: 'COST', description: '', maxUnits: 1 });
 S().assignResource(kort, leges, 1, undefined, 1250.55);
 S().assignResource(lang, leges, 1, undefined, 0);
