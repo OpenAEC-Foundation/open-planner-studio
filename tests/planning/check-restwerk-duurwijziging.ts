@@ -700,6 +700,48 @@ console.log('-- (r) voltooien door duurverkorting: restwerk 0, verricht werk bli
       eq(`r19 ${name}: IFC-heropening houdt het werkpaar`, pair(name), before);
     }
   }
+  const observed = [];
+  for (const route of ['dialog', 'mcp-update', 'mcp-patch', 'sequential'] as const) {
+    for (const completion of [0.75, 1]) {
+      const name = `367 ${route} ${completion}`;
+      start(name, 'FIXED_DURATION_RATE');
+      setDays(name, 6, 'store');
+      eq(`${name}: uitgangspunt verricht en rest`, work(name), [960, 1920]);
+      const t = taskNamed(name);
+      const duration = { scheduleDuration: 8 };
+      if (route === 'sequential') {
+        setDays(name, 8, 'store');
+        S().setTaskProgress(t.id, completion);
+      } else {
+        const startDate = shownStart(t);
+        const initialDuration = { unit: t.time.durationUnit, scheduleDuration: t.time.scheduleDuration, durationMinutes: t.time.durationMinutes };
+        const plan = planTaskDialogProgress(S(), { ...t, time: { ...t.time, ...duration } }, startDate,
+          { field: 'completion', value: completion }, { initialDuration });
+        if (!plan.ok || !plan.change) {
+          ok(`${name}: voortgang voorbereid`, false);
+          continue;
+        }
+        const edited = plan.change.task;
+        if (route === 'dialog') {
+          ok(`${name}: opgeslagen`, saveTaskDialog({ editingTaskId: t.id, draft: edited, startDate, initialDuration }));
+        } else {
+          const changed = runInMcpTransaction(() => {
+            if (route === 'mcp-update') draft.updateTaskFields(t.id, { time: edited.time });
+            else draft.patchTaskFields(t.id, { time: edited.time }, duration);
+          });
+          ok(`${name}: conceptcommit geslaagd`, changed.ok);
+        }
+      }
+      eq(`${name}: duur en voortgang opgeslagen`,
+        [taskNamed(name).time.scheduleDuration, taskNamed(name).time.completion], [8, completion]);
+      S().runCPM();
+      observed.push({ route, completion, ...pair(name) });
+    }
+  }
+  const summary = JSON.stringify(observed);
+  console.log('KNOWNBUG367_SUMMARY', summary);
+  if (process.env.GITHUB_ACTIONS === 'true') console.log(`::notice title=Knownbug 367::${summary}`);
+
 }
 
 if (diffs.length > 0) {
