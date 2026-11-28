@@ -75,7 +75,8 @@ wordt alleen gelogd.
 
 - De client stuurt `Authorization: Bearer <token>`.
 - De server vergelijkt het token in constante tijd: beide kanten worden aangevuld tot 512 bytes,
-  daarna `crypto.timingSafeEqual`. Zo lekt ook de lengte niet.
+  daarna `crypto.timingSafeEqual`. Zo lekt ook de lengte niet. Er gaat bewust geen hash over het token:
+  CodeQL meldde zowel SHA-256 als HMAC daarvoor als zwakke wachtwoordhash (commit ce189672d).
 - Het token komt uit `OPS_API_TOKEN` of uit het bestand in `OPS_API_TOKEN_FILE` (niet allebei). Het
   token moet minstens 16 tekens en hooguit 512 bytes hebben.
 - Zonder token start de server niet (exitcode 78). Er is geen "open" modus.

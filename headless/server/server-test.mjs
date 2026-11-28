@@ -1,17 +1,4 @@
 #!/usr/bin/env node
-// Regressietest van de server zelf (naast smoke.mjs, die het contract van buitenaf toetst). Start
-// server.mjs als kindproces met kleine grenzen en controleert de randgevallen uit review #442:
-//
-//   1. een onleesbaar request-target (`GET //[`) geeft 400 en stopt het proces niet;
-//   2. uploads boven `maxUploads` krijgen METEEN 503 BUSY, vóór de body; het geheugen (RSS) blijft
-//      begrensd en /healthz meldt de lopende uploads;
-//   3. een tweede verzoek tijdens een berekening krijgt meteen 503 BUSY;
-//   4. tekst uit het IFC-bestand (een relatie-id met merkteken) komt niet in stdout/stderr;
-//   5. een body die niet op tijd binnenkomt geeft 408 UPLOAD_TIMEOUT (headersTimeout ≤ requestTimeout);
-//   6. SIGTERM tijdens een upload: het verzoek krijgt nog antwoord, het proces stopt met exit 0.
-//
-//   node headless/server/server-test.mjs        # vraagt `npm run build:core` + npm install hier
-// Alleen Linux voor de RSS-meting (/proc); elders wordt die stap overgeslagen.
 import { spawn } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { connect } from 'node:net';
@@ -54,7 +41,6 @@ function startServer(extraEnv = {}) {
   return { child, out, exited, port };
 }
 
-/** Rauw HTTP via een socket; geeft de eerste antwoordregel terug (of null na `ms`). */
 function rawRequest(port, text, { ms = 3000, keepOpen = false } = {}) {
   return new Promise((resolve) => {
     const socket = connect(port, '127.0.0.1');
@@ -91,14 +77,12 @@ const srv = startServer();
 try {
   const port = await srv.port;
 
-  // 1. Onleesbaar request-target.
   const bad = await rawRequest(port, 'GET //[ HTTP/1.1\r\nHost: x\r\n\r\n');
   ok('1 GET //[ → 400', bad.status === 400, String(bad.status));
   await sleep(100);
   ok('1a het proces draait nog', srv.child.exitCode === null);
   ok('1b /healthz → ok', (await health(port)).status === 'ok');
 
-  // 2. Uploads boven maxUploads (2) krijgen meteen 503, vóór de body.
   const rssBefore = rssKb(srv.child.pid);
   const chunk = Buffer.alloc(256 * 1024, 0x20);
   const held = [];
@@ -121,14 +105,12 @@ try {
   await sleep(300);
   const rssAfter = rssKb(srv.child.pid);
   if (rssBefore !== null && rssAfter !== null) {
-    // Begrensd: hooguit 2 × 1 MiB aan body, plus ruimte voor sockets en GC-schommeling.
     ok('2d RSS groeit hooguit 48 MiB', rssAfter - rssBefore < 48 * 1024, `${rssBefore} → ${rssAfter} kB`);
   }
   for (const r of [...held, ...extra]) r.socket.destroy();
   await sleep(200);
   ok('2e na het afbreken: 0 uploads', (await health(port)).uploads === 0);
 
-  // 3. Tweede verzoek tijdens een berekening.
   const first = fetch(`http://127.0.0.1:${port}/v1/schedule`, {
     method: 'POST', body: markerIfc, headers: { Authorization: `Bearer ${TOKEN}`, 'Content-Type': 'application/x-step' },
   });
@@ -149,7 +131,6 @@ try {
   const firstBody = await firstRes.json();
   ok('3b het eerste verzoek slaagt', firstRes.status === 200, String(firstRes.status));
 
-  // 4. Het merkteken uit het bestand staat in het antwoord, maar niet in de logs.
   ok('4 de kern meldt de genegeerde relatie (de worker heeft dus gelogd)',
     firstBody.warnings?.some((w) => w.code === 'RELATION_IGNORED' && w.ids.some((id) => id.includes(MARKER))), JSON.stringify(firstBody.warnings));
   await sleep(100);
@@ -158,13 +139,11 @@ try {
   const nonJson = srv.out.stdout.split('\n').filter((l) => l && !l.startsWith('{'));
   ok('4c elke stdout-regel is JSON', nonJson.length === 0, nonJson.slice(0, 2).join(' | '));
 
-  // 5. Body komt niet op tijd (uploadtijd 2 s in deze test).
   const t0 = Date.now();
   const slow = await rawRequest(port, `${postHead(port, 1000)}ISO-10303-21;`, { ms: 6000 });
   ok('5 onafgemaakte body → 408 binnen de uploadtijd', slow.status === 408 && slow.data.includes('UPLOAD_TIMEOUT') && Date.now() - t0 < 4000,
     `${slow.status} na ${Date.now() - t0} ms`);
 
-  // 6. SIGTERM tijdens een upload.
   const body = Buffer.from(example);
   const pending = await rawRequest(port, postHead(port, body.length), { ms: 200, keepOpen: true });
   pending.socket.write(body.subarray(0, 1000));
