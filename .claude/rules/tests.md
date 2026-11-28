@@ -63,3 +63,15 @@ De IFC-tests in `tests/planning/` (eigen STEP-lezer als meetlat, uitvoer van een
 De tests van datums, werkdagen en CPM (eigen orakels, bronguards, gekozen grenzen, de tijdzonematrix voor `check-date-format.ts`): `docs/adr/1310-tests-van-datums-en-werkdagen-eigen-orakels-bronguards-en-gekozen-grenzen.md`.
 
 De tests van opslaan, crashherstel, de site, documenten en import (vaste orakels, een eigen proces per sessiestand, grenzen die tellen): `docs/adr/1300-tests-van-opslaan-herstel-en-import-orakels-processen-en-grenzen.md`.
+
+De tests van weergave, bediening en rapporten in `tests/planning/` (letterlijke orakels van oude code, fixtures die van de standaard afwijken, positieve controles bij bronscans, pins op besluiten van de eigenaar): `docs/adr/1290-weergavetests-letterlijke-orakels-fixtures-en-positieve-controles.md`.
+
+De tests van extensies, vertalingen en gidsen (de velden die bewust niet in het extensiecontract staan, de pin op "geen sandbox", de urenreferentie los van de tutorialpinnen): `docs/adr/1320-tests-van-extensies-vertalingen-en-gidsen-keuzes-die-verrassen.md`.
+
+De gedeelde hulpbestanden van `tests/planning/` (DOM-stubs als eerste import, de IndexedDB-dubbel, ongeldige relaties in het harnas, de meettolerantie van de fidelitykern, de prestatiegrenzen van het taakraster) en wat een paar checks bewust niet toetsen: `docs/adr/1330-planningstests-hulpbestanden-en-bewuste-grenzen.md`.
+
+De browsertests van de Gantt, de takenlijst en de taken (een sleepverhouding die een tweede richtingskeuze zichtbaar maakt, fixtures die niet vacuüm slagen, wachten op een paint vóór het lezen van renderergeometrie, pixelgrenzen van de spelingsband): `docs/adr/1360-browsertests-van-gantt-en-taken-keuzes-die-verrassen.md`.
+
+De linttest in `tests/browser/ribbon-status-date-time.spec.ts` eist een grens voor de lege ruimte rechts, geen nul: `docs/adr/1370-linttest-eist-een-grens-voor-lege-ruimte-niet-nul.md`.
+
+De browsertests van de app-schil, dialogen, rapporten, resources en tutorials (wachten in de `ops`-fixture, `completeTour`, nagebootste events waar een echte handeling het onderwerp niet levert, de stilgezette nepklok, ruime grenzen): `docs/adr/1380-browsertests-van-de-app-schil-hulpcontracten-nagebootste-events-en-ruime-grenzen.md`.
