@@ -1,10 +1,6 @@
 import type { ImportResult } from '@/services/importTypes';
 import { ifcGuid128, ifcObjectSeed } from '../ifcWriter';
 
-/** Eén identiteitskoppeling voor alle vergelijkingen met heropende gegevens; alleen eenduidige resource-/bibliotheekkalender-ids.
- * Een botsende groep houdt haar interne ids en GUID-sleutels. Ook een bestaand id dat zelf zou verhuizen
- * blijft dan staan: geen doel mag een ander intern id overnemen, ook geen ongekoppelde verwijzing.
- */
 export function planningIdentities(input: ImportResult) {
   const candidates = [
     ...input.resources.map(r => ({ kind: 'res' as const, id: r.id })),
@@ -47,10 +43,6 @@ export function planningIdentities(input: ImportResult) {
   return { resource, calendar, guids };
 }
 
-/** Alleen interne resource-/bibliotheekkalender-ids wisselen bij de eerste heropening.
- * Vergelijk ze op hun IFC-objectidentiteit, inclusief verwijzingen en de bestaande GUID-kaart.
- * Geen object, veld, dubbel voorkomen of arrayvolgorde wordt hierdoor weggelaten.
- */
 export function planningIdentityInput<T extends ImportResult>(input: T): T {
   const ids = planningIdentities(input);
   return withRenamedPlanningIds(input, {

@@ -182,7 +182,8 @@ Besluiten van de writer: `docs/adr/0140-ifc-schrijven-globalids-uniek-per-bestan
 `0143-ifc-schrijven-standaard-ifc-naast-eigen-json.md`, `0144-ifc-schrijven-kalenders.md`,
 `0145-ifc-schrijven-datums-duren-en-lags.md`, `0146-ifc-schrijven-met-een-vreemd-deel.md`,
 `0147-ifc-schrijven-resources-en-toewijzingen.md`, `0148-ifc-schrijven-een-invoerobject.md` en
-`0771-ifc-voortgang-en-dagenrecord-lezen-exact-terug.md`.
+`0771-ifc-voortgang-en-dagenrecord-lezen-exact-terug.md`. De uitvoercontrole van de merge
+(`foreign/mergeValidation.ts`): `docs/adr/1170-uitvoercontrole-van-de-merge-houdt-eigen-sleutels.md`.
 
 ### Het register van de eigen psets (`ifcPsets.ts`)
 
