@@ -1,36 +1,7 @@
-/**
- * Het manifestveld `leveledProjects` (etappe P6-nivellering, FUNDAMENT; onderzoek
- * `docs/superpowers/plans/2026-09-24-nivellering-etappe-onderzoek.md` §6 en §7 stap 6).
- *
- * Waarom een handmatig veld: een XER-bestand zegt niet óf P6 genivelleerd heeft (§2b: OZB 9045/9047/9049
- * dragen exact dezelfde nivelleerinstellingen als het wél genivelleerde 9033). Of een project met
- * nivellering gemeten moet worden is dus een menselijke herkomstclassificatie, net als `role`/`included`
- * en `excludeProjects` — nooit een lezerafleiding, en zeker nooit een afleiding uit opgeslagen
- * rekenuitvoer (bak 4).
- *
- * STAND: MECHANISME ZONDER DATA. Het manifest draagt het veld nog nergens, en het veld heeft GEEN invloed
- * op de telling: X12 rapporteert alleen "genivelleerd volgens eigenaar: N projecten". Of 9033 zo terug in
- * het orakel komt, en of de meting de optie dan per project aanzet, is eigenaarsbeslissing 2 (open). Zolang
- * die niet genomen is, mag niets in de meetketen dit veld lezen behalve de rapportageregel.
- *
- * Vorm per manifestentry (alleen `role: "oracle"`, `included: true`):
- *
- *   "leveledProjects": [
- *     { "projId": "9033", "decision": "JJJJ-MM-DD eigenaarsbesluit: …", "reason": "…" }
- *   ]
- *
- * Anders dan bij de uitsluitingen draagt elke regel zijn EIGEN besluit: een nivelleerclassificatie per
- * project is een los besluit, geen gedeeld besluit over een lijst. Een regel die niets raakt (project
- * bestaat niet in het bestand) is een fout, geen no-op, en een project dat ook in `excludeProjects` van
- * dezelfde entry staat ook (tegenstrijdig).
- *
- * Puur (geen I/O): de corpusloze check (`check-xer-manifest-leveling.ts`) en X12 gebruiken dezelfde lezer.
- */
 import { decisionProblem, EXCLUSION_REASON_MIN } from './xerManifestExclusions';
 
 export interface XerLeveledProject { projId: string; decision: string; reason: string }
 
-/** Eén canonieke regel, per volledige bestands-SHA (byte-duplicaten delen hem). */
 export interface XerLeveledRecord extends XerLeveledProject { sha256: string }
 
 export interface XerLeveledManifestLike {
@@ -89,9 +60,6 @@ function entryRecords(
     seen.add(record.projId);
     records.push(record);
   }
-  // Tegenstrijdig: een uitgesloten project wordt niet gemeten, een nivelleerregel zegt hoe het gemeten
-  // moet worden. Niet stil één van beide laten winnen — weigeren (de uitsluitingslezer valideert zijn
-  // eigen lijst; hier alleen de projIds die hij als string zou accepteren).
   const excluded = new Set((Array.isArray(entry.excludeProjects) ? entry.excludeProjects : [])
     .filter(isObject).map(item => item.projId).filter(nonEmpty));
   for (const record of records) {
@@ -102,10 +70,6 @@ function entryRecords(
   return { records: problems.length > 0 ? [] : records, problems };
 }
 
-/**
- * Alle `leveledProjects` van het manifest, canoniek gesorteerd en gegroepeerd per bestands-SHA.
- * Byte-identieke orakellabels moeten dezelfde lijst dragen (anders hing het van de labelvolgorde af).
- */
 export function readManifestLeveledProjects(manifest: XerLeveledManifestLike, today?: string): {
   records: XerLeveledRecord[];
   bySha: Map<string, XerLeveledRecord[]>;
@@ -136,7 +100,6 @@ export function readManifestLeveledProjects(manifest: XerLeveledManifestLike, to
   return { records: [...bySha.values()].flat().sort(compare), bySha, problems };
 }
 
-/** Los de regels van één bestand op tegen de projecten van de onafhankelijke grondwaarheid. */
 export function resolveLeveledProjects(
   projects: ReadonlySet<string>, records: readonly XerLeveledRecord[],
 ): { projects: string[]; problems: string[] } {
@@ -149,7 +112,6 @@ export function resolveLeveledProjects(
   return { projects: hit.sort(), problems };
 }
 
-/** De rapportageregel: "genivelleerd volgens eigenaar: N projecten", met per project bestand en reden. */
 export function leveledSummary(resolvedByFile: ReadonlyArray<{ label: string; records: readonly XerLeveledRecord[] }>): {
   projects: number; line: string;
 } {

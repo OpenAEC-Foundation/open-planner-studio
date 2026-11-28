@@ -1,46 +1,12 @@
-/**
- * Uitsluiting per project of per taak binnen een orakelentry van `xer-corpus-manifest.json`.
- *
- * Waarom: een bestand kan terecht orakel zijn (aantoonbaar door P6 doorgerekend) terwijl een deel van
- * zijn opgeslagen uitvoer dat niet is — een project dat P6 nooit doorrekende (Hotel/CR 2665), een
- * project dat P6 nivelleerde (OZB 9033), of een handvol taken met verouderde uitvoer (HarbourPointe).
- * Zo'n deel uit de meetlat halen is een eigenaarsbesluit, net als een rolwissel van een heel bestand;
- * dit bestand levert alleen het MECHANISME. Veldinhoud kiest nooit zelf de populatie: een uitsluiting
- * staat letterlijk in het manifest, met een reden en een `decision` in precies de vorm
- * `JJJJ-MM-DD eigenaarsbesluit: <vrije tekst>` (een bestaande datum, niet in de toekomst).
- *
- * Vorm per manifestentry (alleen `role: "oracle"`, `included: true`):
- *
- *   "decision": "2026-09-23 eigenaarsbesluit: …",
- *   "excludeProjects": [{ "projId": "2665", "reason": "…" }],
- *   "excludeTasks": [{ "projId": "9032", "taskId": "12345", "reason": "…" },
- *                    { "projId": "9032", "taskCode": "OZ1040", "reason": "…",
- *                      "decision": "2026-09-24 eigenaarsbesluit: …" }]
- *
- * Een regel mag een eigen `decision` (zelfde vorm) dragen wanneer ze uit een LATER besluit komt dan de
- * entry (critreview C14-landing 2026-09-24, datumherkomst): de entry-`decision` noemt dan het vroegste
- * besluit (en de latere in de tekst, chronologisch), de regel haar eigen besluitdatum. Een regel-`decision`
- * vóór de entrydatum is een fout. Zo draagt elke uitsluiting — en haar HERPIN-regel — haar eigen datum.
- *
- * Semantiek: de solve draait ongewijzigd over het hele bestand (de uitgesloten taken blijven invoer
- * voor hun opvolgers); alleen de METING laat ze weg — de zes assen, de cellen, drivingPath, de
- * nuldoelregels, de X1-doelbaseline en de task-replay. Uitgesloten taken worden apart gerapporteerd,
- * nooit stil. Een uitsluiting die niets raakt (project of taak bestaat niet, taakcode dubbelzinnig) is
- * een fout, geen no-op.
- *
- * Puur (alleen `node:crypto`): de corpusloze cel-poort gebruikt dezelfde lezer en pint de lijst.
- */
 import { createHash } from 'node:crypto';
 
 export interface XerProjectExclusion { projId: string; reason: string }
 export interface XerTaskExclusion { projId: string; taskId?: string; taskCode?: string; reason: string }
 
-/** Eén canonieke uitsluitingsregel, per volledige bestands-SHA (byte-duplicaten delen hem). */
 export interface XerExclusionRecord {
   sha256: string;
   kind: 'project' | 'task';
   projId: string;
-  /** Alleen bij `kind: 'task'`: precies één van beide. */
   taskId?: string;
   taskCode?: string;
   reason: string;
@@ -58,23 +24,13 @@ export interface XerExclusionManifestLike {
   }>;
 }
 
-/**
- * Exact de vorm `JJJJ-MM-DD eigenaarsbesluit: <vrije tekst>` — geen vrije plaatsing van het woord, zodat
- * "2026-09-23 geen eigenaarsbesluit" of "… niet als eigenaarsbesluit …" nooit doorglipt.
- */
 export const EXCLUSION_DECISION_RE = /^(\d{4})-(\d{2})-(\d{2}) eigenaarsbesluit: \S.*$/;
-/** Minimale lengte van een reden (na trimmen): "x" of "mutant" is geen reden. */
 export const EXCLUSION_REASON_MIN = 10;
 
-/** Vandaag als JJJJ-MM-DD (UTC); injecteerbaar voor de fixtures. */
 function todayUtc(): string {
   return new Date().toISOString().slice(0, 10);
 }
 
-/**
- * Het probleem met een `decision`-waarde, of `undefined` als hij geldig is: exacte vorm, een bestaande
- * kalenderdatum (geen 2026-02-31) en niet in de toekomst (`today` + één dag speling voor tijdzones).
- */
 export function decisionProblem(decision: unknown, today: string = todayUtc()): string | undefined {
   if (typeof decision !== 'string') return `decision ontbreekt of is geen tekst (verwacht "JJJJ-MM-DD eigenaarsbesluit: <tekst>")`;
   const match = EXCLUSION_DECISION_RE.exec(decision);
@@ -92,7 +48,6 @@ export function decisionProblem(decision: unknown, today: string = todayUtc()): 
 const PROJECT_KEYS = new Set(['projId', 'reason', 'decision']);
 const TASK_KEYS = new Set(['projId', 'taskId', 'taskCode', 'reason', 'decision']);
 
-/** De `decision` van één regel: de eigen (later besluit) of die van de entry; `problem` bij een ongeldige. */
 function ruleDecision(at: string, item: Record<string, unknown>, entryDecision: string, today: string): { decision: string; problem?: string } {
   if (!Object.prototype.hasOwnProperty.call(item, 'decision')) return { decision: entryDecision };
   const own = item.decision;
@@ -112,7 +67,6 @@ function nonEmpty(value: unknown): value is string {
   return typeof value === 'string' && value.trim() !== '' && value === value.trim();
 }
 
-/** Een identiteitsveld (projId/taskId/taskCode): string, niet leeg; een getal krijgt een eigen melding. */
 function identityProblem(at: string, field: string, value: unknown): string | undefined {
   if (typeof value === 'number') return `${at}: ${field} moet een string zijn (kreeg het getal ${value}; schrijf "${value}")`;
   if (!nonEmpty(value)) return `${at}: ${field} ontbreekt of is leeg`;
@@ -139,7 +93,6 @@ function compareRecords(left: XerExclusionRecord, right: XerExclusionRecord): nu
   return a < b ? -1 : a > b ? 1 : 0;
 }
 
-/** De uitsluitingen van één manifestentry, of problemen. Een entry zonder de drie velden geeft []. */
 function entryRecords(label: string, entry: XerExclusionManifestLike['files'][string], today: string): { records: XerExclusionRecord[]; problems: string[] } {
   const problems: string[] = [];
   const records: XerExclusionRecord[] = [];
@@ -216,11 +169,6 @@ function entryRecords(label: string, entry: XerExclusionManifestLike['files'][st
   return { records: problems.length > 0 ? [] : records, problems };
 }
 
-/**
- * Alle uitsluitingen van het manifest, canoniek gesorteerd en gegroepeerd per bestands-SHA. Dragen
- * meerdere orakellabels dezelfde bytes, dan moeten ze exact dezelfde uitsluitingen dragen (anders hing
- * het van de labelvolgorde af welke gold).
- */
 export function readManifestExclusions(manifest: XerExclusionManifestLike, today: string = todayUtc()): {
   records: XerExclusionRecord[];
   bySha: Map<string, XerExclusionRecord[]>;
@@ -252,7 +200,6 @@ export function readManifestExclusions(manifest: XerExclusionManifestLike, today
   return { records, bySha, problems };
 }
 
-/** SHA-256 over de canonieke uitsluitingslijst (bestand, soort, project, taak, reden, besluit). */
 export function exclusionsDigest(records: readonly XerExclusionRecord[]): string {
   return createHash('sha256').update(JSON.stringify([...records].sort(compareRecords).map(recordTuple))).digest('hex');
 }
@@ -260,11 +207,8 @@ export function exclusionsDigest(records: readonly XerExclusionRecord[]): string
 export interface TruthTaskIdentity { projectId: string; taskId: string; taskCode: string }
 
 export interface ResolvedExclusions {
-  /** Volledig uitgesloten projecten. */
   projects: Set<string>;
-  /** Alle uitgesloten taken als `proj/taak` — ook die onder een uitgesloten project (celsleutelvorm). */
   taskKeys: Set<string>;
-  /** Per regel het aantal geraakte orakeltaken, in de volgorde van de regels. */
   applied: Array<{ record: XerExclusionRecord; tasks: number }>;
   problems: string[];
 }
@@ -273,14 +217,8 @@ export function exclusionTaskKey(projectId: string, taskId: string): string {
   return `${projectId}/${taskId}`;
 }
 
-/**
- * Los de uitsluitingen van één bestand op tegen de onafhankelijke grondwaarheid. Taakcodes worden
- * hier naar taak-id's vertaald; een regel die geen of (bij een taakcode) meer dan één taak raakt is
- * een probleem — nooit een stille no-op.
- */
 export function resolveExclusions(tasks: readonly TruthTaskIdentity[], records: readonly XerExclusionRecord[]): ResolvedExclusions {
   const resolved: ResolvedExclusions = { projects: new Set(), taskKeys: new Set(), applied: [], problems: [] };
-  /** Taakregel per geraakte taak: twee regels (bv. taskId én taskCode) op dezelfde taak zijn een fout. */
   const taskHitBy = new Map<string, string>();
   for (const record of records) {
     const label = `${record.sha256.slice(0, 12)} ${record.kind} ${record.projId}${record.kind === 'task' ? `/${record.taskId ?? `code ${record.taskCode}`}` : ''}`;
@@ -308,7 +246,6 @@ export function resolveExclusions(tasks: readonly TruthTaskIdentity[], records: 
   return resolved;
 }
 
-/** Grondwaarheid zonder de uitgesloten projecten en taken (nieuw object; het origineel blijft). */
 export function filterTruthExclusions<T extends { projects: Set<string>; tasks: TruthTaskIdentity[] }>(truth: T, resolved: ResolvedExclusions): T {
   if (resolved.taskKeys.size === 0 && resolved.projects.size === 0) return truth;
   return {
@@ -318,7 +255,6 @@ export function filterTruthExclusions<T extends { projects: Set<string>; tasks: 
   };
 }
 
-/** Opgeloste projecten zonder de uitgesloten projecten en taken (identiteit via `sourceTaskId`). */
 export function filterSolvedExclusions<P extends { projectId: string; tasks: readonly T[] }, T extends { sourceTaskId: string }>(
   projects: readonly P[],
   resolved: ResolvedExclusions,
@@ -332,7 +268,6 @@ export function filterSolvedExclusions<P extends { projectId: string; tasks: rea
     }));
 }
 
-/** Eén leesbare regel: "N taken in K projecten" plus per regel reden en aantal. */
 export function exclusionSummary(resolvedByFile: ReadonlyArray<{ label: string; resolved: ResolvedExclusions }>): { tasks: number; projects: number; line: string } {
   const projects = new Set<string>();
   let tasks = 0;
@@ -352,12 +287,10 @@ export function exclusionSummary(resolvedByFile: ReadonlyArray<{ label: string; 
   };
 }
 
-/** Markeringen van het gegenereerde uitsluitingspin-blok in `check-fidelity-cells-gate.ts`. */
 export const EXCLUSION_PIN_BEGIN = '// BEGIN manifest-uitsluitingspin — herschreven door OPS_XER_CELLS_WRITE=corpus bij een gewijzigde uitsluiting; nooit met de hand';
 export const EXCLUSION_PIN_END = '// END manifest-uitsluitingspin';
 const EXCLUSION_PIN_ROW = '//   ';
 
-/** Het pinblok (markeringen, één JSON-regel per uitsluiting, digest-constante). */
 export function renderExclusionPinBlock(records: readonly XerExclusionRecord[]): string {
   const sorted = [...records].sort(compareRecords);
   return [
@@ -369,7 +302,6 @@ export function renderExclusionPinBlock(records: readonly XerExclusionRecord[]):
   ].join('\n');
 }
 
-/** Het pinblok uit een bronbestand, of `undefined` als de markeringen niet precies één keer staan. */
 export function extractExclusionPinBlock(source: string): string | undefined {
   const begin = source.indexOf(EXCLUSION_PIN_BEGIN);
   const end = source.indexOf(EXCLUSION_PIN_END);
@@ -378,10 +310,6 @@ export function extractExclusionPinBlock(source: string): string | undefined {
   return source.slice(begin, end + EXCLUSION_PIN_END.length);
 }
 
-/**
- * De gepinde uitsluitingen terug uit het blok; `undefined` als het blok niet exact de eigen render van
- * zijn regels is (met de hand bewerkt, of digest past niet bij de lijst).
- */
 export function parseExclusionPinBlock(block: string): XerExclusionRecord[] | undefined {
   const rows = block.split('\n').filter(line => line.startsWith(EXCLUSION_PIN_ROW));
   const records: XerExclusionRecord[] = [];
@@ -400,7 +328,6 @@ export function parseExclusionPinBlock(block: string): XerExclusionRecord[] | un
   return renderExclusionPinBlock(records) === block ? records : undefined;
 }
 
-/** Herschrijft het pinblok in een bron; weigert als het huidige blok ontbreekt of met de hand bewerkt is. */
 export function rewriteExclusionPin(source: string, records: readonly XerExclusionRecord[]): { text: string } | { error: string } {
   const block = extractExclusionPinBlock(source);
   if (block === undefined) return { error: 'uitsluitingspin-blok niet (precies één keer) gevonden' };
@@ -408,42 +335,29 @@ export function rewriteExclusionPin(source: string, records: readonly XerExclusi
   return { text: source.replace(block, () => renderExclusionPinBlock(records)) };
 }
 
-/**
- * Of de opgeloste IDENTITEITSSET (uitgesloten projecten en taken) verschilt. Een gewijzigde reden of
- * datum verandert de lijst (digest, herpin) maar niet wat er gemeten wordt, en telt dus niet voor de
- * dekking, de cellen of het drivingPath-orakel.
- */
 export function exclusionIdentityChanged(now: ResolvedExclusions, was: ResolvedExclusions): boolean {
   const key = (resolved: ResolvedExclusions) => JSON.stringify([[...resolved.projects].sort(), [...resolved.taskKeys].sort()]);
   return key(now) !== key(was);
 }
 
-/** Het label waaronder een uitsluiting in de HERPIN-regel staat: het eerste (gesorteerde) inbegrepen
- *  orakellabel met die bytes — byte-duplicaten dragen per definitie dezelfde uitsluitingen. */
 export function exclusionLabelFor(manifest: XerExclusionManifestLike, sha256: string): string {
   return Object.keys(manifest.files).sort()
     .find(label => manifest.files[label]!.sha256 === sha256 && manifest.files[label]!.role === 'oracle' && manifest.files[label]!.included === true)
     ?? sha256;
 }
 
-/** De kern van de HERPIN-regel die boven het pinblok moet staan (letterlijk uit het record): besluitdatum,
- *  label en reden. De poort eist deze kern; de herpindatum ervoor schrijft de herpin zelf (hij hoort bij het
- *  moment van herpinnen, niet bij het record). */
 export function exclusionHerpinCore(record: XerExclusionRecord, label: string): string {
   return `uitsluiting (besluit ${record.decision.slice(0, 10)}): ${label} — ${record.reason}`;
 }
 
-/** De volledige HERPIN-regel: `HERPIN <herpindatum> uitsluiting (besluit <besluitdatum>): <label> — <reden>`. */
 export function exclusionHerpinLine(record: XerExclusionRecord, label: string, herpinDate: string): string {
   return `HERPIN ${herpinDate} ${exclusionHerpinCore(record, label)}`;
 }
 
-/** Records chronologisch op besluitdatum (stabiel binnen dezelfde datum) — de volgorde van de HERPIN-regels. */
 export function byDecisionDate(records: readonly XerExclusionRecord[]): XerExclusionRecord[] {
   return [...records].sort((a, b) => (a.decision.slice(0, 10) < b.decision.slice(0, 10) ? -1 : a.decision.slice(0, 10) > b.decision.slice(0, 10) ? 1 : 0));
 }
 
-/** Per bestands-SHA of de uitsluitingen verschillen tussen twee lijsten. */
 export function changedExclusionFiles(pinned: readonly XerExclusionRecord[], current: readonly XerExclusionRecord[]): Set<string> {
   const group = (records: readonly XerExclusionRecord[]) => {
     const map = new Map<string, string[]>();

@@ -23,11 +23,7 @@ export interface RawXerScheduleScan {
 
 export interface IndependentXerScheduleExpected {
   progressMode: ProgressMode;
-  /** Alleen projectopties (rekenprofielen C4): de lezer zet geen conventies meer in de opties. */
   schedulingOptions: ProjectSchedulingOptions;
-  /** De OPGELOSTE conventieset die een XER-project moet dragen (P6-profiel + A19 uit het bestand).
-   *  Een hand-lijst hier, bewust zonder import uit het register (spec v3.1 §7): een registerwijziging
-   *  mag deze verwachting niet meeschuiven. Vergelijk met `resolveConventions(project.schedulingProfile)`. */
   conventions: Record<ConventionKey, boolean>;
   source: 'schedoptions' | 'xer-defaults';
   retainedSource: { sched_use_project_end_date_for_float?: boolean };
@@ -65,7 +61,6 @@ function rowIndexes(rows: readonly XerScheduleOptionsSourceRow[]): Map<string, n
   return result;
 }
 
-/** Testlaag-orakel: geen productieparser, reader of SCHEDOPTIONS-mapper wordt aangeroepen. */
 export function scanRawXerScheduleOptions(bytes: Uint8Array): RawXerScheduleScan {
   const decoded = decodeRaw(bytes);
   const tables = new Map<string, { fields: string[]; rows: RawXerScheduleRow[] }>();
@@ -193,24 +188,14 @@ export function expectedXerScheduleOptions(
     };
   }
   const schedulingOptions: ProjectSchedulingOptions = {
-    // Onafhankelijk testorakel: deze XER-eigen switches zijn letterlijk uit de toegestane
-    // PROJECT/SCHEDOPTIONS-bronvorm afgeleid als vaste, brongebonden defaults — geen import van
-    // `xerScheduleOptions.ts`, zodat een productwijziging de verwachting niet kan meeschuiven.
     lagCalendar: 'predecessor',
     criticalDefinition,
     totalFloatMode: 'finish',
     makeOpenEndedCritical: false,
     useExpectedFinishDates: true,
-    // X-O7 laag 1, klasse (i): de bewijsbasis is uitsluitend RETAINED_LOGIC-corpus, dus deze
-    // onafhankelijke afleiding zet 'm net als de productie-afleiding standaard aan en weer uit
-    // zodra `sched_progress_override=Y` blijkt (hieronder, ná de progressMode-afleiding).
     p6CompletedLateFromRemainingWindow: true,
-    // P6-standaard "Calculate Start-to-Start lag from: Early Start"; SCHEDOPTIONS N ⇒ actualStart (hieronder).
     startToStartLagFrom: 'earlyStart',
   };
-  // De opgeloste P6-conventies (hand-lijst, spec v3.1 bijlage A): alles aan behalve de twee
-  // MS Project-conventies en C1/C4/A17/B3/B4 (sinds 2026-09-23 uit: alleen P6-doorgerekende orakels); A19 sinds
-  // 2026-09-24 gewoon aan (eigenaarsbesluit "a"; PROJECT.rem_target_link_flag stuurt niets meer). Onafhankelijke raw-scan: nooit de productie-afleiding hergebruiken.
   const conventions: Record<ConventionKey, boolean> = {
     milestoneWithoutPredecessorAtDayEnd: false,
     workdayDurationMeasure: false,
@@ -218,7 +203,7 @@ export function expectedXerScheduleOptions(
     clampNegativeFreeFloat: true,
     p6ZeroDurationUsesPlannedBoundary: true,
     p6UseTaskPlannedStartFloor: true,
-    p6FinishMilestoneBoundaryWindow: false, // sinds 2026-09-23 uit (§1d-7: 0 cellen op P6-doorgerekende bestanden)
+    p6FinishMilestoneBoundaryWindow: false,
     p6PreserveActualInstants: true,
     p6UseRemainingStartForProgress: true,
     p6PreserveZeroDurationConstraintInstants: true,
@@ -226,8 +211,8 @@ export function expectedXerScheduleOptions(
     unstartedIgnoresStatusDate: false,
     p6RelationFinishBoundary: true,
     p6BackwardLagFinishBoundary: true,
-    p6CompletedDataDateWindow: false, // sinds 2026-09-23 uit (§1d-7: 0 cellen op P6-doorgerekende bestanden)
-    p6CompletedLoeActualFinish: false, // sinds 2026-09-23 uit (§1d-7: 0 cellen op P6-doorgerekende bestanden)
+    p6CompletedDataDateWindow: false,
+    p6CompletedLoeActualFinish: false,
     p6OpenLoeTargetSpan: true,
     p6CompletedPredecessorAtDataDate: false,
     p6FreeFloatOnOwnCalendar: true,
@@ -278,9 +263,6 @@ export function expectedXerScheduleOptions(
   else if (retainedToken) fallback(
     fallbacks, scheduleRow, 'sched_use_project_end_date_for_float', retainedToken, 'niet bewaard',
   );
-  // X12-brok 1 (plan XER §9): `Y` zonder enig einde in de bron — geen PROJECT.plan_end_date en geen
-  // enkele TASK.target_end_date van dit project — valt terug op N (P6 rekent dan terug vanaf max(EF)).
-  // Onafhankelijk afgeleid uit de rauwe rijen: alleen "niet leeg", geen datumparser.
   if (schedulingOptions.useProjectEndDateForFloat === true
     && (projectRow?.cells.plan_end_date?.trim() ?? '') === ''
     && !(scan.tables.get('TASK')?.rows ?? []).some(row =>
@@ -307,8 +289,6 @@ export function expectedXerScheduleOptions(
       'RETAINED_LOGIC',
     );
   }
-  // Her-review bevinding 3: de klem sluit op "niet aantoonbaar Y/N" — N/N (Actual Dates) en Y/Y
-  // vallen voor de solver op RETAINED_LOGIC terug, maar houden de completed-late-vlag NIET aan.
   const retainedUpper = retainedTokenRaw.toUpperCase();
   const overrideUpper = overrideTokenRaw.toUpperCase();
   if (!((retainedUpper === '' || retainedUpper === 'Y') && (overrideUpper === '' || overrideUpper === 'N'))) {
@@ -340,8 +320,6 @@ export function expectedXerScheduleOptions(
   };
 }
 
-/** RSRCLEVELLIST-rijen zonder bijbehorende SCHEDOPTIONS-rij (lege of onbekende `schedoptions_id`):
- *  zichtbare terugval bij elk project, nooit stil. */
 function expectedOrphanLevelRows(scan: RawXerScheduleScan, fallbacks: XerScheduleOptionFallback[]): void {
   const known = new Set((scan.tables.get('SCHEDOPTIONS')?.rows ?? []).map(row => row.cells.schedoptions_id?.trim() ?? ''));
   for (const listRow of scan.tables.get('RSRCLEVELLIST')?.rows ?? []) {
@@ -351,8 +329,6 @@ function expectedOrphanLevelRows(scan: RawXerScheduleScan, fallbacks: XerSchedul
   }
 }
 
-/** Y/N ⇒ boolean, leeg ⇒ afwezig, iets anders ⇒ zichtbare terugval "niet bewaard" (zelfde contract als
- *  `sched_use_project_end_date_for_float`). */
 function optionalFlag(
   row: XerScheduleOptionsSourceRow, field: string, fallbacks: XerScheduleOptionFallback[],
 ): boolean | undefined {
@@ -364,12 +340,6 @@ function optionalFlag(
   return undefined;
 }
 
-/**
- * Nivelleerfundament (`SchedulingOptions.leveling`), onafhankelijk uit de rauwe tabellen: de drie
- * `level_*`-instellingen, `LevelPriorityList` (sleutels gescheiden door DEL-DEL, vorm
- * `veld,[tussenstuk/]richting`), RSRCLEVELLIST via `schedoptions_id` en `RSRCRATE.max_qty_per_hr` als
- * alle tariefrijen van de resource één waarde dragen. Geen aan/uit-veld (eigenaarsbeslissing 1 open).
- */
 function expectedLeveling(
   scan: RawXerScheduleScan, row: XerScheduleOptionsSourceRow, fallbacks: XerScheduleOptionFallback[],
 ): LevelingSettings | undefined {

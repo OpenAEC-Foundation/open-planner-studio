@@ -49,8 +49,6 @@ if (!root) {
   diffs.push('OPS_XER_CORPUS wijst niet naar een bestaande corpusmap');
 } else {
   {
-    // Review PR #109, N3: rehab-2.xer is Arabische cp1256-tekst zonder BOM. Vroeger stil als
-    // windows-1252 gelezen ("ãÔÑæÚ ÇáÑÍÇÈ - 2" en 6.977 onleesbare taaknamen).
     const rehab = join(root, 'crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer');
     if (existsSync(rehab)) {
       const parsed = parseXerTables(new Uint8Array(readFileSync(rehab)));
@@ -176,8 +174,6 @@ if (!root) {
       contaminated: [...wbs, ...task].filter(value => /[\u0000\uFEFF\uFFFE]|\u007f\u007f/.test(value)).length,
     };
   });
-  // Breuk die dit vangt: alleen de synthetische notitiefixture herstellen. De openbare dragers
-  // worden uitsluitend via inhoudshash aangewezen; corpusnamen of bedrijfsnamen horen niet hier.
   eq('R8 twee inhoudshash-ankers hebben schone echte WBS-/TASK-notities', noteAnchors, [
     {
       hash: '2bc12241c3f8ee5b7472dd0e77f2cbffafcf3b5438b17022fd9db4f4c642d4b0',
@@ -242,8 +238,6 @@ if (!root) {
       + `rows=${rows}, elapsedMs=${elapsedMs.toFixed(1)}`,
     );
   }
-  // Capaciteitscontract X2-R3: geen arbitraire groottecap. De tijdgrens is ruim boven de verse
-  // lokale meting en bewaakt alleen een catastrofale regressie; browsergeheugen blijft X11.
   eq('R11 grootste inhoudshash blijft zonder file-size-cap binnen royaal tijdplafond', largeCorpusOutcome, {
     hash: largeCorpusHash,
     bytes: 18_592_333,
@@ -262,8 +256,6 @@ if (!root) {
       issue: parsed.report.issues.find(issue => issue.code === 'XER_TRAILING_RECORDS_AFTER_END'),
     };
   }
-  // Breuk die dit vangt: alleen synthetische LF-fixtures corrigeren en de echte afsluitende
-  // newline in het openbare bestand als extra fysieke staartregel blijven tellen.
   eq('R12 inhoudshash-anker telt de genegeerde staart fysiek', trailingLinesOutcome, {
     hash: trailingLinesHash,
     issue: {
@@ -309,15 +301,10 @@ if (!root) {
   eq('C1 volledige manifestcrawl heeft concrete parser-/rapporttellingen', aggregate, {
     files: 93,
     ok: 71,
-    // 13 sinds het populatiebesluit van 2026-09-23 (alleen P6-doorgerekende orakels; de 32 andere
-    // voormalige orakels zijn `reader-only` en worden hier nog steeds zonder fout geparseerd: ok 71).
-    // 9 sinds 2026-09-23 (tweede toepassing: de vier DCP-03-Baseline-kopieën zijn generatoruitvoer).
     oracleOk: 9,
     oracleErrors: 0,
     referenceOk: 1,
     referenceErrors: 0,
-    // Review PR #109, N3: rehab-2 (Arabisch) is sinds de enkelbyte-detectie windows-1256; de tien
-    // overige niet-UTF-8-bestanden blijven windows-1252.
     encodings: { 'utf-8': 60, 'windows-1252': 10, 'windows-1256': 1 },
     errors: { XER_MISSING_REQUIRED_COLUMNS: 19, XER_INVALID_FILE: 2, XER_MISSING_REQUIRED_VALUE: 1 },
     issues: {
@@ -327,9 +314,6 @@ if (!root) {
       XER_TRAILING_RECORDS_AFTER_END: 5,
       XER_CURRENCY_NOT_FOUND: 2,
     },
-    // TASKNOTE is sinds X8 een retained bron-tabel: precies twee dossier-tabellen met samen
-    // 132 rijen verdwijnen daarom uit de onbekende X2-rapportage.
-    // Nivelleerfundament (2026-09-24): RSRCLEVELLIST is een bekende tabel (OZB, 4 rijen) ⇒ 58 → 57 / 782 → 778.
     unknownTables: 57,
     unknownRows: 778,
   });

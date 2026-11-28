@@ -128,8 +128,6 @@ equal('geen SCHEDOPTIONS-rij is herkenbaar als XER-defaults met PROJECT-signaal 
     projectSignal: 'N',
     scheduleRows: [],
   });
-// Sinds 2026-09-24 (eigenaarsbesluit "a") stuurt rem_target_link_flag geen conventie meer: A19 staat
-// in de P6-basis aan, ongeacht Y/N. De vlag blijft alleen als diagnose (projectSignal, fallback).
 equal('PROJECT-signaal Y/N stuurt A19 niet meer (P6-basis: aan)', [
   resolveConventions(noRowY.project.schedulingProfile).p6UseRemainingStartForProgress,
   resolveConventions(noRowN.project.schedulingProfile).p6UseRemainingStartForProgress,
@@ -196,7 +194,6 @@ equal('onbekend SCHEDOPTIONS-token valt fail-closed terug naar de veilige finish
   diagnostics: [],
 });
 
-// Mutatieproef 1: één tokenflip mag alleen de corresponderende option wijzigen.
 equal('mutatieproef tokenflip: FT_FF -> FT_SS verandert de bronkeuze aantoonbaar',
   startRow.project.schedulingOptions?.totalFloatMode,
   'start');
@@ -204,7 +201,6 @@ equal('mutatieproef tokenflip laat de PROJECT-afleiding intact',
   resolveConventions(startRow.project.schedulingProfile).p6UseRemainingStartForProgress,
   resolveConventions(finishRow.project.schedulingProfile).p6UseRemainingStartForProgress);
 
-// Mutatieproef 2: dezelfde bytes zonder de SCHEDOPTIONS-rij vallen terug naar defaults.
 equal('mutatieproef row verwijderen: bron wordt XER-defaults', noRowY.xer.scheduleOptions.source, 'xer-defaults');
 equal('mutatieproef row verwijderen: expliciet finish-float verdwijnt uit de finale options',
   noRowY.project.schedulingOptions?.totalFloatMode,
@@ -213,7 +209,6 @@ equal('mutatieproef row verwijderen: PROJECT-signaal blijft behouden',
   resolveConventions(noRowY.project.schedulingProfile).p6UseRemainingStartForProgress,
   true);
 
-// Mutatieproef 3: stored P6-late/float-orakel wijzigen mag geen options of solverinput wijzigen.
 const oracleMutated = opened(bytes(xerLines('FT_FF', 'Y', '1900-01-01 00:00', '-12345')));
 equal('mutatieproef stored oracle: options blijven byte-identiek',
   schedulingOptions(oracleMutated), schedulingOptions(finishRow));

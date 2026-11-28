@@ -1,9 +1,3 @@
-// Rekenprofielen — het conventieregister (spec docs/superpowers/specs/2026-09-22-rekenprofielen-design.md,
-// tweelagenmodel). Bewaakt: register ⇔ ConventionKey, drie ingebouwde waarden per conventie binnen
-// het domein, resolve/diff, de legacy-migratie per tak (spec v3), de XER-defaults-pin, de
-// neerwaartse optieblob, de profielwissel en de typegrens van EffectiveSchedulingOptions.
-//
-// Draait via run.sh (esbuild-bundel). Exit 0 = alles groen; faalregels beginnen met "XX".
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,17 +19,13 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (g !== w) diffs.push(`${label}: verwacht ${w}, kreeg ${g}`);
 };
 const ok = (label: string, cond: boolean) => eq(label, cond, true);
-/** Sleutelvolgorde-ongevoelige vergelijking voor objecten waar de volgorde geen contract is. */
 const canon = (value: unknown): string => JSON.stringify(value, (_k, v: unknown) =>
   (v && typeof v === 'object' && !Array.isArray(v))
     ? Object.fromEntries(Object.entries(v as Record<string, unknown>).sort(([a], [b]) => (a < b ? -1 : 1)))
     : v);
 const same = (label: string, got: unknown, want: unknown) => eq(label, canon(got), canon(want));
-/** De conventies die in het OPS-profiel aan staan: B6 en de dagenmaat (alleen uren §3.14). Beide zijn
- *  profieldata zonder plek in het oude optieblok. */
 const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWithoutPredecessorAtDayEnd', 'workdayDurationMeasure']);
 
-// ── 1) Register ⇔ ConventionKey, unieke id's, domein van de ingebouwde waarden ─────────────────
 {
   const ids = CONVENTIONS.map(d => d.id);
   eq('01 negenentwintig conventies', ids.length, 29);
@@ -47,44 +37,30 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
       ok(`04 ${d.id}.${p} binnen het domein`, d.kind === 'boolean' && typeof v === 'boolean');
     }
     ok(`05 ${d.id}: legacyValue binnen het domein`, typeof d.legacyValue === 'boolean');
-    // Alle huidige conventies zijn van ná de legacy-bestanden: legacy = het OPS-gedrag van toen.
     eq(`06 ${d.id}: legacyValue == OPS-waarde`, d.legacyValue, d.builtIn.ops);
     ok(`07 ${d.id}: labelKey onder conventions.`, d.labelKey === `conventions.${d.id}`);
     ok(`08 ${d.id}: since is een ISO-datum`, /^\d{4}-\d{2}-\d{2}$/.test(d.since));
-    // Thema (beschrijvend, alleen UI/gids): elke conventie staat onder precies één bekend thema.
     ok(`08b ${d.id}: thema bekend`, (CONVENTION_THEMES as readonly string[]).includes(d.theme));
   }
-  // De MS Project-conventies staan onder hun eigen thema, en dat thema bevat niets anders.
   same('08c thema msproject == de MS Project-conventies', CONVENTIONS.filter(d => d.theme === 'msproject').map(d => d.id),
     CONVENTIONS.filter(d => d.builtIn.msproject).map(d => d.id));
-  // "Alleen voor eigen profielen" is afgeleid: in elk ingebouwd profiel uit.
   same('08d alleen-eigen-profielen afgeleid', CONVENTIONS.filter(isOffInEveryBuiltIn).map(d => d.id),
     CONVENTIONS.filter(d => BUILT_IN_PROFILE_IDS.every(id => !d.builtIn[id])).map(d => d.id));
-  // Gepind (critreview UI-groepen 24-09: 08d alleen is een tautologie): dit zijn de vijf die vandaag in geen
-  // enkel ingebouwd profiel aan staan — C1 en C4 (alleen P3-gedrag) en A17/B3/B4 (eigenaarsvraag 7).
-  // Een conventie die hier bijkomt of afvalt is een bewust besluit, geen bijvangst van een profielwijziging.
   same('08f alleen-eigen-profielen gepind', CONVENTIONS.filter(isOffInEveryBuiltIn).map(d => d.id).sort(), [
     'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow',
     'p6FinishMilestoneBoundaryWindow', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
   ].sort());
-  // Sinds 2026-09-24 (eigenaarsbesluit "a") staat A19 gewoon aan in P6 — niet meer via een per-bestand-uitzondering.
   ok('08e A19 niet bij alleen-eigen-profielen (aan in P6)', !isOffInEveryBuiltIn(CONVENTIONS.find(d => d.id === 'p6UseRemainingStartForProgress')!));
-  // De ingebouwde waarden zoals besloten (modelwijziging punt 1).
   const P6 = builtInConventions('p6');
   const MSP = builtInConventions('msproject');
   const OPS = builtInConventions('ops');
-  // Besluit 2026-09-23 (populatie = P6-doorgerekende orakels): C1 en C4 staan in elk ingebouwd
-  // profiel uit — op de P6-doorgerekende bestanden 0 effect, alleen rehab-2 (P3-uitvoer) droeg ze.
-  // C3 blijft aan (C5 leunt erop: uit = 640 exacte cellen minder).
   const P6_OFF_GROUP_C: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
     'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow', 'milestoneWithoutPredecessorAtDayEnd',
-    'workdayDurationMeasure', // alleen uren §3.14: alleen in OPS aan
-    // Eigenaarsvraag §1d-7 (2026-09-23): A17, B3 en B4 idem — 0 cellen op de P6-doorgerekende populatie.
+    'workdayDurationMeasure',
     'p6FinishMilestoneBoundaryWindow', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
   ]);
   for (const key of CONVENTION_KEYS) {
     const mspOnly = key === 'resumeFromActualElapsed' || key === 'unstartedIgnoresStatusDate';
-    // A19 staat sinds 2026-09-24 aan in P6 (eigenaarsbesluit "a"); daarvoor was de basis uit en kwam hij per bestand.
     eq(`09 p6.${key}`, P6[key], !mspOnly && !P6_OFF_GROUP_C.has(key));
     eq(`10 msproject.${key}`, MSP[key], mspOnly);
     eq(`11 ops.${key}`, OPS[key], OPS_ON.has(key));
@@ -92,7 +68,6 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   same('12 legacyConventions == ops', legacyConventions(), OPS);
 }
 
-// ── 2) resolve / diff ────────────────────────────────────────────────────────────────────────────
 {
   for (const b of BUILT_IN_PROFILE_IDS) {
     same(`20 resolve(${b} zonder overrides) == basis`, resolveConventions(builtInProfile(b)), builtInConventions(b));
@@ -107,18 +82,14 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   eq('23 override aan', r.resumeFromActualElapsed, true);
   eq('24 override uit', r.p6OpenLoeTargetSpan, false);
   eq('25 niet-overschreven sleutel volgt de basis', r.p6RelationFinishBoundary, true);
-  // diff ∘ resolve = identiteit op minimale overrides, voor elke basis en elke enkele afwijking.
   for (const b of BUILT_IN_PROFILE_IDS) {
     for (const key of CONVENTION_KEYS) {
       const overrides = { [key]: !builtInConventions(b)[key] };
       same(`26 diff∘resolve ${b}/${key}`, diffAgainstBase(b, resolveConventions({ ...builtInProfile(b), overrides })), overrides);
     }
   }
-  // resolve ∘ diff = identiteit op volledige sets.
   same('27 resolve∘diff', resolveConventions({ ...builtInProfile('msproject'), overrides: diffAgainstBase('msproject', r) }), r);
-  // Een niet-minimale override (gelijk aan de basis) wordt door diff weggelaten.
   same('28 diff laat basisgelijke waarden weg', diffAgainstBase('ops', { clampNegativeFreeFloat: false }), {});
-  // Vijandige overrides: niet-booleans en onbekende sleutels worden door resolve genegeerd.
   const hostile = { clampNegativeFreeFloat: 'ja', onzin: true } as unknown as SchedulingProfile['overrides'];
   same('29 resolve negeert niet-booleans en onbekende sleutels',
     resolveConventions({ ...builtInProfile('ops'), overrides: hostile }), builtInConventions('ops'));
@@ -128,19 +99,15 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   ok('33 eigen profiel op ops-basis zonder override is niet default',
     !isDefaultProfile({ baseId: 'ops', id: 'x', name: 'x', overrides: {} }));
   ok('34 msproject is niet default', !isDefaultProfile(builtInProfile('msproject')));
-  // Besluit orkestrator (critreview D deel 1): letterlijk. Een afwijking gelijk aan de ops-basis
-  // (P6 {A13: uit} → OPS) is géén standaardprofiel, anders gaat hij bij P6 → OPS → P6 verloren.
   ok('34a ops met afwijking gelijk aan de basis is niet default',
     !isDefaultProfile({ ...builtInProfile('ops'), overrides: { clampNegativeFreeFloat: false } }));
   ok('34b onbekende/niet-boolean sleutels tellen niet als afwijking',
     isDefaultProfile({ ...builtInProfile('ops'), overrides: { onzin: true, clampNegativeFreeFloat: 'ja' } as never }));
-  // Het per-bestand-mechanisme is op 2026-09-24 vervallen (eigenaarsbesluit "a"): geen descriptor draagt het veld nog.
   ok('34c geen per-bestand-conventies meer', CONVENTIONS.every(d => !('perFile' in d)));
   eq('34d A19 in de ingebouwde profielen: P6 aan, MS Project en OPS uit',
     (['p6', 'msproject', 'ops'] as const).map(id => builtInConventions(id).p6UseRemainingStartForProgress), [true, false, false]);
 }
 
-// ── 3) Opties ⊥ conventies ──────────────────────────────────────────────────────────────────────
 {
   const mixed: LegacySchedulingOptions = {
     p6Source: 'XER', lagCalendar: 'successor', clampNegativeFreeFloat: true, totalFloatMode: 'finish',
@@ -155,42 +122,29 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
     const opts = defaultOptionsFor(b);
     ok(`43 defaultOptionsFor(${b}) bevat geen conventies`, Object.keys(opts).every(k => !(CONVENTION_KEYS as readonly string[]).includes(k)));
   }
-  // Bewust leeg sinds het eigenaarsbesluit van 2026-10-02 (spec §3.1): geen `totalFloatMode` ⇒
-  // *Automatisch* (finish-speling bij statusdatum én gestarte taak, anders het minimum) — MSP's eigen
-  // regel (MPXJ `MicrosoftSlackCalculator`, onze `mppTotalSlackTenths`) en wat een geopend `.mpp`
-  // draagt. Vroeger `{ totalFloatMode: 'smallest' }`, maar *Kleinste* is de P6-modus en week bij
-  // gestarte taken met een statusdatum af van MSP's opgeslagen speling. Gelijkheid met `.mpp`:
-  // `check-msproject-float-default.ts`.
   eq('44 defaultOptionsFor(msproject) — leeg (speling automatisch, zoals MSP)', defaultOptionsFor('msproject'), {});
   eq('45 defaultOptionsFor(ops) — leeg (afwezig ≡ huidig gedrag)', defaultOptionsFor('ops'), {});
   const eff = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('msproject'), schedulingOptions: { lagCalendar: '24hour' } });
   eq('46 effective: conventie uit profiel', eff.resumeFromActualElapsed, true);
   eq('47 effective: optie uit project', eff.lagCalendar, '24hour');
   eq('48 effective: alle negenentwintig conventies aanwezig', CONVENTION_KEYS.every(k => typeof eff[k] === 'boolean'), true);
-  // Conventies worden als LAATSTE gespreid: een conventiesleutel die in de overgang nog in het
-  // projectblok staat, verliest van het profiel.
   const effWins = effectiveSchedulingOptions({ schedulingProfile: builtInProfile('ops'), schedulingOptions: { clampNegativeFreeFloat: true } as unknown as ProjectSchedulingOptions });
   eq('49 effective: profiel wint van conventiesleutel in het blok', effWins.clampNegativeFreeFloat, false);
-  // Typegrens: een kale SchedulingOptions is geen EffectiveSchedulingOptions (conventies verplicht).
   const bare: SchedulingOptions = { lagCalendar: 'successor' };
   // @ts-expect-error — een kaal optieblok mag het profiel niet omzeilen
   const notEffective: EffectiveSchedulingOptions = bare;
   void notEffective;
 }
 
-// ── 4) Legacy-migratie per tak (spec v3 §3.4) ───────────────────────────────────────────────────
 {
   const none = legacyOptionsToProfile(undefined);
   same('50 geen blob ⇒ ops zonder overrides', none.profile, builtInProfile('ops'));
   eq('51 geen blob ⇒ geen opties', none.options, undefined);
 
-  // Rij 2 (p6Source): A-conventie aanwezig ⇒ die waarde, afwezig ⇒ UIT; B1–B5, C1–C9, C11, C12 en C14 ⇒ AAN.
   const partial = legacyOptionsToProfile({ p6Source: 'XER', p6UseTaskPlannedStartFloor: true });
   eq('52 rij 2: basis p6', partial.profile.baseId, 'p6');
   const r = resolveConventions(partial.profile);
   const on = CONVENTION_KEYS.filter(k => r[k]).sort();
-  // C1, C4, B3 en B4 volgen hun P6-waarde, en die is sinds 2026-09-23 uit.
-  // A19 sinds 2026-09-24 in LEGACY_XER_ALWAYS_ON (eigenaarsbesluit "a"): afwezig ⇒ P6-waarde (aan).
   same('53 rij 2: gedeeltelijke blob ⇒ alleen A16, A19 + B1, B2, B5 + C2, C3, C5–C9, C11, C12 en C14 aan', on, [
     'p6AlapPositionedFromSuccessors', 'p6BackwardLagFinishBoundary',
     'p6CompletedPhysicalAtDataDate', 'p6CompletedRemainingLag',
@@ -199,15 +153,12 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
     'p6RelationFinishBoundary', 'p6StartedTaskIgnoresPlannedStartFloor', 'p6UseRemainingStartForProgress', 'p6UseTaskPlannedStartFloor',
   ]);
   eq('54 rij 2: opties zonder p6Source/conventies', partial.options, undefined);
-  // Sinds A19 in de P6-basis aan staat (2026-09-24) is een A19 true uit het oude blok geen afwijking meer;
-  // een expliciete false wel.
   const a = legacyOptionsToProfile({ p6Source: 'XER', lagCalendar: 'successor', p6UseRemainingStartForProgress: false });
   eq('55 rij 2: A19 false uit het bestand wordt afwijking', a.profile.overrides.p6UseRemainingStartForProgress, false);
   eq('55b rij 2: A19 true uit het bestand = de P6-basis, geen afwijking',
     legacyOptionsToProfile({ p6Source: 'XER', p6UseRemainingStartForProgress: true }).profile.overrides.p6UseRemainingStartForProgress, undefined);
   eq('56 rij 2: projectopties blijven', a.options, { lagCalendar: 'successor' });
 
-  // Rij 4 (geen p6Source): gepoorte A15–A20 (incl. A19) weg (risico 1), A12/A13/A22/A23 afwijkingen.
   const risk1 = legacyOptionsToProfile({
     p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true,
     p6FinishMilestoneBoundaryWindow: true, p6PreserveActualInstants: true,
@@ -223,7 +174,6 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   eq('61 rij 4: één mpp-vlag ⇒ ops', half.profile.baseId, 'ops');
   same('62 rij 4: die ene vlag wordt afwijking', half.profile.overrides, { resumeFromActualElapsed: true });
 
-  // Rij 3 (geen p6Source, beide mpp-vlaggen) ⇒ msproject.
   const m = legacyOptionsToProfile({ resumeFromActualElapsed: true, unstartedIgnoresStatusDate: true, clampNegativeFreeFloat: true });
   eq('63 rij 3: beide mpp-vlaggen ⇒ msproject', m.profile.baseId, 'msproject');
   same('64 rij 3: alleen de extra vlag is afwijking', m.profile.overrides, { clampNegativeFreeFloat: true });
@@ -233,11 +183,7 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   eq('67 alleen opties ⇒ opties behouden', onlyOptions.options, { nearCriticalThreshold: 2 });
 }
 
-// ── 5) Pin: de XER-lezer wijkt nooit stil af van de P6-basis ─────────────────────────────────────
-// Sinds C3 draagt XER_SCHEDULING_DEFAULTS alleen projectopties; de conventies komen uit het profiel
-// dat de lezer zet (check-import-profile.ts bewijst dat een gelezen XER builtInProfile('p6') draagt).
 {
-  // Review #331 punt 4: defaultOptionsFor(p6) kent de twee bronsignalen niet; de XER-lezer zaait ze zelf.
   same('70 XER-defaults: opties == defaultOptionsFor(p6) + de twee bronsignalen uit p6OptionDefaults',
     XER_SCHEDULING_DEFAULTS.schedulingOptions,
     { ...defaultOptionsFor('p6'), useExpectedFinishDates: true, p6CompletedLateFromRemainingWindow: true });
@@ -252,7 +198,6 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
       p6PreserveZeroDurationConstraintInstants: true }).profile, builtInProfile('p6'));
 }
 
-// ── 6) Neerwaartse optieblob (spec v3.1 punt 1) ─────────────────────────────────────────────────
 {
   eq('80 ops zonder opties ⇒ geen blob (geen pset)', legacyOptionsBlobFor({}), undefined);
   eq('81 ops met opties ⇒ alleen de opties', legacyOptionsBlobFor({ schedulingOptions: { lagCalendar: 'successor' } }),
@@ -265,7 +210,6 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
     { totalFloatMode: 'finish' });
 }
 
-// ── 7) Profielwissel: op een ingebouwd id blijven alle afwijkingen letterlijk staan ─────────────
 {
   const roundTrip = (p: SchedulingProfile) => switchProfile(switchProfile(p, 'msproject'), 'p6');
   const fromFile: SchedulingProfile = { ...builtInProfile('p6'), overrides: { p6UseRemainingStartForProgress: true } };
@@ -274,11 +218,9 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   eq('91 wissel naar msproject: de letterlijke A19-afwijking blijft', resolveConventions(toMsp).p6UseRemainingStartForProgress, true);
   eq('92 wissel naar msproject: niet-overschreven conventies volgen msproject', resolveConventions(toMsp).resumeFromActualElapsed, true);
   same('93 P6 → msproject → P6 = origineel (opgelost)', resolveConventions(roundTrip(fromFile)), resolveConventions(fromFile));
-  // Reviewer-proef 1: een gemigreerd legacy-profiel.
   const migrated = legacyOptionsToProfile({ p6Source: 'XER', p6UseTaskPlannedStartFloor: true }).profile;
   same('94 gemigreerd {p6Source, A16} → P6 → msproject → P6 = origineel (opgelost)',
     resolveConventions(roundTrip(switchProfile(migrated, 'p6'))), resolveConventions(migrated));
-  // Reviewer-proef 2: "P6 (aangepast)" met clampNegativeFreeFloat:false uit de pset.
   const adjusted: SchedulingProfile = { ...builtInProfile('p6'), overrides: { clampNegativeFreeFloat: false } };
   same('95 P6 (aangepast) → msproject → P6 = origineel (opgelost)', resolveConventions(roundTrip(adjusted)), resolveConventions(adjusted));
   same('96 op een ingebouwd id blijft ook een niet-bestandsafwijking staan', switchProfile(adjusted, 'msproject').overrides, { clampNegativeFreeFloat: false });
@@ -287,11 +229,7 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   same('98 vanaf een EIGEN profiel ⇒ de kale ingebouwde basis', switchProfile(custom, 'msproject'), builtInProfile('msproject'));
 }
 
-// ── 7b) Migratie oude XER-IFC's: alleen de vijf BESTAANDE groep-B-conventies gaan vanzelf aan ─────
-// Eindreview I4 (b): "elke groep-B-conventie aan" zou een LATER toegevoegde groep-B-conventie stil
-// aanzetten op elk oud XER-project. De lijst is gepind op B1–B5 (spec bijlage A, met de hand).
 {
-  // A19 sinds 2026-09-24 (eigenaarsbesluit "a"): oud XER-blok zonder A19-sleutel rekent als herimport.
   same('99 gepinde lijst = A19 en B1–B5', [...LEGACY_XER_ALWAYS_ON].sort(), [
     'p6BackwardLagFinishBoundary', 'p6CompletedDataDateWindow', 'p6CompletedLoeActualFinish',
     'p6OpenLoeTargetSpan', 'p6RelationFinishBoundary', 'p6UseRemainingStartForProgress',
@@ -299,8 +237,6 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   const hypothetical = { ...CONVENTIONS.find(d => d.group === 'B')!, id: 'p6HypothetischeZesde' as never, since: '2027-01-01' };
   eq('99a een hypothetische zesde groep-B-conventie gaat NIET stil aan', legacyXerDefault(hypothetical), false);
   eq('99b een bestaande groep-B-conventie wel', legacyXerDefault(CONVENTIONS.find(d => d.id === 'p6OpenLoeTargetSpan')!), true);
-  // Eigenaarsvraag §1d-7 (2026-09-23): een afwezige B-sleutel volgt de P6-profielwaarde — B3/B4 uit,
-  // B1/B2/B5 aan. Een oud XER-IFC zonder B3/B4-sleutels rekent dus als een herimport.
   for (const key of LEGACY_XER_ALWAYS_ON) {
     const d = CONVENTIONS.find(c => c.id === key)!;
     eq(`99n ${key} volgt de P6-profielwaarde`, legacyXerDefault(d), d.builtIn.p6);
@@ -318,7 +254,6 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   const P6_OFF_GROUP_C_99: ReadonlySet<ConventionKey> = new Set<ConventionKey>([
     'p6CompletedPredecessorAtDataDate', 'p6CompletedOutOfSequenceWindow',
   ]);
-  // X12 brok 2, 3, 4, 6, 8 en 10: C1–C9, C11, C12 en C14 gepind in een eigen set (orkestratorbesluit: oude XER-IFC's rekenen als herimport).
   same('99e gepinde X12-lijst = C1–C9, C11, C12 en C14', [...LEGACY_XER_ALSO_ON_X12].sort(), [
     'p6AlapPositionedFromSuccessors', 'p6CompletedOutOfSequenceWindow', 'p6CompletedPhysicalAtDataDate', 'p6CompletedPredecessorAtDataDate',
     'p6CompletedRemainingLag', 'p6FinishFinishStartMilestoneLateFinish', 'p6FinishNotBeforeFinishFinishBound',
@@ -327,14 +262,9 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   ]);
   for (const key of LEGACY_XER_ALSO_ON_X12) {
     const d = CONVENTIONS.find(c => c.id === key)!;
-    // Id-gepind op de P6-profielwaarde (niet een hardgecodeerde true): gelijk aan builtIn.p6 — aan,
-    // behalve C1/C4 (sinds 2026-09-23 uit; een oud XER-IFC krijgt ze dus vanzelf uit).
     eq(`99f ${key} volgt de P6-profielwaarde`, legacyXerDefault(d), d.builtIn.p6);
     eq(`99f ${key} P6-waarde volgens het besluit van 2026-09-23`, d.builtIn.p6, !P6_OFF_GROUP_C_99.has(key));
   }
-  // 99h/99i: de volle migratie (legacyOptionsToProfile), niet alleen de default-helper. Een oud
-  // XER-blok zonder C-sleutels krijgt het P6-profiel voor C1–C9, C11, C12 en C14 (geen afwijking); een expliciete
-  // false blijft false (een gezette vlag wint altijd) en wordt dus een afwijking van p6.
   {
     const absent = legacyOptionsToProfile({ p6Source: 'XER' }).profile;
     const resolvedAbsent = resolveConventions(absent);
@@ -352,11 +282,9 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
     const resolvedFalse = resolveConventions(explicitFalse);
     for (const key of LEGACY_XER_ALSO_ON_X12) {
       eq(`99i ${key} expliciet false ⇒ blijft false`, resolvedFalse[key], false);
-      // Een afwijking bestaat alleen waar false van de P6-waarde verschilt; C1/C4 zijn in P6 al uit.
       eq(`99i ${key} expliciet false ⇒ afwijking van p6 alleen waar p6 aan staat`, explicitFalse.overrides?.[key],
         P6_OFF_GROUP_C_99.has(key) ? undefined : false);
     }
-    // En omgekeerd: een oud XER-blok met C1/C4 expliciet AAN houdt ze aan, als afwijking van p6.
     const explicitTrue = legacyOptionsToProfile({
       p6Source: 'XER', p6CompletedPredecessorAtDataDate: true, p6CompletedOutOfSequenceWindow: true,
     }).profile;
@@ -367,11 +295,9 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   }
   const hypotheticalC = { ...CONVENTIONS.find(d => d.group === 'C')!, id: 'p6HypothetischeZevendeC' as never, since: '2027-01-01' };
   eq('99g een hypothetische zevende groep-C-conventie gaat NIET stil aan', legacyXerDefault(hypotheticalC), false);
-  // Recept stap 2a: elke conventie staat in BOOLEAN_KEYS van de IFC-sanitizer (anders valt hij stil weg).
   for (const key of CONVENTION_KEYS) {
     eq(`99d sanitizer kent ${key}`, sanitizeSchedulingOptions({ [key]: true })?.[key], OPS_ON.has(key) ? undefined : true);
   }
-  // Projectoptie `startToStartLagFrom` (de variant van C6): alleen de twee bekende waarden komen door.
   eq('99k sanitizer: startToStartLagFrom actualStart/earlyStart blijven, onzin valt weg', [
     sanitizeSchedulingOptions({ startToStartLagFrom: 'actualStart' })?.startToStartLagFrom,
     sanitizeSchedulingOptions({ startToStartLagFrom: 'earlyStart' })?.startToStartLagFrom,
@@ -385,8 +311,6 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   ], ['earlyStart', undefined, undefined]);
 }
 
-// ── 8) i18n (plan taak D1): elke conventie, elk ingebouwd profiel en de profielmelding in alle talen (`LOCALES`) ──
-// Alleen aanwezigheid en type; de pluralcategorieën per locale bewaakt `npm run verify:i18n`.
 {
   const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
   const LOCALES = I18N_LOCALES;
@@ -397,8 +321,6 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
       notifications?: { schedulingProfileApplied?: unknown; schedulingProfileShifted_other?: unknown; actions?: { openProjectInfo?: unknown } };
       schedulingProfile?: { title?: unknown; themes?: Record<string, unknown>; requires?: Record<string, unknown> };
     };
-    // Besluit B5 (2026-10-10): een andere taal dan nl/en mag een sleutel nog missen (de app valt terug op
-    // en, de vertaalstraat vult hem vóór een release); wat er wél staat, moet kloppen.
     const optional = locale !== 'nl' && locale !== 'en';
     const isText = (label: string, v: unknown) => { if (v === undefined && optional) return; eq(label, typeof v, 'string'); };
     for (const c of CONVENTIONS) {
@@ -409,7 +331,6 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
       isText(`i18n ${locale} schedulingProfile.themes.${theme}`, common.schedulingProfile?.themes?.[theme]);
     }
     for (const id of BUILT_IN_PROFILE_IDS) isText(`i18n ${locale} profiles.builtIn.${id}`, common.profiles?.builtIn?.[id]);
-    // N2: het korte label naast het vinkje, per soort poort in `ConventionDescriptor.requires`.
     for (const gate of ['hourPlanning', 'xerOrigin']) {
       isText(`i18n ${locale} schedulingProfile.requires.${gate}`, common.schedulingProfile?.requires?.[gate]);
     }
@@ -418,22 +339,18 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
     isText(`i18n ${locale} notifications.schedulingProfileApplied`, common.notifications?.schedulingProfileApplied);
     isText(`i18n ${locale} notifications.schedulingProfileShifted_other`, common.notifications?.schedulingProfileShifted_other);
     isText(`i18n ${locale} notifications.actions.openProjectInfo`, common.notifications?.actions?.openProjectInfo);
-    // Gebruikstest I5 (3c): de melding wijst naar het blok zoals het in Projectinfo heet. In een andere
-    // taal dan nl/en alleen als beide teksten er staan (anders komen ze allebei uit en).
     const applied = common.notifications?.schedulingProfileApplied;
     const title = common.schedulingProfile?.title;
     if (!optional || (applied !== undefined && title !== undefined)) {
       ok(`i18n ${locale} melding noemt de bloknaam`, typeof title === 'string'
         && typeof applied === 'string' && applied.includes(title));
     }
-    // Merknamen zijn in elke taal gelijk (de store-melding gebruikt ze onvertaald, spec v3.1 §6).
     const brands: Record<string, string> = { p6: 'Primavera P6', msproject: 'Microsoft Project', ops: 'Open Planner Studio' };
     if (optional) {
       for (const [id, name] of Object.entries(common.profiles?.builtIn ?? {})) eq(`i18n ${locale} merknaam ${id}`, name, brands[id]);
     } else {
       eq(`i18n ${locale} merknamen`, common.profiles?.builtIn, brands);
     }
-    // Geen sleutels buiten het register: een verweesde vertaling wijst op een hernoemde conventie.
     const conventionKeys = Object.keys(common.conventions ?? {}).sort();
     if (optional) {
       same(`i18n ${locale} conventions ⊆ register`, conventionKeys.filter(k => !(CONVENTION_KEYS as readonly string[]).includes(k)), []);
@@ -443,9 +360,6 @@ const OPS_ON: ReadonlySet<ConventionKey> = new Set<ConventionKey>(['milestoneWit
   }
 }
 
-// ── 9) `requires` (critreview #169 N2): het GEDRAG toetst `check-conventions-p6-flags` (sectie
-// "`requires` als gedrag": aan/uit per conventie op elke fixture, met en zonder uurplanning en
-// P6-herkomst). Hier alleen de vorm: alleen bekende poorten.
 for (const d of CONVENTIONS) {
   same(`9 ${d.id}: requires kent alleen hourPlanning/xerOrigin`, Object.keys(d.requires ?? {}).filter(k => k !== 'hourPlanning' && k !== 'xerOrigin'), []);
 }

@@ -1,14 +1,3 @@
-// Audit 2026-09-26 — IFC-GlobalIds (eigenaarsbesluit 2026-09-28).
-//
-// `ifcGuid` was een 32-bits hash van het interne id, en geen conforme IFC-GUID. Nu:
-//  - een object zonder bewaard GlobalId krijgt `ifcGuid128(id)`: 128 bits, 22 tekens uit het
-//    IFC-alfabet, eerste teken 0–3; deterministisch, dus bij elk opslaan gelijk;
-//  - een taak of project uit een ingelezen IFC houdt precies zijn GlobalId uit dat bestand
-//    (`ImportResult.ifcGlobalIds` → documentveld → writer), ook als dat de oude hash was of een
-//    `#dup`-variant, zodat externe koppelingen niet breken;
-//  - een nieuw object krijgt nooit een GlobalId dat een bewaard object claimt.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { useAppStore } from '@/state/appStore';
 import { writeIFC, ifcGuid, ifcGuid128, ifcObjectSeed } from '@/services/ifc/ifcWriter';
 import { readIFC } from '@/services/ifc/ifcReader';
@@ -23,7 +12,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   if (JSON.stringify(got) !== JSON.stringify(want)) fails.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 };
 const CONFORM = /^[0-3][0-9A-Za-z_$]{21}$/;
-/** GlobalId per IFCTASK-naam, rechtstreeks uit de STEP-tekst (onafhankelijk van de lezer). */
 function taskGuidsByName(text: string): Record<string, string> {
   const out: Record<string, string> = {};
   for (const m of text.matchAll(/=IFCTASK\('([^']*)',#\d+,'([^']*)'/g)) out[m[2]] = m[1];
@@ -31,7 +19,6 @@ function taskGuidsByName(text: string): Record<string, string> {
 }
 const projectGuid = (text: string) => /=IFCPROJECT\('([^']*)'/.exec(text)?.[1];
 
-// 1. Vorm en spreiding.
 const seen = new Set<string>();
 let nonConform = 0;
 for (let i = 0; i < 100_000; i++) {
@@ -44,7 +31,6 @@ eq('ifcGuid128: 100 000 seeds, geen botsing', seen.size, 100_000);
 eq('ifcGuid128: deterministisch', ifcGuid128('abc'), ifcGuid128('abc'));
 eq('ifcGuid128: alle vier eerste tekens komen voor', new Set([...seen].map((g) => g[0])).size, 4);
 
-// 2. Nieuw project: conforme GlobalIds, gelijk bij elk opslaan.
 S().newProject();
 const a = S().addTask({ name: 'A' });
 S().addTask({ name: 'B' });
@@ -55,7 +41,6 @@ eq('nieuwe taken: conform', Object.values(taskGuidsByName(first)).every((g) => C
 eq('twee keer opslaan zonder heropenen: zelfde GlobalIds', taskGuidsByName(second), taskGuidsByName(first));
 eq('project: conform GlobalId', CONFORM.test(projectGuid(first) ?? ''), true);
 
-// 3. Openen en opslaan via de store: taken én project houden hun GlobalId, over twee rondes.
 S().applyLoadedProject(readIFC(first), { filePath: null });
 const round1 = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 S().applyLoadedProject(readIFC(round1), { filePath: null });
@@ -64,8 +49,6 @@ eq('ronde 1: taak-GlobalIds ongewijzigd', taskGuidsByName(round1), taskGuidsByNa
 eq('ronde 2: taak-GlobalIds ongewijzigd', taskGuidsByName(round2), taskGuidsByName(first));
 eq('project-GlobalId stabiel over openen en opslaan', [projectGuid(round1), projectGuid(round2)], [projectGuid(first), projectGuid(first)]);
 
-// 4. Een bestaand bestand met oude (niet-conforme) GlobalIds: die blijven precies staan; een
-//    nieuwe taak ernaast krijgt een conform GlobalId.
 const oldGuid = ifcGuid('legacy-task-id');
 const legacyFile = first.replace(`'${taskGuidsByName(first).A}'`, `'${oldGuid}'`);
 S().applyLoadedProject(readIFC(legacyFile), { filePath: null });
@@ -74,8 +57,6 @@ const resaved = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
 eq('bestaande taak houdt haar oude GlobalId', taskGuidsByName(resaved).A, oldGuid);
 eq('nieuwe taak ernaast: ifcGuid128', taskGuidsByName(resaved).C, ifcGuid128(ifcObjectSeed('task', added)));
 
-// 5. Een nieuw object dat toevallig het GlobalId van een bewaard object zou krijgen, wijkt uit;
-//    het bewaarde object houdt het, ook als het later in het bestand staat.
 S().newProject();
 const fresh = S().addTask({ name: 'Nieuw' });
 const kept = S().addTask({ name: 'Bewaard' });
@@ -84,7 +65,6 @@ const guids = taskGuidsByName(clash);
 eq('bewaard object houdt zijn GlobalId', guids.Bewaard, ifcGuid128(ifcObjectSeed('task', fresh)));
 eq('nieuw object wijkt uit, conform', guids.Nieuw !== guids.Bewaard && CONFORM.test(guids.Nieuw), true);
 
-// ── Resources, kalenders en relaties (eigenaarsbesluit 2026-09-28, optie 2) ──────────────────
 const GUID = /#\d+=(IFC\w+)\('([0-9A-Za-z_$]{22})'/g;
 const allGuids = (text: string) => [...text.matchAll(GUID)].map((m) => m[2]);
 const guidsOfType = (text: string, pattern: RegExp) =>
@@ -104,8 +84,6 @@ function fixture() {
   return { t1, t2, calId, r1, r2 };
 }
 
-// 6. XER-achtige id's: taak, relatie, kalender en project met hetzelfde kale getal. Zonder soort in
-//    de seed kregen taak en relatie via de cache van `guidOf` hetzelfde GlobalId.
 {
   const f = fixture();
   const seqId = S().sequences[0].id;
@@ -116,7 +94,6 @@ function fixture() {
   eq('XER-id-botsing: elk GlobalId in het bestand uniek', guids.length - new Set(guids).size, 0);
 }
 
-// 7. Drie rondes: resources, kalenders en relaties houden hun GlobalId én hun id.
 {
   fixture();
   const r0 = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
@@ -134,9 +111,6 @@ function fixture() {
   eq('resourcekalender blijft gekoppeld', p2.resources.find((r) => r.name === 'Timmerman')?.calendarId, p1.resources.find((r) => r.name === 'Timmerman')?.calendarId);
 }
 
-// 8. Oud bestand: resource met het oude 32-bits GlobalId, een contour die naar het oude interne id
-//    wijst. Na openen wijst de contour naar de resource; na opslaan houdt de resource het oude
-//    GlobalId, en bij het tweede openen wijst de contour er nog steeds naar.
 {
   const f = fixture();
   const input = buildWriteIFCInput(S(), 'planOnly');
@@ -155,7 +129,6 @@ function fixture() {
   eq('oud bestand, tweede keer openen: contour wijst nog naar de resource', p2.tasks.find((t) => t.name === 'Eerste')?.timephasedContours?.[0]?.resourceId, res2.id);
 }
 
-// 9. Vreemd bestand met twee resources onder hetzelfde GlobalId: twee id's, twee GlobalIds.
 {
   const f = fixture();
   const written = writeIFC(buildWriteIFCInput(S(), 'planOnly'));
@@ -166,9 +139,6 @@ function fixture() {
   eq('dubbel GlobalId: bij opslaan twee verschillende GlobalIds', new Set(out).size, 2);
 }
 
-// 10. Twee verschillende projecten delen geen enkel GlobalId: ook de projectkalender (`cal-default`
-//     in elk project) en de hulpentiteiten (`agg_ps`, `ctrl`, psets) krijgen er een per project.
-//     Hetzelfde project twee keer opgeslagen: identiek; heropend: projectkalender houdt zijn GlobalId.
 {
   S().newProject();
   S().addTask({ name: 'Eén' });
@@ -184,7 +154,6 @@ function fixture() {
   eq('heropend: projectkalender houdt zijn GlobalId', projectCal(writeIFC(readIFC(a1))), projectCal(a1));
 }
 
-// 11. Werkplan en werkschema van een bestand houden hun GlobalId (anker voor 4D-koppelingen).
 {
   S().newProject();
   S().addTask({ name: 'Eén' });
@@ -199,8 +168,6 @@ function fixture() {
   eq('werkschema houdt zijn GlobalId', guidsOfType(again, /^IFCWORKSCHEDULE$/), [foreignWs]);
 }
 
-// 12. IFC-editor: alleen het IFCTASK-GlobalId wijzigen, met dezelfde OPS_TaskIdentity. Undo/redo
-//     moet de GUID-kaart herstellen én het juiste GlobalId terugschrijven in de opslagtekst.
 {
   S().newProject();
   const taskId = S().addTask({ name: 'GUID-proef' });
@@ -219,7 +186,6 @@ function fixture() {
   eq('editor: alleen een GUID-wijziging telt als projectdata', documentDataChanged(before, {
     ...before, ifcGlobalIds: { ...before.ifcGlobalIds, [key]: editedGuid },
   }), true);
-  // Oude in-memory snapshots zonder het nieuwe veld houden een veilige null-default.
   eq('snapshot-migratie: ontbrekende GUID-kaart wordt null',
     migrateSnapshot({ ...before, ifcGlobalIds: undefined } as unknown as typeof before).ifcGlobalIds, null);
 
@@ -234,8 +200,6 @@ function fixture() {
   eq('editor redo: opslag schrijft opnieuw gewijzigd taak-GUID', taskGuidsByName(writeIFC(buildWriteIFCInput(S(), 'planOnly')))['GUID-proef'], editedGuid);
 }
 
-// 13. InternalProjectId A → B in de IFC-TEKST, vóór readIFC: de sessie blijft project A. De
-//     project-, werkplan- en werkschema-GUIDs moeten daarom van sleutel B naar A verhuizen.
 {
   S().newProject();
   const projectA = 'editor-project-a';
@@ -243,7 +207,6 @@ function fixture() {
   S().setProject({ id: projectA, name: 'Projectidentiteit' });
   S().addTask({ name: 'Ankertaak' });
   const anchors = [['proj', 'IFCPROJECT'], ['wp', 'IFCWORKPLAN'], ['ws', 'IFCWORKSCHEDULE']] as const;
-  // Afwijkende bron-GUIDs bewijzen dat de writer werkelijk bewaart, niet op dezelfde hash terugvalt.
   const originalGuids = Object.fromEntries(anchors.map(([kind]) =>
     [ifcObjectSeed(kind, projectA), ifcGuid128(`editor-${kind}-original`)]));
   const source = writeIFC({ ...buildWriteIFCInput(S(), 'planOnly'), ifcGlobalIds: originalGuids });

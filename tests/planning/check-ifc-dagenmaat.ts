@@ -1,26 +1,3 @@
-// F3c deel 4: de dagenmaat met breuken, de lagmaat en de speling in minuten door IFC (spec
-// `docs/superpowers/specs/2026-10-20-alleen-uren-design.md` §3.3, §3.4, §3.10, §5.4; T5 en T21).
-//
-// Wat deze check vastlegt:
-//  (1) de voorbeeldweek met drie relaties naast elkaar (FS 0,5 d dagenmaat, FS 240 min urenmaat,
-//      FS 1,5 ed): de vorm in het bestand, de records in `OPS_Sequences.DayMeasureLags`, en IFC ⇒ OPS
-//      met dezelfde velden;
-//  (1b) de andere lagvormen: hele dagen, kalendertijd in hele dagen, procent en een negatieve breuk;
-//  (2) een gewijzigde lag (`PT4H0M0S` ⇒ `PT6H0M0S`): de nieuwe OPS leest 360 min urenmaat, het record
-//      telt niet;
-//  (3) de opvolgertijden vr 10:00 en vr 11:00 (die hangen af van de motor, deel 1);
-//  (4) de maat in elk profiel: onder P6 dezelfde bytes, en OPS ⇒ P6 ⇒ OPS geeft dezelfde velden;
-//  (5) de lagkalender bepaalt de minuten (voorganger, opvolger, project, 24 uur);
-//  (6) duur, rest en werkelijke duur met een breuk, en kalendertijd met een breuk;
-//  (7) een gewijzigde duur of rest; (8) de speling (T5); (9) een letterlijke kalender blijft scalair;
-//  (11) de urenmaat zonder afronding (T14): een breuk in minuten in duur en rest komt via
-//      `OPS_WorkRule.ExactMinutes` exact terug, via echte storehandelingen en de echte openroute;
-//  (10) de lezer van v2026.9.0, als `OPS_MINUTE_MODEL_OLD_READER` naar een gebundelde lezer van die tag
-//      wijst (zie tests/planning/README.md, "F2: omzetting en bestandscompatibiliteit"): geen dag kwijt,
-//      geen dag te veel, alle datums gelijk. Met `OPS_MINUTE_MODEL_COMPAT_OUT` schrijft hij ook D0/D1
-//      voor `check-minute-model-compat.ts`.
-//
-// Draait via run.sh (esbuild-bundel). Alleen de exitcode telt.
 import './domStub';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -50,7 +27,6 @@ function ok(label: string, cond: boolean): void {
   if (!cond) errors.push(label);
 }
 
-// ── Opzet: de voorbeeldweek (§0): ma–do 07:00–12:00 + 13:00–16:00 (8 u), vr 07:00–12:00 + 13:00–14:00 (6 u).
 const LONG = [{ start: 420, end: 720 }, { start: 780, end: 960 }];
 const FRIDAY = [{ start: 420, end: 720 }, { start: 780, end: 840 }];
 const WEEK: WorkTimeBands = { byWeekday: { 1: LONG, 2: LONG, 3: LONG, 4: LONG, 5: FRIDAY, 6: [], 7: [] } };
@@ -71,7 +47,6 @@ function weekPayload(): DocumentPayload {
   p.project = { ...p.project, startDate: '2026-06-01' };
   p.calendar = { ...p.calendar, holidays: [], workTime: WEEK, hoursPerDay: 8 };
   p.calendars = p.calendars.map(c => (c.id === p.calendar.id ? p.calendar : c));
-  // A: 4 d dagenmaat, ma 1 jun 07:00 – do 4 jun 16:00. B, C, D: 1 d, elk met een eigen lag na A.
   p.tasks = [
     task('A', '2026-06-01T07:00', '2026-06-04T16:00', 4),
     task('B', '2026-06-05T07:00', '2026-06-05T14:00', 1),
@@ -91,7 +66,6 @@ function seqByPair(r: { sequences: Sequence[]; tasks: Task[] }, pred: string, su
   const name = new Map(r.tasks.map(t => [t.id, t.name]));
   return r.sequences.find(s => name.get(s.predecessorId) === pred && name.get(s.successorId) === succ);
 }
-/** De STEP-regel van de IFCLAGTIME van de relatie met deze GlobalId. */
 function lagLineOf(text: string, guid: string): string {
   const rel = text.split('\n').find(l => l.includes(`IFCRELSEQUENCE('${guid}'`));
   const lagRef = rel?.match(/IFCRELSEQUENCE\((?:[^,]*,){6}(#\d+)/)?.[1];
@@ -104,7 +78,6 @@ function dayMeasureLagsOf(text: string): Record<string, unknown> {
 function taskTimeLine(text: string, name: string): string {
   return text.split('\n').find(l => l.includes(`IFCTASKTIME('${name} Time'`)) ?? '';
 }
-/** Vervang in één regel van het bestand (gekozen met `line`) een tekst; de rest blijft byte-gelijk. */
 function patchLine(text: string, line: string, from: string, to: string): string {
   ok(`opzet: de te wijzigen regel bevat ${from}`, line.includes(from));
   return text.replace(line, line.replace(from, to));
@@ -114,12 +87,9 @@ const minutesOf = (iso: string): number => {
   return m ? (m[1] ? -1 : 1) * (Number(m[2]) * 60 + Number(m[3])) : NaN;
 };
 
-// ── (1) De voorbeeldweek: drie relaties naast elkaar ───────────────────────────────────────────────
 const week = weekPayload();
 const weekText = writeIFC(buildWriteIFCInput(week, 'planOnly'));
 const weekRead = readIFC(weekText);
-/** De GlobalId van de relatie pred → succ in een gelezen bestand (relaties krijgen bij inlezen een id uit
- *  hun GlobalId; `ifcGlobalIds` is daarop gesleuteld). */
 function guidOfPair(r: ImportResult, pred: string, succ: string): string {
   const seq = seqByPair(r, pred, succ);
   return (seq && r.ifcGlobalIds?.[`seq:${seq.id}`]) ?? '';
@@ -151,8 +121,6 @@ const guidOf = (id: string) => guidOfPair(weekRead, 'A', SUCCESSOR_OF[id]);
   ]);
 }
 
-// ── (1b) De andere lagvormen heen en terug (T21): hele dagen, kalendertijd in hele dagen, procent, en
-//        een negatieve breuk (lead) ─────────────────────────────────────────────────────────────────
 {
   const p = weekPayload();
   p.sequences = [
@@ -176,7 +144,6 @@ const guidOf = (id: string) => guidOfPair(weekRead, 'A', SUCCESSOR_OF[id]);
   eq('(1b) ook na de laadgrens', pairs.map(([a, b]) => lagFields(seqByPair(loaded, a, b))), want);
 }
 
-// ── (2) Een gewijzigde lag: alleen het standaardveld van de eerste relatie verandert ────────────────
 const changedLagText = patchLine(weekText, lagLineOf(weekText, guidOf('lag-dagen')), "'PT4H0M0S'", "'PT6H0M0S'");
 {
   const r = readIFC(changedLagText);
@@ -186,12 +153,10 @@ const changedLagText = patchLine(weekText, lagLineOf(weekText, guidOf('lag-dagen
   const elapsed = readIFC(patchLine(weekText, lagLineOf(weekText, guidOf('lag-ed')), "'PT36H0M0S'", "'PT30H0M0S'"));
   eq('(2) kalendertijd PT30H0M0S ⇒ 1800 kalenderminuten', lagFields(seqByPair(elapsed, 'A', 'D')),
     { lagDays: 0, lagMinutes: 1800, lagUnit: 'ELAPSEDTIME' });
-  // Een record dat bij een relatie zonder `PT`-lag hoort (hand-gewijzigd naar `P1D`) telt ook niet.
   const days = readIFC(patchLine(weekText, lagLineOf(weekText, guidOf('lag-dagen')), "IFCDURATION('PT4H0M0S')", "IFCDURATION('P1D')"));
   eq('(2) P1D naast een record ⇒ 1 d, zoals zonder record', lagFields(seqByPair(days, 'A', 'B')), { lagDays: 1 });
 }
 
-// ── (3) De opvolgertijden na IFC ⇒ OPS (hangt af van de motor, deel 1) ────────────────────────────
 const startOf = (p: DocumentPayload, name: string) => p.tasks.find(t => t.name === name)?.time.earlyStart;
 function solvedAfterIfc(text: string): DocumentPayload {
   return prepareLoadedPayload(payloadFromImport(readIFC(text), null), { recompute: true });
@@ -199,15 +164,12 @@ function solvedAfterIfc(text: string): DocumentPayload {
 {
   const solved = solvedAfterIfc(weekText);
   eq('(3) A eindigt do 4 jun 16:00', solved.tasks.find(t => t.name === 'A')?.time.earlyFinish, '2026-06-04T16:00');
-  // B (0,5 d dagenmaat = de helft van de vrijdag van 6 u) start vr 5 jun 10:00 (spec §3.3, §3.14; de
-  // lopers van de dagenmaat uit F3c-motor). In de urenmaat zou 0,5 d 4 u zijn, dus vr 11:00 (zie C).
   eq('(3) B na FS 0,5 d dagenmaat: vr 10:00', startOf(solved, 'B'), '2026-06-05T10:00');
   eq('(3) C na FS 240 min urenmaat: vr 11:00', startOf(solved, 'C'), '2026-06-05T11:00');
   const changed = solvedAfterIfc(changedLagText);
   eq('(3) gewijzigde lag: B na 360 min urenmaat start vr 14:00 → ma 07:00', startOf(changed, 'B'), '2026-06-08T07:00');
 }
 
-// ── (4) De maat in elk profiel ─────────────────────────────────────────────────────────────────────
 {
   const p6 = weekPayload();
   p6.project = { ...p6.project, schedulingProfile: builtInProfile('p6') };
@@ -221,7 +183,6 @@ function solvedAfterIfc(text: string): DocumentPayload {
   eq('(4) onder P6: dezelfde records (de maat blijft bewaard)', Object.values(dayMeasureLagsOf(p6Text)), [[0.5, 240], [1.5, 2160]]);
   eq('(4) onder P6: IFC ⇒ OPS dezelfde velden', ['B', 'C', 'D'].map(s => lagFields(seqByPair(p6Read, 'A', s))),
     [{ lagDays: 0.5 }, { lagDays: 0, lagMinutes: 240 }, { lagDays: 1.5, lagUnit: 'ELAPSEDTIME' }]);
-  // OPS-profiel ⇒ P6-profiel ⇒ OPS-profiel, telkens door IFC.
   let doc = weekPayload();
   for (const base of ['p6', 'ops'] as const) {
     doc = payloadFromImport(readIFC(writeIFC(buildWriteIFCInput({
@@ -231,11 +192,9 @@ function solvedAfterIfc(text: string): DocumentPayload {
   eq('(4) OPS ⇒ P6 ⇒ OPS door IFC: dezelfde velden', ['B', 'C', 'D'].map(s => lagFields(seqByPair(doc, 'A', s))),
     [{ lagDays: 0.5 }, { lagDays: 0, lagMinutes: 240 }, { lagDays: 1.5, lagUnit: 'ELAPSEDTIME' }]);
   const solvedP6 = prepareLoadedPayload(payloadFromImport(p6Read, null), { recompute: true });
-  // Onder P6 telt een lag in dagenmaat als urenmaat (§3.3): 0,5 d × 8 u = 4 u.
   eq('(4) onder P6: B en C allebei vr 11:00', [startOf(solvedP6, 'B'), startOf(solvedP6, 'C')], ['2026-06-05T11:00', '2026-06-05T11:00']);
 }
 
-// ── (5) De lagkalender bepaalt de minuten ──────────────────────────────────────────────────────────
 {
   const TEN: WorkTimeBands = { byWeekday: { 1: [{ start: 420, end: 1020 }], 2: [{ start: 420, end: 1020 }], 3: [{ start: 420, end: 1020 }], 4: [{ start: 420, end: 1020 }], 5: [{ start: 420, end: 1020 }], 6: [], 7: [] } };
   const tenCal: WorkCalendar = {
@@ -259,7 +218,6 @@ function solvedAfterIfc(text: string): DocumentPayload {
     eq(`(5) lagkalender ${label}: 0,5 d ⇒ ${want}`, lagLineOf(text, guid).includes(`'${want}'`), true);
     eq(`(5) lagkalender ${label}: record met dezelfde minuten`, dayMeasureLagsOf(text)[guid], [0.5, minutesOf(want)]);
     eq(`(5) lagkalender ${label}: IFC ⇒ OPS 0,5 d`, lagFields(seqByPair(r, 'A', 'B')), { lagDays: 0.5 });
-    // De standaardwaarde is extern gewijzigd: het oude dagrecord mag de gemengde duur niet terugzetten.
     const lagLine = lagLineOf(text, guid);
     const mixed = readIFC(text.replace(lagLine, lagLine.replace(`'${want}'`, "'P1DT2H'")));
     const expectedMixed = lagCalendar === '24hour' ? 1560 : lagCalendar === 'successor' ? 720 : 600;
@@ -269,24 +227,19 @@ function solvedAfterIfc(text: string): DocumentPayload {
   }
 }
 
-// ── (6) Duur, rest en werkelijke duur met een breuk ────────────────────────────────────────────────
 function durationPayload(): DocumentPayload {
   const p = weekPayload();
   p.project = { ...p.project, statusDate: '2026-06-03' };
   p.sequences = [];
   p.tasks = [
     task('E', '2026-06-01T07:00', '2026-06-03T12:00', 2.5),
-    // F: lopend op 100 % (P6 `TK_Active`): de import houdt dan de rest uit het bestand
-    // (`normalizeImportedProgress`), zodat het rest-record zelf getoetst wordt.
     { ...task('F', '2026-06-01T07:00', '2026-06-03T16:00', 3, {
       completion: 1, actualStart: '2026-06-01T07:00', remainingTime: 1.5,
     }), status: 'STARTED' },
-    // F2: een gewone lopende taak op 50 %; de import leidt de rest af uit het percentage.
     task('F2', '2026-06-01T07:00', '2026-06-03T16:00', 3, {
       completion: 0.5, actualStart: '2026-06-01T07:00', remainingTime: 1.5,
     }),
     task('G', '2026-06-01T07:00', '2026-06-02T19:00', 1.5, { durationType: 'ELAPSEDTIME' }),
-    // H: 50 % van 2 d geeft een rest van precies 1 d, nu en na de exacte rest van deel 2.
     task('H', '2026-06-01T07:00', '2026-06-02T16:00', 2, {
       completion: 0.5, actualStart: '2026-06-01T07:00', actualDuration: 0.5, remainingTime: 1,
     }),
@@ -302,7 +255,6 @@ const durationFields = (t: Task | undefined) => t && {
   actualDuration: t.time.actualDuration,
 };
 const byName = (r: { tasks: Task[] }, name: string) => r.tasks.find(t => t.name === name);
-/** Het record `DayMeasureDurations` uit de `OPS_WorkRule`-pset van de taak met deze naam. */
 function dayMeasureDurationsOf(text: string, name: string): unknown {
   const lines = new Map(text.split('\n').map(l => [l.match(/^(#\d+)=/)?.[1] ?? '', l] as const));
   const taskRef = [...lines].find(([, l]) => l.includes('=IFCTASK(') && l.includes(`,'${name}',`))?.[0];
@@ -321,7 +273,6 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
   const read = readIFC(durationText);
   const loaded = payloadFromImport(read, null);
   const slot = (name: string, index: number) => taskTimeLine(durationText, name).replace(/^#\d+=IFCTASKTIME\(/, '').split(',')[index];
-  // IfcTaskTime: 4 = ScheduleDuration, 15 = ActualDuration, 18 = RemainingTime.
   eq('(6) E: 2,5 d ⇒ PT20H0M0S', slot('E', 4), "'PT20H0M0S'");
   eq('(6) E: record', dayMeasureDurationsOf(durationText, 'E'), { ScheduleDuration: [2.5, 1200] });
   eq('(6) F: 3 d met 1,5 d rest ⇒ duur en rest als PT…', [slot('F', 4), slot('F', 18)], ["'PT24H0M0S'", "'PT12H0M0S'"]);
@@ -339,8 +290,6 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
   const want: Record<string, unknown> = {
     E: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 2.5 },
     F: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 3, remainingTime: 1.5 },
-    // B3 (alleen uren §3.5: rest exact). De import leidt de rest van een lopende dagtaak af uit het
-    // percentage (`applyRemainingDuration`, sinds F3c-winkel zonder afronding op hele dagen).
     F2: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 3, remainingTime: 1.5 },
     G: { durationUnit: 'days', durationType: 'ELAPSEDTIME', scheduleDuration: 1.5 },
     H: { durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 2, remainingTime: 1, actualDuration: 0.5 },
@@ -356,7 +305,6 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
     ['E', 'F', 'G', 'H'].map(n => [4, 15, 18].map(i => slot(n, i))));
 }
 
-// ── (7) Een gewijzigde duur of rest: het standaardveld wint ────────────────────────────────────────
 {
   const e = readIFC(patchLine(durationText, taskTimeLine(durationText, 'E'), "'PT20H0M0S'", "'PT22H0M0S'"));
   eq('(7) duur PT20H ⇒ PT22H: urenmaat 1320 min, het record telt niet',
@@ -376,7 +324,6 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
   eq('(7) werkelijke duur PT4H ⇒ PT6H: 360 ÷ 480 = 0,75 d', byName(h, 'H')?.time.actualDuration, 0.75);
 }
 
-// ── (8) Speling (T5): hele dagen in IfcTaskTime, exacte dagen en minuten in OPS_Analysis ──────────
 {
   const p = durationPayload();
   p.tasks = [
@@ -387,7 +334,6 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
   ];
   const text = writeIFC(buildWriteIFCInput(p, 'planOnly'));
   const slot = (name: string, index: number) => taskTimeLine(text, name).replace(/^#\d+=IFCTASKTIME\(/, '').split(',')[index];
-  // IfcTaskTime: 11 = FreeFloat, 12 = TotalFloat.
   eq('(8) slots in hele dagen (afgerond)', ['S1', 'S2', 'S3', 'S4'].map(n => [slot(n, 12), slot(n, 11)]), [
     ["'P0Y0M3D'", "'P0Y0M1D'"], ["'P0Y0M2D'", "'P0Y0M0D'"], ["'-P0Y0M1D'", "'P0Y0M0D'"], ["'P0Y0M3D'", "'P0Y0M1D'"],
   ]);
@@ -403,11 +349,8 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
   eq('(8) S4: hele dagen zonder minuten: geen record, geen minuten', floats(read, 'S4'), [3, undefined, 1, undefined]);
   eq('(8) records alleen waar nodig (S4 krijgt geen OPS_Analysis)', (text.match(/'ExactFloat'/g) ?? []).length, 3);
   eq('(8) ook na de laadgrens', floats(payloadFromImport(read, null), 'S1'), [2.5, 1200, 0.75, 360]);
-  // Een ander programma wijzigt het standaardveld: dan geldt dat, zonder minuten.
   const stale = readIFC(patchLine(text, taskTimeLine(text, 'S1'), "'P0Y0M3D'", "'P0Y0M4D'"));
   eq('(8) gewijzigde TotalFloat: het slot wint, het record telt niet', floats(stale, 'S1'), [4, undefined, 0.75, 360]);
-  // Oude ExactFloat-records horen bij de afgeronde dagvelden van OPS. Een expliciete tijdwaarde
-  // uit een ander programma blijft exact, ook als haar dagen gelijk zijn aan die oude afronding.
   for (const [label, slotIndex, original, replacement, expected] of [
     ['totale speling', 12, "'P0Y0M3D'", "'PT24H'", [3, 1440, 0.75, 360]],
     ['vrije speling', 11, "'P0Y0M1D'", "'PT8H'", [2.5, 1200, 1, 480]],
@@ -423,13 +366,11 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
     eq(`(8) gewijzigde ${label} in tijd: opslaan en heropenen houdt de externe waarde`, floats(reopened, 'S1'), expected);
   }
 
-  // "Datums zoals opgeslagen": een achtergehouden slot krijgt `$` en ook geen record.
   const withheld = writeIFC({ ...buildWriteIFCInput(p, 'planOnly'), withheldTaskTimeFields: { [p.tasks[0].id]: ['totalFloat'] } });
   const wSlot = taskTimeLine(withheld, 'S1').replace(/^#\d+=IFCTASKTIME\(/, '').split(',');
   eq('(8) achtergehouden TotalFloat: $ en geen TotalFloat-record', [wSlot[12], /"TotalFloat"/.test(withheld.split('\n').find(l => l.includes("'ExactFloat'") && l.includes('0.75')) ?? '')], ['$', false]);
 }
 
-// ── (9) Een dagenmaat-taak met een breuk maakt een scalaire kalender letterlijk; die blijft scalair ─
 {
   const p = freshPayload();
   p.project = { ...p.project, startDate: '2026-06-01' };
@@ -447,10 +388,6 @@ function dayMeasureDurationsOf(text: string, name: string): unknown {
     [{ durationUnit: 'days', durationType: 'WORKTIME', scheduleDuration: 2.5 }, '2026-06-03T12:00']);
 }
 
-// ── (11) De urenmaat zonder afronding (T14) overleeft opslaan en heropenen ───────────────────────────
-// Review ronde 1 van #581, punt 1 (BEVESTIGD): urentaak van 1920 min, vast werk, inzet 1 ⇒ 7 via echte
-// storehandelingen. De bron is 1920 ÷ 7 = 274,2857… min; het `PT…`-slot draagt 274 min. Zonder record
-// kwam 274 terug terwijl het werk 1920 min bleef: de driehoek sprak zichzelf tegen.
 let exactHoursText = '';
 {
   const store = createAppStoreContext().store;
@@ -479,7 +416,6 @@ let exactHoursText = '';
   exactHoursText = writeIFC(buildWriteIFCInput(store.getState(), 'planOnly'));
   const slot = (name: string, index: number) => taskTimeLine(exactHoursText, name).replace(/^#\d+=IFCTASKTIME\(/, '').split(',')[index];
   eq('(11) het slot draagt hele minuten', [slot('Exact', 4), slot('Lopend', 4), slot('Lopend', 18)], ["'PT4H34M0S'", "'PT11H26M0S'", "'PT3H26M0S'"]);
-  // De records in `OPS_WorkRule.ExactMinutes`, in schrijfvolgorde (Exact, dan Lopend).
   const records = exactHoursText.split('\n').filter(l => l.includes("'ExactMinutes'"))
     .map(l => JSON.parse(l.match(/IFCTEXT\('(.*)'\)/)?.[1] ?? 'null') as unknown);
   eq('(11) records [exacte minuten, geschreven minuten] in OPS_WorkRule', records, [
@@ -487,7 +423,6 @@ let exactHoursText = '';
     { ScheduleDuration: [before.running?.durationMinutes, 686], RemainingTime: [before.running?.remainingMinutes, 206] },
   ]);
   ok('(11) de records staan in OPS_WorkRule', /IFCPROPERTYSET\('[^']+',#\d+,'OPS_WorkRule',\$,\((#\d+,)*#\d+\)\)/.test(exactHoursText));
-  // De echte openroute, zoals de review: laden met doorrekenen.
   const back = createAppStoreContext().store;
   back.getState().applyLoadedProject(readIFC(exactHoursText), { recompute: true });
   eq('(11) Exact: dezelfde bron na opslaan en heropenen', fields(back.getState().tasks, 'Exact'), before.exact);
@@ -498,18 +433,14 @@ let exactHoursText = '';
     return { units: a.unitsPerDay, remainingWork: a.remainingWorkMinutes };
   };
   eq('(11) de driehoek blijft gelijk: werk en inzet na heropenen', [work(back, 'Exact'), work(back, 'Lopend')], [work(store, 'Exact'), work(store, 'Lopend')]);
-  // Leesregel: wijzigt een ander programma het slot, dan geldt het slot.
   const changed = readIFC(patchLine(exactHoursText, taskTimeLine(exactHoursText, 'Exact'), "'PT4H34M0S'", "'PT5H0M0S'"));
   eq('(11) gewijzigd slot PT5H0M0S ⇒ 300 min, het record telt niet', byName(changed, 'Exact')?.time.durationMinutes, 300);
   const changedRest = readIFC(patchLine(exactHoursText, taskTimeLine(exactHoursText, 'Lopend'), "'PT3H26M0S'", "'PT3H0M0S'"));
   eq('(11) gewijzigde rest PT3H0M0S ⇒ 180 min, de duur houdt haar record',
     [byName(changedRest, 'Lopend')?.time.remainingMinutes, byName(changedRest, 'Lopend')?.time.durationMinutes],
     [180, before.running?.durationMinutes]);
-  // Hele minuten krijgen geen record (bestaande bestanden blijven byte-gelijk).
   const whole = durationPayload();
   ok('(11) een urentaak in hele minuten krijgt geen ExactMinutes', !writeIFC(buildWriteIFCInput(whole, 'planOnly')).includes("'ExactMinutes'"));
-  // De werkelijke duur (dagen) van een urentaak gaat via `DayMeasureDurations` met 6 decimalen (§3.14):
-  // 100 min op 8 u per dag = 0,208333… d. Terug binnen een duizendste minuut.
   const actual = durationPayload();
   actual.tasks = [task('U', '2026-06-01T07:00', '2026-06-01T15:00', 1, {
     durationUnit: 'hours', durationMinutes: 480, completion: 0.2, actualStart: '2026-06-01T07:00', actualDuration: 100 / 480, remainingMinutes: 380,
@@ -518,9 +449,6 @@ let exactHoursText = '';
   ok(`(11) werkelijke duur 100 min terug binnen 0,001 min (kreeg ${actualBack * 480})`, Math.abs(actualBack * 480 - 100) < 1e-3);
 }
 
-// Bestanden voor de lezervergelijking `check-minute-model-compat.ts` (zie tests/planning/README.md):
-// D0 = de voorbeeldweek met de drie lagvormen, D1 = de duren met een breuk plus de spelingen van (8).
-// F (lopend op 100 %) blijft eruit: v2026.9.0 maakt die taak voltooid (#357), los van de dagenmaat.
 {
   const compatOut = process.env.OPS_MINUTE_MODEL_COMPAT_OUT;
   if (compatOut) {
@@ -536,7 +464,6 @@ let exactHoursText = '';
   }
 }
 
-// ── (10) De lezer van v2026.9.0 ───────────────────────────────────────────────────────────────────
 async function oldReaderChecks(): Promise<void> {
   const reader = process.env.OPS_MINUTE_MODEL_OLD_READER;
   if (!reader) { console.log('Lezer van v2026.9.0: niet gemeten (OPS_MINUTE_MODEL_OLD_READER ontbreekt).'); return; }
@@ -555,20 +482,16 @@ async function oldReaderChecks(): Promise<void> {
   eq('(10) v2026.9.0: G = kalendertijd-urentaak van 2160 min', [t('G')?.durationUnit, t('G')?.durationType, t('G')?.durationMinutes],
     ['hours', 'ELAPSEDTIME', 2160]);
   eq('(10) v2026.9.0: J blijft een gewone dagtaak van 3 d', [t('J')?.durationUnit, t('J')?.scheduleDuration], ['days', 3]);
-  // De werkelijke duur kent in v2026.9.0 alleen hele dagen: `PT4H0M0S` wordt ceil(4 ÷ 8) = 1 d (geen 5).
   eq('(10) v2026.9.0: werkelijke duur 0,5 d ⇒ 1 d (afgerond, geen 5)', t('H')?.actualDuration, 1);
   const p = durationPayload();
   p.tasks = [task('S1', '2026-06-01T07:00', '2026-06-01T16:00', 1, { totalFloat: 2.5, totalFloatMinutes: 1200, freeFloat: 0.75, freeFloatMinutes: 360 })];
   const s1 = byName(old.readIFC(writeIFC(buildWriteIFCInput(p, 'planOnly'))), 'S1')?.time;
   eq('(10) v2026.9.0: speling 2,5 d ⇒ 3 d, 0,75 d ⇒ 1 d (afgerond, geen 5)', [s1?.totalFloat, s1?.freeFloat], [3, 1]);
-  // (11) De exacte urenmaat: v2026.9.0 kent `ExactMinutes` niet en leest de hele minuten van het slot.
   const exact = old.readIFC(exactHoursText);
   eq('(10) v2026.9.0: exacte urenmaat ⇒ de hele minuten van het slot',
     [byName(exact, 'Exact')?.time.durationMinutes, byName(exact, 'Lopend')?.time.durationMinutes, byName(exact, 'Lopend')?.time.remainingMinutes],
     [274, 686, 206]);
 
-  // Geen dag kwijt in de tijd: v2026.9.0 leest elke datum van elke taak gelijk aan de nieuwe lezer
-  // (de kalender is letterlijk, §3.6). Zelfde vergelijking als check-minute-model-compat.ts.
   const DATE_FIELDS = ['scheduleStart', 'scheduleFinish', 'earlyStart', 'earlyFinish', 'lateStart', 'lateFinish', 'actualStart', 'actualFinish'] as const;
   for (const [label, text] of [['week', weekText], ['duren', durationText]] as const) {
     const now = readIFC(text), before = old.readIFC(text);
@@ -576,9 +499,6 @@ async function oldReaderChecks(): Promise<void> {
     for (const nowTask of now.tasks) {
       const got = byName(before, nowTask.name)?.time;
       for (const field of DATE_FIELDS) {
-        // F loopt op 100 % (`IfcTask.Status` 'STARTED'). v2026.9.0 kent die vorm niet en maakt F voltooid,
-        // met een werkelijk einde: bekend en besloten (#357, docs/ifc-round-trip.md "Lopend op 100 %"),
-        // los van de dagenmaat.
         if (nowTask.name === 'F' && field === 'actualFinish') continue;
         const want = nowTask.time[field];
         const trim = (s: string | undefined) => s?.slice(0, want?.includes('T') ? 16 : 10);

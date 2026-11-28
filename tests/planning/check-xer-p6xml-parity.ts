@@ -1,4 +1,3 @@
-// X9 — P6XML is geen gelijkwaardige XER-archiefadapter. Deze smoke bewaakt de zichtbare asymmetrie.
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
@@ -30,14 +29,7 @@ let xml = '';
 try { xml = writeP6XML(project, calendar, [task], [], [], []); } finally { console.warn = originalWarn; }
 const roundTripped = readP6XML(xml).tasks.find(candidate => candidate.name === task.name);
 expect('1 P6XML schrijft reguliere planningdata', xml.includes('<Activity>') && roundTripped !== undefined);
-// Taaktypes-etappe (2026-09-05, bouwstap 2): <DurationType> is sindsdien de ENE uitzondering op de
-// asymmetrie — de writer schrijft het label uit de werkregel of het bewaarde token, de lezer leest
-// het terug (spec §4.4). De overige P6-velden blijven éénrichting.
-// Sinds #775 zet de P6 XML-lezer zijn EIGEN P6-herkomst (ObjectId's en het activiteittype uit `<Type>`), zodat de
-// P6-regels in de motor gelden zoals bij een XER. De XER-identiteit en het XER-type van het origineel gaan niet mee.
 expect('2 P6XML claimt geen XER/P6-veldpariteit (behalve DurationType, taaktypes-etappe)',
-  // Zonder eigen werkregel erft de taak de projectstandaard; de schrijver schrijft dan geen eigen <DurationType>
-  // (review Sol #781), en de lezer geeft haar het token van `ActivityDefaultDurationType`, zonder eigen regel.
   roundTripped?.p6DurationType === XER_DURATION_TYPE_TOKEN[DEFAULT_WORK_RULE]
   && roundTripped?.workRule === undefined
   && roundTripped?.p6ActivityType === 'TT_Task'
@@ -46,15 +38,7 @@ expect('2 P6XML claimt geen XER/P6-veldpariteit (behalve DurationType, taaktypes
 expect('3 P6XML schrijft de geplande duur zonder waarschuwing',
   warnings.length === 0
   && xml.includes('<PlannedDuration>'));
-// Contour-engine-vervolgafspraak (2026-09, taaktypes-etappe): `<DurationType>` is de ENE asymmetrie
-// die niet langer tweerichtingsverkeer mist op de lezer — writeP6XML schrijft het element niet (zie
-// hierboven, assertie 2/3 blijven onveranderd waar), maar readP6XML leest het nu wél wanneer een
-// ECHT P6-bestand (niet onze eigen writer) het meebrengt. Injecteer het element handmatig in de
-// writer-uitvoer (dezelfde truc als de rest van dit bestand voor "een echt P6-bestand zou dit
-// dragen") om de vier canonieke PMXML-labels en de gerapporteerde terugval te bewijzen.
 function withDurationType(baseXml: string, label: string | null): string {
-  // Sinds bouwstap 2 van de taaktypes-etappe schrijft de writer het element zelf; strip het eerst,
-  // zodat elke case hieronder precies één (of géén) <DurationType> ziet.
   const stripped = baseXml.replace(/\s*<DurationType>[^<]*<\/DurationType>/, '');
   if (label === null) return stripped;
   return stripped.replace(/(<Activity>[\s\S]*?<Type>[^<]*<\/Type>)/, `$1<DurationType>${label}</DurationType>`);
@@ -72,9 +56,6 @@ function readDurationType(label: string | null): { value: string | undefined; wa
   return { value, warnings: warned };
 }
 
-// Taaktypes-etappe (2026-09-05): paren volgens Oracle's XER Import/Export Data Map Guide
-// (TASK.duration_type): DT_FixedDrtn = "Fixed Duration and Units/Time", DT_FixedDUR2 = "Fixed
-// Duration and Units". De vorige versie van deze tabel had de twee Fixed-Duration-labels verwisseld.
 const knownDurationTypeLabels: Readonly<Record<string, string>> = {
   'Fixed Duration and Units': 'DT_FixedDUR2',
   'Fixed Duration and Units/Time': 'DT_FixedDrtn',
@@ -87,8 +68,6 @@ for (const [label, expected] of Object.entries(knownDurationTypeLabels)) {
     value === expected && labelWarnings.length === 0);
 }
 
-// Sinds #775 erft een activiteit zonder bruikbaar `<DurationType>` de projectstandaard (`ActivityDefaultDurationType`),
-// zoals een XER-activiteit `PROJECT.def_duration_type` erft. De schrijver zet die standaard altijd.
 const projectDefaultToken = XER_DURATION_TYPE_TOKEN[DEFAULT_WORK_RULE];
 const { value: unknownValue, warnings: unknownWarnings } = readDurationType('Fixed Whatever');
 expect('5 onbekend <DurationType>-label erft de projectstandaard en wordt gerapporteerd',

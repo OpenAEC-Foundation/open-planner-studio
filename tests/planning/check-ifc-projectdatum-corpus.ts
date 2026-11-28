@@ -1,25 +1,4 @@
 import './domStub';
-// Projectstart en -einde met tijd door IFC opslaan en heropenen, op echte XER's (OPS_XER_CORPUS).
-// De corpusloze toets van hetzelfde gedrag staat in `check-ifc-projectdatum-tijd.ts`.
-//
-// Gemeten vóór de fix (main 7ea3e8748), over alle 93 XER's van het corpus (88 te openen documenten in 50
-// bestanden): in 81 documenten (44 bestanden) verloor de projectstart en/of het projecteinde de tijd. In
-// 42 documenten (33 bestanden) schreef de P6- of MSPDI-export daardoor een andere projectregel, want een
-// datum zonder tijd wordt daar 08:00 (Roads: `StartDate`/`EffectiveDate` 07:00 werd 08:00, torture:
-// `PlannedStartDate` 00:00 werd 08:00, een einde 17:00 werd 08:00). Taakdatums veranderden in geen enkel
-// document door de projectdatums: de motor leest van de projectstart alleen de datum, en van het einde
-// alleen met `useProjectEndDateForFloat`. De drie documenten met die optie én een einde (Hotel ×2,
-// TERMINAL BUILDING) hebben dat einde op 00:00, en dat is ook zonder tijd middernacht.
-//
-// Per bestand, voor elk document: openen via de echte route (doorrekenen), opslaan als IFC, heropenen.
-//  - projectstart, -einde en statusdatum gelijk, en gepind (zodat de toets echt een tijd raakt);
-//  - de projectregels in de P6-export (`PlannedStartDate`, `MustFinishByDate`, `ResourceRate.EffectiveDate`)
-//    en de MSPDI-export (`StartDate`, `FinishDate`) gelijk;
-//  - alle taakdatums, speling en kritiek gelijk;
-//  - per taak constraint, tweede constraint en deadline gelijk (de datums met tijd zijn gepind);
-//  - de schemapoort (`ifcSchemaCheck.ts`) in IFC4X3_ADD2, IFC4X3 en IFC4: 0 fouten. Main 8db05a95c
-//    schreef een constraintdatum met tijd als IFCDATE: 4 fouten in Roads, 11 in torture. Zie
-//    `check-ifc-datumvorm.ts`.
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -48,9 +27,7 @@ function same(label: string, got: unknown, want: unknown): void {
 interface Target {
   name: string;
   sha256: string;
-  /** Per document: [projectstart, projecteinde] zoals de XER-import ze zet. */
   projectDates: [string, string][];
-  /** Aantal constraint-, tweede-constraint- en deadlinedatums mét tijd, over alle documenten. */
   timedConstraintDates: number;
 }
 const TARGETS: Target[] = [
@@ -58,14 +35,8 @@ const TARGETS: Target[] = [
     projectDates: [['2012-12-17T07:00', '']], timedConstraintDates: 4 },
   { name: 'stack_data_center_baseline.xer', sha256: '1ba69d297ee9a5c65c644e7373dc414aa334c996b74800c4688aea7e3681eebf',
     projectDates: [['2026-05-04T07:00', '2026-05-22T17:00']], timedConstraintDates: 0 },
-  // Twee documenten; het tweede heeft `useProjectEndDateForFloat` met een einde op 00:00.
   { name: 'Hotel_Construction_TEC.xer', sha256: '9679599df9108bd3b31e755351c1543d1915b82a91445a3f1b0b9c9a3d1f86fe',
     projectDates: [['2013-08-01T00:00', '2013-08-01T16:00'], ['2012-06-04T08:00', '2014-07-24T00:00']], timedConstraintDates: 0 },
-  // A3040 (lopende taak op 100 % zonder werkelijk einde) telt sinds `IfcTask.Status` = 'STARTED' gewoon
-  // mee: hij blijft lopend en zijn datums blijven gelijk (eigenaarsbesluit 2026-10-14, check-ifc-lopend-100.ts).
-  // De bron draagt `plan_start_date` 2026-03-02 zonder tijd. Sinds F2 blijft een datum zonder tijd een
-  // datum (alleen uren §3.6: "Projectdatums blijven zoals ingevoerd"; `xerInstant.ts`); OPS maakte
-  // er eerst 00:00 van (knownbug 280, B1).
   { name: 'p6_torture_test_v1.xer', sha256: '2a7732b5b99de2a5f40aab40e0af52757fbe68e5d4eda404a9a060fdc1be1140',
     projectDates: [['2026-03-02', '2026-03-02']], timedConstraintDates: 11 },
 ];
@@ -93,13 +64,11 @@ const taskDates = (p: DocumentPayload) => Object.fromEntries(p.tasks
     return [t.id, [x.scheduleStart, x.scheduleFinish, x.earlyStart, x.earlyFinish, x.lateStart, x.lateFinish, x.totalFloat, x.isCritical]];
   }));
 
-// De console van de exportschrijvers (meldingen over niet-exporteerbare opties) hoort niet in de log.
 const quiet = <T>(fn: () => T): T => {
   const warn = console.warn;
   console.warn = () => {};
   try { return fn(); } finally { console.warn = warn; }
 };
-/** De projectregels: P6 `<Project>`-velden en `ResourceRate`, MSPDI de kop vóór `<Calendars>`. */
 function projectExportLines(p: DocumentPayload): string[] {
   const p6 = quiet(() => writeP6XMLWithReport(p.project, p.calendar, p.tasks, p.sequences, p.resources, p.assignments,
     p.calendars, p.customTaskTypes).xml);

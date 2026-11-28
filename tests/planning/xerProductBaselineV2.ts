@@ -84,9 +84,6 @@ export interface ProductEnvelopeV2 {
   payloadSha256: string;
   payloadGzipSha256: string;
   projectProjectionSha256: string;
-  /** SHA-256 over de grootten van `xer-product-fidelity-cells.json` (`cellMinutesDigest` in
-   *  `fidelityCells.ts`). Bewust in de envelop en niet in de payload: een herpin van alleen de
-   *  cellen (VERBETERD-grootte) verandert zo geen payload-hash of gate-pin. */
   cellMinutesSha256: string;
   payloadGzipBase64: string;
 }

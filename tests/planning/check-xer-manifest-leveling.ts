@@ -1,19 +1,3 @@
-/**
- * Corpusloze fixtures en mutanten voor het manifestveld `leveledProjects` (`xerManifestLeveling.ts`,
- * etappe P6-nivellering FUNDAMENT: mechanisme zonder data).
- *
- *  1. De lezer: geldige regels canoniek; afwezig ⇒ niets; op een niet-orakel, geen lijst, leeg, zonder
- *     of met een ongeldig besluit, te korte reden, numeriek projId, onbekende sleutel of dubbel ⇒ geweigerd.
- *     Byte-identieke orakellabels met een verschillende lijst ⇒ geweigerd.
- *  2. Geen invloed op de telling: de X1-doelbaseline met een geldige `leveledProjects` is byte-gelijk aan
- *     die zonder; een ongeldige wordt door X1 geweigerd (net als een ongeldige uitsluiting).
- *  3. Oplossen: een regel voor een project dat niet in het bestand staat is een fout.
- *  4. De stand van het echte manifest: NUL regels. Een eerste regel is een eigenaarsbesluit
- *     (eigenaarsbeslissing 2, onderzoek 2026-09-24 §7 stap 6) en werkt deze pin bewust bij.
- *
- * Mutanten: `decisionProblem` overslaan ⇒ 1b rood; het veld in `buildXerTargetBaseline` meetellen
- * (bv. projecten wegfilteren) ⇒ 2a rood; `resolveLeveledProjects` altijd raak ⇒ 3a rood.
- */
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { buildXerTargetBaseline, type XerCorpusManifest } from './xerFidelity';
@@ -51,7 +35,6 @@ const refusedBy = (extra: Record<string, unknown>, role = 'oracle') => {
   return read.problems.length > 0 && read.records.length === 0;
 };
 
-// ── 1. De lezer ──────────────────────────────────────────────────────────────────────────────
 {
   const read = readManifestLeveledProjects(manifestWith(VALID));
   eq('1a geldige regel: één record, geen problemen', [read.problems, read.records],
@@ -72,8 +55,6 @@ const refusedBy = (extra: Record<string, unknown>, role = 'oracle') => {
   ];
   for (const [label, extra, role] of cases) eq(`${label} ⇒ geweigerd`, refusedBy(extra, role), true);
 
-  // Een project dat zowel genivelleerd gemeten als uitgesloten zou worden is tegenstrijdig: de uitsluiting
-  // haalt het uit de meting, de nivelleerregel zegt hoe het gemeten moet worden. Weigeren, niet kiezen.
   const both = readManifestLeveledProjects(manifestWith({ ...VALID, decision: DECISION,
     excludeProjects: [{ projId: 'P1', reason: 'fixture-uitsluiting van P1' }] }));
   eq('1g project in zowel leveledProjects als excludeProjects ⇒ geweigerd',
@@ -87,7 +68,6 @@ const refusedBy = (extra: Record<string, unknown>, role = 'oracle') => {
     readManifestLeveledProjects(twin).problems.some(problem => problem.includes('verschillende leveledProjects')), true);
 }
 
-// ── 2. Geen invloed op de telling ────────────────────────────────────────────────────────────
 {
   const files = [{ label: LABEL, bytes: XER }];
   const without = buildXerTargetBaseline(files, manifestWith({}));
@@ -99,7 +79,6 @@ const refusedBy = (extra: Record<string, unknown>, role = 'oracle') => {
   eq('2b X1 weigert een leveledProjects-regel zonder eigenaarsbesluit', refused.errors.some(error => error.includes('decision')), true);
 }
 
-// ── 3. Oplossen tegen de grondwaarheid + samenvatting ──────────────────────────────────────────
 {
   const projects = scanXerGroundTruth(XER).projects;
   const hit = resolveLeveledProjects(projects, readManifestLeveledProjects(manifestWith(VALID)).records);
@@ -113,7 +92,6 @@ const refusedBy = (extra: Record<string, unknown>, role = 'oracle') => {
   eq('3b lege samenvatting is expliciet nul', leveledSummary([]).line, 'genivelleerd volgens eigenaar: 0 projecten');
 }
 
-// ── 4. Stand van het echte manifest ─────────────────────────────────────────────────────────
 {
   const manifest = JSON.parse(readFileSync(new URL('./xer-corpus-manifest.json', import.meta.url), 'utf8')) as XerCorpusManifest;
   const read = readManifestLeveledProjects(manifest);

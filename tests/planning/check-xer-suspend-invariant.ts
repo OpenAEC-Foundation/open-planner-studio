@@ -163,8 +163,6 @@ eq('geldig onveranderd paar round-tript exact en houdt P6-semantiek', {
   finish: solveFinish(validReload),
 }, { flag: true, finish: '2026-08-20T10:00' });
 
-// Compilebewijs: de echte updateTask-route accepteert een volledige TaskTime; extensions lopen
-// via exact deze route. MCP laat stop/resume niet toe en heeft dus geen schrijfpad om hier te testen.
 void (looseEdited satisfies Task);
 
 if (diffs.length > 0) {

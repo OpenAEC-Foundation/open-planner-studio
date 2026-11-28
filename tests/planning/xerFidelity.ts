@@ -29,8 +29,6 @@ import {
   type XerFidelityCounters,
 } from './xerFidelityTypes';
 
-/** Solveruitvoer in meetlateenheden. Float is bewust al minuten: de latere adapter moet daarvoor
- * de taak-effectieve kalender gebruiken; deze onafhankelijke kern kent geen productiekalender. */
 export interface XerSolvedTask {
   sourceTaskId: string;
   taskCode: string;
@@ -60,14 +58,11 @@ export interface XerFileFidelity {
   solvedProjects: number;
   truthTasks: number;
   solvedTasks: number;
-  /** Compatibiliteitsalias voor de bestaande rapportage: gelijk aan `truthTasks`. */
   tasks: number;
   projects: XerProjectFidelity[];
   counters: XerFidelityCounters;
-  /** Zevende rapportage-as; bewust geen lid van `counters` en dus buiten de zesassige nulpoort. */
   drivingPath: XerFidelityAxisCounts;
   errors: string[];
-  /** De zesassige poort: nul uitlijnfouten, gelijke aantallen en nul afwijkingen. */
   gatePassed: boolean;
 }
 
@@ -83,7 +78,6 @@ export type XerCorpusRole =
   | 'pseudo-xer'
   | 'reference-only'
   | 'synthetic-fixture'
-  /** Echt XER-bestand zonder aantoonbare P6-doorrekening (eigenaarsbesluit 2026-09-23): lezer-/prestatietest, geen orakel. */
   | 'reader-only';
 
 export interface XerCorpusManifestEntry {
@@ -92,16 +86,10 @@ export interface XerCorpusManifestEntry {
   role: XerCorpusRole;
   included: boolean;
   exclusionReason?: string;
-  /** Vrije toelichting bij een entry (bv. een twijfel over het orakel, zoals bij ashspace); stuurt de populatie niet. */
   note?: string;
-  /** Eigenaarsbesluit (JJJJ-MM-DD … eigenaarsbesluit …) achter `excludeProjects`/`excludeTasks`; zonder dit weigert de lezer ze. */
   decision?: string;
-  /** Projecten binnen dit orakelbestand die niet meetellen (`xerManifestExclusions.ts`). */
   excludeProjects?: XerProjectExclusion[];
-  /** Taken binnen dit orakelbestand die niet meetellen (`xerManifestExclusions.ts`). */
   excludeTasks?: XerTaskExclusion[];
-  /** Projecten die P6 volgens de eigenaar genivelleerd heeft (`xerManifestLeveling.ts`). Mechanisme
-   *  zonder data en zonder invloed op de telling: alleen gevalideerd en gerapporteerd (eigenaarsbeslissing 2 open). */
   leveledProjects?: XerLeveledProject[];
 }
 
@@ -118,16 +106,11 @@ export interface XerCorpusStats {
   excludedFiles: number;
   byteUniqueFiles: number;
   byteDuplicateFiles: number;
-  /** Ruwe corpusmassa vóór dedup: vier datumassen aanwezig na statussemantiek. */
   fourDateTasks: number;
-  /** Ruwe corpusmassa vóór dedup: alle zes poortassen aanwezig. */
   sixAxisTasks: number;
-  /** Zevende rapportage-as vóór dedup; buiten de nulpoort. */
   drivingPathTasks: number;
-  /** Reviewreconciliatie: byte-unieke bestanden met minstens één as, maar geen alles-zes-taak. */
   partialOnlyByteUniqueFiles: number;
   partialOnlyAxisCells: number;
-  /** Geselecteerde, herkomstvaste bestanden met minstens één effectieve poortas. */
   byteUniqueOracleFiles: number;
   schemaDuplicateFiles: number;
   uniqueOracleFiles: number;
@@ -257,10 +240,6 @@ function byteHash(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-/**
- * Inhoudsvingerafdruk volgens het plan: project-id-set + taakcodes + orakelwaarden. Geen
- * bestandsmetadata, rijvolgorde, whitespace of bytes, zodat inhoudelijk gelijke exports samenvallen.
- */
 export function xerSchemaFingerprint(truth: XerGroundTruth): string {
   const projects = [...truth.projects].sort().join('\u001f');
   const rows = truth.tasks.map(task => [
@@ -300,11 +279,6 @@ function targetEntry(label: string, truth: XerGroundTruth, fingerprint: string):
   };
 }
 
-/**
- * Bouw de nuldoel-baseline uit uitsluitend het onafhankelijke orakel. Dit is nog geen lezermeting:
- * X1 levert geen productielezer. De synthetische `measureXerFidelity`-checks hierboven bewaken het
- * echte vergelijkpad; een latere taak sluit daar de opgeloste documenten op aan.
- */
 export function buildXerTargetBaseline(
   files: readonly XerCorpusFile[],
   manifest: XerCorpusManifest,
@@ -341,10 +315,8 @@ export function buildXerTargetBaseline(
   for (const label of [...filesByLabel.keys()].filter(label => !(label in manifest.files)).sort()) {
     errors.push(`corpusbestand ontbreekt in manifest: ${label}`);
   }
-  // Uitsluiting per project/taak (eigenaarsbesluit, `xerManifestExclusions.ts`): ongeldig ⇒ weigeren.
   const exclusions = readManifestExclusions(manifest);
   errors.push(...exclusions.problems);
-  // Nivelleerclassificatie (eigenaarsbesluit per project): ongeldig ⇒ weigeren; telt verder nergens mee.
   errors.push(...readManifestLeveledProjects(manifest).problems);
   const seenSchemas = new Set<string>();
   const filesByHash = new Map<string, Array<{
@@ -385,13 +357,11 @@ export function buildXerTargetBaseline(
       candidate.manifestEntry.included && candidate.manifestEntry.role === 'oracle');
     const selected = oracle ?? group[0];
     const { file } = selected;
-    // De schemavingerafdruk (dedup) blijft op het hele bestand; tellen doet alleen wat niet is uitgesloten.
     const fileTruth = selected.truth;
     const resolved = oracle ? resolveExclusions(fileTruth.tasks, exclusions.bySha.get(fullByteHash) ?? []) : undefined;
     if (resolved) errors.push(...resolved.problems.map(problem => `${file.label}: ${problem}`));
     const truth = resolved ? filterTruthExclusions(fileTruth, resolved) : fileTruth;
 
-    // Ruwe corpusdekking (vóór selectie): over het hele bestand, uitsluitingen tellen hier niet.
     const fullOracleTasks = fileTruth.tasks.filter(isFullOracleTask).length;
     const fileAxisTasks = fileTruth.tasks.filter(hasOracleAxis).length;
     const axisCells = XER_FIDELITY_AXES.reduce((sum, axis) =>
@@ -440,10 +410,6 @@ export function validateXerBaselinePins(baseline: XerFidelityBaseline): string[]
   return problems;
 }
 
-/**
- * Meet expliciet per project en tel pas daarna op tot het bestand. Er bestaat bewust geen globale
- * `truth.tasks.length === solved.tasks.length`-assertie: één XER kan meerdere projecten dragen.
- */
 export function measureXerFidelity(
   truth: XerGroundTruth,
   solvedProjects: readonly XerSolvedProject[],

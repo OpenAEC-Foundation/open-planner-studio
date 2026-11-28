@@ -1,5 +1,3 @@
-// X9 reviewfix 1: schema-2-opslag is zelfstandig leesbaar in een koud proces. De lage sync-lezer
-// is daarbij bewust beschermd: alleen readIFCWithXerReconstruction mag de lazy XER-chunk laden.
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';

@@ -1,18 +1,4 @@
-// P6 XML-writer: elk keuzeveld (enum) krijgt het PMXML-label, nooit het XER-token.
-//
-// De fout: de writer schreef `<PrimaryConstraintType>`/`<SecondaryConstraintType>` als XER-token
-// (`CS_MSOA`). Echte P6 XML (PMXML) gebruikt het label (`Start On or After`); P6 leest het token
-// waarschijnlijk niet, en dan gaan de constraints verloren bij export naar P6.
-// Bron van de labels: MPXJ `org.mpxj.primavera.*Helper` (`XML_TYPE_MAP`) en `XmlProjectWriter`, plus
-// de waarden in echte P6 XML uit het corpus.
-//
-// Bewaakt:
-// (1) de negen constraintsoorten als label, primair én secundair (`P6_CONSTRAINT_KINDS`);
-// (2) geen enkel XER-token (`CS_`, `TT_`, `TK_`, `PR_`, `DT_`, `CP_`, `RT_`, `CA_`) in de uitvoer;
-// (3) elk ander keuzeveld valt binnen de PMXML-labelset (activiteit-`Type`, `Status`,
-//     `PercentCompleteType`, `DurationType`, relatie-`Type`, `ResourceType`, kalender-`Type`);
-// (4) round-trip: eigen export ⇒ eigen import houdt primair + secundair (soort, hard/soft, datum).
-// Corpusloos (CI).
+// Bron: MPXJ, © Jon Iles e.a., PMXML-labels volgens `XML_TYPE_MAP` in `org.mpxj.primavera.*Helper` en `XmlProjectWriter` (LGPL-2.1, github.com/joniles/mpxj).
 import { readFileSync } from 'node:fs';
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
@@ -33,7 +19,6 @@ function eq(label: string, got: unknown, want: unknown): void {
   if (JSON.stringify(got) !== JSON.stringify(want)) fails.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 }
 
-// Labelsets uit MPXJ (`XML_TYPE_MAP` per helper).
 const PMXML = {
   constraint: ['Start On', 'Start On or Before', 'Start On or After', 'Finish On', 'Finish On or Before',
     'Finish On or After', 'As Late As Possible', 'Mandatory Start', 'Mandatory Finish'],
@@ -46,7 +31,6 @@ const PMXML = {
   calendarType: ['Global', 'Project', 'Resource'],
 };
 
-// Bron: de geneste fixture; één bladtaak wordt het sjabloon voor negen taken (één per soort).
 const src = readP6XML(readFileSync(new URL('./fixtures/p6xml-genest-meerdere-projecten.xml', import.meta.url), 'utf8'));
 const template = src.tasks.find(t => t.childIds.length === 0 && !t.isMilestone)!;
 const D1 = '2026-06-08';
@@ -54,7 +38,6 @@ const D2 = '2026-06-22';
 const n = P6_CONSTRAINT_KINDS.length;
 const RULES: WorkRule[] = ['FIXED_DURATION_RATE', 'FIXED_DURATION_WORK', 'FIXED_WORK', 'FIXED_RATE'];
 const tasks: Task[] = P6_CONSTRAINT_KINDS.map((k, i) => {
-  // Secundair: de volgende soft-soort (hard mag niet op secundair).
   const soft = P6_CONSTRAINT_KINDS.filter(x => !x.hard);
   const k2 = soft[(i + 1) % soft.length];
   return {
@@ -71,7 +54,6 @@ const tasks: Task[] = P6_CONSTRAINT_KINDS.map((k, i) => {
     ...(i === 8 ? { milestoneKind: 'FINISH' as const } : {}),
   };
 });
-// Voortgang: één taak gestart, één klaar.
 tasks[1].time = { ...tasks[1].time, completion: 0.5, actualStart: D1 };
 tasks[1].status = 'STARTED';
 tasks[2].time = { ...tasks[2].time, completion: 1, actualStart: D1, actualFinish: D2 };
@@ -92,11 +74,9 @@ try {
   xml = writeP6XML(src.project, src.calendar, tasks, sequences, resources, [], src.resourceCalendars ?? [], []);
 } finally { console.warn = warn; }
 
-/** Alle waarden van `<tag>` binnen elk `<parent>`-blok. */
 function values(parent: string, tag: string): string[] {
   const out: string[] = [];
   for (const block of xml.matchAll(new RegExp(`<${parent}>([\\s\\S]*?)</${parent}>`, 'g'))) {
-    // Alleen directe velden: kinderblokken (WorkTime, UDF …) bevatten geen `<Type>`/`<Status>`.
     for (const m of block[1].matchAll(new RegExp(`<${tag}>([^<]*)</${tag}>`, 'g'))) out.push(m[1]);
   }
   return out;
@@ -106,7 +86,6 @@ const act = (code: string): string => {
   return xml.slice(xml.lastIndexOf('<Activity>', at), xml.indexOf('</Activity>', at));
 };
 
-// (1) Constraints als label.
 P6_CONSTRAINT_KINDS.forEach((k, i) => {
   eq(`1 primair ${k.type}${k.hard ? ' (hard)' : ''} ⇒ '${k.label}'`,
     /<PrimaryConstraintType>([^<]*)</.exec(act(`C${i}`))?.[1], k.label);
@@ -114,10 +93,8 @@ P6_CONSTRAINT_KINDS.forEach((k, i) => {
   eq(`1 secundair ${k2.type} ⇒ '${k2.label}'`, /<SecondaryConstraintType>([^<]*)</.exec(act(`C${i}`))?.[1], k2.label);
 });
 
-// (2) Geen XER-token als elementwaarde.
 eq('2 geen XER-token in de uitvoer', xml.match(/>(CS|TT|TK|PR|DT|CP|RT|CA)_[A-Za-z0-9]+</g) ?? [], []);
 
-// (3) Elk keuzeveld binnen de PMXML-labelset, en elke verwachte waarde komt voor.
 const within = (label: string, got: string[], allowed: string[], mustHave: string[]) => {
   eq(`3 ${label} binnen PMXML-set`, got.filter(v => !allowed.includes(v)), []);
   eq(`3 ${label} bevat ${mustHave.join(', ')}`, mustHave.filter(v => !got.includes(v)), []);
@@ -132,7 +109,6 @@ within('relatie-Type', values('Relationship', 'Type'), PMXML.relationType, PMXML
 within('ResourceType', values('Resource', 'ResourceType'), PMXML.resourceType, PMXML.resourceType);
 within('kalender-Type', values('Calendar', 'Type'), PMXML.calendarType, ['Global']);
 
-// (4) Round-trip: eigen export ⇒ eigen import.
 {
   const back = readP6XML(xml);
   P6_CONSTRAINT_KINDS.forEach((k, i) => {

@@ -1,4 +1,3 @@
-// X9 reviewronde 1 — relatieve schaalproef op 1/8/32 decoded chunks, zonder tijdsdrempel.
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import {
@@ -42,8 +41,6 @@ const measurements = [1, 8, 32].map(chunkCount => {
   const ifc = writeIFC(opened);
   const read = readIFC(ifc);
   const elapsedMs = performance.now() - started;
-  // Deze afzonderlijke check draait in een vers Node-proces. maxRSS is dus de OS-gemeten piek
-  // van de volledige round-trip, niet een eindstand of een misleidende heapdelta.
   const peakRssKiB = process.resourceUsage().maxRSS;
   expect(`${chunkCount} chunks: count en decoded byteLength zijn exact`,
     archive.byteChunks.length >= chunkCount
@@ -52,8 +49,6 @@ const measurements = [1, 8, 32].map(chunkCount => {
   expect(`${chunkCount} chunks: SHA en gedecodeerde bytes blijven exact`,
     read.xerSourceArchive !== undefined
     && sha256Hex(decodeXerSourceArchive(read.xerSourceArchive)) === sha256Hex(bytes));
-  // Tijd en RSS blijven informatief (hostafhankelijk, geen drempel); de machine-onafhankelijke
-  // serialisatieverhouding hieronder is de echte poort (eindreview bevinding 10).
   expect(`${chunkCount} chunks: echte tijd en OS-gemeten peak RSS zijn eindige observaties`,
     Number.isFinite(peakRssKiB) && peakRssKiB > 0 && Number.isFinite(elapsedMs) && elapsedMs >= 0);
   return { chunkCount, sourceBytes: bytes.length, ifcChars: ifc.length, elapsedMs, peakRssKiB };
@@ -62,12 +57,6 @@ const measurements = [1, 8, 32].map(chunkCount => {
 expect('relatieve IFC-omvang groeit mee van 1 naar 8 naar 32 chunks',
   measurements[1]!.ifcChars > measurements[0]!.ifcChars * 6
   && measurements[2]!.ifcChars > measurements[1]!.ifcChars * 3);
-// Eindreview bevinding 10: "eindig en positief" bewaakte niets. Walltime en RSS zijn host-
-// afhankelijk, maar de SERIALISATIEVERHOUDING niet: het archief zelf kost per bronbyte een vaste
-// coderingsoverhead (gemeten 2026-09-07: 1,36 / 1,34 / 1,33 IFC-tekens per bronbyte bij 1/8/32
-// chunks; de marginale kost van 8→32 chunks 1,33). Een wijziging die de serialisatie verdubbelt
-// (dubbel coderen, een tweede kopie, een minder compacte codering) gaat hier rood, ongeacht de
-// machine. De bovengrens 1,6 laat ~20% ruimte boven de gemeten waarde en ligt ver onder ×2.
 const MAX_IFC_CHARS_PER_SOURCE_BYTE = 1.6;
 const marginal = (measurements[2]!.ifcChars - measurements[1]!.ifcChars)
   / (measurements[2]!.sourceBytes - measurements[1]!.sourceBytes);

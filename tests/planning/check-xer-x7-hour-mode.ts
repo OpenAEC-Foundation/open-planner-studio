@@ -1,4 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 import { solveProject } from '@/engine/scheduler/solveProject';
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
@@ -51,9 +50,7 @@ function solve(imported: ImportResult): Map<string, string | undefined> {
   return new Map(imported.tasks.map(task => [task.wbsCode, result.tasks.get(task.id)?.earlyFinish]));
 }
 
-// Contrast 1: als alle drie X7-velden een klok dragen, blijven reader, IFC en solver minuutexact.
 const opened = read([
-  // Alleen de drie X7-velden dragen een klok. Geen target/actual/constraint-kolom mag uurmodus lekken.
   '%R\tH\tP1\tC1\tH\tUurprecisie\tTT_Task\tTK_Active\tCP_Drtn\t25\t\t8\t6\t2026-08-03\t2026-08-03\t2026-08-03\t\t2026-08-04 15:30\t2026-08-06 09:45\t2026-08-12 13:15',
 ]);
 const task = opened.tasks[0];
@@ -87,7 +84,6 @@ eq('IFC round-trip bewaart de drie X7-kloktijden minuut-exact', {
 eq('all-timestamp-contrast houdt Expected Finish als exact solveranker',
   solve(reloaded).get('H'), '2026-08-12T13:15');
 
-// Contrast 2: als alle drie X7-velden date-only zijn, blijft de hele keten in dagmodus.
 const dayOnly = read([
   '%R\tD\tP1\tC1\tD\tDagprecisie\tTT_Task\tTK_Active\tCP_Drtn\t25\t\t8\t6\t2026-08-03\t2026-08-03\t2026-08-03\t\t2026-08-04\t2026-08-06\t2026-08-12',
 ]);
@@ -121,8 +117,6 @@ eq('all-date-only-contrast blijft door IFC exact date-only', {
 eq('all-date-only-contrast houdt Expected Finish als daganker',
   solve(dayReloaded).get('D'), "2026-08-12T16:00");
 
-// Reviewfinding A: elk X7-bronveld bezit zijn eigen precisie. Een klok in een buurveld mag de
-// vorm van een date-only suspend/resume of Expected Finish niet kalenderbreed promoveren.
 const mixed = read([
   '%R\tE\tP1\tC1\tE\tDate-only verwacht einde\tTT_Task\tTK_Active\tCP_Drtn\t25\t\t8\t6\t2026-08-03\t2026-08-03\t2026-08-03\t\t2026-08-04 15:30\t2026-08-06 09:45\t2026-08-12',
   '%R\tR\tP1\tC1\tR\tDate-only onderbreking\tTT_Task\tTK_Active\tCP_Drtn\t25\t\t8\t6\t2026-08-03\t2026-08-03\t2026-08-03\t\t2026-08-04\t2026-08-06\t2026-08-12 13:15',
@@ -167,10 +161,6 @@ eq('gemengde solver gebruikt date-only Expected Finish als einde van die werkdag
     ['R', '2026-08-12T13:15'],
   ]);
 
-// Reviewfinding B: een date-only Expected Finish is een FINISH-dag. De solver zoekt daarom het
-// laatste effectieve band-einde op of vóór die datum. Deze fixture loopt per case door de volledige
-// XER→IFC→XER-store→solverketen en onderscheidt weekband, werkende uitzondering, holiday,
-// weekend, exact timestamp-anker en een aantoonbaar bandloze kalender.
 const weekBands = '(0||DaysOfWeek()('
   + '(0||2()((0||0(s|08:00|f|16:00)())))'
   + '(0||3()((0||0(s|08:00|f|16:00)())))'

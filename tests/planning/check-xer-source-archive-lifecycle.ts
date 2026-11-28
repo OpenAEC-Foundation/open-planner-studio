@@ -1,4 +1,3 @@
-// X9 — één archive-ref door documenttabs, duplicate, undo/redo en recovery.
 import { createDefaultCalendar } from '@/engine/calendar/defaultCalendar';
 import { readFileSync } from 'node:fs';
 import {
@@ -36,8 +35,6 @@ const expect = (label: string, condition: boolean) => {
 };
 const store = () => useAppStore.getState();
 
-// Browser-API is de enige niet-headless rand. Deze minimale IDB-dubbel bewaart echte records en
-// transacties; saveRecovery/loadRecovery/clearRecovery zelf draaien ongewijzigd door hun publieke grens.
 installFakeRecoveryIndexedDb();
 
 const bytes = new TextEncoder().encode([

@@ -1,21 +1,6 @@
-// Kern van de IFC-schemapoort: een eigen STEP-parser (los van ifcReader: een poort leunt niet op de
-// code die hij toetst) en de toets van één bestand tegen de schematabel `ifcSchemaTable.ts` van het
-// schema in zijn kop (IFC4X3_ADD2, IFC4X3 of IFC4).
-// Gebruikt door `check-ifc-schema.ts` (de poort, met zijn bronnen) en `check-ifc-roundtrip.ts` (de
-// round-trip-fixture als extra bron: splits, contouren, timephased, P6-voortgang). Geen check: dit
-// bestand draait niets. Toelichting: docs/ifc-round-trip.md, alinea "Schemageldigheid".
 import { IFC_SCHEMA_TABLES, type IfcSchemaTable, type IfcSchemaTableId } from './ifcSchemaTable';
 
-/**
- * BEKENDE AFWIJKING (bewust, gemeld): `IfcRelAssignsToProcess.RelatedObjects` is een SET, maar OPS
- * herhaalt daar een resource die twee keer op dezelfde taak staat; de lezer telt elke herhaling als
- * eigen toewijzing (`extractAssignments`, met de `GUID#N`-sleutels in OPS_Assignments). IfcOpenShell
- * 0.9.0 meldt dit niet en laadt beide verwijzingen (gemeten 2026-10-13). Een andere codering raakt de
- * lezer en oudere OPS-versies; dat is een eigen besluit, niet deze fix.
- */
 const SET_DUPLICATES_ALLOWED = new Set(['IFCRELASSIGNSTOPROCESS.RelatedObjects']);
-
-// ── STEP-parser (onafhankelijk van ifcReader: een poort leunt niet op de code die hij toetst) ──────
 
 type V =
   | { k: 'null' } | { k: 'derived' } | { k: 'ref'; id: number } | { k: 'str'; raw: string }
@@ -25,7 +10,6 @@ type V =
 
 interface StepEntity { id: number; type: string; args: V[] }
 
-/** Leest de DATA-sectie van een STEP-bestand. Gooit bij een syntaxfout (dat is zelf een bevinding). */
 export function parseStep(text: string): StepEntity[] {
   const start = text.indexOf('\nDATA;');
   const end = text.lastIndexOf('\nENDSEC;');
@@ -92,7 +76,6 @@ export function parseStep(text: string): StepEntity[] {
       expect(')');
       return { k: 'typed', type: m[0].toUpperCase(), value: inner };
     }
-    // Getal. Alles wat geen STEP-INTEGER of STEP-REAL is (`1e-7`, `NaN`, `Infinity`), is een bevinding.
     const m = /^[^,()\s;]+/.exec(s.slice(i, i + 80));
     if (!m) throw new Error(`onverwacht teken '${c}' op ${i}`);
     i += m[0].length;
@@ -126,8 +109,6 @@ export function parseStep(text: string): StepEntity[] {
   return out;
 }
 
-// ── Toets per attribuut ───────────────────────────────────────────────────────────────────────────
-
 const show = (v: V): string => {
   switch (v.k) {
     case 'null': return '$';
@@ -143,9 +124,7 @@ const show = (v: V): string => {
   }
 };
 
-/** Tekst met een vaste vorm (codes uit de schematabel). STEP-strings staan tussen quotes. */
 const SHAPED_STRINGS: Record<string, [RegExp, string]> = {
-  // IFC-base64 (0-9 A-Z a-z _ $), 22 tekens; 128 bits ⇒ het eerste teken draagt 2 bits (0-3).
   G: [/^'[0-3][0-9A-Za-z_$]{21}'$/, 'GlobalId: 22 tekens uit 0-9 A-Z a-z _ $, eerste teken 0-3'],
   DT: [/^'\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?(Z|[+-]\d{2}:\d{2})?'$/, 'IfcDateTime: YYYY-MM-DDThh:mm:ss (met seconden)'],
   DA: [/^'\d{4}-\d{2}-\d{2}(Z|[+-]\d{2}:\d{2})?'$/, 'IfcDate: YYYY-MM-DD'],
@@ -154,8 +133,6 @@ const SHAPED_STRINGS: Record<string, [RegExp, string]> = {
     'IfcDuration: ISO 8601 (PnYnMnDTnHnMnS)'],
 };
 
-/** Toetst waarde `v` tegen typecode `code` (zonder `?`). `types`: STEP-id → entiteittype van het
- *  bestand; `table`: de schematabel uit de kop. Geeft een foutomschrijving of ''. */
 function checkKind(
   v: V, code: string, types: ReadonlyMap<number, string>, table: IfcSchemaTable, allowDuplicates = false,
 ): string {
@@ -222,7 +199,6 @@ function checkKind(
 
 function attrName(spec: string): string { return spec.slice(0, spec.indexOf(':')); }
 
-/** Wat de getoetste bestanden samen bevatten (voor de dekkingstoets van de poort). */
 export interface Seen { entities: Set<string>; typed: Set<string>; schemas: Set<string> }
 export const newSeen = (): Seen => ({ entities: new Set(), typed: new Set(), schemas: new Set() });
 
@@ -233,19 +209,12 @@ function collectTyped(v: V, out: Set<string>): void {
   else if (v.k === 'list') for (const item of v.items) collectTyped(item, out);
 }
 
-/**
- * Toetst één bestand tegen de tabel van het schema in zijn kop (`FILE_SCHEMA`). `label` komt in elke
- * foutmelding. `expectSchema`: als gegeven, moet de kop precies dat schema noemen. Geeft het aantal
- * toetsen en de fouten.
- */
 export function checkIfcSchema(
   label: string, text: string, seen: Seen = newSeen(), expectSchema?: IfcSchemaTableId,
 ): { checks: number; failures: string[] } {
   let checks = 0;
   const failures: string[] = [];
   const assert = (cond: boolean, msg: string) => { checks++; if (!cond) failures.push(msg); };
-  // De kop kiest de tabel: elk schema heeft eigen enum-literals (IfcTaskTypeEnum.INSPECTION bestaat
-  // bijvoorbeeld niet in IFC4) en eigen getypeerde waarden.
   const schemaId = /FILE_SCHEMA\s*\(\s*\(\s*'([^']*)'/.exec(text)?.[1];
   if (expectSchema) assert(schemaId === expectSchema, `${label}: FILE_SCHEMA is '${schemaId}', verwacht '${expectSchema}'`);
   if (!isTableSchema(schemaId)) {
@@ -264,8 +233,6 @@ export function checkIfcSchema(
   const byId = new Map(entities.map(e => [e.id, e]));
   const types = new Map(entities.map(e => [e.id, e.type]));
   assert(byId.size === entities.length, `${label}: dubbele STEP-id's`);
-  // Fouten per soort (entiteit + bericht zonder waarde) met één voorbeeld, zodat één bestand met
-  // honderd gelijke fouten de uitvoer niet vult en elke soort zichtbaar blijft.
   const kinds = new Map<string, { count: number; example: string }>();
   const fail = (e: StepEntity, msg: string, detail = '') => {
     const key = `${e.type}: ${msg}`;
@@ -304,16 +271,6 @@ export function checkIfcSchema(
   return { checks, failures };
 }
 
-/**
- * WHERE-regels uit IFC4X3_ADD2 die de OPS-writer kan raken (IfcOpenShell `validate --rules` toetst ze
- * allemaal; deze selectie is de CI-wacht voor de gevallen die we tegenkwamen):
- *  - CorrectPredefinedType (IfcTask, resources, IfcWorkCalendar, IfcWorkSchedule, …): PredefinedType
- *    USERDEFINED ⇒ ObjectType bestaat;
- *  - IfcProject.HasName / IfcTask.HasName: Name bestaat;
- *  - IfcPerson.IdentifiablePerson: Identification, FamilyName of GivenName bestaat;
- *  - IfcPropertySet.UniquePropertyNames: geen twee properties met dezelfde naam;
- *  - IfcRelSequence.AvoidInconsistentSequence: een taak is niet zijn eigen voorganger.
- */
 function checkRules(
   e: StepEntity, spec: readonly string[], byId: Map<number, StepEntity>, fail: (e: StepEntity, msg: string) => void,
 ): void {

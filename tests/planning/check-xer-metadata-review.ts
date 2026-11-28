@@ -63,9 +63,6 @@ eq('switch terug naar bron blijft geïsoleerd', [store.getState().activeDocument
 store.getState().switchDocument(copyId);
 eq('switch naar kopie na undo blijft geïsoleerd', [store.getState().tasks[0]?.customFields, store.getState().xerImportMetadata!.metadata!.catalog === sharedCatalog], [{ UT: 'A' }, true]);
 
-// Notitiecontract: TASK.task_notes heeft vaste voorrang, gevolgd door alle TASKNOTE-rijen in
-// bronvolgorde en daarna alle TASKMEMO-rijen in bronvolgorde. Geen van de drie lagen dedupliceert
-// inhoud of id's stil; een duplicate memo-id blijft een diagnose én een afzonderlijke notitie.
 const noteRows = [
   'ERMHDR\t23.12',
   '%T\tTASK', '%F\ttask_id\tproj_id\ttask_code\ttask_notes',

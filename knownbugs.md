@@ -6601,6 +6601,13 @@ en noem het in je rapport of PR-tekst.
       `src-tauri/Cargo.lock` heeft 2.14.1 en 0.3.0. Gezien in `Cargo.lock`; of de controles nog precies passen bij de
       nieuwe versies is niet nagegaan. — S
 
+2810. **De vergelijking `perf-ifc-nesting.yml` wordt rood op elke PR die alleen haar testbestanden raakt.** De workflow
+     start op een wijziging in `check-ifc-nesting-index.ts`, `ifcNestingFixture.ts` of `measure-ifc-nesting.ts`. Daarna
+     stopt `npm run i18n:resolve` met exit 1, omdat de uitgecheckte PR-head één ouder heeft en geen mergecommit is;
+     de meetstap komt dan niet aan de beurt. Ook die zou stoppen: `docs/superpowers/evidence/ifc-nesting-index.mjs`
+     eist dat `src/services/ifc/ifcReader.ts` het enige gewijzigde bestand in `src/` is. Zo ging het op #1407; daarom
+     bleven die drie bestanden daar buiten de opruiming. Voorstel: de meting alleen starten als `ifcReader.ts` wijzigt. — B
+
 2803. **De herpinroutes van de XER-getrouwheid schrijven commentaarregels die `verify:comments` weigert.** Dat gebeurt
       in twee stappen. Eerst herschrijft de schrijfroute van de X12-check (`check-xer-product-fidelity-x12.ts`, met
       `OPS_XER_CELLS_WRITE`) de pinblokken in commentaar in `tests/planning/check-fidelity-cells-gate.ts`

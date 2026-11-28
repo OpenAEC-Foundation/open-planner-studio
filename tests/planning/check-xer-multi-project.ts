@@ -1,4 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -131,8 +130,6 @@ function mappedProject(projectId: string, leaves: number, summaries = 0): XerRea
   };
 }
 
-// Breuken die dit vangt: export_flag als selector gebruiken, lege projecten als tab openen,
-// samenvattingen als bladtaken tellen of het eerste in plaats van het grootste open project kiezen.
 const selectionTables = tables([
   row(2, { proj_id: 'P-A', proj_short_name: 'A', export_flag: 'Y' }),
   row(3, { proj_id: 'P-EMPTY', proj_short_name: 'Leeg', export_flag: 'Y' }),
@@ -173,9 +170,6 @@ eq('4 selectieverslag telt bronrijen, documenten en lege projecten', selection.r
   baselineFallbackReasons: [],
 });
 
-// Breuk die dit vangt: twee PROJECT-rijen met dezelfde stabiele identiteit als twee documenten
-// doorgeven. Daarmee zouden tabselectie, documentboekhouding en latere cross-projectlinks ambigu
-// worden; dezelfde duplicate-id-foutvorm als de X4a-identiteitswachten is hier verplicht.
 const duplicateProjectTables = tables([
   row(2, { proj_id: 'P-DUP', proj_short_name: 'Eerste' }),
   row(3, { proj_id: 'P-DUP', proj_short_name: 'Tweede' }),
@@ -212,8 +206,6 @@ eq('4b dubbele PROJECT-identiteit faalt getypeerd voordat de mapper draait', {
   mapperCalls: [],
 });
 
-// Breuk die dit vangt: een ontbrekend baselineproject als bestaand behandelen, het hoofdproject
-// overslaan of de verwijzing stil laten verdwijnen uit het importverslag.
 const danglingTables = tables([
   row(2, { proj_id: 'P-MAIN', sum_base_proj_id: 'P-MISSING' }),
   row(3, { proj_id: 'P-OTHER' }),
@@ -265,8 +257,6 @@ function identifiedTask(
   };
 }
 
-// Breuken die dit vangt: het aanwezige baselineproject als tweede document openen, alleen een naam
-// bewaren, op array-index koppelen of een baseline-only taak stil weggooien.
 const baselineTables = tables([
   row(2, { proj_id: 'P-MAIN', sum_base_proj_id: 'P-BASE' }),
   row(3, { proj_id: 'P-BASE' }),
@@ -394,8 +384,6 @@ eq('7b2 synthetische baseline round-tript met identificatie en datums door IFC',
   variance: ['late', 'late', 'new', 'dropped'],
 });
 
-// Breuk die dit vangt: een aanwezige baseline-PROJECT-rij zonder TASK-rij stil als dangling
-// behandelen of hem via de X4a-mapper alsnog als leeg project proberen te openen.
 const emptyBaselineTables = tables([
   row(2, { proj_id: 'P-MAIN', sum_base_proj_id: 'P-EMPTY-BASE' }),
   row(3, { proj_id: 'P-EMPTY-BASE', proj_short_name: 'Lege baseline' }),
@@ -426,12 +414,6 @@ eq('7c aanwezige lege baseline wordt gematerialiseerd zonder lege tab of mappera
   baselineTasks: [],
 });
 
-/**
- * Synthetische vangrailfixtures. Zonder het terugnemen van baseline-uitsluiting wordt SELF door
- * zijn eigen verwijzing uitgesloten en sluiten A/B elkaar in de cyclus wederzijds uit: beide
- * fixtures zouden dan nul documenten opleveren. De extra C in de cycluscase bewijst bovendien dat
- * een echte cyclus de uitsluiting voor het hele bestand terugneemt, niet alleen bij exact nul.
- */
 function guardFixture(kind: 'self' | 'cycle'): {
   tables: XerTables;
   mapped: Map<string, XerReadResult>;
@@ -499,10 +481,6 @@ eq('9 cyclus neemt uitsluiting voor het hele bestand terug, ook als C open zou b
   reasons: ['cycle'],
 });
 
-// Reviewronde 1, P1: een PROJECT-rij zonder taken wordt niet geopend en kan daarom ook geen
-// baseline-eigenaar zijn. Zijn sum_base_proj_id mag een niet-leeg bronproject niet uit de openlijst
-// drukken. Het derde, niet-lege project voorkomt dat de algemene alles-uitgesloten-vangrail deze
-// fout maskeert: de oude implementatie opende alleen P-THIRD en verloor P-BASE volledig.
 const emptyOwnerTables = tables([
   row(2, { proj_id: 'P-BASE' }),
   row(3, { proj_id: 'P-EMPTY-OWNER', sum_base_proj_id: 'P-BASE' }),
@@ -531,8 +509,6 @@ eq('9a lege baseline-eigenaar sluit een niet-leeg bronproject nooit uit', {
   reasons: [],
 });
 
-// Breuk die dit vangt: de baselinegraaf recursief aflopen. Een groot maar geldig bestand met een
-// lange acyclische keten mag niet op de JavaScript-callstack stuklopen voordat selectie begint.
 const deepProjectCount = 12_000;
 const deepProjectRows = Array.from({ length: deepProjectCount }, (_, index) => row(
   index + 2,
@@ -570,8 +546,6 @@ eq('9b diepe acyclische baselineketen blijft stackveilig en opent het hoofdproje
   reverted: false,
 });
 
-// Breuken die dit vangt: beide lokale perspectieven als twee links tellen, een cross-projectrand
-// als lokale Sequence toevoegen of hem als Task.externalLinks alsnog de solver in laten lekken.
 const linkTables = tables([
   row(2, { proj_id: 'P-LINK-A' }),
   row(3, { proj_id: 'P-LINK-B' }),
@@ -647,8 +621,6 @@ const solvedLinkB = solveProject(opsSolveInput({
 eq('11 cross-projectlink stuurt de losse documentsolve niet',
   solvedLinkB.tasks.get('LB')?.earlyStart, "2026-01-02T07:00");
 
-// Breuk die dit vangt: mapperresultaten rechtstreeks doorgeven of één gedeelde array/object na
-// payloadFromImport tussen twee geopende documenten laten bestaan.
 const isolationTables = tables([
   row(2, { proj_id: 'P-ISO-A' }),
   row(3, { proj_id: 'P-ISO-B' }),
@@ -732,7 +704,6 @@ function normalizeSourceDate(raw: string | undefined, fallback: string): string 
   return value ? value.replace(' ', 'T') : fallback;
 }
 
-/** Testadapter voor het seriële wiring-venster: minimale X4a-vorm uit echte X2-tabellen. */
 function mapCorpusProject(source: XerTables, projectId: string): XerReadResult {
   const projectRow = source.tables.get('PROJECT')?.rows
     .find(item => item.cells.proj_id === projectId);

@@ -1,5 +1,3 @@
-// De gedeelde property-relatie-index bewaart de bestaande volgorde- en duplicaatsemantiek.
-// Bewust losse STEP-invoer: de writer maakt deze gedeelde, dubbele en ongeldige koppelingen niet.
 import { readIFC } from '@/services/ifc/ifcReader';
 import { ifcJson } from '@/services/ifc/ifcPsets';
 

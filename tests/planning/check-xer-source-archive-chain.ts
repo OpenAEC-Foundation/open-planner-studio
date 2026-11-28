@@ -1,4 +1,3 @@
-// X9 fixronde 2 — één echte twaalfprojectenketen door reader, store, IFC en headless recovery.
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -23,8 +22,6 @@ const expect = (label: string, condition: boolean) => {
 };
 const store = () => useAppStore.getState();
 
-// Alleen de browseropslaggrens is gedubbeld; recoveryStore, IFC-writer/reader en restoreDocuments
-// draaien echt. Browser/Tauri-UI en de tiensecondenhook blijven conform ruling X11.
 installFakeRecoveryIndexedDb();
 
 const projectRows: string[] = [];

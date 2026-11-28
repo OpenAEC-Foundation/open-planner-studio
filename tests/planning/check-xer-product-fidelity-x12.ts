@@ -54,11 +54,6 @@ const REPORT = process.env.OPS_XER_FIDELITY_REPORT;
 const REPORT_MODES = new Set(['baseline', 'detail', 'summary', 'counterfactuals']);
 const diffs: string[] = [];
 
-// Rekenprofielen: de motor leest geen XER-bronmarkering meer; elke P6-conventie komt uit het
-// profiel. De "zonder bron"-armen hieronder bootsen het oude `delete p6Source` na met
-// `withoutP6Semantics` (alle P6-gepoorte conventies A15–A20 en B1–B5 uit, A12/A13 blijven; spec
-// v3.1 §7). `withoutP6Conventions` zet daarnaast ook de projectoptie A21 uit — de arm met ALLE
-// P6-gepoorte vlaggen expliciet uit.
 function withoutP6Conventions(input: ImportResult): void {
   withoutP6Semantics(input);
   input.project.schedulingOptions = { ...input.project.schedulingOptions, p6CompletedLateFromRemainingWindow: false };
@@ -81,11 +76,6 @@ interface CounterfactualReport {
   scannerErrors: number;
 }
 
-/** De complete 34-entry/47-projectsnapshot is compact opgeslagen, maar wordt hier altijd volledig
- * uitgepakt vóór vergelijking. Alleen v2 met zichtbare rode overgangsstatus is leesbaar. Eigen
- * bestand (`xer-product-fidelity-baseline-v2.json`) naast de losstaande v1-cel-regressiebaseline
- * (`xer-product-fidelity-baseline.json`, bewaakt door `check-xer-product-fidelity.ts`) — de twee
- * schema's botsten hier ooit stil onder één bestandsnaam, zie `check-xer-fidelity-baseline-schema.ts`. */
 function readProductBaseline(): ProductBaseline {
   return readProductEnvelopeAndPayload().payload;
 }
@@ -102,19 +92,10 @@ function eq(label: string, got: unknown, want: unknown): void {
   checks++;
   if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${label}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`);
 }
-/** T2 (XER-etappeplan §4/T2, mutatiebewijs positieve helft): bewijst dat GEEN van de gegeven
- *  gemuteerde bak-4-orakelwaarden ook maar ergens in `Task.time` van de geïmporteerde taken staat —
- *  precies de kernregel van laag 3 ("opgeslagen uitvoer is meetlat, nooit invoer"), hier getoetst op
- *  de productfixtures i.p.v. de corpusloze oracle-fixture in `check-xer-recorded-times.ts`. */
 function noRecordedAxisLeak(
   tasks: readonly ImportResult['tasks'][number][],
   oracleValues: readonly (string | number)[],
 ): boolean {
-  // Critreview laag 3, bevinding 9: de vorige vorm vergeleek alleen RAUWE STRINGS. Een lek van een
-  // gemuteerde FLOAT (`999 * 60 / 540`) naar `Task.time.totalFloat` glipte er dus doorheen, en een
-  // datum die onderweg van `2040-11-04T08:00` naar `2040-11-04` (of andersom) was genormaliseerd
-  // eveneens. Nu wordt per waarde het TYPE gerespecteerd en worden datums genormaliseerd tot hun
-  // instant (met de dag als grovere terugval, zodat een gedegradeerde representatie óók telt).
   const key = (value: string): string => {
     const t = parseInstant(value).getTime();
     return Number.isNaN(t) ? `s:${value}` : `i:${t}`;
@@ -164,7 +145,6 @@ function summarizeMeasurement(measurement: XerProductMeasurement): Omit<Counterf
     scannerErrors: measurement.scannerErrors.length,
   };
 }
-/** De solver bewaart dagmodus bewust compact; de X12-meetlat vergelijkt dezelfde P6-betekenis per minuut. */
 function canonicalProductMinute(value: string | undefined): string | undefined {
   return value?.match(/^\d{4}-\d{2}-\d{2}$/) ? `${value}T00:00` : value;
 }
@@ -180,7 +160,6 @@ function listXerFiles(dir: string): string[] {
   return found;
 }
 
-/** Alleen echte TASK-bladen, met float op de effectieve taak-kalender in P6-minuten. */
 function solveImported(imported: ImportResult): XerSolvedProject {
   const cpm = solveProject({
     tasks: imported.tasks, sequences: imported.sequences, calendar: imported.calendar,
@@ -212,7 +191,6 @@ function solveImported(imported: ImportResult): XerSolvedProject {
   };
 }
 
-/** Productprojecties uit X4b-baselines; bronidentiteit komt uitsluitend uit de importpayload. */
 function materializedBaselineProjects(imported: ImportResult): XerSolvedProject[] {
   return (imported.baselines ?? []).flatMap((baseline) => {
     if (!baseline.sourceProjectId) return [];
@@ -228,7 +206,6 @@ function materializedBaselineProjects(imported: ImportResult): XerSolvedProject[
   });
 }
 
-/** Alle geopende én als baseline gematerialiseerde productuitkomsten, één keer per bronproject. */
 function solveProductProjects(imports: readonly ImportResult[]): XerSolvedProject[] {
   const byProjectId = new Map<string, XerSolvedProject>();
   for (const imported of imports) {
@@ -243,11 +220,6 @@ function solveProductProjects(imports: readonly ImportResult[]): XerSolvedProjec
   return [...byProjectId.values()];
 }
 
-/**
- * Tegenfeit 1: voor alleen volledig voltooide bronactiviteiten met twee echte actuals worden
- * LS/LF als historische actuals herleid. Dit is een diagnose-experiment, nooit een nieuwe
- * waarheid of solverinvoer. Ontbreekt één bronfeit, dan blijft de strict-orakelcel onaangeraakt.
- */
 function historicalCompletedLateTruth(
   truth: ReturnType<typeof scanXerGroundTruth>,
   imports: readonly ImportResult[],
@@ -272,10 +244,6 @@ function historicalCompletedLateTruth(
   };
 }
 
-/**
- * Tegenfeit 2: alleen een aantoonbaar middernacht-orakel mag in deze rapportage een same-day
- * datumafwijking herclassificeren. Strict blijft onveranderd minuutexact en gebruikt dit nooit.
- */
 function sourceDayPrecisionReport(measurement: XerProductMeasurement): Omit<CounterfactualReport, 'mode' | 'strictGateEligible'> {
   const report = summarizeMeasurement(measurement);
   for (const delta of measurement.detail) {
@@ -307,8 +275,6 @@ function counterfactualReports(
   });
 }
 
-// De drie modi zijn semantisch niet verwisselbaar: alleen strict is een poort, de twee andere
-// zijn expliciet gelabelde analyses met verschillende bronvoorwaarden.
 {
   const truth = scanXerGroundTruth(new TextEncoder().encode([
     '%T\tTASK',
@@ -351,42 +317,25 @@ function counterfactualReports(
     sourceDayPrecisionReport(nonMidnightStrict).counters.es.deviations, 1);
 }
 
-/** Regel A (rekenprofielen-spec §5): per entry-SHA-256 de inexacte cellen (as, `<proj_id>/<task_id>`, emmer). */
 type XerCellSink = Map<string, MeasuredCell[]>;
-/** Per entry-SHA-256: de cellen (`<as>|<proj_id>/<task_id>`) waarvoor het orakel een waarde heeft —
- *  precies de `measurable`-definitie van de tellers (truth ≠ null), alleen in het geheugen — plus een
- *  SHA-256 over de orakel-`driving_path_flag`-waarden (die zit niet in de v2-`schemaFingerprint`). */
 type XerMeasurableSink = Map<string, { measurable: Set<string>; drivingPathOracle: string }>;
-/**
- * Manifestuitsluiting per project/taak (eigenaarsbesluit, `xerManifestExclusions.ts`), per entry-SHA:
- * de uitsluiting van nu, die van de gepinde lijst (uitsluitingspin-blok in `check-fidelity-cells-gate.ts`)
- * en de zesassige afwijkingen/drivingPath-cellen die de uitgesloten taken zouden hebben gehad —
- * rapportage, zodat een uitsluiting nooit stil is.
- */
 interface XerExclusionState {
   label: string;
   now: ResolvedExclusions;
   was: ResolvedExclusions;
-  /** De opgeloste identiteitsset (projecten + taken) verschilt tussen nu en de pin; een gewijzigde
-   *  reden of datum alleen telt niet. */
   identityChanged: boolean;
-  /** Bij `identityChanged`: de dekkingsvelden zoals de meting ze met de GEPINDE uitsluiting geeft —
-   *  de v2-pin moet daar exact aan gelijk zijn, anders verklaart de uitsluitingsdelta de verschuiving niet. */
   wasCoverage?: Record<string, string | number>;
   hiddenSixAxis: number;
   hiddenDrivingPath: number;
-  /** De verborgen aantallen per uitgesloten taak (`hiddenPerTask`) — de per-taakpin van `excludedHidden`. */
   hiddenPerTask: HiddenPerTask;
 }
 type XerExclusionSink = Map<string, XerExclusionState>;
-/** De gepinde uitsluitingen uit het blok in `check-fidelity-cells-gate.ts` (`undefined` = blok ongeldig). */
 const CELLS_GATE_SOURCE = 'check-fidelity-cells-gate.ts';
 function readPinnedExclusions(): XerExclusionRecord[] | undefined {
   const block = extractExclusionPinBlock(readFileSync(join(HERE, CELLS_GATE_SOURCE), 'utf8'));
   return block === undefined ? undefined : parseExclusionPinBlock(block);
 }
 
-/** De dekkingsvelden van een meting, in de vorm van een v2-entry (zonder vingerafdruk). */
 type CoverageSource = Pick<ProductBaselineEntryDraft, 'projects' | 'tasks' | 'identityCoverage' | 'counters' | 'drivingPath'>;
 function entryCoverageOf(result: ReturnType<typeof measureXerProductFidelity>): CoverageSource {
   return {
@@ -399,7 +348,6 @@ function entryCoverageOf(result: ReturnType<typeof measureXerProductFidelity>): 
     counters: result.counters, drivingPath: result.drivingPath,
   };
 }
-/** De dekkingsvelden die `checkCoverageAgainstV2` tegen v2 legt (naast de `schemaFingerprint`). */
 function coverageFields(entry: CoverageSource): Record<string, number> {
   return {
     projects: entry.projects,
@@ -422,7 +370,6 @@ async function productBaseline(
 ): Promise<ProductBaseline> {
   const target = buildXerTargetBaseline(corpus, manifest);
   if (target.errors.length > 0) throw new Error(`X1-manifest/grondwaarheid faalt: ${target.errors.join('; ')}`);
-  // Dezelfde uitsluitingen als de X1-doelbaseline; `buildXerTargetBaseline` weigerde al ongeldige.
   const exclusions = readManifestExclusions(manifest);
   const pinnedBySha = new Map<string, XerExclusionRecord[]>();
   for (const record of pinnedExclusions) pinnedBySha.set(record.sha256, [...(pinnedBySha.get(record.sha256) ?? []), record]);
@@ -433,8 +380,6 @@ async function productBaseline(
     if (!file) throw new Error(`geselecteerde X1-entry ontbreekt: ${targetEntry.label}`);
     const opened = readXER(file.bytes);
     const imports = isMultiDocumentImport(opened) ? opened.taskProjects.map(document => document.result) : [opened];
-    // De solve draait over het hele bestand (uitgesloten taken blijven invoer); de probes hieronder
-    // lezen `solvedProjects` ongefilterd. Alleen de METING laat de uitgesloten projecten/taken weg.
     const solvedProjects = solveProductProjects(imports);
     const fileTruth = scanXerGroundTruth(file.bytes);
     const fileSha = hash(file.bytes);
@@ -445,8 +390,6 @@ async function productBaseline(
     const result = measureXerProductFidelity(truth, measuredSolved);
     if (exclusionSink) {
       const hidden = excludedNow.taskKeys.size === 0 ? undefined : measureXerProductFidelity(fileTruth, solvedProjects);
-      // De gepinde lijst wordt tegen dezelfde grondwaarheid opgelost; een regel die niets meer raakt
-      // telt dan gewoon als "niets" (het manifest van nu is de poort, niet de pin).
       const excludedWas = resolveExclusions(fileTruth.tasks, pinnedBySha.get(fileSha) ?? []);
       const identityChanged = exclusionIdentityChanged(excludedNow, excludedWas);
       exclusionSink.set(fileSha, {
@@ -462,8 +405,6 @@ async function productBaseline(
         hiddenDrivingPath: hidden ? hidden.drivingPath.deviations - result.drivingPath.deviations : 0,
         hiddenPerTask: hidden ? hiddenPerTask(hidden.detail, excludedNow.taskKeys) : {},
       });
-      // De per-taaktelling rekent per afwijkende cel; opgeteld moet ze het totaal (verschil ongefilterd −
-      // gefilterd) exact teruggeven, anders klopt de per-taakpin niet.
       if (hidden) {
         const state = exclusionSink.get(fileSha)!;
         eq(`X12 verborgen aantallen ${targetEntry.label}: som per taak = totaal`,
@@ -556,9 +497,6 @@ async function productBaseline(
         .find(task => task.taskCode === 'A10500');
       const effectiveCalendarFloat = solvedProjects.flatMap(project => project.tasks)
         .find(task => task.taskCode === 'A14610');
-      // C5 (`p6CompletedPhysicalAtDataDate`): A10500 is voltooid met CP_Phys; P6 zet haar als één punt
-      // op de rauwe statusdatum (orakel ES = EF = 2013-04-23 00:00). Het oorspronkelijke doel van deze
-      // check — voltooide P6-actuals op middernacht blijven ongesnapt — meet hieronder met C5 uit.
       eq('publieke Roads-taak A10500 (voltooid, CP_Phys) staat als punt op de rauwe statusdatum', {
         earlyStart: publicTask?.earlyStart,
         earlyFinish: publicTask?.earlyFinish,
@@ -633,11 +571,6 @@ async function productBaseline(
       measurableSink.set(fileSha256, { measurable, drivingPathOracle: createHash('sha256').update(drivingLines.join('\n')).digest('hex') });
     }
     if (cellSink) {
-      // `detail` bevat precies één record per (taak, as) met deviations > 0, met de emmer uit
-      // dezelfde vergelijking als de tellers; `check-fidelity-cells-gate.ts` bewijst corpusloos dat
-      // de gecommitte cellen per bestand/as/emmer optellen tot de v2-tellingen. De grootte
-      // (`|ours − truth|` in minuten, versie 2) komt uit dezelfde twee waarden; is hij vereist maar
-      // niet te bepalen, dan wordt het NaN en weigert de bouwer de meting met een nette foutregel.
       cellSink.set(fileSha256, result.detail.map(item => {
         const bucket = item.bucket as MeasuredCell['bucket'];
         const minutes = cellMagnitude(item.axis, bucket, item.truth, item.ours);
@@ -665,7 +598,6 @@ async function productBaseline(
   });
 }
 
-// Corpusloze RED-/GREEN-probe voor de vier expliciete productbakken.
 {
   const truth = scanXerGroundTruth(new TextEncoder().encode([
     '%T\tTASK',
@@ -685,9 +617,6 @@ async function productBaseline(
   });
 }
 
-// De veldlijst alleen inventariseren is onvoldoende: alle verboden TASK-resultaatkolommen moeten
-// operationeel non-interferent zijn. De onafhankelijke scanner moet juist wél op de zes orakelassen
-// en driving reageren, terwijl readerinvoer en productsolve bytegelijk blijven.
 {
   const forbiddenFields = [
     'early_start_date', 'early_end_date', 'late_start_date', 'late_end_date',
@@ -819,8 +748,6 @@ async function productBaseline(
     axes(externalAbsurd), axes(externalNormal));
 }
 
-// Minuutprecisie betekent letterlijk minuutprecisie: 08:00 en 08:01 zijn niet "binnen een
-// minuut" gelijk. Deze corpusloze rij houdt alle andere assen exact, zodat uitsluitend ES rood is.
 {
   const truth = scanXerGroundTruth(new TextEncoder().encode([
     '%T\tTASK',
@@ -842,7 +769,6 @@ async function productBaseline(
   });
 }
 
-// Fractionele P6-minuten blijven exacte getallen: de comparator mag geen halve minuut afronden.
 {
   const bytes = new TextEncoder().encode([
     '%T\tTASK',
@@ -881,8 +807,6 @@ async function productBaseline(
   }, { tf: 1, ff: 1 });
 }
 
-// Productmeetlat: missing/identiteit zijn harde, afzonderlijke kanalen; driving blijft bewust
-// rapportage buiten de zesassige nulpoort.
 {
   const bytes = new TextEncoder().encode([
     '%T\tTASK',
@@ -960,9 +884,6 @@ async function productBaseline(
   });
 }
 
-// X-O2/X4b-contract: een uitgesloten baseline-PROJECT blijft via `project.baselines` een echte
-// productuitkomst. De meetadapter mag daarom niet alleen de geopende documentresultaten tellen.
-// Deze fixture bevat bewust geen P6-rekenuitvoer; hij beschermt uitsluitend bronidentiteit.
 {
   const bytes = new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
@@ -1008,8 +929,6 @@ async function productBaseline(
   });
 }
 
-// Bronsemantische readerprobe voor de finishmijlpaalgrens. Positief is uitsluitend de gesloten
-// TT_FinMile-vorm op bandstart+1; een gewone taak en een andere minuut zijn negatieve controles.
 {
   const calendarData = fiveDayCalendarData('08:00', '16:00');
   const bytes = new TextEncoder().encode([
@@ -1041,8 +960,6 @@ async function productBaseline(
   });
 }
 
-// Bronsemantische duurprobe voor lege CALENDAR.clndr_data: een hele-dag-anker maakt de band
-// afleidbaar; een fractionele slotdag mag dan het duurvenster herstellen, een breed venster niet.
 {
   const bytes = new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-01-05\t\t\t\t\t\tEUR',
@@ -1067,13 +984,6 @@ async function productBaseline(
   }, { anchor: 480, fractional: 720, wide: 480 });
 }
 
-// Corpusloze P6 case 09: een historische, voltooide opvolger is géén late-pass-eindpunt voor
-// een nog open voorganger. Deze invoer volgt uitsluitend de invoerzijde van de P6-23.12-capture
-// (projectstart/statusdatum, FS, actuals). BELANGRIJK voor D3/D4: de capture normaliseert bij een
-// gestarte taak ACT_START naar ES én LS, en bij een voltooide taak ACT_END naar EF én LF. De B-
-// verwachting hieronder beschermt dus de captureweergave en de backward-doorwerking op A, maar is
-// UITDRUKKELIJK GEEN raw-XER-bewijs dat P6 late datums algemeen op actuals zet. Raw-XER-orakels
-// (zoals rehab-2) blijven de enige meetlat voor die afzonderlijke semantiek.
 {
   const calendarData = fiveDayCalendarData('08:00', '17:00');
   const bytes = new TextEncoder().encode([
@@ -1110,14 +1020,6 @@ async function productBaseline(
   });
 }
 
-// X12 late-passfixture: P6 behandelt een verbonden, open TT_FinMile als een eigen
-// contracteindpunt. LS/LF blijven op de geplande start-/vorige-finishgrens, terwijl FF nog steeds
-// de vrije ruimte tot het latere projecteinde meet. Een losse finishmijlpaal mag deze bronregel niet
-// activeren; de echte voorgangerverbinding is onderdeel van het contract.
-
-// D1/D2 gebruiken dezelfde korte P6-FS-keten. P6's opgeslagen rekenuitvoer komt nergens in deze
-// invoer voor; ES/EF/LS/LF/TF/FF worden uitsluitend door de productsolver bepaald. De finishmijlpaal
-// maakt de start-/finishgrens zichtbaar zonder een tweede, niet-gerelateerde eindtak als projectanker.
 {
   const calendarData = fiveDayCalendarData('08:00', '17:00');
   function d1Bytes(withScheduleOptions: boolean): Uint8Array {
@@ -1149,8 +1051,6 @@ async function productBaseline(
   if (isMultiDocumentImport(without) || isMultiDocumentImport(explicit)) {
     throw new Error('X12 D1 moet tweemaal enkelproject importeren');
   }
-  // A17 (`p6FinishMilestoneBoundaryWindow`) staat sinds 2026-09-23 in elk ingebouwd profiel uit (0 cellen
-  // effect op de P6-doorgerekende populatie); D1/D2 bewaken de regel zelf, dus als expliciete afwijking aan.
   eq('X12 D1/D2: A17 staat in het P6-profiel zoals gelezen uit',
     resolveConventions(without.project.schedulingProfile).p6FinishMilestoneBoundaryWindow, false);
   setConvention(without, 'p6FinishMilestoneBoundaryWindow', true);
@@ -1162,7 +1062,6 @@ async function productBaseline(
   const defaultMilestone = pick(defaultTasks, 'M100');
   const explicitPredecessor = pick(explicitTasks, 'A100');
   const explicitMilestone = pick(explicitTasks, 'M100');
-  // D1: alleen de expliciete P6-einddatumschakelaar mag het PROJECT-einde als late-pass-anker maken.
   eq('X12 D1: expliciete P6-projecteindfloat stuurt de verbonden finishmijlpaal en FS-voorganger', {
     options: [explicit.project.schedulingOptions?.totalFloatMode,
       explicit.project.schedulingOptions?.useProjectEndDateForFloat],
@@ -1175,9 +1074,6 @@ async function productBaseline(
     explicitPredecessor: ['2026-01-09T08:00', '2026-01-09T17:00', 2160, 0],
     explicitMilestone: ['2026-01-09T17:00', '2026-01-09T17:00', 2160, 0],
   });
-  // D2 volgt pas na D1: FT_FF is al de XER-default, maar de afwezige end-date-vlag houdt
-  // PROJECT.plan_end_date nadrukkelijk buiten de late pass. Daardoor is de vergelijking geen
-  // impliciete omschakeling naar OPS' algemene `smallest`-modus.
   eq('X12 D2: zonder SCHEDOPTIONS blijft FT_FF actief maar is de projecteindfloat uit', {
     defaultOptions: [without.project.schedulingOptions?.totalFloatMode,
       without.project.schedulingOptions?.useProjectEndDateForFloat],
@@ -1215,7 +1111,6 @@ async function productBaseline(
   ].join('\n'));
   const imported = readXER(bytes);
   if (isMultiDocumentImport(imported)) throw new Error('X12 open-eindfixture moet enkelproject zijn');
-  // A17 staat sinds 2026-09-23 in elk ingebouwd profiel uit; deze fixture bewaakt de regel zelf.
   eq('X12 open TT_FinMile: A17 staat in het P6-profiel zoals gelezen uit',
     resolveConventions(imported.project.schedulingProfile).p6FinishMilestoneBoundaryWindow, false);
   setConvention(imported, 'p6FinishMilestoneBoundaryWindow', true);
@@ -1250,7 +1145,6 @@ async function productBaseline(
     explicitOff: [explicitOffTask?.lateStart, explicitOffTask?.lateFinish, explicitOffTask?.totalFloatMinutes],
     differsFromProven: true,
   });
-  // Baan B, extra arm: alle P6-gepoorte conventies expliciet uit geeft hetzelfde als A17 alleen uit.
   const allOff = readXER(bytes);
   if (isMultiDocumentImport(allOff)) throw new Error('X12 finishmijlpaal-provenancefixture moet enkelproject zijn');
   withoutP6Conventions(allOff);
@@ -1260,10 +1154,6 @@ async function productBaseline(
     [explicitOffTask?.lateStart, explicitOffTask?.lateFinish, explicitOffTask?.totalFloatMinutes]);
 }
 
-// Ook taakvloer en exact constraint-instant zijn uitsluitend P6-XER-projecties. Een gewone
-// solver/IFC-payload die alleen gelijknamige booleans bevat, maar geen bronstempel, moet exact het
-// expliciet-uitgeschakelde gedrag houden. Sinds de rekenprofielen leest de motor die bronstempel
-// niet meer; "zonder bron" is nu `withoutP6Semantics` (A15–A20 en B1–B5 uit in het profiel).
 {
   const calendarData = fiveDayCalendarData('08:00', '16:00');
   const bytes = new TextEncoder().encode([
@@ -1312,14 +1202,11 @@ async function productBaseline(
     noSource: offResult,
     explicitOff: offResult,
   });
-  // Baan B, extra armen. (a) Alle P6-gepoorte conventies expliciet uit = de twee vlaggen uit.
   const allOffFloor = readXER(bytes);
   if (isMultiDocumentImport(allOffFloor)) throw new Error('X12 taakprovenancefixture moet enkelproject zijn');
   withoutP6Conventions(allOffFloor);
   eq('X12 taakvloer: alle P6-conventies uit = taakvloer en nulduurconstraint uit',
     resultOf(allOffFloor), offResult);
-  // (b) Reviewerproef: bron weg, vlaggen blijven staan, via writeIFC + readIFC. De A16-vloer mag
-  // dan niet werken: FLOOR begint op de netwerkbasis (vr 2 jan 08:00), niet op ma 5 jan.
   const ifcNoSource = readXER(bytes);
   if (isMultiDocumentImport(ifcNoSource)) throw new Error('X12 taakprovenancefixture moet enkelproject zijn');
   withoutP6Semantics(ifcNoSource);
@@ -1334,8 +1221,6 @@ async function productBaseline(
   });
   if (ifcFloorSolve.error) throw new Error(ifcFloorSolve.error);
   const ifcFloor = ifcNoSourceRead.tasks.find(task => task.wbsCode === 'FLOOR');
-  // Rekenprofielen C4: "zonder bron" is `withoutP6Semantics`; dat profiel round-tript door het IFC
-  // en houdt de A16-vloer uit.
   eq('X12 taakvloer: IFC zonder bron met A16-vlag aan houdt de netwerkbasis', {
     floorConvention: solveOptionsFor(ifcNoSourceRead.project).schedulingOptions.p6UseTaskPlannedStartFloor,
     p6Off: p6SemanticsOff(ifcNoSourceRead.project),
@@ -1353,14 +1238,11 @@ async function productBaseline(
   if (!hostilePredecessor || !hostileSourceTask || !hostileSequence) {
     throw new Error('X12 extensiesolvefixture mist PRED → FLOOR');
   }
-  // Dit object stelt rechtstreeks een ongetypeerde JS-extensieruntime voor. Er loopt bewust geen
-  // `toExtProject`/`toExtTask` vóór: die uitleesmappers zouden de vervalste invoer al saneren en
-  // daarmee precies de from-extensiongrens maskeren die deze fixture moet bewaken.
   const hostileRuntimeProject = {
     ...hostileExt.project,
     schedulingOptions: {
       ...hostileExt.project.schedulingOptions,
-      p6Source: 'XER', // R8(rekenprofielen): vijandige invoer draagt bewust p6Source
+      p6Source: 'XER',
       p6UseTaskPlannedStartFloor: true,
       p6PreserveZeroDurationConstraintInstants: true,
     },
@@ -1390,9 +1272,6 @@ async function productBaseline(
     ...hostileExt,
     project: fromExtProject(hostileRuntimeProject),
     calendar: fromExtCalendar({ ...hostileExt.calendar } as Parameters<typeof fromExtCalendar>[0]),
-    // De echte netwerkrelatie blijft bewust in de hostile invoer. Zonder PRED → FLOOR is de
-    // planned-start-floor niet te onderscheiden van een gewone worteltaakstart en meet deze
-    // fixture een objectvorm in plaats van de solveruitkomst die door de vervalste vlag wijzigt.
     tasks: [
       fromExtTask({ ...hostilePredecessor } as Parameters<typeof fromExtTask>[0]),
       importedHostileTask,
@@ -1428,23 +1307,15 @@ async function productBaseline(
     solvedEarlyFinish: hostileSolvedTask?.earlyFinish,
     appliedEarlyStart: hostileSolvedTask?.earlyStart,
   }, {
-    // Rekenprofielen C4 (R5): een extensie-import opent als OPS — geen profiel, A16 opgelost uit.
     projectProfile: undefined,
     plannedStartFloor: false,
     taskProvenance: {},
-    // Zonder vervalste P6-bronstempel blijft de planned-start-floor inert. De generieke solver
-    // kiest hier zijn gewone project-/netwerkvenster; een mutatie die `fromExtProject` met een
-    // objectspread laat terugschrijven activeert de P6-vloer en maakt precies deze solve-assert
-    // rood (FLOOR schuift dan naar zijn geplande 5 januari-anker).
     solvedEarlyStart: '2026-01-01T08:00',
     solvedEarlyFinish: '2026-01-06T16:00',
     appliedEarlyStart: '2026-01-01T08:00',
   });
 }
 
-// Negatieve bronprobe voor de geplande startvloer: een doelstart precies één kalenderdag na een
-// geldige netwerkgrens is geen impliciete constraint. Alleen de ruimere positieve vorm hierboven
-// (begin én einde meer dan één dag later) mag de XER-vloer activeren.
 {
   const calendarData = fiveDayCalendarData('08:00', '16:00');
   const bytes = new TextEncoder().encode([
@@ -1474,10 +1345,6 @@ async function productBaseline(
   }, { profile: 'p6', option: true, earlyStart: '2026-01-05T08:00' });
 }
 
-// P6-XER gebruikt voor een lopende activiteit de start van het resterende werk als Early Start.
-// Actual Start blijft bronhistorie, maar mag de zesassige resterende netwerkdatum niet vervangen.
-// De vlag komt uitsluitend uit het XER-importpad; dezelfde solver zonder vlag houdt zijn bestaande
-// MSP/IFC-actual-weergave.
 {
   const bytes = new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-01-12\t\t\t\t\t\tEUR',
@@ -1512,9 +1379,6 @@ async function productBaseline(
   const unlinked = readXER(unlinkedBytes);
   if (isMultiDocumentImport(unlinked)) throw new Error('X12 actual-starttegenvoorbeeld moet enkelproject zijn');
   const unlinkedTask = solveImported(unlinked).tasks.find(candidate => candidate.taskCode === 'A100');
-  // Sinds 2026-09-24 (eigenaarsbesluit "a") stuurt rem_target_link_flag = N niets meer: A19 staat in de
-  // P6-basis aan, dus ook dit bestand rekent met de restwerkstart. Pas met A19 expliciet uit blijft de
-  // zichtbare Actual Start staan.
   eq('X12 rem_target_link_flag = N stuurt A19 niet meer: restwerkstart', {
     sourceFlag: resolveConventions(unlinked.project.schedulingProfile).p6UseRemainingStartForProgress,
     earlyStart: unlinkedTask?.earlyStart,
@@ -1528,12 +1392,6 @@ async function productBaseline(
     solveImported(a19Off).tasks.find(candidate => candidate.taskCode === 'A100')?.earlyStart, '2026-01-06T08:00');
 }
 
-// Afzonderlijke auditgrensprobe. De oude gecombineerde completed-chainfixture had ongeldige
-// `clndr_data`: de reader meldde XER_CALENDAR_INVALID_STRUCTURE en viel gedocumenteerd terug op
-// 08:00-16:00. Daardoor ontstond 16:00; dat was geen finish-inclusiviteits- of late-passfout.
-// Deze fixture bewijst uitsluitend dat één effectieve dag op een syntactisch geldige 08:00-17:00-
-// kalender exact op 17:00 eindigt. Completed-successorsemantiek blijft onafhankelijk gepind door
-// de gehashte echte P6-capture in cases-p6-verified.json geval 09 en check-p6-verified-cases.ts.
 {
   const calendarData = fiveDayCalendarData('08:00', '17:00');
   const xerLines = [
@@ -1567,8 +1425,6 @@ async function productBaseline(
     productEarlyFinish: '2026-01-05T17:00',
   });
 
-  // Mutatiebewijs: breek alleen de kalenderstructuur terug naar de oude recordvorm. De reader
-  // activeert dan aantoonbaar de 08:00-16:00-fallback en uitsluitend deze grensprobe verliest 17:00.
   const malformedCalendarData = '(0||CalendarData()((0||DaysOfWeek()((0||2()((0||0(s|08:00|f|17:00)())))(0||3()((0||0(s|08:00|f|17:00)())))(0||4()((0||0(s|08:00|f|17:00)())))(0||5()((0||0(s|08:00|f|17:00)())))(0||6()((0||0(s|08:00|f|17:00)())))))(0||Exceptions())))';
   const malformedBytes = new TextEncoder().encode(
     xerLines.join('\n').replace(calendarData, malformedCalendarData),
@@ -1591,10 +1447,6 @@ async function productBaseline(
   });
 }
 
-// Een P6-FS met nul lag mag de opvolger exact op de finishgrens van zijn voorganger zetten.
-// Dit is niet de algemene halfopen-bandregel: uitsluitend de reader mag de brongebonden vlag
-// afleiden uit de geplande P6-invoer. De fixture is de kleine, corpusloze tegenhanger van de
-// 17:00-grenzen die in rehab-2 en Gimmer voorkomen.
 {
   const calendarData = fiveDayCalendarData('08:00', '17:00');
   const bytes = new TextEncoder().encode([
@@ -1630,11 +1482,6 @@ async function productBaseline(
     successorFinish: '2026-01-06T17:00',
   });
 
-  // De relatievlag kan in een generieke payload nog aanwezig zijn, maar mag zonder conventie B1
-  // (`p6RelationFinishBoundary`) geen enkel forward- of backward-pad bereiken; de `CPMSolver`-
-  // constructor stript haar dan. Zonder P6-semantiek (`withoutP6Semantics`) staat B1 uit in het
-  // profiel. Vergelijk met dezelfde XER
-  // input waarin uitsluitend de vlag zelf is weggehaald: alle zes taakassen moeten identiek zijn.
   const genericPayload = readXER(bytes);
   const explicitNoBoundary = readXER(bytes);
   if (isMultiDocumentImport(genericPayload) || isMultiDocumentImport(explicitNoBoundary)) {
@@ -1648,9 +1495,6 @@ async function productBaseline(
   ]);
   eq('X12 generieke payload met rauwe P6-relatievlag is solver-identiek aan geen vlag',
     relationAxes(genericPayload), relationAxes(explicitNoBoundary));
-  // Baan B, extra armen. (a) Alle P6-conventies uit aan beide kanten; alleen de rauwe
-  // relatievlag verschilt. (b) Alleen B1 uit, alle andere P6-conventies aan: B1 zelf maakt de
-  // relatievlag onschadelijk.
   const allOffPayload = readXER(bytes);
   const allOffNoFlag = readXER(bytes);
   const b1Off = readXER(bytes);
@@ -1670,8 +1514,6 @@ async function productBaseline(
   eq('X12 conventie B1 uit maakt de rauwe P6-relatievlag solver-identiek aan geen vlag',
     relationAxes(b1Off as ImportResult), relationAxes(b1OffNoFlag as ImportResult));
 
-  // De vlag is niet alleen opgeslagen metadata: na XER → IFC → inlezen moet hij nog steeds de
-  // exacte 17:00-boundary dragen. Dit maakt de IFC-ronde een datumpariteitscheck, geen velddump.
   const roundTripped = await readIFCWithXerReconstruction(writeIFC(imported));
   const roundTripSolve = solveProject({
     tasks: roundTripped.tasks,
@@ -1685,8 +1527,6 @@ async function productBaseline(
     projectEndDate: roundTripped.project.endDate,
   });
   if (roundTripSolve.error) throw new Error(roundTripSolve.error);
-  // XER-bronidentiteiten zijn na IFC bewust niet nodig voor de app-solve; de taaknamen zijn hier
-  // het stabiele, door IFC bewaarde identificatiemiddel van deze synthetische tweetaaksfixture.
   const rtPredecessor = roundTripped.tasks.find(task => task.name === 'Voorganger');
   const rtSuccessor = roundTripped.tasks.find(task => task.name === 'Opvolger');
   eq('X12 XER-IFC-XER bewaart de P6-FS-finishgrens in de echte datumuitkomst', {
@@ -1702,9 +1542,6 @@ async function productBaseline(
   });
 }
 
-// P6 werkdaglag op een finish-finishgrens bewaart de finishklok. Twee effectieve dagen terug vanaf
-// woensdag 17:00 is maandag 17:00, niet dinsdag 08:00. Dit is een smalle XER-backwardprojectie;
-// de generieke add/subtract-kalenderalgebra en andere formaten blijven fysiek.
 {
   const calendarData = fiveDayCalendarData('08:00', '17:00');
   const bytes = new TextEncoder().encode([
@@ -1738,11 +1575,6 @@ async function productBaseline(
   });
 }
 
-// X12 kalender-/late-passfixture: oude P6-XER-kalenders kunnen een vrije dag ook op een al
-// niet-werkende weekdag opslaan en dezelfde vrije datum direct naast zichzelf herhalen. P6 telt
-// beide bronvormen als een extra niet-werkdag in backward- en floatwandelingen; de forwardzijde
-// blijft de fysieke kalender volgen. Een latere, niet-aangrenzende herhaling is alleen schema-
-// herhaling en mag die straf niet nogmaals toevoegen.
 {
   const bytes = new TextEncoder().encode([
     'ERMHDR\t23.12\t2025-12-31\t\t\t\t\t\tEUR',
@@ -1781,8 +1613,6 @@ async function productBaseline(
     betweenForward: 1920,
     betweenBackward: -1920,
   });
-  // Negatieve recordvormen in dezelfde bron: de werkende uitzondering (d|46028 met banden) en
-  // de latere, niet-aangrenzende herhaling van d|46027 leveren geen derde strafdatum op.
   eq('X12 werkende en niet-aangrenzend herhaalde uitzonderingen activeren geen extra P6-straf',
     imported.calendar.p6NonWorkPenaltyDates, ['2026-01-03', '2026-01-05']);
 
@@ -1828,15 +1658,6 @@ async function productBaseline(
   if (isMultiDocumentImport(projectionImport)) throw new Error('X12 P6-projectiefixture moet enkelproject zijn');
   const projected = solveImported(projectionImport).tasks;
   const projectedTask = (code: string) => projected.find(task => task.taskCode === code);
-  // Etappe 7b-2: de P6-XER-resultaatprojectie is VERWIJDERD. Ze schoof hier de late kant en de lag
-  // per onverklaarde strafdatum een extra niet-werkdag naar voren (`aLateStart` 2026-01-02 → 12-31,
-  // `aTotalFloat` 960 → 0, `lagPredecessorLateFinish` 12-31 → 12-29) terwijl de forwardkant fysiek
-  // bleef — precies de asymmetrie die het diagnosedossier als "7 vooruit, 10 terug" mat. Gemeten
-  // over alle zes penaltydragende corpusprojecten verklaarde ze nul cellen op alle zes de assen.
-  // Deze fixture pint nu het omgekeerde: óók met volledige XER-provenance ÉN twee onverklaarde
-  // strafdatums op de kalender is de backward-, lag- en floatkant de exacte spiegel van de
-  // forwardkant. `A100` (24 u) spant vooruit 12-31→01-02 en achteruit even lang, en houdt de twee
-  // werkdagen speling die haar opvolger `B100` haar laat.
   eq('X12 er is geen brongebonden projectie meer: backward, lag en float spiegelen de forwardkant', {
     projectProfile: projectionImport.project.schedulingProfile?.id,
     calendarSource: projectionImport.calendar.p6Source,
@@ -1880,7 +1701,6 @@ async function productBaseline(
   };
   const xerForIfc = readXER(projectionBytes);
   if (isMultiDocumentImport(xerForIfc)) throw new Error('X12 XER-naar-IFC-fixture moet enkelproject zijn');
-  // De officiële async ingang reconstrueert de XER-provenance koud uit de IFC-bronbytes.
   const ifcRoundTrip = await readIFCWithXerReconstruction(writeIFC(xerForIfc));
   const directForParity = readXER(projectionBytes);
   if (isMultiDocumentImport(directForParity)) throw new Error('X12 directe pariteitsfixture moet enkelproject zijn');
@@ -1903,7 +1723,6 @@ async function productBaseline(
   delete ordinaryIfcSource.calendar.p6Source;
   withoutP6Semantics(ordinaryDirect);
   delete ordinaryDirect.calendar.p6Source;
-  // Zonder XER-archief blijft dit bewust een gewone IFC en dus een synchrone read-probe.
   const ordinaryIfc = readIFC(writeIFC({
     ...ordinaryIfcSource, xer: undefined, xerSourceArchive: undefined, xerSourceProjectId: undefined,
   }));
@@ -1916,8 +1735,6 @@ async function productBaseline(
     calendarSource: undefined,
     axes: sixAxes(ordinaryDirect),
   });
-  // Baan B, extra arm: dezelfde gewone IFC met ALLE P6-conventies expliciet uit is zesassig
-  // gelijk aan de gewone IFC hierboven (bron weg, vlaggen nog aan).
   const allOffIfcSource = readXER(projectionBytes);
   if (isMultiDocumentImport(allOffIfcSource)) throw new Error('X12 gewone-IFC-provenancefixture moet enkelproject zijn');
   withoutP6Conventions(allOffIfcSource);
@@ -1948,10 +1765,6 @@ async function productBaseline(
   });
 }
 
-// P6 kan ook een gewone TT_Task met nul duur als twee aangrenzende werkgrenzen bewaren. Anders
-// dan een start-/finishmijlpaal blijft de activiteit als TT_Task getypeerd; de geïnverteerde
-// target-window is het bronbewijs voor ES/LS op de volgende bandstart en EF/LF op het vorige
-// bandeinde. De fixture bevat geen P6-uitvoerwaarden in het productpad.
 {
   const bytes = new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-08-06\t\t\t\t\t\tEUR',
@@ -1982,9 +1795,6 @@ async function productBaseline(
   });
 }
 
-// Float wordt intern in taakdagen bewaard. De productadapter moet die dagen naar P6-minuten
-// terugzetten met CalendarEngine.hoursPerDay (de effectieve, uit banden afgeleide dag), niet met
-// een tegenstrijdige ruwe CALENDAR.day_hr_cnt. Deze bronvorm is publiek aanwezig in Roads.
 {
   const bytes = new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-01-05\t\t\t\t\t\tEUR',
@@ -2029,15 +1839,6 @@ async function productBaseline(
   });
 }
 
-// X12 completed/actual-pakket. P6's opgeslagen early/late zijn uitsluitend de onafhankelijke
-// meetlat; deze fixture maakt ze daarom NIET tot productinvoer. Het broncontract dat de
-// productketen wel ontvangt is de XER-taskwindow (`target_*`), de status en de actuals. De
-// completed XER-activiteit reconstrueert in dit pakket uitsluitend P6's vroege window wanneer haar
-// geregistreerde historie daarvan afwijkt. Late datums en floats blijven op de al bestaande
-// completed-semantiek; dat afzonderlijke orakelprobleem blijft bewust open. De aanvullende vormen
-// bewaken dat de grens smal blijft: meerdere assignments zijn niet causaal, onvolledige provenance,
-// actieve taken, LOE, suspend/resume, summaries en completed milestones vallen erbuiten en een
-// gewone/IFC-taak behoudt de bestaande actual-semantiek.
 {
   type CompletedFixtureKind = 'completed-task' | 'active-task' | 'completed-milestone';
   type TargetShape = 'both' | 'start-only' | 'invalid-start';
@@ -2054,7 +1855,6 @@ async function productBaseline(
     const targetFinish = targetShape === 'start-only' ? '' : projectTargetFinish;
     const actualStart = kind === 'active-task' ? '2026-01-07 08:00' : '2026-01-08 08:00';
     const actualFinish = completed ? (milestone ? actualStart : '2026-01-08 16:00') : '';
-    // Dit zijn bewust uitsluitend orakelcellen in de fixture: de readerwhitelist verbiedt ze.
     const rawEarlyStart = rawOutput === 'oracle' ? '2026-01-05 08:00' : '2040-11-04 08:00';
     const rawEarlyFinish = rawOutput === 'oracle' ? '2026-01-02 16:00' : '2040-11-03 16:00';
     const rawLateStart = rawOutput === 'oracle' ? '2026-01-02 08:00' : '2040-11-03 08:00';
@@ -2098,9 +1898,6 @@ async function productBaseline(
     || isMultiDocumentImport(startOnly) || isMultiDocumentImport(invalidStart)) {
     throw new Error('X12 completed/actual-fixtures moeten elk één project opleveren');
   }
-  // B3 (`p6CompletedDataDateWindow`) staat sinds 2026-09-23 in elk ingebouwd profiel uit (0 cellen effect
-  // op de P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Dit pakket bewaakt de B3-regel zelf, dus
-  // als expliciete afwijking aan; `connected`, de weergaveprojectie en de IFC-reload erven dat profiel.
   eq('X12 F1: B3 staat in het P6-profiel zoals gelezen uit',
     resolveConventions(one.project.schedulingProfile).p6CompletedDataDateWindow, false);
   for (const input of [one, oneRawMutated, two, active, milestone, startOnly, invalidStart]) {
@@ -2121,10 +1918,6 @@ async function productBaseline(
     totalFloatMinutes: oneResult?.totalFloatMinutes, freeFloatMinutes: oneResult?.freeFloatMinutes,
   }, {
     explicitTargetWindow: true,
-    // p6CompletedLateFromRemainingWindow (diagnose laag 1, klasse (i), default aan voor XER): een
-    // geïsoleerde voltooide taak zonder opvolgers staat aan de late zijde ook op de
-    // statusdatumklem — identiek aan haar eigen statusdatumvenster — i.p.v. het historische
-    // actual-venster (act_start/act_end 2026-01-08).
     earlyStart: '2026-01-05T08:00', earlyFinish: '2026-01-02T16:00',
     lateStart: '2026-01-05T08:00', lateFinish: '2026-01-02T16:00',
     totalFloatMinutes: 0, freeFloatMinutes: 0,
@@ -2137,12 +1930,6 @@ async function productBaseline(
     oracleAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-05T08:00', '2026-01-02T16:00'],
     mutatedAxes: ['2026-01-05T08:00', '2026-01-02T16:00', '2026-01-05T08:00', '2026-01-02T16:00'],
   });
-  // T2 (XER-etappeplan §4/T2) — DE POSITIEVE HELFT: het orakel-kanaal zélf verandert wél mee met de
-  // gemuteerde bak-4-cellen (dat is precies waar het voor bestaat — de weergavemodus mag bewegen),
-  // terwijl de solverprojectie hierboven bewijsbaar niet beweegt. `total_float_hr_cnt`/
-  // `free_float_hr_cnt` staan in deze fixture altijd hardcoded op '0' (rawOutput muteert alleen de
-  // vier datumcellen), dus `totalFloat`/`freeFloat`/`isCritical` blijven ook in de gemuteerde
-  // variant identiek — dat IS het verwachte gedrag, geen gat in het bewijs.
   eq('X12-T2 F1 recordedTimes draagt de orakelwaarden (oracle-variant)', one.recordedTimes?.T1, {
     start: '2026-01-05T08:00', finish: '2026-01-02T16:00',
     lateStart: '2026-01-02T08:00', lateFinish: '2026-01-02T16:00',
@@ -2160,8 +1947,6 @@ async function productBaseline(
     noRecordedAxisLeak(oneRawMutated.tasks, [
       '2040-11-04T08:00', '2040-11-03T16:00', '2040-11-03T08:00',
     ]), true);
-  // De statusdatum, taakprovenance en gewone geplande start moeten ook na de native opslaggrens
-  // aanwezig blijven; XER-archiefreconstructie levert daarmee dezelfde brongebonden route op.
   const oneReloaded = await readIFCWithXerReconstruction(writeIFC(one));
   const oneReloadedResult = resultOf(oneReloaded);
   eq('X12 F1 XER→IFC→reload behoudt alleen de completed data-datesemantiek', {
@@ -2179,9 +1964,6 @@ async function productBaseline(
     assignmentCount: 2,
     axes: [oneResult?.earlyStart, oneResult?.earlyFinish, oneResult?.lateStart, oneResult?.lateFinish],
   });
-  // Sinds 2026-09-24 (eigenaarsbesluit "a") stuurt de N-vlag van deze fixture A19 niet meer uit: de
-  // lopende taak start op haar restwerkstart = de statusdatum ma 5 jan 08:00 (gelijk aan de opgeslagen
-  // early_start_date-orakelcel), niet op haar werkelijke start wo 7 jan.
   eq('X12 F3 active XER-taak: vroege start = restwerkstart op de statusdatum (A19 in de P6-basis)', {
     earlyStart: activeResult?.earlyStart,
   }, { earlyStart: '2026-01-05T08:00' });
@@ -2274,24 +2056,11 @@ async function productBaseline(
       type: 'FINISH_START', lagDays: 0,
     }],
   };
-  // B is voltooid terwijl haar voorganger A nog open is (buiten volgorde). Sinds conventie C4
-  // (`p6CompletedOutOfSequenceWindow`, X12 brok 3) legt het P6-profiel B's vroege venster ná A; deze
-  // regel gaat over de late kant en isoleert die daarom met C4 UIT. De C4-uitkomst staat eronder.
   const connectedProject = structuredClone(one.project);
   setConvention({ project: connectedProject }, 'p6CompletedOutOfSequenceWindow', false);
   const connectedSolved = solveImported({ ...connected, project: connectedProject }).tasks;
   const connectedA = connectedSolved.find(task => task.taskCode === 'P100');
   const connectedB = connectedSolved.find(task => task.taskCode === 'A100');
-  // p6CompletedLateFromRemainingWindow (diagnose laag 1, klasse (i)): vóór deze vlag beschreef B's
-  // rauwe actual-pin (act_start/act_end 2026-01-08, ver NÁ B's eigen statusdatumvenster) pure
-  // historie en mocht ze geen backwarddruk op open A leggen — vandaar de oude testnaam. Mét de vlag
-  // draagt B (voltooid, window-eligible, geen eigen opvolgers) een zinvolle late kant: haar eigen
-  // statusdatumklem (2026-01-05T08:00), identiek aan haar vroege venster. Open A (FS lag 0 naar B,
-  // zelf al gepland op diezelfde 2026-01-05) mag daar niet ná finishen ⇒ A's late finish valt
-  // terug naar de vorige werkdag (2026-01-02) en A krijgt ECHTE negatieve float (-480 min, één
-  // werkdag) — een out-of-sequence-signaal, geen bug: A had volgens B's positie al klaar moeten
-  // zijn. Dat is precies de spiegel van de gemeten regel: een voltooide opvolger legt nu, net als
-  // elke andere opvolger, gewone backward-druk op haar voorganger.
   eq('X12 A→FS→B(completed) legt normale backwarddruk op open A (B draagt een zinvolle late kant)', {
     a: {
       earlyStart: connectedA?.earlyStart, earlyFinish: connectedA?.earlyFinish,
@@ -2313,10 +2082,6 @@ async function productBaseline(
       lateStart: '2026-01-05T08:00', lateFinish: '2026-01-02T16:00', freeFloatMinutes: 0,
     },
   });
-  // C4 AAN — sinds 2026-09-23 niet meer het P6-profiel zoals gelezen (C4 staat in elk ingebouwd profiel
-  // uit; de regel hierboven is dus ook de uitkomst zoals gelezen), maar als expliciete afwijking: B's
-  // nul-restvenster begint direct ná A (A eindigt 2026-01-05 16:00 ⇒ ES 2026-01-06 08:00, EF 2026-01-05
-  // 16:00). De late kant en A veranderen niet.
   eq('X12 C4 staat in het P6-profiel zoals gelezen uit', resolveConventions(connected.project.schedulingProfile).p6CompletedOutOfSequenceWindow, false);
   const c4Project = structuredClone(connected.project);
   setConvention({ project: c4Project }, 'p6CompletedOutOfSequenceWindow', true);
@@ -2342,11 +2107,6 @@ async function productBaseline(
       scheduleStart: '2026-01-01T08:00', scheduleFinish: '2026-01-01T16:00',
     },
   };
-  // De B3-weergaveprojectie is weergave, geen relatiebron. A100 eindigt werkelijk op 2026-01-08, ná de
-  // statusdatum (2026-01-05). Dat raakt ook conventie C1 (`p6CompletedPredecessorAtDataDate`, X12 brok
-  // 2): die laat de opvolger van een voltooide voorganger op de statusdatum beginnen, wat hier
-  // toevallig samenvalt met het B3-venster. Deze regel isoleert B3 daarom met C1 UIT; de C1-uitkomst
-  // staat eronder apart, zodat een B3-lek niet achter C1 kan wegvallen.
   const displayOnlyProject = structuredClone(one.project);
   setConvention({ project: displayOnlyProject }, 'p6CompletedPredecessorAtDataDate', false);
   const displayOnlyCandidate: ImportResult = {
@@ -2386,9 +2146,6 @@ async function productBaseline(
     successor: ['2026-01-09T08:00', '2026-01-09T16:00', '2026-01-09T08:00', '2026-01-09T16:00'],
     projectEnd: '2026-01-09T16:00',
   });
-  // Met C1 aan — sinds 2026-09-23 als expliciete afwijking, want C1 staat in elk ingebouwd profiel uit
-  // (zoals gelezen geldt dus de regel hierboven): de opvolger begint op de statusdatum, 2026-01-05 08:00
-  // (gemeten in rehab-2 = P3-uitvoer, plan XER §9 dossier 7b-4); de weergave van A100 blijft gelijk.
   eq('X12 C1 staat in het P6-profiel zoals gelezen uit', resolveConventions(one.project.schedulingProfile).p6CompletedPredecessorAtDataDate, false);
   const c1Project = structuredClone(one.project);
   setConvention({ project: c1Project }, 'p6CompletedPredecessorAtDataDate', true);
@@ -2408,13 +2165,8 @@ async function productBaseline(
     successor: ['2026-01-05T08:00', '2026-01-05T16:00'],
   });
 
-  // F5: hetzelfde TaskTime-paar zonder de twee XER-provenancevoorwaarden moet het generieke
-  // (en daarna gewone IFC-)gedrag behouden. Geen raw P6-uitkomst wordt op dit pad opgeslagen,
-  // ingelezen of aan de solver doorgegeven.
   const generic: ImportResult = {
     ...one,
-    // Rekenprofielen C4: vroeger haalde het wissen van het hele optieblok ook de XER-bronmarkering
-    // weg (⇒ OPS); sinds C3 staat die in het profiel, dus dat gaat nu mee weg.
     project: { ...one.project, schedulingOptions: undefined, schedulingProfile: undefined },
     tasks: one.tasks.map(({ p6ProjectId: _project, p6TaskId: _task, p6ActivityType: _activity, p6DurationType: _duration, p6ExplicitTargetWindow: _window, ...task }) => task),
     xer: undefined,
@@ -2449,10 +2201,6 @@ async function productBaseline(
   });
 }
 
-// De openbare expected-finish-populatie heeft momenteel geen actieve drager. Deze vaste drie-taaks-
-// fixture houdt daarom de eigen X7-route mutatiegevoelig: een voltooide voorganger, een actieve
-// CP_Drtn-taak met afwijkende expected finish, en een zichtbare opvolger. Alleen de SCHEDOPTIONS-
-// vlag verschilt tussen uit en aan; opgeslagen P6-uitvoer blijft een scanner-orakel, geen invoer.
 {
   const calendarData = fiveDayCalendarData('08:00', '17:00');
   const packageBytes = (useExpectedFinish: boolean, mutateStoredOutput = false) => new TextEncoder().encode([
@@ -2501,11 +2249,6 @@ async function productBaseline(
   eq('X12 expected-finishketen pinnt per bronrij alle zes productassen voor vlag uit en aan', {
     off: axes(off), on: axes(on),
   }, {
-    // Herpin 2026-09-24 (eigenaarsbesluit "a", A19 in de P6-basis aan; deze fixture heeft geen
-    // rem_target_link_flag en rekende tot dan zonder A19): B's vroege start is nu haar restwerkstart op
-    // de statusdatum di 6 jan 08:00 (gelijk aan de opgeslagen early_start_date-orakelcel) i.p.v. haar
-    // werkelijke start ma 5 jan. Met de vlag aan is de late start LF ma 12 jan 17:00 min de restduur
-    // 16 u (9-urige dagen): vr 9 jan 10:00. De overige assen blijven.
     off: [
       ['A', 'A100', '2026-01-05T08:00', '2026-01-05T17:00', '2026-01-05T08:00', '2026-01-05T17:00', 0, 0],
       ['B', 'B100', '2026-01-06T08:00', '2026-01-07T15:00', '2026-01-06T08:00', '2026-01-07T15:00', 0, 0],
@@ -2522,11 +2265,6 @@ async function productBaseline(
     movedTasks: axes(off).filter((task, index) => JSON.stringify(task) !== JSON.stringify(axes(on)[index])).map(task => task[0]),
   }, { activeSources: 1, movedTasks: ['B', 'C'] });
   eq('X12 expected-finishketen houdt stored P6-uitvoer buiten alle productassen', axes(mutated), axes(on));
-  // T2 (XER-etappeplan §4/T2) — DE POSITIEVE HELFT op de tweede fixturefamilie: drie bronrijen
-  // (A/B/C), elk met eigen gemuteerde early/late/float-cellen. `recordedTimes` moet op alle drie
-  // exact de orakelwaarde dragen (oracle-variant `on`) en exact verschillen op alle zes assen in de
-  // gemuteerde variant (`mutated`) — terwijl de solverprojectie hierboven (`axes(mutated) === axes(on)`)
-  // bewijsbaar ongewijzigd blijft.
   eq('X12-T2 expected-finishketen recordedTimes draagt de orakelwaarden per bronrij (oracle-variant)', {
     A: on.recordedTimes?.A, B: on.recordedTimes?.B, C: on.recordedTimes?.C,
   }, {
@@ -2570,8 +2308,6 @@ async function productBaseline(
       '2040-02-01T08:00', '2040-02-01T17:00', '2040-02-02T08:00', '2040-02-02T17:00',
       '2040-03-01T08:00', '2040-03-01T17:00', '2040-03-02T08:00', '2040-03-02T17:00',
       '2040-04-01T08:00', '2040-04-01T17:00', '2040-04-02T08:00', '2040-04-02T17:00',
-      // Her-check laag 3, bevinding 8: de zes gemuteerde FLOATS (in dagen, zoals `Task.time` ze
-      // draagt) — zonder deze zes was de `n:`-tak van `noRecordedAxisLeak` dode code.
       999 * 60 / 540, 888 * 60 / 540, 777 * 60 / 540, 666 * 60 / 540, 555 * 60 / 540, 444 * 60 / 540,
     ]), true);
   const normalTruth = scanXerGroundTruth(packageBytes(true));
@@ -2582,18 +2318,6 @@ async function productBaseline(
         [mutatedTruth.tasks[index]?.taskId, mutatedTruth.tasks[index]?.axes, mutatedTruth.tasks[index]?.drivingPath])), true);
 }
 
-/**
- * Regel A als poort (zie `fidelityCells.ts`): een cel die exact was en nu een emmer heeft, waarvan
- * de emmer verslechtert, die binnen dezelfde emmer sameday/diff GROTER afwijkt (grootte-ratchet,
- * versie 2), of die niet meer meetbaar is, is rood. Emmervolgorde (spec §5): exact <
- * sameday < diff < missing; elke stap naar rechts is verslechteren. Zeven poortassen: de zes
- * X12-assen plus `drivingPath` als zevende poort-as (cel-ratchet; niet in het zesassige
- * nuldoel-getal). Verbeteringen zijn groen en worden als "te herpinnen" gemeld.
- *
- * Elke rode regel krijgt een soort (`RedKind`): `hard` blokkeert iedere herpin; `fileset` (een
- * entry erbij of eraf, een ander manifest) mag alleen in de corpusgroei-modus `=corpus`, en die
- * vereist dat het manifest echt veranderd is. De drie bekende nuldoelregels blokkeren nooit.
- */
 const redKinds = new Map<string, RedKind>();
 function red(line: RedLine): void {
   checks++;
@@ -2605,9 +2329,6 @@ const KNOWN_GOAL_LABELS = [
   'X12 nuldoel is baseline-onafhankelijk: alle zes assen zijn nul:',
   'X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul:',
 ];
-/** Rode regels die een herpin in `mode` blokkeren: alles behalve de drie nuldoelregels, en in
- *  `corpus`-modus ook behalve `fileset`-regels. Ongeclassificeerde regels (probes, identiteit,
- *  scanner, v2-gelijkheid) blokkeren altijd. */
 function writeBlockers(mode: '1' | 'corpus' | 'init'): string[] {
   return diffs.filter(diff => !KNOWN_GOAL_LABELS.some(label => diff.startsWith(label))
     && !(mode !== '1' && redKinds.get(diff) === 'fileset'));
@@ -2620,7 +2341,6 @@ interface CellState {
   exclusions: CellExclusions;
 }
 
-/** Verborgen aantallen per bestand met een uitsluiting nu (ook bij nul: de pin dekt precies die bestanden). */
 function measuredExcludedHidden(exclusionSink: XerExclusionSink): ExcludedHidden {
   const hidden: ExcludedHidden = {};
   for (const [file, state] of exclusionSink) {
@@ -2629,12 +2349,10 @@ function measuredExcludedHidden(exclusionSink: XerExclusionSink): ExcludedHidden
   return hidden;
 }
 
-/** Bestanden waarvan de uitsluitings-IDENTITEITSSET t.o.v. de pin veranderde (niet: alleen de reden). */
 function identityChangedFiles(exclusionSink: XerExclusionSink): Set<string> {
   return new Set([...exclusionSink].filter(([, state]) => state.identityChanged).map(([file]) => file));
 }
 
-/** Uitgesloten volgens nu (`now`) of volgens de gepinde lijst (`was`), per entry-SHA en `proj/taak`-id. */
 function cellExclusions(exclusionSink: XerExclusionSink): CellExclusions {
   return {
     now: (file, id) => exclusionSink.get(file)?.now.taskKeys.has(id) === true,
@@ -2656,8 +2374,6 @@ function evaluateCells(
   });
   checks++;
   if (!built.baseline) { diffs.push(`X12 cel-meting ongeldig (regel A): ${built.error}`); return undefined; }
-  // Verborgen aantallen (niet-stijgende pin): alleen bestanden mét uitsluiting, dus zonder uitsluiting
-  // blijft het cellenbestand byte-gelijk.
   const hidden = measuredExcludedHidden(exclusionSink);
   if (Object.keys(hidden).length > 0) built.baseline.excludedHidden = hidden;
   const measurable: CellMeasurable = (file, axis, id) => measurableSink.get(file)?.measurable.has(`${axis}|${id}`) === true;
@@ -2669,9 +2385,6 @@ function evaluateCells(
       red({ kind: 'hard', text: `X12 ${CELL_BASELINE_FILE} ontbreekt — maak hem bewust aan met OPS_XER_CELLS_WRITE=init` });
       return { measuredCells: built.baseline, measurable, exclusions };
     }
-    // `init` is alleen voor een echt nieuw corpus: bestaat er een v2-baseline bij hetzelfde manifest,
-    // dan is dit geen nieuw corpus maar een weggegooid cellenbestand — anders zou "weggooien + init"
-    // elke regressie stil laten landen.
     let pinnedManifest: string | undefined;
     try { pinnedManifest = readProductBaseline().manifestSha256; } catch { pinnedManifest = undefined; }
     if (pinnedManifest === manifestSha256) {
@@ -2683,16 +2396,8 @@ function evaluateCells(
   }
   const parsed = parseCellBaseline(readFileSync(path, 'utf8'));
   checks++;
-  // Versie 1 (alleen emmers): in de poort rood met verwijzing naar het recept; alleen de bewuste
-  // herpin `OPS_XER_CELLS_WRITE=1` gebruikt hem nog, als emmer-ratchet zonder grootte, en schrijft
-  // daarna versie 2. Geen stille migratie.
-  // Sinds de fixronde 2026-09-23 alleen nog met de expliciete eenmalige vlag OPS_XER_CELLS_V1_UPGRADE=1
-  // (uitsluitend de allereerste overgang; bij een merge neem je de v2-kant, zie scripts/README.md).
   const legacyRepin = parsed.legacyV1 === true && process.env.OPS_XER_CELLS_WRITE === '1' && process.env.OPS_XER_CELLS_V1_UPGRADE === '1';
   if (parsed.legacyV1 && legacyRepin) console.log(`INFO X12 ${CELL_BASELINE_FILE} is VERSIE 1 en wordt via OPS_XER_CELLS_V1_UPGRADE=1 als versie 2 herschreven (emmer-ratchet zonder grootte) — deze vlag is alleen voor de eerste overgang en mag daarna niet meer gebruikt worden`);
-  // Ratchet-schuld (orkestratorbesluit 2026-09-23, zie `fidelityCells.ts`): er is geen route meer die
-  // schuld aanmaakt. De eenmalige init-vlag van 23-09 is verwijderd; wie hem nog zet, krijgt een
-  // weigering in plaats van een stil genegeerde vlag. Een bestand zonder schuldsectie weigert de lezer.
   const debtInitFlag = process.env.OPS_XER_CELLS_DEBT_INIT;
   if (debtInitFlag !== undefined && debtInitFlag !== '') {
     checks++;
@@ -2704,9 +2409,6 @@ function evaluateCells(
     diffs.push(`${CELL_BASELINE_FILE} ongeldig: ${parsed.problems.join('; ')}`);
     return undefined;
   }
-  // Minuten-digest (critreview integratie-eindstand 2026-09-23): de gepinde grootten horen bij
-  // `cellMinutesSha256` in de v2-envelop — een met de hand opgerekte grootte versoepelt anders stil de
-  // ratchet (de meting ziet hem alleen als "kleiner"). Een ongeldige v2 meldt de hoofdtak zelf.
   let pinnedMinutes: string | undefined;
   try { pinnedMinutes = readProductEnvelopeAndPayload().cellMinutesSha256; } catch { pinnedMinutes = undefined; }
   if (pinnedMinutes !== undefined && !legacyRepin) {
@@ -2714,7 +2416,6 @@ function evaluateCells(
     for (const problem of cellMinutesProblems(parsed.baseline, pinnedMinutes)) red({ kind: 'hard', text: `X12 ${problem}` });
   }
   const delta = compareCells(parsed.baseline, built.baseline, measurable, exclusions);
-  // Schuld doorschuiven: blijft staan zolang de cel > reference afwijkt; nooit toevoegen.
   built.baseline.ratchetDebt = carryRatchetDebt(parsed.baseline.ratchetDebt, built.baseline);
   console.log(cellDeltaLine('p6', delta, built.baseline));
   checks++;
@@ -2737,13 +2438,6 @@ function evaluateCells(
   return { measuredCells: built.baseline, pinned: parsed.baseline, measurable, exclusions };
 }
 
-/**
- * Meetbaarheid, dekking en orakel APART tegen v2: een blinder orakel (minder meetbare cellen), een
- * orakel dat naar onze waarde toe schuift (`schemaFingerprint` verandert) of een krimpende dekking
- * mag nooit onder de v2-gelijkheidsregel verdwijnen, want die staat bij een zuivere verbetering
- * juist legitiem rood. Eigen prefix ⇒ `measure:profiles` telt hem als overige faalregel (ROOD).
- * Een andere entry-set of een ander manifest is `fileset` (corpusgroei-route), al het andere `hard`.
- */
 const COVERAGE_PREFIX = 'X12 meetbaarheid/dekking wijkt af van v2';
 function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseline, exclusionSink: XerExclusionSink): void {
   checks++;
@@ -2763,10 +2457,6 @@ function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseli
       ['schemaFingerprint', was.schemaFingerprint, now.schemaFingerprint],
       ...Object.keys(after).map((field): [string, number, number] => [field, before[field]!, after[field]!]),
     ];
-    // Bij een gewijzigde uitsluitings-identiteitsset voor déze entry: de verwachte v2-waarde is die van
-    // de meting mét de GEPINDE uitsluiting (dus precies de delta van (nu ∖ was) en (was ∖ nu)). Alleen
-    // een verschil dat die delta exact verklaart is `fileset` (corpusgroei, `=corpus`); elke andere
-    // dekkingsverschuiving — en elke verschuiving zonder identiteitswijziging — blijft `hard`.
     const expected = exclusionSink.get(key)?.identityChanged === true ? exclusionSink.get(key)!.wasCoverage : undefined;
     for (const [field, before, after] of pairs) {
       if (before !== after) {
@@ -2777,15 +2467,6 @@ function checkCoverageAgainstV2(pinned: ProductBaseline, measured: ProductBaseli
   }
 }
 
-/**
- * Schrijfmodi, pas ná alle vergelijkingen (dus nooit na een exception):
- *  - `OPS_XER_V2_WRITE=1`     v2 herschrijven; geweigerd bij elke rode regel naast de drie nuldoelregels;
- *  - `OPS_XER_V2_WRITE=corpus` idem, maar `fileset`-regels toegestaan — alleen als het manifest
- *                              echt anders is dan dat van de gepinde v2 (corpusgroei);
- *  - `OPS_XER_CELLS_WRITE=1|corpus|init` dezelfde regels voor de cellen (`corpus`: manifest van de
- *                              cel-baseline ≠ huidig manifest; `init`: alleen een ontbrekend bestand).
- * Elke schrijfactie is atomair: tijdelijk bestand in dezelfde map, daarna rename.
- */
 function atomicWrite(path: string, text: string): void {
   const temp = `${path}.tmp-${process.pid}`;
   writeFileSync(temp, text);
@@ -2800,9 +2481,6 @@ function runWrites(
   const cellMode = process.env.OPS_XER_CELLS_WRITE;
   const v2Mode = process.env.OPS_XER_V2_WRITE;
   const plans: Array<() => void> = [];
-  // cellMinutesSha256 van de v2-envelop na deze run: alleen een geaccepteerde CELLS-herpin verschuift
-  // hem. Een losse V2-herpin draagt de gepinde digest mee — anders stond stap 2 van het herpinrecept
-  // (de cellen) daarna rood op "minuten-digest ≠ v2" en was hij geblokkeerd.
   let envelopeMinutes: string | undefined;
   try { envelopeMinutes = readProductEnvelopeAndPayload().cellMinutesSha256; } catch { envelopeMinutes = undefined; }
   let refused = false;
@@ -2818,16 +2496,11 @@ function runWrites(
       refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd: ${blockers.length} rode regel(s); eerste: ${blockers[0]!.slice(0, 300)}`);
     } else {
       const plan = planCellRepin(cells.pinned, cells.measuredCells, cells.measurable, cells.exclusions);
-      // Schuldpin in de corpusloze gate: alleen herschrijven als de set kromp, en alleen vanaf een blok
-      // dat bij de gepinde set hoort (anders liepen pin en cellenbestand al uit de pas: weigeren).
       const gatePath = join(HERE, 'check-fidelity-cells-gate.ts');
       const gateSource = readFileSync(gatePath, 'utf8');
       const pin = plan.allowed ? rewriteDebtPin(gateSource, cells.pinned?.ratchetDebt ?? {}, plan.debt) : undefined;
-      // Uitsluitingspin (manifest per project/taak) in hetzelfde bronbestand: alleen bij een gewijzigde
-      // lijst, en alleen via =corpus (een gewijzigde uitsluiting is een gewijzigd manifest).
       const debtText = pin && 'text' in pin ? pin.text : gateSource;
       const exclusionRewrite = exclusionPin.changed ? rewriteExclusionPin(debtText, exclusionPin.current) : undefined;
-      // De minuten-digest in de v2-envelop schuift mee; de v2-payload blijft byte-gelijk.
       let v2Envelope: { payload: ProductBaseline; cellMinutesSha256: string } | undefined;
       try { v2Envelope = readProductEnvelopeAndPayload(); } catch { v2Envelope = undefined; }
       if (!plan.allowed) refuse(`herpin van ${CELL_BASELINE_FILE} geweigerd (rode cel): ${plan.reasons.slice(0, 5).join('; ')}`);
@@ -2886,16 +2559,10 @@ function runWrites(
       }
     }
   }
-  // Pas schrijven als geen enkele gevraagde schrijfactie geweigerd is: nooit half herpinnen.
   if (!refused) for (const write of plans) write();
 }
 
 
-/** Rapportage-only (scripts/xer-p6-computed.ts): splits de zesassige afwijkingen naar het
- *  per-PROJECT-oordeel `projects[proj_id].p6Computed` uit xer-corpus-p6computed.json — geteld per
- *  (bestand, project), nooit per bestand (één doorgerekend project maakt een ander project in
- *  hetzelfde bestand niet P6-doorgerekend). Ontbreekt het bestand, de sha of het project in de
- *  sidecar, dan telt dat apart als "niet in sidecar". Raakt geen telling, poort, baseline of ratchet. */
 function printP6ComputedSplit(files: Record<string, ProductBaselineEntry>): void {
   const path = join(HERE, 'xer-corpus-p6computed.json');
   const bySha = new Map<string, Record<string, { p6Computed: unknown }>>();
@@ -2919,11 +2586,6 @@ function printP6ComputedSplit(files: Record<string, ProductBaselineEntry>): void
     + ` / niet in sidecar: ${groups.missing.cells} (${groups.missing.projects} projecten)`);
 }
 
-/**
- * Rapportage, geen poort: welke taken/projecten een eigenaarsbesluit uit de meting haalt, met reden,
- * en hoeveel zesassige afwijkingen en drivingPath-cellen daardoor buiten de telling vallen. Altijd
- * geprint (ook bij nul), zodat een uitsluiting nooit stil is.
- */
 function printExclusionReport(exclusionSink: XerExclusionSink, changed: ReadonlySet<string>): void {
   const states = [...exclusionSink.values()].filter(state => state.now.applied.length > 0);
   const summary = exclusionSummary(states.map(state => ({ label: state.label, resolved: state.now })));
@@ -2934,12 +2596,6 @@ function printExclusionReport(exclusionSink: XerExclusionSink, changed: Readonly
     + (changed.size > 0 ? `; GEWIJZIGD t.o.v. de uitsluitingspin in ${changed.size} bestand(en) — herpin via =corpus` : ''));
 }
 
-/**
- * Rapportage, geen poort en geen invloed op de telling: welke projecten volgens een eigenaarsbesluit door
- * P6 genivelleerd zijn (`leveledProjects`, `xerManifestLeveling.ts`). Mechanisme zonder data; of die
- * projecten straks met nivellering gemeten worden is eigenaarsbeslissing 2 (open). Een regel die geen
- * project raakt is wel een harde fout: het manifest mag niets beweren over een project dat er niet is.
- */
 function printLeveledReport(corpus: readonly XerCorpusFile[], manifest: XerCorpusManifest): void {
   const leveled = readManifestLeveledProjects(manifest);
   const files: Array<{ label: string; records: typeof leveled.records }> = [];
@@ -2969,15 +2625,11 @@ else {
   const cellSink: XerCellSink = new Map();
   const measurableSink: XerMeasurableSink = new Map();
   const exclusionSink: XerExclusionSink = new Map();
-  // Gepinde uitsluitingen (blok in check-fidelity-cells-gate.ts) tegenover die van het manifest nu:
-  // alleen een verschil maakt de dekkings-/celwijziging van die entries tot corpusgroei (`fileset`).
   const pinnedExclusions = readPinnedExclusions();
   if (pinnedExclusions === undefined) {
     red({ kind: 'hard', text: `X12 uitsluitingspin-blok in ${CELLS_GATE_SOURCE} ontbreekt of is met de hand bewerkt — zet het terug uit versiebeheer` });
   }
   const currentExclusions = readManifestExclusions(manifest).records;
-  // Lijst gewijzigd (digest; ook alleen een reden) ⇒ herpin van het blok. De meting kijkt alleen naar de
-  // opgeloste identiteitsset (`identityChangedFiles`), zie `exclusionIdentityChanged`.
   const exclusionChanged = changedExclusionFiles(pinnedExclusions ?? [], currentExclusions);
   const measured = await productBaseline(corpus, manifest, cellSink, measurableSink, exclusionSink, pinnedExclusions ?? []);
   const identityChanged = identityChangedFiles(exclusionSink);
@@ -2987,16 +2639,13 @@ else {
     diffs.push('OPS_XER_V2_WRITE/OPS_XER_CELLS_WRITE werken alleen in poortmodus (zonder OPS_XER_FIDELITY_REPORT)');
   }
   if (REPORT === 'baseline') {
-    // Rapport, geen herpinroute: herpinnen gaat uitsluitend via OPS_XER_V2_WRITE (scripts/README.md).
-    // De kopregel maakt een omgeleide uitvoer ongeldige JSON, zodat de strikte v2-lezer hem weigert;
-    // wijst stdout rechtstreeks naar het baselinebestand, dan schrijven we helemaal niets.
     const v2Path = join(HERE, 'xer-product-fidelity-baseline-v2.json');
     let stdoutIsBaseline = false;
     try {
       const out = fstatSync(1);
       const target = statSync(v2Path);
       stdoutIsBaseline = out.isFile() && out.ino === target.ino && out.dev === target.dev;
-    } catch { /* stdout zonder bestand (pipe/terminal) of geen baseline: gewoon rapporteren */ }
+    } catch { }
     if (stdoutIsBaseline) {
       console.error('XX OPS_XER_FIDELITY_REPORT=baseline mag niet naar xer-product-fidelity-baseline-v2.json schrijven — herpin met OPS_XER_V2_WRITE=1 (scripts/README.md)');
       process.exit(1);
@@ -3035,8 +2684,6 @@ else {
     eq('X12 nuldoel is baseline-onafhankelijk: totaal zesassige afwijkingen is nul', totalSixAxisDeviations, 0);
     eq('X12 nuldoel is baseline-onafhankelijk: identiteitsfouten zijn nul', identityErrors, 0);
     eq('X12 nuldoel is baseline-onafhankelijk: scannerfouten zijn nul', scannerErrors, 0);
-    // Een ongeldige v2 (bv. een omgeleid rapport met kopregel, of een leeg bestand) wordt een nette
-    // XX-regel en blokkeert elke schrijfactie; nooit een stacktrace.
     let pinnedV2: ProductBaseline | undefined;
     try { pinnedV2 = readProductBaseline(); } catch (error) {
       checks++;

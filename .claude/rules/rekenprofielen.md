@@ -100,3 +100,4 @@ nivelleerdialoog rekent in een Web Worker (`src/engine/scheduler/levelingWorker.
 `scheduleSlice.levelingInput`, met Stoppen; een uitkomst op verouderde store-invoer wordt niet toegepast.
 De MCP-tool en de store-actie blijven synchroon (planner_batch rekent op een synchrone bridge).
 Besluiten van de nivelleerder: `docs/adr/0160` tot en met `0165`.
+Waarom `check-conventions-boundary.ts` de poort in het eigen proces laadt via een berekend pad: `docs/adr/1240`.

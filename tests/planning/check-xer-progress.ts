@@ -80,12 +80,9 @@ eq('X7-0b verboden P6 early/late/float/restart/reend/driving-output verandert de
 
 const progress = read([
   ...header,
-  // CP_Drtn: 25% van 8 uur laat exact 6 uur over; de tegenstrijdige bronrestduur is expres 1 uur.
   '%R\tD\tP1\tC1\tD\tDuur\tTT_Task\tTK_Active\tCP_Drtn\t25\t90\t8\t1\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t\t',
-  // CP_Phys/CP_Units bewaren het percentage, maar hun expliciete restduur is de solverinvoer.
   '%R\tP\tP1\tC1\tP\tFysiek\tTT_Task\tTK_Active\tCP_Phys\t10\t75\t8\t6\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t\t',
   '%R\tU\tP1\tC1\tU\tEenheden\tTT_Task\tTK_Active\tCP_Units\t50\t10\t8\t2\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t\t',
-  // Alleen het volledige, chronologische paar mag de P6-solverroute openen.
   '%R\tSR\tP1\tC1\tSR\tStop en hervat\tTT_Task\tTK_Active\tCP_Drtn\t25\t25\t8\t6\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t2026-08-04 16:00\t2026-08-06 08:00\t2026-08-12 16:00',
   '%R\tS\tP1\tC1\tS\tAlleen stop\tTT_Task\tTK_Active\tCP_Drtn\t25\t25\t8\t6\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t2026-08-04 16:00\t\t',
   '%R\tR\tP1\tC1\tR\tAlleen hervat\tTT_Task\tTK_Active\tCP_Drtn\t25\t25\t8\t6\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t2026-08-06 08:00\t',
@@ -165,8 +162,6 @@ function solved(expectFlag: boolean): string | undefined {
     '%R\tA\tP1\tC1\tA\tVerwacht einde\tTT_Task\tTK_Active\tCP_Phys\t10\t75\t8\t2\t2026-08-03 08:00\t2026-08-03 16:00\t2026-08-03 08:00\t\t\t\t2026-08-12 16:00',
     '%E',
   ]);
-  // Rekenprofielen C4 (spec v3.1 §7): vroeger verving dit het hele optieblok, dus ook de
-  // XER-bronmarkering ⇒ OPS + alleen useExpectedFinishDates. Dat blijft zo: profiel weg.
   imported.project.schedulingProfile = undefined;
   imported.project.schedulingOptions = { useExpectedFinishDates: expectFlag };
   const result = solveProject({
@@ -242,7 +237,6 @@ if (!isMultiDocumentImport(multi)) {
 } else {
   eq('X7-6 file-wide index is lineair maar lekt geen gelijke task_id tussen projecten',
     multi.documents.map(document => document.result.tasks.filter(task => !task.isSummary).map(task => [
-      // Sinds F5b de urenmaat (alleen uren §3.10, T15): de rest in minuten (6 u en 2 u), niet in dagen.
       task.p6ProjectId, task.p6TaskId, task.name, task.p6CompletePctType, task.time.remainingMinutes,
     ])), [
       [['P1', 'GELIJK', 'P1-taak', 'CP_Drtn', 360]],

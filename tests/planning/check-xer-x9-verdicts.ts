@@ -1,5 +1,3 @@
-// X9 — expliciete grenzen: MCP mag P6-bronvelden niet als invoer herschrijven en moveProject
-// behoudt ze als data, zonder ze aan de solver als invoer te geven.
 import { readFileSync } from 'node:fs';
 import { useAppStore } from '@/state/appStore';
 import type { Task } from '@/types/task';

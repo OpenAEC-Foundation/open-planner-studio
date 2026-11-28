@@ -1,9 +1,3 @@
-// P6 XML-export en -opening, fase 2 van #690 (eigenaar, 2026-10-29). De verliesmelding na export heeft dezelfde vorm
-// als bij XER, met de regels van dit formaat. Elke verliescategorie van de detector voor P6 XML geeft een regel.
-// Ook: een mijlpaal mét duur blijft een activiteit. Sinds #775 schrijft de export de rekenopties en een hammock
-// als Level of Effort, en opent een P6 XML als Primavera P6.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { installDOMParser } from './xmldom-shim';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';
 import { detectXerExportLoss } from '@/services/xerExportLoss';
@@ -42,13 +36,11 @@ const task = (name: string, extra: Partial<Task> = {}, time: Partial<Task['time'
   priority: 500, parentId: null, childIds: [], resourceIds: [],
   time: { ...createDefaultTaskTime('2026-06-01', 3), ...time }, ...extra,
 });
-/** Een project met het P6-profiel en de P6-standaard voor de speling, zoals een geopende XER of P6 XML. */
 const p6Project = { schedulingProfile: p6, schedulingOptions: { totalFloatMode: 'finish' as const }, progressMode: 'RETAINED_LOGIC' as const };
 const input = (extra: Partial<P6XmlLossInput> = {}): P6XmlLossInput => ({
   project: p6Project, calendars: [calendar], tasks: [task('Gewoon')], sequences: [], resources: [], assignments: [],
   baselineCount: 0, ...extra,
 });
-/** De regels van één invoer, als `sleutel:aantal`. */
 const lines = (value: P6XmlLossInput, categories: Parameters<typeof exportP6XmlLossNotice>[1] = []) =>
   exportP6XmlLossNotice(value, categories)?.detailLines?.map(l => `${l.messageKey}${l.params ? `:${l.params.count}` : ''}`) ?? [];
 const one = (label: string, value: Partial<P6XmlLossInput>, want: string[]) => eq(label, lines(input(value)), want);
@@ -102,7 +94,6 @@ one('eigen taaktype op een samenvattingstaak gaat niet mee', {
 }, [`${X}taskCategories:1`]);
 one('projectstandaard gelijk aan de P6-standaard', { project: { ...p6Project, defaultWorkRule: DEFAULT_WORK_RULE } }, []);
 
-// Elke categorie die de detector voor P6 XML kan geven, levert minstens één regel.
 const notes = [{ id: 'n', text: 'x', done: false }];
 const detected = (extra: Record<string, unknown>) => detectXerExportLoss('p6', {
   sourceArchive: null, importMetadata: null, project: { schedulingProfile: p6 }, tasks: [], sequences: [], assignments: [],
@@ -119,7 +110,6 @@ eq('notitie: detector en melding zijn het eens', [
 ], [true, [`${P}notes:1`]]);
 eq('broninformatie: één regel', lines(input(), ['exact-source-bytes', 'typed-diagnostics']), [`${X}sourceDetails`]);
 
-// De schrijver: een mijlpaal mét duur blijft een activiteit (knownbug 570).
 const project = { ...createDefaultProject(), startDate: '2026-06-01', statusDate: '2026-06-01' };
 const xml = writeP6XML(project, calendar, [
   task('Met duur', { isMilestone: true }, { durationMinutes: 2400, scheduleDuration: 5, remainingTime: 2 }),
@@ -136,7 +126,6 @@ eq('hammock: Level of Effort, en terug een hammock', [
 ], [true, true]);
 eq('de rekenopties staan in <ScheduleOptions>', /<ScheduleOptions>[\s\S]*<RelationshipLagCalendar>/.test(xml), true);
 
-// Openen: het project rekent als Primavera P6, zoals een XER; de melding over het OPS-profiel is weg (#775).
 const opened = await parseOpenedFile({ name: 'p.xml', text: xml }) as OpenedImport;
 const results: ImportResult[] = [activeImportResult(opened)];
 eq('P6 XML openen: profiel Primavera P6', [results[0].suggestedProfileId, results[0].project.schedulingProfile?.id], ['p6', 'p6']);
@@ -144,7 +133,6 @@ const own = withSchedulingProfileNotice(results, undefined, 'doc');
 eq('P6 XML openen: de profielmelding zoals bij XER', [own?.messageKey, own?.params, own?.severity],
   ['notifications.schedulingProfileApplied', { profile: 'Primavera P6' }, 'info']);
 
-// De echte route: exportAs('p6') schrijft de XML en de melding. Heropenen bewijst dat de regel een echt verlies noemt.
 {
   let captured: string | null = null;
   const g = globalThis as any;
@@ -152,8 +140,8 @@ eq('P6 XML openen: de profielmelding zoals bij XER', [own?.messageKey, own?.para
   g.Blob = class { constructor(parts: unknown[]) { captured = parts.join(''); } };
   g.URL = g.URL ?? {};
   g.URL.createObjectURL = () => 'blob:test';
-  g.URL.revokeObjectURL = () => { /* no-op */ };
-  g.document = { createElement: () => ({ href: '', download: '', click() { /* no-op */ } }) };
+  g.URL.revokeObjectURL = () => { };
+  g.document = { createElement: () => ({ href: '', download: '', click() { } }) };
   const { useAppStore } = await import('@/state/appStore');
   useAppStore.getState().addTask({ name: 'Erft' });
   useAppStore.setState(state => {
@@ -167,8 +155,6 @@ eq('P6 XML openen: de profielmelding zoals bij XER', [own?.messageKey, own?.para
   const notice = useAppStore.getState().ui.notifications.find(n => n.messageKey === 'notifications.exportP6XmlLoss');
   const noticed = notice?.detailLines?.map(l => l.messageKey) ?? [];
   eq('route: export geslaagd', [result.ok, captured !== null], [true, true]);
-  // De projectstandaard gaat mee als `ActivityDefaultDurationType`, en de lezer zet hem terug (review Sol #781 r2):
-  // geen verlies meer.
   eq('route: de melding noemt capaciteit, niet de projectstandaard', [
     noticed.includes(`${P}capacitySteps`), noticed.some(key => key.endsWith('.defaultWorkRule')),
   ], [true, false]);

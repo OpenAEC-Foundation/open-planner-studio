@@ -1,7 +1,3 @@
-/**
- * X6/storecontract: documentduplicatie kloont de mutable projectview, maar materialiseert de
- * bestandsbrede immutable XER-catalogus en haar ruwe rijen niet opnieuw.
- */
 import { createAppStore } from '@/state/appStore';
 import { readXER } from '@/services/xer/xerReader';
 import { isMultiDocumentImport } from '@/services/importTypes';

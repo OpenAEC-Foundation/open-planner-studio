@@ -1,3 +1,4 @@
+// Bron: MPXJ, © Jon Iles e.a., veldsoorten volgens `XerFile.FIELD_TYPE_MAP` en notitiegevallen naar `NotesHelper` (LGPL-2.1, github.com/joniles/mpxj).
 import { decodeWindows1252 } from '@/utils/windows1252';
 import {
   parseXerNumber,
@@ -89,8 +90,6 @@ function caughtXerError(run: () => unknown): Record<string, unknown> | null {
   }
 }
 
-// Breuk die dit vangt: ERMHDR als gewone tabel behandelen, het negende veld verkeerd indexeren,
-// of de %T/%F/%R-markers niet als afzonderlijke grammaticale records verwerken.
 const basic = parseXerTables(utf8([
   'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tProject Management\tEUR',
   '%T\tTASK',
@@ -114,7 +113,6 @@ eq('1 ERMHDR en basisgrammatica', {
   row: { proj_id: 'P1', task_id: '1', task_code: 'A1000', status_code: 'tK_Active' },
 });
 
-// Breuk die dit vangt: alleen LF accepteren of EOF zonder %E stil als volledig bestand behandelen.
 const noTerminator = parseXerTables(utf8([
   'ERMHDR\t19.12',
   '%T\tPROJECT',
@@ -131,8 +129,6 @@ eq('2 CRLF en ontbrekende %E worden afzonderlijk verwerkt', {
   issues: ['XER_MISSING_END_MARKER'],
 });
 
-// Breuk die dit vangt: CSV-achtige algemene quote-escaping invoeren, XER's dubbele quotes niet
-// terugbrengen, of de betekenisvolle lege kolomnaam na een afsluitende %F-tab wegtrimmen.
 const quotesAndTrailingField = parseXerTables(utf8([
   'ERMHDR\t23.12',
   '%T\tTASK',
@@ -148,8 +144,6 @@ eq('3 quotes en lege laatste kolomnaam', {
   row: { proj_id: 'P1', task_id: '1', task_code: 'A1000', task_name: 'Buis 1" staal', '': 'extra' },
 });
 
-// Breuk die dit vangt: te korte/lange rijen stil accepteren of na één kapotte rij de hele import
-// afbreken, terwijl de betrouwbare kolommen en volgende rijen nog leesbaar zijn.
 const mismatchedRows = parseXerTables(utf8([
   'ERMHDR\t23.12',
   '%T\tTASK',
@@ -174,8 +168,6 @@ eq('4 veld-/waardetellingsverschil wordt verzameld en vervolgd', {
   ],
 });
 
-// Breuk die dit vangt: een lege eerste token als onbekend record weggooien, DEL-DEL in notities
-// laten staan, of de BOM/NUL-vervuiling uit MPXJ's NotesHelper-gevallen doorgeven aan de gebruiker.
 const multilineNote = parseXerTables(utf8([
   'ERMHDR\t23.12',
   '%T\tTASKMEMO',
@@ -194,8 +186,6 @@ eq('5 DEL-DEL-notitie, BOM/NUL-strip en lege-token-continuatie', {
   issues: [],
 });
 
-// Breuk die dit vangt: verzonnen/toekomstige tabellen in het resultaat toelaten of stil overslaan
-// zonder naam en rijtelling voor het importverslag te bewaren.
 const unknownTable = parseXerTables(utf8([
   'ERMHDR\t23.12',
   '%T\tSPECIAL_CHARS',
@@ -280,15 +270,12 @@ eq('6e onbekende tabel zonder datarijen blijft aanwezig met nul informatiedragen
   unknownTableWithoutRows.report.unknownTables,
   [{ name: 'EMPTY_VENDOR_TABLE', rows: 0 }]);
 
-// Breuk die dit vangt: de 8-byte DROID-signatuur als leeg maar geldig XER-project accepteren.
 eq('7 een ERMHDR-skelet zonder versie is een getypeerde bestandsfout',
   caughtXerError(() => parseXerTables(utf8(['ERMHDR'], '\r\n'))), {
     name: 'XerImportError',
     xerCode: 'XER_INVALID_FILE',
   });
 
-// Breuk die dit vangt: pseudo-XER met herkenbare tabelnamen maar niet-P6-kolommen als een leeg,
-// zogenaamd geldig project doorlaten. Dit is tevens de verplichte kolomcontrole-mutatiefixture.
 eq('8 TASK zonder verplichte P6-kolommen is getypeerd fataal', caughtXerError(() =>
   parseXerTables(utf8([
     'ERMHDR\t24.8\t2024-09-08\tProject\ttest\tuser\tDB\tCloud\tUSD',
@@ -303,7 +290,6 @@ eq('8 TASK zonder verplichte P6-kolommen is getypeerd fataal', caughtXerError(()
   missingColumns: ['proj_id', 'task_code'],
 });
 
-// Knownbug 90: geen testskip op een afwijkende ICU-build. Alle bytes hebben een vaste mapping.
 {
   const special = '€\u0081‚ƒ„…†‡ˆ‰Š‹Œ\u008dŽ\u008f\u0090‘’“”•–—˜™š›œ\u009džŸ';
   const expected = Array.from({ length: 256 }, (_, byte) =>
@@ -342,8 +328,6 @@ const encodingText = [
   '%R\tP1\tCafé',
   '%E',
 ].join('\n');
-// Breuk die dit vangt: de BOM negeren, alleen een prefix als UTF-8 testen, of CP1252 kiezen
-// zonder eerst het volledige BOM-loze bestand fataal als UTF-8 te valideren.
 eq('9 BOM, volledig UTF-8 en Windows-1252 kiezen de gerapporteerde encoding', [
   encodingOutcome(withPrefix([0xef, 0xbb, 0xbf], new TextEncoder().encode(encodingText))),
   encodingOutcome(utf16(encodingText, false)),
@@ -358,8 +342,6 @@ eq('9 BOM, volledig UTF-8 en Windows-1252 kiezen de gerapporteerde encoding', [
   { encoding: 'windows-1252', name: 'Café' },
 ]);
 
-// Breuk die dit vangt: CURRTYPE alleen gebruiken wanneer die vóór TASK staat, of de eerste valuta
-// kiezen in plaats van ERMHDR veld 9. De kommawaarde blijft hier bewust nog een rauwe token.
 const commaCurrency = parseXerTables(utf8([
   'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEUR',
   '%T\tTASK',
@@ -393,8 +375,6 @@ const defaultPoint = parseXerTables(utf8([
   '%R\tP1',
   '%E',
 ]));
-// Breuk die dit vangt: symbolische separators als letterlijke tekst behandelen, of Number/parseFloat
-// direct op localegetallen toepassen. Dezelfde parser wordt later door alle numerieke velden gebruikt.
 eq('11 symbolische CURRTYPE-tokens en de getalparser', {
   format: symbolicCurrency.numberFormat,
   comma: numberOutcome('1.234,5', symbolicCurrency),
@@ -418,8 +398,6 @@ const noCurrencyComma = utf8([
   '%R\tP1\t1\tA1\tNaam, met komma\t1,5',
   '%E',
 ]);
-// Breuk die dit vangt: zonder CURRTYPE stil punt-decimaal aannemen terwijl een numeriek P6-veld
-// aantoonbaar komma-decimaal is. Een komma in gewone tekst is juist geen bewijs.
 eq('12 komma-decimaal zonder CURRTYPE wordt getypeerd geweigerd',
   caughtXerError(() => parseXerTables(noCurrencyComma)), {
     name: 'XerImportError',
@@ -439,8 +417,6 @@ function currencyOnly(decimal: string, group: string): Uint8Array {
   ]);
 }
 
-// Breuk die dit vangt: onbekende CURRTYPE-symbolen of hetzelfde decimaal-/groepsteken stil naar
-// punt/default terug laten vallen en daarmee geldwaarden verkeerd interpreteren.
 eq('13 onbruikbare CURRTYPE-notatie is getypeerd fataal', [
   caughtXerError(() => parseXerTables(currencyOnly('ds_Unknown', 'dg_Period'))),
   caughtXerError(() => parseXerTables(currencyOnly('ds_Comma', 'dg_Comma'))),
@@ -449,8 +425,6 @@ eq('13 onbruikbare CURRTYPE-notatie is getypeerd fataal', [
   { name: 'XerImportError', xerCode: 'XER_INVALID_NUMBER_FORMAT', table: 'CURRTYPE', line: 4, lines: [4] },
 ]);
 
-// Breuk die dit vangt: grammaticaal kapotte rijen stil overslaan. Elk probleem blijft zichtbaar
-// met regel en tabel, terwijl de nog betrouwbaar leesbare PROJECT-rij behouden blijft.
 const brokenGrammar = parseXerTables(utf8([
   'ERMHDR\t23.12',
   '%T\tPROJECT',
@@ -477,8 +451,6 @@ function missingColumns(table: string, fields: string): Record<string, unknown> 
   ])));
 }
 
-// Breuk die dit vangt: alleen TASK beveiligen en andere aanwezige P6-kern-/koppeltabellen zonder
-// hun identiteitssleutels als bruikbaar doorgeven aan X3/X4a.
 eq('15 verplichte sleutelkolommen gelden per aanwezige P6-kern-/koppeltabel', [
   missingColumns('PROJECT', 'proj_name'),
   missingColumns('CALENDAR', 'clndr_name'),
@@ -512,8 +484,6 @@ const directCp1252 = parseXerTables(cp1252TransportFixture);
 const reencodedCp1252 = parseXerTables(new TextEncoder().encode(
   new TextDecoder().decode(cp1252TransportFixture),
 ));
-// Breuk die dit vangt: XER in de registry als tekst transporteren, of de runtimegrens een string
-// laten aanvaarden. De CP1252-euro wordt via string onomkeerbaar U+FFFD en daarna vals als UTF-8.
 eq('16 XER-consumercontract is uitsluitend ruwe bytes', {
   transportKind: XER_TRANSPORT_KIND,
   stringInput: caughtXerError(() => parseXerTables('ERMHDR\t23.12' as unknown as XerByteInput)),
@@ -557,8 +527,6 @@ const p6Notes = parseXerTables(utf8([
   `%R\tC1\tKalender\u007f\u007fdata\u0000\ufeff`,
   '%E',
 ]));
-// Breuk die dit vangt: NotesHelper op veldnaam of globaal toepassen. Alleen onderzochte echte
-// P6-notitievelden worden opgeschoond; structured calendar text blijft byte-inhoudelijk rauw.
 eq('17 NotesHelper-semantiek is tabel- en veldspecifiek', {
   task: p6Notes.tables.get('TASKMEMO')?.rows[0]?.cells.task_memo,
   wbs: p6Notes.tables.get('WBSMEMO')?.rows[0]?.cells.wbs_memo,
@@ -593,8 +561,6 @@ const roleOnlyAssignment = parseXerTables(utf8([
   '%R\tT1\t\tROLE1\t',
   '%E',
 ]));
-// Breuk die dit vangt: alleen %F-kolomnamen controleren of alle sparse assignmentwaarden
-// generiek verplicht maken. Fouten dragen tabel, fysieke regel en de werkelijk ontbrekende waarde.
 eq('18 aanwezige P6-tabellen vereisen niet-lege identiteit zonder role-only data af te wijzen', {
   failures: [
     emptyIdentity('PROJECT', 'proj_id', ''),
@@ -647,8 +613,6 @@ function currencyRow(fields: string, values: string): Record<string, unknown> | 
     '%E',
   ])));
 }
-// Breuken die dit vangt: de eerste valutaregel als stille fallback kiezen, slechts de eerste
-// herkenbare representatie vertrouwen, of ds/dg-symbolen in de verkeerde familie accepteren.
 eq('19 CURRTYPE matcht exact en valideert alle separatorrepresentaties', {
   missingMatch: {
     format: missingCurrencyMatch.numberFormat,
@@ -687,8 +651,6 @@ const terminalEnd = parseXerTables(utf8([
   '%F\tproj_id',
   '%R\tP2',
 ]));
-// Breuk die dit vangt: na de eerste %E doorlezen en een eerder betrouwbare bekende tabel
-// overschrijven. De hele niet-lege staart krijgt precies één issue met record- én regeltelling.
 eq('20 de eerste %E is terminaal en rapporteert de volledig genegeerde staart', {
   project: terminalEnd.tables.get('PROJECT')?.rows[0]?.cells.proj_id,
   rows: terminalEnd.tables.get('PROJECT')?.rows.length,
@@ -704,8 +666,6 @@ eq('20 de eerste %E is terminaal en rapporteert de volledig genegeerde staart', 
   }],
 });
 
-// Breuk die dit vangt: fatale TextDecoder-TypeErrors uit BOM-takken laten ontsnappen. De BOM
-// bepaalt ook bij een kapotte payload welke encoding in het typed foutcontract moet staan.
 eq('21 kapotte BOM-payloads worden altijd getypeerd met encodingcontext', [
   caughtXerError(() => parseXerTables(Uint8Array.from([0xef, 0xbb, 0xbf, 0xc3, 0x28]))),
   caughtXerError(() => parseXerTables(Uint8Array.from([0xff, 0xfe, 0x45]))),
@@ -734,8 +694,6 @@ const validCommaGroups = parseXerTables(utf8([
   '%R\tP1\tT3\tA3\t1,234,567',
   '%E',
 ]));
-// Breuk die dit vangt: maximaal twee fractiecijfers aannemen, op een suffixregex vertrouwen,
-// of geldige komma-duizendgroepen als bewezen decimaalnotatie afwijzen.
 eq('22 komma-decimaalbewijs gebruikt veldcatalogus en onbeperkte precisie', {
   ambiguous: [
     noCurrencyDuration('1,5000'),
@@ -756,8 +714,6 @@ eq('22 komma-decimaalbewijs gebruikt veldcatalogus en onbeperkte precisie', {
   numericLookingText: null,
 });
 
-// Breuk die dit vangt: elke rij met een breedte-issue generiek overslaan. Een ontbrekende
-// verplichte token blijft bij afkappen of uitsluitend extra eindtokens ondubbelzinnig zichtbaar.
 eq('23 rijbreedte omzeilt ondubbelzinnig ontbrekende identiteit niet', [
   emptyIdentity('PROJECT', 'proj_id', '\tEXTRA'),
   emptyIdentity('PROJECT', 'proj_id\tproj_name', ''),
@@ -789,8 +745,6 @@ function duplicateCurrency(secondRow: string): Record<string, unknown> | ReturnT
   }
 }
 const identicalCurrencyDuplicates = duplicateCurrency('%R\tEUR\t.\tds_period\t,\tdg_comma');
-// Breuken die dit vangt: de eerste matching CURRTYPE-rij kiezen zonder de rest te valideren,
-// of semantisch afwijkende duplicaten accepteren. Foutcontext wijst de fysieke bronregels aan.
 eq('24 alle matching CURRTYPE-rijen zijn gevalideerd en semantisch eensluidend', {
   identical: 'numberFormat' in identicalCurrencyDuplicates
     ? identicalCurrencyDuplicates.numberFormat
@@ -820,8 +774,6 @@ function trailingLinesWithFinalNewline(newline: '\n' | '\r\n'): unknown {
   ].join(newline) + newline;
   return parseXerTables(new TextEncoder().encode(text)).report.issues;
 }
-// Breuk die dit vangt: het lege split-token ná een afsluitende newline als fysieke staartregel
-// tellen. De bewust lege regel midden in de genegeerde staart moet juist wel blijven meetellen.
 eq('25 ignoredLines telt fysieke LF/CRLF-staartregels zonder synthetisch eindtoken', {
   lf: trailingLinesWithFinalNewline('\n'),
   crlf: trailingLinesWithFinalNewline('\r\n'),
@@ -830,9 +782,6 @@ eq('25 ignoredLines telt fysieke LF/CRLF-staartregels zonder synthetisch eindtok
   crlf: [{ code: 'XER_TRAILING_RECORDS_AFTER_END', line: 3, ignoredRecords: 3, ignoredLines: 4 }],
 });
 
-// Onafhankelijke inventaris uit MPXJ XerFile.FIELD_TYPE_MAP: uitsluitend bronvelden met
-// DataType.NUMERIC, DURATION of CURRENCY. De lijst is met de hand gecontroleerd en wordt niet uit
-// productie afgeleid; ontbreekt daar later één veld, dan noemt deze gedragsmatrix precies dat veld.
 const authoritativeDecimalFields = [
   'act_cost', 'act_equip_qty', 'act_ot_cost', 'act_ot_qty', 'act_reg_cost', 'act_reg_qty',
   'act_work_qty', 'asgnmnt_catg_id', 'asgnmnt_catg_short_len', 'asgnmnt_catg_type_id',
@@ -883,8 +832,6 @@ const representativeDecimalFields = [
     ['P1', 'T1', 'A1', '1,5000'],
   ),
 ];
-// Breuken die dit vangt: een suffixheuristiek, alleen de reeds gemapte X3-velden opnemen, of
-// NUMERIC/DURATION/CURRENCY onvolledig overnemen. INTEGER-id en vrije tekst blijven negatief.
 eq('26 gezaghebbende numerieke P6-veldmatrix draagt de komma-decimaalheuristiek volledig', {
   authoritativeCount: authoritativeDecimalFields.length,
   uncoveredAuthoritativeFields,
@@ -928,9 +875,6 @@ const repeatedUnknownTables = parseXerTables(utf8([
   '%R\ttwo',
   '%E',
 ]));
-// Breuk die dit vangt: een tweede bekende %T vóór %E met tables.set laten overschrijven. De
-// duplicate-fout moet vóór opslag ontstaan, zodat ook eerdere valuta, data of lege identiteit niet
-// verdwijnen. Bewust onbekende tabellen behouden hun bestaande afzonderlijke telrapportage.
 eq('27 een bekende tabel heeft vóór de eerste %E precies één sectie', {
   splitCurrency: duplicateKnownTable([
     'ERMHDR\t23.12\t2026-04-01\tProject\tadmin\tAdmin\tDB\tCloud\tEUR',
@@ -979,9 +923,6 @@ eq('27 een bekende tabel heeft vóór de eerste %E precies één sectie', {
   unknownTables: [{ name: 'MYSTERY', rows: 1 }, { name: 'MYSTERY', rows: 1 }],
 });
 
-// Onafhankelijke tegenhelft van dezelfde MPXJ XerFile.FIELD_TYPE_MAP-inventaris. Deze 104
-// bronvelden zijn uitdrukkelijk NIET NUMERIC/DURATION/CURRENCY en worden met hun bronsoort
-// letterlijk vastgezet, zodat iedere botsende productie-aanvulling gedragsmatig rood wordt.
 const authoritativeNonDecimalFields = [
   ['acct_id', 'INTEGER'],
   ['acct_seq_num', 'INTEGER'],
@@ -1094,8 +1035,6 @@ const nonDecimalTypeCounts = authoritativeNonDecimalFields.reduce<Record<string,
 );
 const falsePositiveNonDecimalFields = authoritativeNonDecimalFields.filter(([field]) =>
   commaDecimalField('UDFVALUE', [field], ['1,5000'])?.xerCode === 'XER_AMBIGUOUS_DECIMAL');
-// Breuken die dit vangt: een MPXJ-INTEGER zoals seq_num of acct_seq_num als lokale decimale
-// aanvulling classificeren. De matrix test de echte parser; de verwachtingen delen geen catalogus.
 eq('28 alle gezaghebbende niet-decimale P6-velden blijven buiten het decimaalbewijs', {
   authoritativeCount: authoritativeNonDecimalFields.length,
   typeCounts: nonDecimalTypeCounts,
@@ -1144,8 +1083,6 @@ function ambiguousDecimalEvidence(
 }
 const udfPrivatePath = '/home/private-user/secret/project.xer';
 const curvePrivatePath = 'C:\\Users\\private-user\\secret\\curve.xer';
-// Breuk die dit vangt: de reeds gevonden tabel/rij/veldcontext tot boolean reduceren of bij het
-// opbouwen van de fatale fout de context laten vallen. Fouttekst mag bronwaarde noch pad opnemen.
 eq('29 komma-decimaalfout draagt het eerste concrete bewijs zonder brondata te lekken', {
   udf: ambiguousDecimalEvidence(
     'UDFVALUE',
@@ -1181,9 +1118,6 @@ function reportedUnknownFields(lines: readonly string[]) {
   return (parseXerTables(utf8(lines)).report as UnknownFieldReport).unknownFields;
 }
 
-// Fixronde 2: de parser/readergrens moet onbekende velden in een bekende tabel gezaghebbend
-// inventariseren, maar uitsluitend als minstens één retained cel informatiewaarde draagt. De
-// bronrij zelf blijft hieronder apart gecontroleerd: detectie mag niets uit de cellen verwijderen.
 const unknownFieldWithValue = parseXerTables(utf8([
   'ERMHDR\t23.12',
   '%T\tTASKNOTE',
@@ -1219,10 +1153,6 @@ eq('32 bekende PROJECT-velden geven geen false positive', reportedUnknownFields(
   '%E',
 ]), []);
 
-// Review PR #109, N2 (Fable 8): een RAUW regeleinde midden in een tekstcel (P6 zelf schrijft
-// DEL-DEL, maar een met een spreadsheet of script bewerkte XER kan een echte LF/CRLF dragen) kapte de
-// rij af: de taak verloor duur en datums. Nu voegt de lezer een te korte %R samen met de direct
-// volgende markerloze regels zolang dat het veldental EXACT haalt (max. 8 vervolgregels).
 const TASK_FIELDS = '%F\ttask_id\tproj_id\ttask_code\ttask_name\ttarget_drtn_hr_cnt\ttarget_start_date';
 const lineBreakRows = (newline: string, rows: readonly string[]) => parseXerTables(utf8([
   'ERMHDR\t23.12', '%T\tTASK', TASK_FIELDS, ...rows, '%E',
@@ -1255,10 +1185,6 @@ eq('33c samenvoegen dat het veldental overschrijdt gebeurt niet', overshoot.repo
 const tooMany = lineBreakRows('\n', ['%R\tT1\tP1\tA100\tL0', ...Array.from({ length: 9 }, (_, i) => `L${i + 1}`), 'slot\t80\t2026-06-01 08:00']);
 eq('33d meer dan 8 vervolgregels ⇒ niet samengevoegd (begrensd)', tooMany.report.issues[0]?.code, 'XER_ROW_FIELD_COUNT_MISMATCH');
 
-// Review PR #109, N3 (Fable 15): niet-UTF-8 zonder BOM was altijd Windows-1252. Arabische
-// (rehab-2), Cyrillische en Griekse P6-bestanden werden zo stil onleesbaar. Besluit B17 blijft (UTF-8,
-// anders een enkelbyte-codetabel; de melding noemt de keuze), maar de lezer kiest nu Windows-1251/
-// -1253/-1256 als de tekst daar EENDUIDIG woorden van één schrift oplevert; bij twijfel 1252.
 function singleByte(text: string, label: string): Uint8Array {
   const decoder = new TextDecoder(label);
   const byChar = new Map<string, number>();

@@ -1,14 +1,3 @@
-// P6 XML-lezer tegen het lokale crawl-corpus (19 bestanden in `crawl-pmxml/` en `pmxml-samples/`,
-// 12 unieke inhouden). GEEN CI-poort: het corpus staat niet in de repo (privacy/licentie). Zonder
-// corpus slaat de check netjes over met een OK-regel — zelfde conventie als de .mpp-crawlchecks
-// (`OPS_MPP_CRAWL`). De corpusloze CI-poort voor hetzelfde gedrag is `check-p6xml-nested.ts`.
-//
-// Pins per bestandsINHOUD (SHA-256, eerste 16 tekens; geen bestandsnamen in de repo). Elke pin is
-// het resultaat van `readP6XMLDocuments` (de open-pijplijn: één document per project mét
-// activiteiten, baselines gekoppeld) ná de fix "lezer leest echte P6 XML" (2026-10-12); daarvoor gaf
-// elk bestand 0 taken. Twee bestanden zijn geen schema-PMXML en blijven bewust 0 (zie `note`); hun
-// `emptyReason`: de import mislukt met die reden (`P6XmlImportError`, melding zonder tabblad).
-// Rapport met bestandsnamen (alleen lokaal): `OPS_P6XML_REPORT=1`.
 import { createHash } from 'node:crypto';
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -20,11 +9,8 @@ import { installDOMParser } from './xmldom-shim';
 declare const process: { env: Record<string, string | undefined>; exitCode?: number };
 installDOMParser();
 
-/** Eén geopend document (één P6-project). */
 interface DocPin {
-  /** Ingelezen taken (WBS-samenvattingen + activiteiten). */
   tasks: number;
-  /** Bladtaken: taken zonder kinderen (activiteiten plus eventuele lege WBS-elementen). */
   leaves: number;
   sequences: number;
   resources: number;
@@ -34,18 +20,13 @@ interface DocPin {
 }
 
 interface Pin {
-  /** Per geopend document, in bestandsvolgorde. */
   docs: DocPin[];
-  /** Index van het actieve document. */
   active: number;
-  /** Bestandsverslag (`p6xmlReport`) zonder `documentsOpened` (= docs.length). */
   projectsSeen: number;
   emptyProjectsSkipped: number;
   crossProjectRelations: number;
-  /** Alleen als > 0: losse baselineverwijzingen en activiteiten zonder project. */
   danglingBaselineReferences?: number;
   unassignedActivities?: number;
-  /** De import mislukt (`P6XmlImportError`, geen tabblad): `docs` leeg, `active` -1, tellers 0. */
   emptyReason?: string;
   note?: string;
 }

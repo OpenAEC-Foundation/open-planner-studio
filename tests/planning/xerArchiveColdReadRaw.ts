@@ -1,4 +1,3 @@
-// Kindproces B-raw voor X9: importeert bewust NIET de XER-reader en gebruikt de lage sync-lezer.
 import { readFileSync } from 'node:fs';
 import { IfcParseError } from '@/services/ifc/ifcErrors';
 import { readIFC } from '@/services/ifc/ifcReader';

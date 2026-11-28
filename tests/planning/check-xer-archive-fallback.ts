@@ -1,16 +1,3 @@
-// Eigenaarsbesluit 2026-09-24 ("openen met melding") — de keten ná de lezer. `check-ifc-xer-archive-
-// container`/`-readmodel`/`-compact` pinnen per foutcode dat `readIFC` het archief laat vallen mét
-// `xerArchiveIssue`; deze check bewijst wat de gebruiker daarvan merkt, op een ECHT beschadigd
-// bestand (`fixtures/xer-archief-herschreven.ifc`: een OPS-IFC met XER-archief waarvan een
-// herschrijvend IFC-programma de bronchunks liet vallen — manifest en selector bleven staan):
-//   A. de productie-ingang (`readIFCWithXerReconstruction`) opent het, zonder archief, mét signaal;
-//   B. `applyOpenedImport` publiceert het project volledig en geeft precies ÉÉN melding (K8a-kanaal)
-//      met reden + gevolg + "Lees meer"-link naar de XER-gids;
-//   C. het signaal overleeft een documentwissel (DOCUMENT_FIELDS) en een documentkopie;
-//   D. het signaal round-tript NIET door IFC (sessie-only) en een opgeslagen bestand draagt geen
-//      archiefsporen meer — heropenen is dus stil én correct;
-//   E. crashherstel (`restoreDocuments`) meldt het ook, één keer per batch;
-//   F. een bestaande bestandsmelding krijgt de archiefregels als detail in plaats van een tweede toast.
 import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -34,12 +21,10 @@ const expect = (label: string, condition: boolean, extra = '') => {
   if (!condition) failures.push(extra ? `${label} — ${extra}` : label);
 };
 const store = () => useAppStore.getState();
-/** Meldingenstapel leeg (max 3 zichtbaar + dedupe zouden een "voor/na"-telling vertekenen). */
 const clearNotes = () => useAppStore.setState((s) => { s.ui.notifications = []; });
 const HERE = dirname(fileURLToPath(import.meta.url));
 const damaged = readFileSync(join(HERE, 'fixtures', 'xer-archief-herschreven.ifc'), 'utf8');
 
-// ── A. productie-ingang ────────────────────────────────────────────────────────────────────────
 const parsed = await readIFCWithXerReconstruction(damaged);
 const verdict = archiveDropped(() => parsed, { code: 'bytes-missing', fragment: 'geen enkele' });
 expect('A1 echt herschreven bestand opent via de productie-ingang: archief weg, signaal bytes-missing',
@@ -48,7 +33,6 @@ expect('A2 het project zelf is volledig: beide taken en de relatie uit het IFC',
   parsed.tasks.map(task => task.name).sort().join('|') === 'Fundering|Ruwbouw' && parsed.sequences.length === 1,
   `${parsed.tasks.length} taken, ${parsed.sequences.length} relaties`);
 
-// ── B. openen via de store: één melding ─────────────────────────────────────────────────────────
 store().newProject();
 clearNotes();
 store().applyOpenedImport(parsed, {
@@ -72,7 +56,6 @@ expect('B3 store: project geladen, archiefvelden leeg, issue gezet',
 expect('B4 geen "datums zoals opgeslagen" uit een weggelaten archief (geen xer-archive-herkomst, modus uit)',
   store().recordedDates?.origin !== 'xer-archive' && !store().datesAsRecorded);
 
-// ── C. documentwissel en kopie ──────────────────────────────────────────────────────────────────
 store().newDocument();
 expect('C1 een nieuw document erft het signaal niet', store().xerArchiveIssue === null);
 store().switchDocument(openedDocId);
@@ -81,7 +64,6 @@ store().duplicateDocument();
 expect('C3 een kopie draagt het signaal mee (ook zij mist het archief)', store().xerArchiveIssue?.code === 'bytes-missing');
 store().switchDocument(openedDocId);
 
-// ── D. opslaan: geen IFC-round-trip van het signaal, geen archiefsporen meer ────────────────────
 const saved = writeIFC(buildWriteIFCInput(store(), 'planOnly'));
 expect('D1 opgeslagen IFC draagt geen archief-psets meer (sporen weg)',
   !saved.includes('OPS_XerSourceArchive') && !saved.includes('OPS_XerDocument'));
@@ -89,7 +71,6 @@ const reopened = readIFC(saved);
 expect('D2 heropenen van het opgeslagen bestand: geen archief, geen issue (geen sporen ⇒ geen signaal)',
   reopened.xerSourceArchive === undefined && reopened.xerArchiveIssue === undefined && reopened.tasks.length === 2);
 
-// ── E. crashherstel ─────────────────────────────────────────────────────────────────────────────
 {
   const recoveryParsed = await readIFCWithXerReconstruction(damaged);
   clearNotes();
@@ -105,7 +86,6 @@ expect('D2 heropenen van het opgeslagen bestand: geen archief, geen issue (geen 
   expect('E2 hersteld actief document draagt het signaal', store().xerArchiveIssue?.code === 'bytes-missing');
 }
 
-// ── F. inbedden in een bestaande bestandsmelding ────────────────────────────────────────────────
 {
   const base = { severity: 'info' as const, messageKey: 'notifications.xerImportOpened' as const, detailLines: [
     { messageKey: 'notifications.xerImportProjectsSeen' as const, params: { count: 1 } },
