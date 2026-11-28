@@ -22,7 +22,6 @@ export interface XerReplaySourceContext {
   projectCalendar: Readonly<WorkCalendar>;
   taskCalendar: Readonly<WorkCalendar>;
   assignments: readonly Readonly<ResourceAssignment>[];
-  /** De opgeloste set (rekenprofielen C4): projectopties + conventies uit het profiel. */
   schedulingOptions: EffectiveSchedulingOptions;
   schedulingProfile: ImportResult['project']['schedulingProfile'];
 }
@@ -34,10 +33,8 @@ export interface XerReplayPredicateDecision {
 
 export interface XerTaskReplayCandidate {
   id: string;
-  /** `baseline` modelleert een regelintegratie na de bestaande solve; `source` twee gelijke bronruns. */
   replayFrom: 'baseline' | 'source';
   predicate(context: XerReplaySourceContext): XerReplayPredicateDecision;
-  /** Test-only mutatie op een verse clone. Oraclewaarden zijn niet beschikbaar in deze API. */
   apply(imported: XerReplayMutableSolveInput, matchedTaskIds: ReadonlySet<string>): void;
 }
 
@@ -62,12 +59,8 @@ export interface XerReplayLifecycleEvent {
 }
 
 export interface XerReplayOptions {
-  /** Testinstrumentatie: één event binnen de levensduur van iedere actieve solveclone. */
   onLifecycleEvent?: (event: XerReplayLifecycleEvent) => void;
-  /** Projecteer de optionele CPM backward/float-trace in de replaydiagnose; standaard inert. */
   includeBackwardFloatTrace?: boolean;
-  /** Testinstrumentatie: conventies die na het lezen als afwijking op het profiel worden gezet (bv. B3,
-   *  sinds 2026-09-23 in elk ingebouwd profiel uit, voor een fixture die de B3-regel zelf toetst). */
   conventionOverrides?: Partial<Record<ConventionKey, boolean>>;
 }
 
@@ -75,7 +68,6 @@ function canonicalProductMinute(value: string | undefined): string | undefined {
   return value?.match(/^\d{4}-\d{2}-\d{2}$/) ? `${value}T00:00` : value;
 }
 
-/** Eén solvegraph tegelijk; de projectie bewaart daarna alleen taakuitkomsten en replaytrace. */
 interface XerReplaySolveResult {
   project: XerSolvedProject;
   plannedFloorTraceBySourceTaskId: Readonly<Record<string, CPMPlannedFloorTrace>>;
@@ -140,7 +132,6 @@ function solveImported(imported: XerReplayMutableSolveInput): XerReplaySolveResu
   };
 }
 
-/** Geen retained XER-archief, resources, assignments, codes of baselines in de solveclone. */
 function cloneSolveInput(imported: ImportResult): XerReplayMutableSolveInput {
   return structuredClone({
     project: imported.project,
@@ -205,10 +196,6 @@ function addProject(target: Map<string, XerSolvedProject>, project: XerSolvedPro
   target.set(project.projectId, project);
 }
 
-/**
- * Productdeel van één manifestentry. Predicate, baseline en counterfactual worden hier volledig
- * zonder grondwaarheid berekend. Per geopend project leeft steeds maar één solveclone tegelijk.
- */
 export function replayXerProductBeforeOracle(
   bytes: Uint8Array,
   candidate: XerTaskReplayCandidate,
@@ -355,7 +342,6 @@ export const syntheticZeroRegressionCandidate: XerTaskReplayCandidate = {
   apply: () => undefined,
 };
 
-/** Onderzoeks-counterfactual vanaf een verse XER-bronclone: verwijder alleen de finish-milestone-boundary. */
 export const dropFinishMilestoneBoundaryCandidate: XerTaskReplayCandidate = {
   id: 'drop-p6-finish-milestone-boundary',
   replayFrom: 'source',
@@ -385,12 +371,6 @@ export const dropFinishMilestoneBoundaryCandidate: XerTaskReplayCandidate = {
   },
 };
 
-/**
- * Negatieve controle van het openbare replay-instrument op de P6-doorgerekende populatie
- * (eigenaarsbesluit 2026-09-23): zet alleen B1 `p6RelationFinishBoundary` uit. De oudere
- * `dropFinishMilestoneBoundaryCandidate` (A17) is op die populatie inert (0 regressies, gemeten
- * 2026-09-23) en kan dus niet meer bewijzen dat het instrument een regressie ziet.
- */
 export const dropRelationFinishBoundaryCandidate: XerTaskReplayCandidate = {
   id: 'drop-p6-relation-finish-boundary',
   replayFrom: 'source',

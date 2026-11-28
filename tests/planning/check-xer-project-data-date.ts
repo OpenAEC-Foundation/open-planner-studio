@@ -23,8 +23,6 @@ function bytes(lines: readonly string[]): Uint8Array {
 function read(source: Uint8Array): XerReadResult {
   const parsed = readXER(source);
   if (isMultiDocumentImport(parsed)) throw new Error('PROJECT-data-date-fixture gaf onverwacht meerdere documenten terug');
-  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
-  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
   setConvention(parsed, 'p6CompletedDataDateWindow', true);
   setConvention(parsed, 'p6CompletedLoeActualFinish', true);
   return parsed;
@@ -72,8 +70,6 @@ for (const test of cases) {
   eq(`PROJECT-data-date ${test.name}: statusDate volgt uitsluitend de geselecteerde %F-kolom`, result.project.statusDate, test.statusDate);
 }
 
-// Dit is de bestaande last_recalc_date-dialectvorm. De bytekopie én alle betrokken
-// productvelden zijn bewust gepind: de data_date-kandidaat mag deze route niet wijzigen.
 const legacySource = fixture(['last_recalc_date'], { last_recalc_date: '2026-04-02' });
 const legacyBefore = Array.from(legacySource);
 const legacy = read(legacySource);
@@ -102,9 +98,6 @@ eq('PROJECT-data-date legacy last-dialect: productvelden blijven byte/productvel
   task: [{ id: 'T1', scheduleStart: '2026-01-02', scheduleFinish: '2026-01-03' }],
 });
 
-// data_date is een compatibiliteitsbron voor project.statusDate. Sinds review PR #109 (N1) is de
-// statusdatum (dus ook data_date als last_recalc_date-kolom ontbreekt) ook het anker voor een
-// activiteit zonder targetvenster — vroeger kreeg die hier 1970-01-01.
 const dataOnlyMissingTargetWindow = read(bytes([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -125,9 +118,6 @@ eq('PROJECT-data-date data-only zonder targetvenster: scheduleStart = statusdatu
 eq('PROJECT-data-date data-only zonder targetvenster: scheduleFinish = start (nulduur)',
   dataOnlyMissingTargetWindow.tasks[0]?.time.scheduleFinish, '2026-01-05');
 
-// End-to-end combinatie: PROJECT heeft uitsluitend data_date, terwijl de voltooide TT_LOE via
-// precies de bestaande, smalle actualFinish-route moet blijven lopen. De LOE-batterij bewaakt de
-// volledige fail-closed matrix; deze fixture verbindt haar bewezen vorm aan het nieuwe dialect.
 const dataDateOnlyCompletedLoe = read(bytes([
   'ERMHDR\t23.12\t2026-09-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',

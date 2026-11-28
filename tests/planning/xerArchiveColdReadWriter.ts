@@ -1,4 +1,3 @@
-// Kindproces A voor X9: schrijft een echte compacte schema-2-IFC zonder een lezer te openen.
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import { readXER } from '@/services/xer/xerReader';

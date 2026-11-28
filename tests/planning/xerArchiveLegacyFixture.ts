@@ -1,9 +1,3 @@
-/**
- * Test-only schema-1-writer voor bestaande X9-containers.
- *
- * Productcode schrijft bewust alleen schema 2. Deze helper houdt de uitgebreide historische
- * envelope als invoerfixture beschikbaar voor validators en achterwaartse-compatibiliteitstests.
- */
 import type { ImportResult } from '@/services/importTypes';
 import { writeIFC } from '@/services/ifc/ifcWriter';
 import {

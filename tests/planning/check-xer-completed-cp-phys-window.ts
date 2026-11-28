@@ -45,8 +45,6 @@ function fixtureBytes(): Uint8Array {
 function importedFixture(): ImportResult {
   const imported = readXER(fixtureBytes());
   if (isMultiDocumentImport(imported)) throw new Error('CP_Phys-fixture moet precies één project openen');
-  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
-  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
   setConvention(imported, 'p6CompletedDataDateWindow', true);
   setConvention(imported, 'p6CompletedLoeActualFinish', true);
   return imported;
@@ -219,12 +217,6 @@ function canonicalMinute(value: string | undefined): string | null {
   return value.length === 10 ? `${value}T00:00` : value.slice(0, 16);
 }
 
-/**
- * Corpusbewijs voor de CP_Phys-grens. De tien bronvormen die de eerdere kandidaat toeliet zijn
- * in P6 niet uniform: acht hebben een gelijk vroeg statuspunt, twee hebben geen early/late-orakel.
- * Zonder een toegestane broninvoer die dat onderscheid maakt blijft de route dus gesloten. De
- * werkelijke productpopulatie is nul en kan geen nieuwe early/late-kalenderinversie veroorzaken.
- */
 const corpusRoot = process.env.OPS_XER_CORPUS;
 if (!corpusRoot) {
   console.log('OK  XER CP_Phys corpusinversie: corpus niet aanwezig (OPS_XER_CORPUS) — overgeslagen');
@@ -250,8 +242,6 @@ if (!corpusRoot) {
     const truth = scanXerGroundTruth(bytes);
     if (truth.errors.length > 0) continue;
     const truthByTask = new Map(truth.tasks.map(task => [`${task.projectId}\u0000${task.taskId}`, task] as const));
-    // De brede crawl bevat bewust corrupte parserfixtures. Zij dragen geen CP_Phys-orakel en
-    // horen bij de reader-foutpadbatterij, niet bij deze productinvariantselectie.
     let opened: ImportResult | ReturnType<typeof readXER>;
     try {
       opened = readXER(bytes);
@@ -260,8 +250,6 @@ if (!corpusRoot) {
     }
     const imports = isMultiDocumentImport(opened) ? opened.taskProjects.map(project => project.result) : [opened];
     for (const imported of imports) {
-      // B3 staat sinds 2026-09-23 (eigenaarsvraag §1d-7) in het P6-profiel uit; deze corpusinversie
-      // toetst de populatie van de B3-vensterregel zelf, dus met B3 als afwijking aan (zoals vóór het besluit).
       setConvention(imported, 'p6CompletedDataDateWindow', true);
       const dataDate = imported.project.statusDate ? parseInstant(imported.project.statusDate) : null;
       const physical = imported.tasks.filter(task => task.p6CompletePctType === 'CP_Phys');

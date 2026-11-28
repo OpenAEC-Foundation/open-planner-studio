@@ -47,8 +47,6 @@ function fixtureBytes(): Uint8Array {
 function importedFixture(): ImportResult {
   const opened = readXER(fixtureBytes());
   if (isMultiDocumentImport(opened)) throw new Error('completed LOE-fixture moet één project openen');
-  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
-  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
   setConvention(opened, 'p6CompletedDataDateWindow', true);
   setConvention(opened, 'p6CompletedLoeActualFinish', true);
   return opened;
@@ -102,11 +100,6 @@ function projection(mutate?: (imported: ImportResult, loe: Task) => void) {
   };
 }
 
-/**
- * Een onparseerbare targetdatum moet door de smalle guard worden afgewezen vóór de solver die
- * terecht geen planning van corrupte invoer kan maken. Dit toetst dus de fail-closed grens zelf,
- * zonder een verzonnen hammock-uitkomst voor onplanbare invoer te verwachten.
- */
 function decisionOnly(mutate: (imported: ImportResult, loe: Task) => void) {
   const imported = structuredClone(importedFixture());
   const loe = task(imported);
@@ -182,8 +175,6 @@ const rejections: Array<{
   schedule?: typeof hammockAtDataDate;
   skipSolver?: true;
 }> = [
-  // Rekenprofielen baan B: de poort is conventie B4 `p6CompletedLoeActualFinish`. Twee armen:
-  // expliciet uit (wint van de tijdelijke bronvertaling) en bron weg (vertaling zet haar niet aan).
   { label: 'conventie B4 expliciet uit', mutate: imported => { setConvention(imported, 'p6CompletedLoeActualFinish', false); }, reason: 'conventionOff' },
   { label: 'andere bron', mutate: imported => { withoutP6Semantics(imported); }, reason: 'conventionOff' },
   { label: 'ontbrekende projectprovenance', mutate: (_imported, loe) => { loe.p6ProjectId = undefined; }, reason: 'missingProjectProvenance' },

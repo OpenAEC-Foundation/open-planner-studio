@@ -1,8 +1,3 @@
-/**
- * Compile-time contract: de gedeelde XER-catalogus is diep readonly, terwijl
- * de per-projectmaterialisatie een mutabele projectie houdt. Elke ongebruikte
- * @ts-expect-error betekent dat een catalogusmutatie weer zou compileren.
- */
 import type { XerResourceCatalog } from '@/services/xer/xerResources';
 import type { XerResourceReadResult } from '@/services/xer/xerResourceTypes';
 
@@ -28,7 +23,6 @@ catalog.rows.curves[0].numericPoints![0] = 99;
 // @ts-expect-error Catalogusissues zijn readonly.
 catalog.issues[0].sourceId = 'verboden';
 
-// De projectprojectie is bewust mutable en staat los van de catalogus.
 projectView.resources[0].name = 'toegestaan';
 projectView.sources.assignments[0].entity.sourceId = 'toegestaan';
 projectView.sources.assignments[0].assignedRole!.sourceId = 'toegestaan';

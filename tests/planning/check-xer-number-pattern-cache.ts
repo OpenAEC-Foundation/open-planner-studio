@@ -1,14 +1,3 @@
-// `parseXerNumber` bouwt zijn patroon één keer per getalnotatie — prestatiemeting rehab-2 (2026-10-07).
-//
-// AANLEIDING. De functie maakte voor ELK getal een nieuwe `RegExp` (plus twee `escapeRegExp`-
-// aanroepen). Op rehab-2.xer (52.640 toewijzingen met elk een handvol numerieke kolommen) kostte
-// dat 1,7 s bij het openen. Nu staat het patroon per notatie (decimaalteken × groepsteken, zes
-// mogelijkheden) in een cache.
-//
-// Wat dit pint: (1) het gedrag per notatie (geldig, ongeldig, groepering) blijft gelijk;
-// (2) 30.000 getallen in drie notaties bouwen hoogstens drie `RegExp`-objecten.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { parseXerNumber, type XerNumberFormat } from '@/services/xer/xerTables';
 
 const fails: string[] = [];
@@ -28,7 +17,6 @@ const dot: XerNumberFormat = { decimal: '.', group: null, source: 'default', cur
 const commaDot: XerNumberFormat = { decimal: ',', group: '.', source: 'currtype', currencyCode: 'EUR' };
 const dotComma: XerNumberFormat = { decimal: '.', group: ',', source: 'currtype', currencyCode: 'USD' };
 
-// ── 1. Gedrag ─────────────────────────────────────────────────────────────────────────────────────
 eq('1a punt, geen groep', parseXerNumber('12.5', dot), 12.5);
 eq('1b leeg ⇒ null', parseXerNumber('  ', dot), null);
 eq('1c teken', parseXerNumber('-3', dot), -3);
@@ -38,11 +26,9 @@ eq('1f komma-decimaal zonder groep', parseXerNumber('8,25', commaDot), 8.25);
 throws('1g foute groepering', () => parseXerNumber('12.34,5', commaDot));
 eq('1h punt-decimaal met kommagroep', parseXerNumber('1,234,567.75', dotComma), 1234567.75);
 throws('1i punt-decimaal weigert dubbele punt', () => parseXerNumber('1.2.3', dotComma));
-// Wisselen tussen notaties mag de cache niet laten lekken.
 eq('1j na wissel weer punt', parseXerNumber('7.5', dot), 7.5);
 throws('1k na wissel weigert punt-notatie nog steeds groepering', () => parseXerNumber('1,234.5', dot));
 
-// ── 2. Aantal gebouwde patronen ──────────────────────────────────────────────────────────────────
 const Native = globalThis.RegExp;
 let built = 0;
 globalThis.RegExp = new Proxy(Native, {

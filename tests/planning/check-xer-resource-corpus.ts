@@ -1,7 +1,3 @@
-/**
- * X6-corpuspoort. Het orakel leest %T/%F/%R direct uit de oorspronkelijke bytes, zonder een
- * productiemodule te importeren. Pas daarna mag de productiecatalogus worden vergeleken.
- */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -99,8 +95,6 @@ function measure<T>(work: () => T): { value: T; ms: number; heapBytes: number } 
   const start = performance.now();
   const value = work();
   const ms = performance.now() - start;
-  // Alle vier fasen houden hun resultaat vast voor het onafhankelijke orakel. Daarom is dit een
-  // live-heapdelta; een GC per fase zou die legitiem live grafiek scannen in plaats van meten.
   return { value, ms, heapBytes: Math.max(0, process.memoryUsage().heapUsed - before) };
 }
 function separator(raw: string, family: 'decimal' | 'group'): '.' | ',' | undefined {
@@ -126,10 +120,6 @@ function sourceNumber(raw: string | undefined, format: { decimal: '.' | ','; gro
   if (!Number.isFinite(parsed)) throw new Error(`Onafhankelijke scanner kreeg ongeldig getal ${JSON.stringify(value)}`);
   return parsed;
 }
-/** Onafhankelijke tegenhanger van `normalizeCurveValues` (contourEngine.ts): 21 eindige,
- *  niet-negatieve punten met een positieve som over de indices 1..20, of `undefined`. Sinds de
- *  contour-engine-etappe is dit de ENIGE validatie die de productiecode nog doet (geen
- *  eigen XER-curve-familie-best-fit meer — die is verwijderd, zie xerResourceCurves.ts). */
 function curveNumericPoints(points: readonly string[], format: { decimal: '.' | ','; group: '.' | ',' | null }): number[] | undefined {
   if (points.length !== 21) return undefined;
   const values: number[] = [];

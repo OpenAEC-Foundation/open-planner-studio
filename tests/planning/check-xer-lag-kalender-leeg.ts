@@ -1,8 +1,3 @@
-// Lege lagkalender (eigenaar, 2026-10-29, wiki "XER fase 2", punt A). Staat in een SCHEDOPTIONS-rij niet welke
-// kalender een lag gebruikt, dan telt de lag op de kalender van de opvolger, zoals de documentatie van P6
-// zegt. Een bekend token blijft gewoon gelden, een bestand zonder SCHEDOPTIONS-rij houdt de profielstandaard.
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import './domStub';
 import { readXER, type XerReadResult } from '@/services/xer/xerReader';
 import { writeXER } from '@/services/xer/xerWriter';
@@ -42,7 +37,6 @@ const written = writeXER({
 });
 
 const FIELD = 'sched_calendar_on_relationship_lag';
-/** De XER-tekst met een andere waarde in het lagveld; `null` haalt de hele SCHEDOPTIONS-tabel weg. */
 function withField(value: string | null): Uint8Array {
   const out: string[] = [];
   let fields: string[] = [];
@@ -83,7 +77,6 @@ eq('leeg veld: geen terugvalmelding, zoals de andere velden', empty.xer.schedule
 eq('bekend token: voorganger blijft', predecessor.project.schedulingOptions?.lagCalendar, 'predecessor');
 eq('bekend token: opvolger blijft', successor.project.schedulingOptions?.lagCalendar, 'successor');
 eq('geen SCHEDOPTIONS-rij: de profielstandaard', noRow.project.schedulingOptions?.lagCalendar, 'predecessor');
-// A eindigt vrijdag 16:00. Een dag lag telt op de opvolgerkalender de zaterdag mee, op de voorgangerkalender niet.
 eq('de rekening: voorganger slaat het weekend over', startOfB(predecessor), '2026-06-09T08:00');
 eq('de rekening: opvolger telt de zaterdag', startOfB(successor), '2026-06-08T08:00');
 eq('de rekening: leeg veld rekent als opvolger', startOfB(empty), startOfB(successor));

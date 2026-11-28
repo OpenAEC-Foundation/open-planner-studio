@@ -15,7 +15,6 @@ export interface XerReplayPredicateLog {
   sourceTaskId: string;
   taskCode: string;
   matched: boolean;
-  /** Uitsluitend geselecteerde bron-/provenancefeiten; nooit P6-orakelwaarden. */
   source: Readonly<Record<string, string | number | boolean | null>>;
 }
 
@@ -42,7 +41,6 @@ export interface XerTaskReplayResult {
 }
 
 export interface EvaluateXerTaskReplayInput {
-  /** Alleen meetlat; baseline/counterfactual en predicate zijn al berekend vóór deze aanroep. */
   oracle: XerGroundTruth;
   baseline: readonly XerSolvedProject[];
   counterfactual: readonly XerSolvedProject[];
@@ -71,9 +69,6 @@ function classify(
   counterfactual: string | number | undefined,
 ): XerReplayClassification {
   if (oracle === null) return 'unchanged';
-  // De X12-meetlat is exact: alleen een overgang naar exact is verbetering en alleen een
-  // overgang van exact af is regressie. Twee verschillende niet-exacte waarden wassen elkaar
-  // niet via afstand, tolerantie of same-day-logica.
   const baselineExact = baseline !== undefined && String(baseline) === String(oracle);
   const counterfactualExact = counterfactual !== undefined && String(counterfactual) === String(oracle);
   if (!baselineExact && counterfactualExact) return 'improved';
@@ -129,11 +124,6 @@ function indexPredicates(predicate: readonly XerReplayPredicateLog[]): Map<strin
   return indexed;
 }
 
-/**
- * Koppelt reeds berekende baseline/counterfactual aan het onafhankelijke P6-orakel.
- * Deze functie voert geen predicate of solve uit: raw oracle kan daardoor uitsluitend de
- * classificatie bepalen en nooit de kandidaatroute.
- */
 export function evaluateXerTaskReplay(input: EvaluateXerTaskReplayInput): XerTaskReplayResult {
   if (input.oracle.errors.length > 0) {
     throw new Error(`task replay: onafhankelijke scannerfout: ${input.oracle.errors.join('; ')}`);
@@ -223,7 +213,6 @@ export function evaluateXerTaskReplay(input: EvaluateXerTaskReplayInput): XerTas
   return { tasks: results, predicate: [...input.predicate], aggregate };
 }
 
-/** De acceptatiepoort: netto winst kan nooit een regressie op welke as dan ook wegstrepen. */
 export function shouldRejectXerTaskReplay(result: XerTaskReplayResult): boolean {
   return XER_FIDELITY_AXES.some(axis => result.aggregate[axis].regressed > 0);
 }

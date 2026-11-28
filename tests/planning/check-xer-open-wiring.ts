@@ -69,7 +69,6 @@ eq('2 lezer behoudt selectie-, baseline- en danglingtellingen', multi.report, {
 eq('3 actieve import is het project met de meeste bladtaken', multi.activeDocumentIndex, 1);
 
 const store = useAppStore.getState();
-// Het startdocument is vers en mag voor het eerste geopende project worden hergebruikt.
 store.applyOpenedImport(multi, {
   filePath: null,
   fileHandle: null,
@@ -162,8 +161,6 @@ if (mainDocumentId && otherDocumentId) {
     JSON.stringify(linkIds(useAppStore.getState().xerImportMetadata)), linksBeforeUndo);
 }
 
-// X4b kan de metadata al door het document-/recovery-inputcontract dragen. De daadwerkelijke
-// IFC-serialisatie van `xerImportMetadata.externalLinks` blijft bewust de geregistreerde X9-taak.
 const recoveryDocs = docs.map(({ id, payload }) => ({
   id,
   filePath: payload.filePath,
@@ -194,9 +191,6 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
     { projectId: 'DANGLING', links: [], sequences: [] },
   ]);
 
-// ── XER-etappeplan §3.5/§3.7/§3.10, taak T4 — standaard-aan bij het laden + de melding ─────────
-// Corpusloos, draait altijd. Één taak per project, target ver uiteen van het early-orakel ⇒
-// gegarandeerd één verschoven taak — geen calendar-/uurmodus-fijnrekenwerk nodig.
 {
   const restXerBytes = (projId: string, taskId: string, taskCode: string) => [
     'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
@@ -231,9 +225,6 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
 
   useAppStore.getState().newDocument();
   const undoBefore = useAppStore.getState().historyEvents.filter((e) => e.state === 'applied').length;
-  // ID-diff i.p.v. lengte-delta: `notify()` begrenst de stapel (MAX_NOTIFICATIONS) en verdringt
-  // dan de OUDSTE info-melding — bij een volle stapel verandert `.length` dus niet, terwijl er wél
-  // een nieuwe melding bij kwam. Een set van bestaande id's blijft correct ongeacht verdringing.
   const notifBefore = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));
   useAppStore.getState().applyOpenedImport(single, { filePath: null, recompute: true });
 
@@ -255,7 +246,6 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
   eq('T4-10 undo() direct na het laden raakt de modus niet (er is niets om naar terug te gaan)',
     useAppStore.getState().datesAsRecorded, true);
 
-  // Tegenproef: een XER zónder enige P6-rekenuitvoer opent volledig normaal — geen aanbod, geen modus.
   const clean = await parseOpenedFile({ name: 't4-clean.xer', bytes: new TextEncoder().encode(noRecordedXerBytes('PZ', 'TZ', 'AZ')) });
   if (isMultiDocumentImport(clean)) throw new Error('T4-cleanfixture moet enkelproject zijn');
   eq('T4-11 fixture zonder P6-uitvoer draagt een lege recordedTimes-map (geen enkele taak met early-paar)', clean.recordedTimes, {});
@@ -264,8 +254,6 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
   eq('T4-12 XER zonder P6-rekenuitvoer opent normaal: modus uit', useAppStore.getState().datesAsRecorded, false);
   eq('T4-13 …en geen aanbod', useAppStore.getState().recordedDates, null);
 
-  // Multi-project: twee zelfstandige XER-projecten, elk met een eigen restverschil ⇒ twee
-  // ONAFHANKELIJKE modusvlaggen, maar de MELDING blijft er één per bestand (plan §3.7 punt 1).
   const twoProjBytes = new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
     '%T\tCALENDAR',
@@ -298,20 +286,12 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
     ?.find((d) => d.messageKey === 'notifications.xerImportDatesAsRecorded');
   eq('T4-18 …de teller is de SOM over beide documenten (1+1=2), niet per document',
     multiDetail?.params?.count, 2);
-  // Integratie #101 (taaktypes) op #169 + E4 (orkestratorbesluit 25-09, gebruikstest #170 G3):
-  // `duration_type` ontsluit de werkregel-UI, maar een regel die de lezer ALLEEN uit dat importveld
-  // afleidde ontsluit STIL — geen detailregel. Mutatiebewijs: `taskTypesNeedNotice` weg uit
-  // applyOpenedImport (terug naar alleen `taskTypesVisible`) ⇒ T4-18b rood.
   eq('T4-18b afgeleide regel alleen: document ontsloten, maar géén taaktypes-detailregel',
     [
       openedDocs.every((d) => d.payload.taskTypesVisible),
       notifsAfterMulti[0]?.detailLines?.filter((d) => d.messageKey === 'notifications.taskTypesUnlockedDetail').length ?? 0,
     ],
     [true, 0]);
-  // …met opgeslagen werk op een toewijzing wél: één detailregel in diezelfde ene melding (geen extra
-  // toast), met een EIGEN gidslink naar `gids-taaktypes` terwijl de melding zelf naar het
-  // bestand/profiel linkt (G3). Mutatiebewijs: `TASK_TYPES_DETAIL_LINE` terug naar een kale
-  // `{ messageKey }` ⇒ T4-18c rood.
   {
     const withWork = await parseOpenedFile({ name: 't4-werk.xer', bytes: new TextEncoder().encode(restXerBytes('PW', 'TW', 'AW')) });
     if (isMultiDocumentImport(withWork)) throw new Error('T4-werkfixture moet enkelproject zijn');
@@ -328,25 +308,14 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
       [1, TASK_TYPES_HELP_ARTICLE_ID, 'notifications.workRulesReadMore', true]);
   }
 
-  // MUTATIEBEWIJS (O6-patroon): zet `recordedTimesOrigin` NIET ⇒ de modus blijft UIT, ook al is
-  // exact dezelfde vastlegging (`recordedTimes`) aanwezig. Bewijst dat de auto-aan-route
-  // uitsluitend op de herkomstvlag draait — en dus dat IFC/CSV/MSPDI/MPP/P6XML (die dit veld nooit
-  // zetten) byte-identiek #63-gedrag houden.
   const singleAgain = await parseOpenedFile({ name: 't4-rest-2.xer', bytes: new TextEncoder().encode(restXerBytes('PX2', 'TX2', 'AX2')) });
   if (isMultiDocumentImport(singleAgain)) throw new Error('T4-restfixture (2) moet enkelproject zijn');
   const singleWithoutOrigin = { ...singleAgain, recordedTimesOrigin: undefined };
   useAppStore.getState().newDocument();
   useAppStore.getState().applyLoadedProject(singleWithoutOrigin, { filePath: null, recompute: true });
   eq('T4-19 zonder recordedTimesOrigin blijft de modus UIT (O6-mutatiebewijs)', useAppStore.getState().datesAsRecorded, false);
-  // Eigenaarsbesluit 2026-09-24 ("beperken"): zonder herkomst ook geen aanbod meer — alleen een
-  // bron met echte rekenuitvoer (XER/P6 XML/MSPDI/.mpp, of een eigen IFC dat die bron noemt).
   eq('T4-20 …en er is ook geen aanbod (geen herkomst ⇒ geen vastlegging)', useAppStore.getState().recordedDates, null);
 
-  // Heropen-beleid (orkestratorbesluit, XER-etappe laag 3, 2026-09-05, taak T5): 'xer-archive' —
-  // wat `readIFC`'s XER-archiefreconstructie zet voor een HEROPENDE IFC — gaat zonder vlag
-  // "ongewijzigd sinds import" NIET in de modus, en vergeet de opgeslagen datums (geen aanbod-stand
-  // meer, eigenaar 2026-10-17). MUTATIEBEWIJS: stelde `applyRecordedDatesOnLoad`
-  // 'xer-archive' gelijk aan 'xer', dan zou T4-22 hieronder `true` worden.
   const singleAsArchiveOrigin = { ...singleAgain, recordedTimesOrigin: 'xer-archive' as const };
   useAppStore.getState().newDocument();
   useAppStore.getState().applyLoadedProject(singleAsArchiveOrigin, { filePath: null, recompute: true });
@@ -354,10 +323,6 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
     useAppStore.getState().datesAsRecorded, false);
   eq('T4-23 …en vergeet de opgeslagen datums (geen aanbod)', useAppStore.getState().recordedDates, null);
 
-  // T4-25..29 — heropenen uit eigen IFC meldt NIETS (gebruikstest rekenprofielen 24-09, B4; vervangt
-  // de eerdere aanbiedende XER-meldingsregel). `readIFC` zet `xerOrigin: 'xer-archive'` naast de
-  // gereconstrueerde `xer`-metadata. MUTATIEBEWIJS: haal het `xerOrigin`-filter uit
-  // `xerImportNotice` ⇒ T4-25 slaat rood (weer één XER-melding).
   const reopenedArchive = { ...singleAsArchiveOrigin, xerOrigin: 'xer-archive' as const };
   const notifBeforeArchive = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));
   useAppStore.getState().newDocument();
@@ -367,15 +332,12 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
     archiveNotifs.filter((n) => n.messageKey === 'notifications.xerImportOpened').length, 0);
   eq('T4-26 voorwaarde: de modus staat daarbij UIT', useAppStore.getState().datesAsRecorded, false);
   eq('T4-27 …en de opgeslagen datums zijn vergeten (geen aanbod-stand)', useAppStore.getState().recordedDates, null);
-  // Tegenproef: dezelfde vastlegging als VERSE XER geeft wél de openingsmelding.
   const notifBeforeFresh = new Set(useAppStore.getState().ui.notifications.map((n) => n.id));
   useAppStore.getState().newDocument();
   useAppStore.getState().applyOpenedImport(singleAgain, { filePath: null, recompute: true });
   eq('T4-29 een verse XER-import meldt wél',
     useAppStore.getState().ui.notifications.filter((n) => !notifBeforeFresh.has(n.id))
       .filter((n) => n.messageKey === 'notifications.xerImportOpened').length, 1);
-  // T4-30..32 — de ECHTE route: het zojuist geopende XER-document als IFC wegschrijven en via
-  // `readIFC` heropenen (archief reist mee) ⇒ `xerOrigin` gezet en geen XER-openingsmelding.
   const activePayload = useAppStore.getState().getOpenDocumentPayloads()
     .find((d) => d.id === useAppStore.getState().activeDocumentId)?.payload;
   if (!activePayload) throw new Error('T4-30: actief documentpayload ontbreekt');
@@ -390,13 +352,6 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
       .filter((n) => n.messageKey === 'notifications.xerImportOpened').length, 0);
 }
 
-// ── Review #109 — de openingsmelding telt de TONENDE taken, niet de afwijkende ────────────────────
-// In de modus tonen ALLE taken met een vastlegging de opgeslagen datums. De regel
-// "N taken tonen de datums zoals Primavera ze opsloeg" noemt dus `recordedDates.total`; het aantal
-// dat bij herberekenen verschuift (`recordedDates.shifted`) staat in de strook. rehab-2 meldde
-// 2882 (de afwijkers) waar alle 6976 de vastgelegde datums tonen. Fixture: twee taken, één met een
-// vastlegging die exact op de eigen berekening valt, één ver ernaast ⇒ shifted 1, total 2.
-// MUTATIEBEWIJS: tel in `applyOpenedImport` weer `shifted` i.p.v. `total` ⇒ R109-3 rood (1 i.p.v. 2).
 {
   const bytes = new TextEncoder().encode([
     'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
@@ -429,8 +384,6 @@ eq('8f recovery-inputoverdracht herstelt links per document zonder solverdoorwer
 const corpusRoot = process.env.OPS_XER_CORPUS;
 if (corpusRoot && existsSync(corpusRoot)) {
   const openPublicXer = async (relativePath: string) => {
-    // Partieel corpus (her-check laag 3, bevinding 12): een ontbrekend bestand is een nette rode
-    // check, geen kale `ENOENT`-stacktrace.
     if (!existsSync(join(corpusRoot, relativePath))) {
       throw new Error(`corpusbestand ontbreekt: ${relativePath} (OPS_XER_CORPUS wijst naar een onvolledige corpusmap)`);
     }
@@ -483,11 +436,6 @@ if (corpusRoot && existsSync(corpusRoot)) {
     Number.isFinite(ozbElapsedMs) && Number.isFinite(ozbHeapDeltaBytes));
   console.log(`.   X4b-wiring openbaar: 15→${ozb.results.length} leeg=${ozb.report.emptyProjectsSkipped} dangling=${ozb.report.danglingBaselineReferences} elapsedMs=${ozbElapsedMs.toFixed(1)} heapDeltaBytes=${ozbHeapDeltaBytes}`);
 
-  // XER-etappeplan §4/T4, acceptatie: "een corpus-XER met restverschillen opent MET de modus aan;
-  // een XER zonder verschillen opent normaal" — met ECHTE corpusbestanden, niet alleen de
-  // corpusloze fixtures hierboven. `rehab-2.xer` (project 761, gemeten in de X-O7-bijstelling: 813
-  // van 6.976 vastgelegde taken wijken ná de solve nog af) en `p6diff-baseline.xer` (8 vastgelegde
-  // taken, gemeten: 0 wijken af — dit bestand won onderweg mee met de laag-1-fixes op main).
   const openSingle = async (relativePath: string) => {
     const bytes = new Uint8Array(readFileSync(join(corpusRoot, relativePath)));
     const opened = await parseOpenedFile({ name: relativePath, bytes });

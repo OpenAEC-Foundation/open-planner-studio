@@ -32,8 +32,6 @@ function structuredRecord(
   return `(${number}||${name}(${fields})(${children.join('')}))`;
 }
 
-// Breuk die dit vangt: structured text als losse string-splitsingen behandelen, waardoor geneste
-// records of P6's DEL-DEL-opmaak de recordgrenzen verschuiven.
 const nested = parseXerStructuredText(
   '\u007f\u007f (0||CalendarData(kind|root)((1||DaysOfWeek()((2||2()((3||0(s|08:00|f|16:00)())))))))',
 );
@@ -69,14 +67,11 @@ try {
     '(0||()((0||DaysOfWeek()((0||2()((0||0(s|07:00|f|12:00)())))))(0||Exceptions()())))',
   ).bands.byWeekday[1];
 } catch {
-  // De assertion hieronder maakt een onterechte rootnaamweigering als gewone RED zichtbaar.
 }
 eq('1a lege hoofdrecordnaam behoudt volledig aanwezige kalenderkinderen', unnamedRootBands, [
   { start: 420, end: 720 },
 ]);
 
-// Breuk die dit vangt: P6-dag 1 als ISO-maandag behandelen, AM/PM als 24-uursklok lezen,
-// middernacht-wrap verliezen of een uitzondering met uren als vrije dag opslaan.
 const decoded = decodeXerCalendarData(
   '(0||CalendarData()('
   + '(0||DaysOfWeek()('
@@ -104,9 +99,6 @@ eq('4 uitzondering met AM/PM-uren is een werkende uitzondering', decoded.working
 }]);
 eq('5 gelezen klokbanden dragen het XER-uursignaal', decoded.hasExplicitClockBands, true);
 
-// Breuk die dit vangt: een lege clndr_data als volledig niet-werkend behandelen. De decoder houdt
-// een neutrale 5x8-default; de reader mag die per kalender verfijnen wanneer geplande bronvelden
-// een P6-lunchdag bewijzen (zie check-xer-reader).
 const empty = decodeXerCalendarData('');
 eq('6 lege kalenderdata valt terug op ma-vr 08:00-16:00', empty.bands.byWeekday, {
   1: [{ start: 480, end: 960 }], 2: [{ start: 480, end: 960 }],
@@ -115,9 +107,6 @@ eq('6 lege kalenderdata valt terug op ma-vr 08:00-16:00', empty.bands.byWeekday,
 });
 eq('7 gesynthetiseerde default is geen expliciet XER-kloksignaal', empty.hasExplicitClockBands, false);
 
-// Breuken die dit vangt: `base_clndr_id` in dezelfde eerste pas opzoeken (kind staat hier vóór
-// basis), lege uren als nul behandelen, of ontbrekende uren-per-dag uit een scalar/default afleiden
-// in plaats van uit de werkelijk gelezen weekbanden.
 const calendarTable = parseXerTables(utf8([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
   '%T\tCALENDAR',
@@ -152,10 +141,6 @@ eq('11 ontbrekende uren-per-periode komen uit 12 echte weekuren over 2 werkdagen
 }, { day: 6, week: 12, month: 48, year: 576 });
 eq('12 tabelresultaat behoudt X2-encodingrapportage', tableCalendars.encoding, 'utf-8');
 
-// Breuken die dit vangt: alle CALENDAR-rijen in een globale `map` laten falen op één defecte rij,
-// of de twee waargenomen compacte recordvormen alleen in de test voorfilteren. De productie-ingang
-// moet de compacte band/exception-vorm smal herstellen, de afgeknotte rij zichtbaar weigeren en de
-// geldige zusterrij behouden.
 const isolatedRows = readXerCalendars(parseXerTables(utf8([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
   '%T\tCALENDAR',
@@ -193,10 +178,6 @@ eq('14 rij-issues pinnen kalender-id, bronregel, code en afhandeling',
 eq('15 ieder rij-issue bevat een niet-lege reden',
   isolatedRows.issues.every(issue => issue.reason.trim().length > 0), true);
 
-// Breuken die dit vangt: compacte records louter op prefix herkennen en daardoor een exception
-// als weekdag fabriceren, een dag onder Exceptions toelaten, compactvormen door wrappers laten
-// lekken of een compact record onder een onbekende ouder accepteren. Iedere rij wordt geheel
-// geweigerd; alleen de geldige zusterkalender blijft over.
 const nestedCompactExceptions = structuredRecord('0', 'CalendarData', '', [
   structuredRecord('0', 'DaysOfWeek', '', [
     structuredRecord('0', '2', '', [structuredRecord('0', '0', 's|08:00|f|12:00', [])]),
@@ -231,10 +212,6 @@ eq('15b verkeerde compactcontext wordt per rij typed geweigerd zonder default of
     ['wrong-parent', 'XER_CALENDAR_INVALID_COMPACT_CONTEXT', 'REJECTED'],
   ]);
 
-// Breuken die dit vangt: aanwezige maar ongeldige data als "afwezig" behandelen en stil naar de
-// ma-vr-default vallen, losse tokens/ongeldige dagen of epochs laten verdwijnen, seconden afkappen,
-// overlappende banden doorgeven en negatieve periode-uren stil afleiden. Alleen de lege cel mag
-// defaulten. Bij een dubbele exceptiondatum wint een werkende uitzondering altijd van een vrije dag.
 const hostileRows = readXerCalendars(parseXerTables(utf8([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
   '%T\tCALENDAR',
@@ -298,9 +275,6 @@ eq('15d hostile issues dragen steeds bronregel en reden', hostileRows.issues.map
   { line: 15, hasReason: true },
 ]);
 
-// Breuk die dit vangt: alleen het eerste Exceptions-kind met `find` lezen en de inhoud van een
-// tweede container stil verliezen. De containers worden in bronvolgorde samengevoegd en het
-// herstelbesluit blijft als typed issue zichtbaar.
 const multipleExceptionContainers = readXerCalendars(parseXerTables(utf8([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
   '%T\tCALENDAR',
@@ -333,8 +307,6 @@ eq('15f meerdere Exceptions-containers leveren een expliciet recovery-issue',
     resolution: 'RECOVERED',
   }]);
 
-// Breuken die dit vangt: een dangling/self-base stil laten staan of A↔B als echte circulaire
-// objectgraaf koppelen. De ruwe id blijft diagnostisch bewaard; alleen veilige randen worden objecten.
 const baseGraph = readXerCalendars(parseXerTables(utf8([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tUSD',
   '%T\tCALENDAR',
@@ -376,9 +348,6 @@ try {
 eq('15i kalenderresultaat blijft serialiseerbaar zonder cyclische objectgraaf',
   baseGraphSerializable, true);
 
-// Breuken die dit vangt: basegraafdetectie recursief uitvoeren en daardoor bij een geldige diepe
-// keten of cyclus de JS-callstack overschrijden. De grote cyclus heeft een korte tail; alleen de
-// 10.000 echte cyclusleden krijgen een issue en de ongekoppelde objectgraaf blijft serialiseerbaar.
 const deepAcyclicRows = Array.from({ length: 10_000 }, (_, index) => (
   `%R\ta-${index}\t${index === 9_999 ? '' : `a-${index + 1}`}\t`
 ));
@@ -480,9 +449,6 @@ eq('15k diepe cyclus markeert alleen 10.000 echte leden en laat de tail veilig g
   serializable: true,
 });
 
-// Breuk die dit vangt: XER-klokbanden alleen via de universele (a)/(b)/(b2)-regels laten lopen.
-// De gewone enkelbandkalender `Basis` moet door de XER-eigen bronregel promoveren; `Volledige dag`
-// promoveerde al door gedeelde regel (b2), terwijl de gesynthetiseerde lege `Afgeleid` dagmodus blijft.
 eq('16 uurmodus-blast-radius is expliciet meetbaar vóór en na XER-regel c', tableCalendars.promotion, {
   sharedRules: 1,
   withXerClockRule: 2,
@@ -506,8 +472,6 @@ eq('19 lege default zonder bronklokken blijft dagmodus', {
   workTime: child?.workTime,
 }, {});
 
-// Breuk die dit vangt: XER en P6XML voor dezelfde P6-werkweek elk een andere dagnummering,
-// klokinterpretatie of bandcanonicalisatie laten gebruiken.
 installDOMParser();
 const p6Calendar = new DOMParser().parseFromString(
   '<Calendar><StandardWorkWeek>'
@@ -529,12 +493,6 @@ eq('20 P6XML levert vóór gedeelde canonicalisatie de letterlijk verwachte ruwe
 const p6Week = canonicalizeBands(p6RawWeek).bands;
 eq('21 equivalente XER- en P6XML-werkweken leveren dezelfde canonieke banden', decoded.bands, p6Week);
 
-// ── 22 — WEEKEND-KLEMHERSTEL (etappe 7b-1), volledig corpusloos ────────────────────────────────
-// Een P6-schrijver die een aaneengesloten vrij blok op de MA-VR-as klemt levert de zaterdagen af op
-// de vrijdag ervóór en de zondagen op de maandag erná. De poort daarvoor is per RECORD (zie
-// `weekendClampTarget`/`hasWeekendClampEvidence`): sprong over het weekend, of een aangrenzend
-// duplicaat mét blokvervolg aan de binnenzijde. 22a/22b zijn de positieve gevallen, 22c–22e de
-// negatieve — die laatste drie zijn de false positives die een kalenderBREDE poort wél zou maken.
 function exceptionBlock(serials: readonly number[]): string {
   return structuredRecord('0', 'Exceptions', '', serials.map(
     (serial, index) => structuredRecord('0', String(index), `d|${serial}`, []),
@@ -551,15 +509,10 @@ function calendarData(p6Days: readonly number[], serials: readonly number[]): st
 }
 const holidayDates = (data: string): string[] =>
   decodeXerCalendarData(data).holidays.map(holiday => holiday.startDate).sort();
-// P6-dagnummers: 1=zo, 2=ma, 3=di, 4=wo, 5=do, 6=vr, 7=za.
-const FRIDAY_OFF_WEEK = [1, 2, 3, 4, 5, 7];   // ma-do + za + zo werkend, vrijdag vrij (vorm 842)
-const MON_FRI_WEEK = [2, 3, 4, 5, 6];         // gewone ma-vr-kalender
-const SEVEN_DAY_WEEK = [1, 2, 3, 4, 5, 6, 7]; // alle dagen werken
+const FRIDAY_OFF_WEEK = [1, 2, 3, 4, 5, 7];
+const MON_FRI_WEEK = [2, 3, 4, 5, 6];
+const SEVEN_DAY_WEEK = [1, 2, 3, 4, 5, 6, 7];
 
-// 22a — de LETTERLIJKE recordreeks van blok 2009-11-26 … 2009-12-05 uit kalender 842 van
-// `rehab-2.xer`: 40143=2009-11-26 (do) … 40151=2009-12-04 (vr), met duplicaten op 11-27 (vr),
-// 11-30 (ma) en 12-04 (vr). De zaterdag ná het blok (12-05) komt uitsluitend uit het duplicaat op
-// de laatste vrijdag — het blok loopt aan de binnenzijde door (12-03 is een uitzondering).
 const CLAMPED_BLOCK = [40143, 40144, 40144, 40147, 40147, 40148, 40149, 40150, 40151, 40151];
 const clamped = decodeXerCalendarData(calendarData(FRIDAY_OFF_WEEK, CLAMPED_BLOCK));
 eq('22a het geklemde blok wordt tot tien aaneengesloten vrije dagen hersteld',
@@ -569,20 +522,11 @@ eq('22a het geklemde blok wordt tot tien aaneengesloten vrije dagen hersteld',
   ]);
 eq('22a een herstelde dag telt niet ook nog als virtuele P6-niet-werkdag',
   clamped.p6NonWorkPenaltyDates, []);
-// Eindreview bevinding 7: de reconstructie laat een spoor achter — één herstelcode per kalender,
-// die via `readXerCalendars` als `XER_CALENDAR_WEEKEND_CLAMP_RECONSTRUCTED` (RECOVERED) in de
-// kalenderbevindingen en dus in de openingsmelding meetelt. De gereconstrueerde dag draagt de
-// Engelse naam die ook de andere lezers gebruiken (bevinding 8: geen Nederlands in het IFC).
 eq('22a het herstel laat een herstelcode achter', clamped.recoveries.includes('WEEKEND_CLAMP_RECONSTRUCTED'), true);
 eq('22a de gereconstrueerde dag is als zodanig benoemd',
   clamped.holidays.find(holiday => holiday.startDate === '2009-12-05')?.name,
   'Calendar exception (weekend reconstruction)');
 
-// 22b — blok 2009-09-18 … 2009-09-24 van dezelfde kalender: de openings-VRIJDAG draagt hier géén
-// duplicaat (40074=2009-09-18 staat er één keer). Die zaterdag komt dus niet uit het duplicaat maar
-// uit de SPRONG: vrijdag 09-18 en maandag 09-21 zijn allebei uitzondering, drie kalenderdagen uit
-// elkaar, met een werkend weekend ertussen dat niet is opgeslagen. Zonder deze tweede bewijsvorm
-// zou 2009-09-19 ontbreken — en dat is een van de tien dagen die de set-cover onafhankelijk eist.
 const JUMP_BLOCK = [40074, 40077, 40077, 40078, 40079, 40080];
 eq('22b de sprong vrijdag→maandag herstelt het weekend ook zonder duplicaat op de vrijdag',
   holidayDates(calendarData(FRIDAY_OFF_WEEK, JUMP_BLOCK)), [
@@ -590,36 +534,21 @@ eq('22b de sprong vrijdag→maandag herstelt het weekend ook zonder duplicaat op
     '2009-09-22', '2009-09-23', '2009-09-24',
   ]);
 
-// 22c — NEGATIEF: een op zichzelf staand dubbel vrijdagrecord op een 7-daagse kalender. Dit is de
-// gewone P6-invoerfout waar de decoder al een `DUPLICATE_EXCEPTION`-herstel voor kent; er is geen
-// blok en dus geen bewijs. Een kalenderbrede poort maakte hier stil zaterdag 2009-12-05 vrij.
 eq('22c een los dubbel vrijdagrecord maakt geen zaterdag vrij',
   holidayDates(calendarData(SEVEN_DAY_WEEK, [40151, 40151])), ['2009-12-04']);
 eq('22c zonder herstel geen herstelcode',
   decodeXerCalendarData(calendarData(SEVEN_DAY_WEEK, [40151, 40151])).recoveries.includes('WEEKEND_CLAMP_RECONSTRUCTED'), false);
 
-// 22d — NEGATIEF: een duplicaat ELDERS (woensdag 2009-12-02, geen weekendbuur) mag de betekenis van
-// twee losse vrijdag-feestdagen verderop niet veranderen. Een kalenderbrede poort maakte hier
-// 2009-12-05 én 2009-12-12 vrij.
 eq('22d een duplicaat elders laat losse vrijdagrecords ongemoeid',
   holidayDates(calendarData(FRIDAY_OFF_WEEK, [40149, 40149, 40151, 40158])),
   ['2009-12-02', '2009-12-04', '2009-12-11']);
 
-// 22f — NEGATIEF (restlek uit de her-check): twee LOSSE feestdagen op een za-do-kalender die
-// toevallig drie dagen uit elkaar liggen — vrijdag 2009-12-04 en maandag 2009-12-07. Op zo'n
-// kalender is elke vrijdag-uitzondering per definitie redundant, dus zonder de meerdaags-blok-eis
-// én de blokvervolg-eis zou de sprongvorm hier zaterdag 12-05 half vrijmaken (en zondag 12-06 niet).
 eq('22f twee losse feestdagen drie dagen uit elkaar vormen geen geklemd blok',
   holidayDates(calendarData(FRIDAY_OFF_WEEK, [40151, 40154])), ['2009-12-04', '2009-12-07']);
 
-// 22g — NEGATIEF (restlek uit de her-check): een tweedaags feestdagblok (do 2009-12-03 + vr 12-04)
-// op een 7-daagse kalender, waarbij de vrijdag per ongeluk dubbel staat. Het blokvervolg aan de
-// afgekeerde zijde is er wél (de donderdag), dus alleen de meerdaags-blok-eis houdt dit tegen.
 eq('22g een tweedaags blok met een dubbel vrijdagrecord maakt geen zaterdag vrij',
   holidayDates(calendarData(SEVEN_DAY_WEEK, [40150, 40151, 40151])), ['2009-12-03', '2009-12-04']);
 
-// 22e — NEGATIEF: dezelfde geklemde reeks op een gewone ma-vr-kalender. Het klemdoel is daar zelf al
-// niet-werkend, dus herstellen zou niets veranderen en gebeurt niet.
 eq('22e op een ma-vr-kalender wordt er niets hersteld',
   holidayDates(calendarData(MON_FRI_WEEK, CLAMPED_BLOCK)), [
     '2009-11-26', '2009-11-27', '2009-11-30', '2009-12-01', '2009-12-02', '2009-12-03', '2009-12-04',

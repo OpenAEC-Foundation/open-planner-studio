@@ -1,12 +1,3 @@
-// P6 XML-kalenderregels bij het openen (fixronde 2 van #330). Corpusloos (CI).
-//
-// (1) Eindtijdregel per bestand: P6 schrijft de LAATSTE minuut (`16:29` = tot 16:30); MPXJ telt bij
-//     elke eindtijd één minuut op. Een bestand met exacte tijden (Aspose: `16:00`) blijft exact.
-//     Bewijs met de einddatum ná herberekenen: een halve-uurkalender mag geen minuut per dag kosten.
-// (3) Een werkende uitzondering van 24 uur blijft na export en heropenen een werkdag (P6 leest één
-//     blok 00:00–23:59 als vrije dag; de writer splitst, de lezer voegt samen).
-// (4) P6 schrijft een uitzondering per datum: de lezer voegt aansluitende dagen weer samen tot één
-//     reeks (alleen bij gelijke naam en werktijd), met een vaste taalonafhankelijke naam.
 import { readP6XML } from '@/services/p6/p6xmlReader';
 import { writeP6XML } from '@/services/p6/p6xmlWriter';
 import type { ImportResult } from '@/services/importTypes';
@@ -48,32 +39,27 @@ function solvedFinish(xml: string): { band: unknown; finish: string | undefined;
   return { band: r.calendar.workTime?.byWeekday[1] ?? [r.calendar.workStartHour, r.calendar.workEndHour], finish: task?.time.earlyFinish, error: res.error };
 }
 
-// (1a) Het faalscenario van de review: 08:00–16:29 (= 16:30), 8,5 uur per dag, 42,5 uur = 5 dagen.
 {
   const got = solvedFinish(p6File({ start: '08:00:00', finish: '16:29:00', hpd: 8.5, hours: 42.5, plannedFinish: '2026-03-06T16:30:00' }));
   eq('1a 08:00–16:29 ⇒ blok tot 16:30', got.band, [{ start: 480, end: 990 }]);
   eq('1a einde na herberekenen = vrijdag 16:30', [got.finish, got.error], ['2026-03-06T16:30', undefined]);
 }
-// (1b) 07:30–16:30 (P6: 16:29), 9 uur per dag, 45 uur = 5 dagen.
 {
   const got = solvedFinish(p6File({ start: '07:30:00', finish: '16:29:00', hpd: 9, hours: 45, plannedFinish: '2026-03-06T16:30:00' }));
   eq('1b 07:30–16:29 ⇒ blok 07:30–16:30', got.band, [{ start: 450, end: 990 }]);
   eq('1b einde na herberekenen = vrijdag 16:30', got.finish, '2026-03-06T16:30');
 }
-// (1c) Bouwkalender 07:00–15:30 (P6: 15:29), 8,5 uur per dag, 42,5 uur = 5 dagen.
 {
   const got = solvedFinish(p6File({ start: '07:00:00', finish: '15:29:00', hpd: 8.5, hours: 42.5, plannedFinish: '2026-03-06T15:30:00' }));
   eq('1c 07:00–15:29 ⇒ blok 07:00–15:30', got.band, [{ start: 420, end: 930 }]);
   eq('1c einde na herberekenen = vrijdag 15:30', got.finish, '2026-03-06T15:30');
 }
-// (1d) Exacte tijden (Aspose-stijl, `16:00:00`): blijven exact, ook met een hele vrije dag 00:00–23:59.
 {
   const exception = '<HolidayOrExceptions><HolidayOrException><Date>2026-03-04T00:00:00</Date><WorkTime><Start>00:00:00</Start><Finish>23:59:00</Finish></WorkTime></HolidayOrException></HolidayOrExceptions>';
   const r = readP6XML(p6File({ start: '08:00:00', finish: '16:00:00', hpd: 8, hours: 8, plannedFinish: '2026-03-02T16:00:00', exceptions: exception }));
   eq('1d exact 16:00 blijft 16:00', [r.calendar.workStartHour, r.calendar.workEndHour], [8, 16]);
   eq('1d 00:00–23:59 blijft een vrije dag', r.calendar.holidays.map(h => h.startDate), ['2026-03-04']);
 }
-// (1e) Exacte halve-uurtijden (07:30–16:30 als `16:30:00`) blijven exact.
 {
   const r = readP6XML(p6File({ start: '07:30:00', finish: '16:30:00', hpd: 9, hours: 9, plannedFinish: '2026-03-02T16:30:00' }));
   eq('1e exact 16:30 blijft 16:30', r.calendar.workTime?.byWeekday[1], [{ start: 450, end: 990 }]);
@@ -88,7 +74,6 @@ function roundTrip(r: ImportResult): { xml: string; back: ImportResult } {
   } finally { console.warn = warn; }
 }
 
-// (3) Werkende uitzondering van 24 uur (bijv. een doorwerkdag bij een betonstort).
 {
   const src = readP6XML(p6File({ start: '08:00:00', finish: '15:59:00', hpd: 8, hours: 8, plannedFinish: '2026-03-02T16:00:00' }));
   src.calendar.workingExceptions = [
@@ -102,15 +87,14 @@ function roundTrip(r: ImportResult): { xml: string; back: ImportResult } {
   eq('3c en wordt geen feestdag', back.calendar.holidays.map(h => h.startDate), []);
 }
 
-// (4) Per-datum-uitzonderingen samenvoegen.
 {
   const day = (date: string, work = '') => `<HolidayOrException><Date>${date}T00:00:00</Date>${work || '<WorkTime xsi:nil="true" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"/>'}</HolidayOrException>`;
   const wt = (s: string, f: string) => `<WorkTime><Start>${s}</Start><Finish>${f}</Finish></WorkTime>`;
   const exceptions = '<HolidayOrExceptions>'
-    + day('2026-07-27') + day('2026-07-28') + day('2026-07-29')          // reeks
-    + day('2026-07-31')                                                   // los (30 ontbreekt)
-    + day('2026-08-01', wt('08:00:00', '12:59:00')) + day('2026-08-02', wt('08:00:00', '12:59:00')) // werkende reeks
-    + day('2026-08-03', wt('08:00:00', '15:59:00'))                      // andere werktijd: los
+    + day('2026-07-27') + day('2026-07-28') + day('2026-07-29')
+    + day('2026-07-31')
+    + day('2026-08-01', wt('08:00:00', '12:59:00')) + day('2026-08-02', wt('08:00:00', '12:59:00'))
+    + day('2026-08-03', wt('08:00:00', '15:59:00'))
     + '</HolidayOrExceptions>';
   const r = readP6XML(p6File({ start: '08:00:00', finish: '15:59:00', hpd: 8, hours: 8, plannedFinish: '2026-03-02T16:00:00', exceptions }));
   eq('4a vrije dagen: reeks + losse dag', r.calendar.holidays.map(h => [h.name, h.startDate, h.endDate]),

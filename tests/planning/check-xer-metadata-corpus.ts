@@ -10,7 +10,6 @@ interface Counts { actvtype: number; actvcode: number; taskactv: number; udftype
 const empty = (): Counts => ({ actvtype: 0, actvcode: 0, taskactv: 0, udftype: 0, udfvalue: 0, memotype: 0, taskmemo: 0, taskNotes: 0, staticTypes: 0, staticValues: 0 });
 function decode(bytes: Uint8Array): string { try { return new TextDecoder('utf-8', { fatal: true }).decode(bytes); } catch { return new TextDecoder('windows-1252').decode(bytes); } }
 
-/** Zelfstandige minimale teller: geen import uit productie-XER, geen gedeelde tokenizer of veldkaart. */
 function countRaw(bytes: Uint8Array): Counts {
   const out = empty(); let table = ''; let fields: string[] = []; const staticIds = new Set<string>();
   for (const line of decode(bytes).split('\n')) {
@@ -36,8 +35,6 @@ function results(bytes: Uint8Array): XerReadResult[] { const opened = readXER(by
 interface ProductProbe { documents: number; readMs: number; rssMiB: number; heapDeltaMiB: number; }
 const probePath = process.env.OPS_X8_METADATA_PROBE;
 if (probePath) {
-  // Een vers Node-proces voorkomt dat de onafhankelijke ruwe teller en de directe catalogusmeting
-  // het resident geheugen van de productreader kunstmatig ophogen.
   global.gc?.();
   const before = process.memoryUsage(); const started = performance.now();
   const opened = results(new Uint8Array(readFileSync(probePath)));
@@ -59,7 +56,6 @@ function productProbe(path: string): ProductProbe {
   if (!line) throw new Error(`X8-geheugenprobe gaf geen meetregel terug voor ${path}.`);
   return JSON.parse(line.slice('X8_METADATA_PROBE '.length)) as ProductProbe;
 }
-/** Onafhankelijk van de product-allowlist: telt iedere %R in exact één bron-tabel. */
 function countRawTableRows(bytes: Uint8Array, wantedTable: string): number {
   let table = '';
   let count = 0;
@@ -74,14 +70,9 @@ function countRawTableRows(bytes: Uint8Array, wantedTable: string): number {
 const root = process.env.OPS_XER_CORPUS;
 if (!root) console.log('OK XER metadata-corpus: corpus niet aanwezig — corpuspoort overgeslagen');
 else {
-  // De harness bundelt normaal in tests/planning; de test blijft ook uitvoerbaar uit een tijdelijk
-  // pad, zolang hij vanuit de repositoryroot draait (zoals npm run test:planning dat doet).
   const manifest = JSON.parse(readFileSync(join(process.cwd(), 'tests/planning/xer-corpus-manifest.json'), 'utf8')) as { files: Record<string, unknown> };
   const total = empty();
   for (const label of Object.keys(manifest.files)) add(total, countRaw(new Uint8Array(readFileSync(join(root, label)))));
-  // De onafhankelijke ruwe scanner telt ook de drie UDFVALUE-rijen uit X2-geweigerde bestanden;
-  // de bestaande parser-populatiepin (71 leesbare bestanden) is daardoor 12.750, de bronmassa
-  // hier terecht 12.753. TASKACTV blijft in beide tellers exact 119.878.
   const expected = { actvtype: 77, actvcode: 555, taskactv: 119878, udftype: 48, udfvalue: 12753, memotype: 7, taskmemo: 20, taskNotes: 2, staticTypes: 10, staticValues: 531 };
   const samples = [
     ['rehab', 'crawl-xer-extra/jailaff-xer-splitter/rehab-2.xer', 81339, 12, 208],
@@ -89,9 +80,6 @@ else {
   ] as const;
   const diffs: string[] = []; const eq = (name: string, got: unknown, want: unknown) => { if (JSON.stringify(got) !== JSON.stringify(want)) diffs.push(`${name}: verwacht ${JSON.stringify(want)}, kreeg ${JSON.stringify(got)}`); };
   eq('C1 onafhankelijke publieke totaaltelling', total, expected);
-  // HarbourPointe heeft geen TASK.task_notes als substituut: de 131 notities staan uitsluitend
-  // in TASKNOTE. Deze probe leest %T/%F/%R zelf, zodat een allowlist-gat niet door productiecode
-  // of een hergebruikte tokenizer kan worden verborgen.
   const harbourPath = join(root, 'crawl-xer/HarbourPointe_AssistedLiving.xer');
   eq('C1a HarbourPointe TASKNOTE-dossier bestaat', existsSync(harbourPath), true);
   if (existsSync(harbourPath)) {
@@ -120,10 +108,6 @@ else {
     const path = join(root, label); eq(`C2 ${name}-bestand bestaat`, existsSync(path), true);
     if (!existsSync(path)) continue;
     const bytes = new Uint8Array(readFileSync(path)); const raw = countRaw(bytes);
-    // De totale reader omvat ook de kalender-, X4b-, X5- en X6-paden en is daarom gevoelig voor
-    // hostbelasting. Meet X8 zelf apart op reeds geparste tabellen: de grens schaalt lineair met
-    // het werk (koppelingen plus UDF's), terwijl de referentie-identiteit hieronder een regressie
-    // naar P×raw-row-kopieën direct rood maakt.
     const directProfile = (() => {
       const tables = parseXerTables(bytes); const catalogStarted = performance.now();
       const directCatalog = buildXerMetadataCatalog(tables);

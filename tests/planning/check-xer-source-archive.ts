@@ -1,7 +1,3 @@
-// X9 — onafhankelijke contractcheck voor het canonieke, byte-exacte XER-bronarchief.
-//
-// Deze test gebruikt doelbewust ruwe bytes (geen XER-reader), zodat de productmapper niet zijn
-// eigen orakel kan leveren. De module bestond bij de eerste rode run nog niet.
 import {
   XER_SOURCE_ARCHIVE_CHUNK_BYTES,
   createEmptyXerArchiveDiagnostics,
@@ -111,7 +107,6 @@ try {
     readModel: blankLegacyFieldReadModel,
   });
 } catch {
-  // De assertion hieronder rapporteert de compatibiliteitsregressie als gewone RED-check.
 }
 equal('12 lege legacy veldnaam en oorspronkelijke celtekst blijven in het bronreadmodel behouden',
   blankLegacyFieldArchive?.readModel.taskSourceRowsByProject['']?.[0]?.cells[''],

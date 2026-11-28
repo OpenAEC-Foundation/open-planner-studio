@@ -55,8 +55,6 @@ const DEFAULT_KEYS: readonly DefaultKey[] = [
   'preserveActualDates',
   'clampNegativeFreeFloat',
   'projectCriticalDefinition',
-  // Critreview C6-projectoptie punt 4 (2026-09-23): de tiende projectoptie `startToStartLagFrom`
-  // (leeg/afwezig `sched_lag_early_start_flag` ⇒ 'earlyStart') staat nu ook in de defaults-projectie.
   'startToStartLagFromEarlyStart',
 ];
 
@@ -64,7 +62,6 @@ const DEFERRED_DEFAULTS = [] as const;
 
 interface SolverVariant {
   progressMode?: ProgressMode;
-  /** Een (legacy-)blob; `projectResult` zet hem via `legacyEffective` om (rekenprofielen C1/C4). */
   schedulingOptions?: LegacySchedulingOptions;
 }
 
@@ -126,7 +123,6 @@ interface BaselineValueDelta {
   after: unknown;
 }
 
-/** De zes X12-assen van de defaults-fidelity (de struikeldraad "0 meetbaar op manifest-orakels"). */
 const FIDELITY_AXES = ['es', 'ef', 'ls', 'lf', 'tf', 'ff'] as const;
 
 interface BlastRadiusBaseline {
@@ -179,10 +175,7 @@ interface BlastRadiusBaseline {
   corpusUnion: string[];
   files: MeasuredFile[];
   expectedFinishVariant: ExpectedFinishVariantBaseline;
-  /** Historisch X7-dossier; de levende duration-type-regel staat als corpusloze mutatiefixture in X12. */
   legacyDurationTypeHistoricalDelta?: BaselineValueDelta[];
-  /** Alleen in de meting (struikeldraad hieronder), NIET in het gecommitte bestand: op de
-   *  SCHEDOPTIONS-loze populatie staat geen manifest-orakel, dus elke teller is 0 meetbaar. */
   fidelity: {
     house: XerFidelityCounters;
     xerDefaults: XerFidelityCounters;
@@ -253,14 +246,6 @@ function hash(bytes: Uint8Array): string {
   return createHash('sha256').update(bytes).digest('hex');
 }
 
-/**
- * Is dit corpusbestand een manifest-orakel (`role: oracle`, `included: true`)? Sinds 2026-09-23
- * (eigenaarsbesluit "alleen die P6-bestanden" + critreview manifest-etappe, optie (b)) tellen de
- * FIDELITY-afwijkingen van deze check alleen nog op manifest-orakels. De populatie zelf (welke
- * bestanden hebben een orakelas, welke hebben geen SCHEDOPTIONS-rij, worden de XER-standaardwaarden
- * daar toegepast en bedraad) blijft corpusbreed: dat is lezergedrag, geen P6-orakel. Een label buiten
- * het manifest of een afwijkende bytehash is een fout, geen stille uitsluiting.
- */
 let manifestCache: XerCorpusManifest | undefined;
 function manifestOracle(root: string, path: string, fullHash: string): boolean {
   manifestCache ??= JSON.parse(readFileSync(join(here, 'xer-corpus-manifest.json'), 'utf8')) as XerCorpusManifest;
@@ -368,10 +353,6 @@ interface TaskAxisMovement {
   after: string | number | boolean | undefined;
 }
 
-// X7-reviewpunt 4: de vroegere 16→15-teller is geen CP_Drtn- of projectindexeffect. Deze vijftien
-// taakdelta's komen exact van X5's `preserveActualDatesInBackwardPass=true` tegenover de
-// house/counterfactual `false`. De pin bewaart taak + as + beide instanties; alleen een totaalteller
-// zou opnieuw een toevallig gelijk blijvende verschuiving kunnen verbergen.
 const TORTURE_PRESERVE_ACTUAL_LS_PIN = [
   ['A1000', '2025-12-26T08:00', '2026-01-05T08:00'],
   ['A2000', '2026-01-03T15:00', '2026-01-19T08:00'],
@@ -563,11 +544,6 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     }])) as BlastRadiusBaseline['fidelity']['defaults'],
   };
 
-  // X7-reviewpunt 4: een eigen corpusbaan over ALLE dossiers met een fidelity-as, dus niet alleen
-  // de functioneel SCHEDOPTIONS-loze defaultpopulatie hieronder en ook niet de gecombineerde
-  // xerDefaults-vector. De gekozen baan zet uitsluitend expected-finish aan; de tegenvariant
-  // uitsluitend uit. Richtingsdigest bevat before/after en wordt daardoor rood als beide vlaggen
-  // worden verwisseld, ook wanneer de symmetrische bewegingsteller gelijk blijft.
   const expectedOccurrences = new Map<string, number>();
   const expectedFiles: ExpectedFinishVariantFile[] = [];
   const expectedMovement = Array(BLAST_AXES.length).fill(0) as AxisVector;
@@ -626,7 +602,6 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     ] as const) {
       const measured = measureXerFidelity(openedTruth, solved);
       if (measured.errors.length > 0) throw new Error(`${id}: expected-finish ${variant}-uitlijning mislukt`);
-      // Fidelity alleen op manifest-orakels (zie `manifestOracle`); de uitlijning blijft corpusbreed.
       if (fileIsOracle) addCounters(expectedFidelity[variant], measured.counters);
     }
     if (sourceTasks > 0 || details.length > 0) {
@@ -684,8 +659,6 @@ function measureCorpus(root: string): BlastRadiusBaseline {
         taskCount: imported.tasks.filter(task => task.p6ActivityType !== undefined).length,
       });
       const actualMetadata = imported.xer?.scheduleOptions;
-      // Rekenprofielen C4: de conventies staan in het profiel; vergeleken als opgeloste set in de
-      // sleutelvolgorde van de onafhankelijke hand-lijst.
       const resolved = resolveConventions(imported.project.schedulingProfile);
       const actual = {
         progressMode: imported.project.progressMode,
@@ -709,10 +682,6 @@ function measureCorpus(root: string): BlastRadiusBaseline {
     const occurrence = (occurrences.get(file.fullHash) ?? 0) + 1;
     occurrences.set(file.fullHash, occurrence);
     const id = `${file.fullHash.slice(0, 16)}-${occurrence}`;
-    // Fidelity alleen op manifest-orakels. Een bestand zonder SCHEDOPTIONS-rij is per definitie niet
-    // aantoonbaar door P6 doorgerekend (SCHEDOPTIONS is een van de drie kenmerken), dus met de huidige
-    // populatie telt hier niets mee: 0 meetbaar, verwacht en gepind. Detectie, bedrading en de
-    // bewegingsvectoren blijven corpusbreed — die zijn karakterisering (herpinbaar), geen ratchet.
     const fileIsOracle = manifestOracle(root, file.path, file.fullHash);
     let oracleNegativeFloatTasks = file.truth.tasks.filter(taskHasNegativeFloat).length;
     let importedProjects: ImportResult[];
@@ -730,10 +699,6 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       continue;
     }
 
-    // X4b kan aanwezige baselineprojecten bewust niet als document openen. De blast-radius meet
-    // daarom alle WERKELIJK geopende projecten uit dit bestand en filtert de onafhankelijke
-    // grondwaarheid op exact die ids; zo blijft de uitlijning per project zonder terug te vallen
-    // op één willekeurig actief document.
     const openedProjectIds = new Set(importedProjects.map(imported => imported.project.id));
     const openedTruth: XerGroundTruth = {
       ...file.truth,
@@ -741,16 +706,10 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       tasks: file.truth.tasks.filter(task => openedProjectIds.has(task.projectId)),
     };
     oracleNegativeFloatTasks = openedTruth.tasks.filter(taskHasNegativeFloat).length;
-    // Gebruik ook hier het onafhankelijke PROJECT/SCHEDOPTIONS-orakel. De oude lokale subset
-    // controleerde slechts zeven publieke opties en verklaarde daardoor iedere correct bedrade
-    // XER-defaultset met interne bronsemantiek ten onrechte als "niet bedraad". Dit pad leest
-    // nog steeds uitsluitend raw tabellen; het importeert geen productie-afleiding.
     const xerDefaultsExpected = importedProjects.map(imported =>
       expectedXerScheduleOptions(file.rawScan, imported.project.id, {
         taskCount: imported.tasks.filter(task => task.p6ActivityType !== undefined).length,
       }));
-    // Rekenprofielen C4: de solvervariant draagt opties + opgeloste conventies als één legacy-blob
-    // mét bronmarkering, zodat `legacyEffective` exact het verwachte P6-profiel oplevert.
     const xerDefaultsVariants = xerDefaultsExpected.map(expected => ({
       progressMode: expected.progressMode,
       schedulingOptions: { p6Source: 'XER', ...expected.schedulingOptions, ...expected.conventions } as LegacySchedulingOptions,
@@ -871,7 +830,6 @@ function measureCorpus(root: string): BlastRadiusBaseline {
       derivedFallbacks: derivedRows.reduce((sum, result) => sum + result.fallbacks.length, 0),
       derivedFloatDialectFallbacks: derivedRows.reduce((sum, result) => sum
         + result.fallbacks.filter(item => item.field === 'sched_float_type').length, 0),
-      // X12-brok 1: `Y` zonder PROJECT.plan_end_date en zonder één TASK.target_end_date ⇒ terugval N.
       derivedNoProjectEndFallbacks: derivedRows.reduce((sum, result) => sum
         + result.fallbacks.filter(item => item.field === 'sched_use_project_end_date_for_float').length, 0),
       derivedRetainedLogic: derivedRows.filter(result => result.progressMode === 'RETAINED_LOGIC').length,
@@ -896,11 +854,6 @@ if (!existsSync(baselinePath)) {
   diffs.push('blast-radiusbaseline ontbreekt');
 } else {
   const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
-  // Herpin 2026-09-23 (v10 → v11, critreview C6-projectoptie punt 4): `startToStartLagFromEarlyStart`
-  // toegevoegd aan DEFAULT_KEYS. Alleen die sleutel is erbij gekomen (in `defaults` en per gemeten
-  // bestandregel, 34× chosen = counterfactual = 0 negatieve float); alle bestaande waarden zijn
-  // byte-gelijk overgenomen uit v10 — de verse meting zonder de nieuwe sleutel gaf identieke `files[]`
-  // en `expectedFinishVariant`.
   eq('baselineversie en asvolgorde', { version: committed.version, axes: committed.axes }, {
     version: 11,
     axes: BLAST_AXES,
@@ -917,18 +870,11 @@ if (!existsSync(baselinePath)) {
   eq('iedere gemeten bestandregel draagt de gecombineerde XER-defaultset (negatieve-floattelling)',
     committed.files.filter(file => file.state === 'measured').every(file =>
       typeof file.xerDefaultsNegativeFloatTasks === 'number'), true);
-  // Fixronde critreview integratie-eindstand (2026-09-23, orkestratorbesluit): de bewegingsvectoren
-  // (`files[].xerDefaultsMovement`, `files[].defaults[].movement`), de 0-projectie
-  // (`causalProductEffects`, 72× 0) en het `fidelity`-blok zijn uit de pin gehaald — ze werden niet
-  // vergeleken (mutant 0 → 99999 bleef groen) en maten P3-/generatorbestanden, geen P6-getrouwheid.
-  // Deze regel voorkomt dat ze via een `OPS_XER_SCHEDOPTIONS_REPORT=baseline`-kopie terugsluipen.
   eq('geen dode pinnen: geen bewegingsvectoren, 0-projectie of fidelity-blok in het gecommitte bestand', {
     top: ['causalProductEffects', 'fidelity'].filter(key => key in committed),
     movement: committed.files.filter(file => 'xerDefaultsMovement' in file
       || Object.values(file.defaults ?? {}).some(value => 'movement' in value)).map(file => file.id),
   }, { top: [], movement: [] });
-  // v10: de negatieve-floatvelden in `files[]` zijn geen vormpin meer maar worden mét corpus per
-  // bestand tegen de meting vergeleken; deze regel eist dat ze op iedere gemeten regel bestaan.
   eq('v10: iedere gemeten bestandregel draagt alle negatieve-floatvelden die tegen de meting vergeleken worden',
     committed.files.filter(file => file.state === 'measured').every(file =>
       typeof file.houseNegativeFloatTasks === 'number'
@@ -954,9 +900,6 @@ if (!root) {
   eq('onafhankelijke X12-orakelvorm pint alleen raw/scanner-populatie en negatieve-floatverdeling',
     independentOraclePopulation(measured.population), {
     scanned: 93,
-    // De rauwe X12-meetlat normaliseert completed taken niet meer naar actuals. Twee bestanden
-    // die uitsluitend via die oude substitutie een as leken te dragen vallen daarom bewust uit
-    // deze SCHEDOPTIONS-populatie; de historische v8-pin blijft afzonderlijk rood en ongemoeid.
     oracleAxisFiles: 58,
     rawWithSchedOptions: 23,
     rawWithoutSchedOptions: 35,
@@ -988,8 +931,6 @@ if (!root) {
     progressOverride: 1,
     unknownFloatDialect: 8,
     derivedRows: 49,
-    // X12-brok 1: +16 terugvallen `sched_use_project_end_date_for_float` Y ⇒ N (geen enkel einde in de
-    // bron: de dertien cases-import.xer-projecten en drie taakloze OZB-projecten) — samen 8 + 16.
     derivedFallbacks: 24,
     derivedFloatDialectFallbacks: 8,
     derivedNoProjectEndFallbacks: 16,
@@ -1011,26 +952,11 @@ if (!root) {
     XER_SCHEDOPTIONS_COLUMN_DISPOSITIONS.map(item => item.field).sort());
 
   if (report === 'baseline') {
-    // Zonder `fidelity`: dat is alleen de bron van de struikeldraad hieronder, geen pin.
     const pinned: Partial<BlastRadiusBaseline> = { ...measured };
     delete pinned.fidelity;
     console.log(JSON.stringify(pinned));
   } else if (existsSync(baselinePath)) {
     const committed = JSON.parse(readFileSync(baselinePath, 'utf8')) as BlastRadiusBaseline;
-    // v10 (hercheck 2026-09-23): `files[]` — incl. `xerDefaultsNegativeFloatTasks` en
-    // `defaults[*].chosen/counterfactualNegativeFloatTasks` — werd alleen op vorm gecontroleerd
-    // (mutant 99999 bleef groen). Nu per bestand exact tegen de meting.
-    // Herpin 2026-09-24 (eigenaarsbesluit "a": A19 aan in de P6-basis, `rem_target_link_flag` stuurt niets
-    // meer): alleen `files[].xerDefaultsNegativeFloatTasks` beweegt, in zes bestanden en alleen omlaag —
-    // 146e4c86-1 1 → 0, 1d7901d6-1 1 → 0, 49aea658-1 19 → 8, 53f5cdbe-1 1 → 0, 5d71eac4-1 24 → 13,
-    // 97058f72-1 5 → 0. Dit zijn projecten zonder P6-uitvoer die tot dan zonder A19 rekenden (lege vlag);
-    // een lopende taak op haar historische werkelijke start gaf daar negatieve speling. Detectie- en
-    // populatietellers en de defaults-fidelity (0 meetbaar) ongewijzigd; measure:profiles vóór/ná identiek.
-    // Herpin 2026-10-23 (F3c motor, alleen uren §3.5 besluit B3 "rest exact", B1): alleen
-    // `files[].xerDefaultsNegativeFloatTasks` beweegt, in twee reader-only bestanden en alleen omlaag —
-    // 49aea658-1 8 → 0, 5d71eac4-1 13 → 0. Hun taken hebben geen duurkolommen (duur 0 d); een lopende taak
-    // kreeg met de rest op hele dagen een spookdag rest, die de keten erachter verschoof. Met de rest exact
-    // is die rest 0. Orakel- en huistellingen, detectie, populatie en measure:profiles ongewijzigd.
     const measuredById = new Map(measured.files.map(file => [file.id, file]));
     for (const file of committed.files) {
       eq(`files[${file.id}] (state, taken, negatieve-floattellingen per defaultset) exact als gemeten`,
@@ -1038,51 +964,8 @@ if (!root) {
     }
     eq('files[]-identiteiten exact als gemeten',
       measured.files.map(file => file.id).sort(), committed.files.map(file => file.id).sort());
-    // Herpin 2026-09-23 (populatie, tweede toepassing van het besluit van 2026-09-23: de vier
-    // DCP-03-Baseline-kopieën zijn generatoruitvoer → reader-only): alleen `expectedFinishVariant.fidelity`
-    // (manifest-orakels) beweegt — measurable −240 per as (4 × 60), deviations es 2559 → 2331,
-    // ef 2534 → 2298, ls 655 → 419, lf 846 → 606, tf 2932 → 2888, ff 1139 → 1059; chosen en
-    // counterfactual gelijk. Detectie-/populatietellers en files[] ongewijzigd.
     eq('expectedFinishDates zelfstandige per-bestand/as/populatie en richting blijven exact gepind',
       measured.expectedFinishVariant, committed.expectedFinishVariant);
-    // Herpin 2026-09-05 (X-O7 laag 1, klasse (i) — `p6CompletedLateFromRemainingWindow`), gemeten
-    // over de hele corpusunie: `xerDefaults` ls 4791 → 3901, lf 4781 → 3891, tf 4592 → 4235
-    // (es/ef/ff ongewijzigd). Netto −2.137 afwijkende cellen, volledig toe te schrijven aan één
-    // corpusbestand (rehab-2): de late zijde van voltooide activiteiten volgt nu het
-    // statusdatumvenster in plaats van de rauwe actual-pin. De tf-winst is NETTO: per cel gemeten
-    // op rehab-2 worden 572 tf-cellen exact en 215 eerder exacte tf-cellen fout — alle 215 zijn
-    // voltooide taken waar P6 `tf = 0` geeft en onze afgeleide LS nog van een zelf foute
-    // opvolger-LS komt (diagnose laag 1, klasse (ii)); vóór deze etappe was hun `tf = 0`
-    // degeneratie (LS = de historische actual-start), dus per ongeluk goed. Zie het baanrapport en
-    // het docblok bij `p6CompletedLateFromRemainingWindow` in `types/project.ts`.
-    // Herpin 2026-09-23 (X12 brok 2, conventies C1–C3; bij de brok-2-herpin vergeten, opgevangen in
-    // de fixronde): alleen de `xerDefaults`-rijen bewegen, alle zes assen omlaag — es 1384 → 887,
-    // ef 1414 → 917, ls 3353 → 3231, lf 3351 → 3229, tf 3868 → 3494, ff 303 → 88. `house` en de
-    // completedProgress-rijen (chosen/counterfactual) zijn byte-identiek; bijgewerkt in het JSON-bestand:
-    // `fidelity.xerDefaults`, `files[rehab-2].xerDefaultsMovement` en deze projectie.
-    // Herpin 2026-09-23 (X12 brok 3, C4 + C5 + C6, na de merge van de brok-2-fixronde): opnieuw alleen
-    // `xerDefaults` — es 887 → 452, ef 917 → 482, tf 3494 → 3196, ff 88 → 47; ls/lf ongewijzigd (3231/
-    // 3229). rehab-2 xerDefaultsMovement [3714, 3563, 3325, 3433, 4395, 2251, 70] → [4001, 3894, 3325,
-    // 3433, 4675, 2268, 70]. `house` en completedProgress byte-identiek. Overgenomen uit
-    // `OPS_XER_SCHEDOPTIONS_REPORT=baseline` (alleen deze drie plekken).
-    // Herpin 2026-09-23 (populatiewijziging van deze pin, geen omhoog-herpin; orkestratorbesluit (b)
-    // na de critreview van de manifest-etappe): de fidelity-afwijkingen tellen alleen nog op manifest-
-    // orakels (`manifestOracle`). De xerDefaults-/house-/defaults-populatie (bestanden ZONDER SCHEDOPTIONS-
-    // rij) bevat geen enkel manifest-orakel — SCHEDOPTIONS is een van de drie P6-kenmerken — dus die
-    // tellers zijn nu 0 meetbaar, verwacht en hieronder expliciet gepind. Oude telling (alle 36 bestanden,
-    // o.a. rehab-2 = P3-uitvoer): xerDefaults es 452, ef 482, ls 3231, lf 3229, tf 3196, ff 47 (meetbaar
-    // 7637/7649/7519/7510/7602/7221); house es 4557, ef 4391, ls 5280, lf 5317, tf 6233, ff 2314. Nieuw:
-    // alles 0/0. expected-finish-fidelity idem alleen op de 13 manifest-orakels (meetbaar es 18524 →
-    // 10358 e.d.; chosen = counterfactual). De bewegingsvectoren (`files[].xerDefaultsMovement`, de
-    // defaults-movement) blijven corpusbreed als KARAKTERISERING: herpinbaar, geen ratchet, want de
-    // "afwijking t.o.v. P6" van een bestand zonder SCHEDOPTIONS is geen meetlat. Ze bewogen hier door C1/C4
-    // uit (rehab-2 [4001, 3894, 3325, 3433, 4675, 2268, 70] → [3228, 3066, 3325, 3433, 3938, 2217, 70]).
-    // Op de P6-populatie waren de xerDefaults-afwijkingen al 0 meetbaar, dus daar niets omhoog.
-    // Herpin 2026-09-23 (fixronde critreview integratie-eindstand): bewegingsvectoren, de
-    // `causalProductEffects`-projectie en `fidelity` zijn uit het gecommitte bestand gehaald (zie de
-    // structuurregel "geen dode pinnen" hierboven). Wat blijft is deze STRUIKELDRAAD: zodra er een
-    // manifest-orakel zonder SCHEDOPTIONS-rij bijkomt, wordt een van deze tellers > 0 en de regel rood —
-    // dan hoort er een echte meetlat bij, geen karakterisering.
     eq('defaults-fidelity telt alleen op manifest-orakels: 0 meetbaar (verwacht; geen orakel zonder SCHEDOPTIONS)',
       (['house', 'xerDefaults'] as const).map(branch => FIDELITY_AXES.map(axis => measured.fidelity[branch][axis].measurable)),
       [FIDELITY_AXES.map(() => 0), FIDELITY_AXES.map(() => 0)]);

@@ -52,9 +52,6 @@ const scannerTransitionRaw = readFileSync(
 );
 const scannerTransition = JSON.parse(scannerTransitionRaw) as ScannerTransitionContract;
 
-// Deze hash maakt de historische bronidentiteiten zelf onderdeel van de corpusloze poort. Een rij
-// verwijderen of door een andere taak/as vervangen kan daardoor niet groen blijven doordat de
-// runtimeprojectie alleen nog de verkleinde contractset zou doorlopen.
 eq('0 X12-scannerovergang pint exact hash/project/taak/as en oude bronwaarde',
   createHash('sha256').update(scannerTransitionRaw).digest('hex'),
   '81c12d9c3d011d4fcfeed45a51a351c4bb6b9832efb831a741bdc3b781abd545');
@@ -70,20 +67,12 @@ const fixture = [
   '%T\tTASK',
   `%F\t${header.join('\t')}`,
   '%R\tP1\t1\tA\tAlpha\tTK_NotStart\t\t\t2026-01-05 08:00\t2026-01-05 17:00\t2026-01-06 08:00\t2026-01-06 17:00\t1.25\t0.125\tY',
-  // Een completed activiteit houdt actuals én P6' opgeslagen rekenuitvoer naast elkaar. Dit is
-  // uitsluitend een orakelfixture: de grondwaarheidscanner moet de zes opgeslagen assen lezen,
-  // zonder die uitkomst ooit als invoer van readXER of de solver door te geven. De Windows-1252-é
-  // dwingt de eigen encodingfallback af; de latere productielezer of diens tokenizer komt hier
-  // niet aan te pas.
   '%R\tP2\t2\tB\tCaf\u00e9\tTK_Complete\t2026-02-02 09:15:30\t2026-02-03 16:45:00\t2099-01-01 08:00:30\t2099-01-02 17:00:00\t2099-01-03 08:00:15.250\t2099-01-04 17:00\t\t-0.125\tN',
   '%E',
 ].join('\r\n');
 const bytes = Buffer.from(fixture, 'latin1');
 const truth = scanXerGroundTruth(bytes);
 
-// Breuken die dit vangt: delen van tokenizer/veldkaart met de productielezer, UTF-8-only decoderen,
-// of completed-taken stil naar actuals normaliseren in plaats van de opgeslagen XER-uitvoer rauw te
-// meten. Actuals blijven hier broninvoer; stored early/late zijn uitsluitend het meet-orakel.
 eq('1 scanner kiest Windows-1252 zelfstandig', truth.encoding, 'windows-1252');
 eq('1a scanner leest beide projecten', [...truth.projects], ['P1', 'P2']);
 eq('1b scanner leest taakidentiteit en zeven rapportageassen', truth.tasks[0], {
@@ -139,8 +128,6 @@ const commaTruth = scanXerGroundTruth(commaFixture) as unknown as {
   errors: string[];
 };
 
-// Breuk die dit vangt: Number(value) gebruiken zonder CURRTYPE. De stored date-assen zijn hier
-// bewust aanwezig, zodat deze floatfixture geen tweede semantiek over completed-actuals mengt.
 eq('1e CURRTYPE-kommafloat blijft meetbaar in exacte fractionele minuten', commaTruth.tasks[0], {
   projectId: 'P1',
   taskId: 'C',
@@ -181,8 +168,6 @@ const wrongFamilyTruth = scanXerGroundTruth(Buffer.from([
   '%R\tEUR\tdg_Period\tds_Comma',
   '%E',
 ].join('\n'))) as ReturnType<typeof scanXerGroundTruth> & { numberFormatIssues?: string[] };
-// Breuk die dit vangt: X1 dezelfde first-row- en eerste-herkenbare foutmodus laten delen met
-// productie. Het orakel gebruikt punt-default na mismatch en meldt alle representatiefouten zelf.
 eq('1g X1 controleert CURRTYPE via een onafhankelijk volledig pad', {
   mismatch: {
     issues: currencyMismatchTruth.numberFormatIssues,
@@ -220,8 +205,6 @@ const identicalDuplicateCurrencyTruth = scanXerGroundTruth(Buffer.from([
   '%R\tEUR\t.\tds_period\t,\tdg_comma',
   '%E',
 ].join('\n')));
-// Breuk die dit vangt: ook in X1 de eerste case-insensitieve valutamatch vertrouwen. Deze
-// fixture deelt geen tokenizer, helper of verwachte foutvorm met de productieparser.
 eq('1h X1 weigert afwijkende dubbele defaultvaluta via een eigen controlepad', {
   conflict: duplicateCurrencyTruth.errors,
   identical: identicalDuplicateCurrencyTruth.errors,
@@ -243,8 +226,6 @@ const terminalGroundTruth = scanXerGroundTruth(Buffer.from([
   `%F\t${header.join('\t')}`,
   '%R\tP1\tT2\tA2\tNa grens\tTK_NotStart\t\t\t2026-04-03\t2026-04-04\t2026-04-03\t2026-04-04\t2,5\t1,5\t',
 ].join('\n')));
-// Breuken die dit vangt: alleen de taakscan of alleen de formatenscan bij de eerste %E stoppen.
-// De staart mag noch een taak toevoegen, noch de getalnotatie van de betrouwbare kop wijzigen.
 eq('1h-b X1-formatenscan en taakscan stoppen beide op de eerste %E', {
   taskIds: terminalGroundTruth.tasks.map(task => task.taskId),
   totalFloat: terminalGroundTruth.tasks[0]?.axes.tf,
@@ -293,9 +274,6 @@ const sourceDateVariants = scanXerGroundTruth(Buffer.from([
   '%E',
 ].join('\n')));
 
-// Bronsemantiek en vergelijksemantiek zijn bewust verschillend: XER staat een geldige datum
-// zonder tijd toe en bedoelt dan middernacht. Een toekomstige OPS-adapter moet daarentegen altijd
-// de volledige minuutstring teruggeven; check 2d hieronder bewaakt die strengere uitvoergrens.
 eq('1i geldige bron-datum zonder tijd canonicaliseert naar middernacht', sourceDateVariants.tasks[0].axes, {
   es: '2026-04-01T00:00', ef: '2026-04-02T00:00',
   ls: '2026-04-01T00:00', lf: '2026-04-02T00:00',
@@ -338,8 +316,6 @@ function scanEmptySourceIdentity(projectId: string, taskId: string, taskCode: st
   ].join('\n')));
 }
 
-// Breuk die dit vangt: een lege bronidentiteit als gewone Map-sleutel of gelijke taakcode
-// behandelen. Iedere verplichte identiteit heeft een eigen scannerfout en levert geen truth-taak.
 eq('1m lege bron-proj_id is scannerfataal', {
   errors: scanEmptySourceIdentity('', 'ID', 'CODE').errors,
   tasks: scanEmptySourceIdentity('', 'ID', 'CODE').tasks.length,
@@ -374,8 +350,6 @@ const measured = measureXerFidelity(truth, [
   },
 ]);
 
-// Breuken die dit vangt: alles-of-niets-taaktelling over een multi-projectbestand, bestandssom die
-// alleen het laatste project bevat, float in uren i.p.v. minuten, of driving path stil in de nulpoort.
 eq('2 per-project meten en daarna per bestand optellen', measured.projects.map(project => ({
   projectId: project.projectId,
   tasks: project.tasks,
@@ -428,8 +402,6 @@ const measureMidnight = (earlyStart: string) => measureXerFidelity(midnightTruth
   tasks: [{ sourceTaskId: 'MID', taskCode: 'MID', earlyStart }],
 }]).counters.es;
 
-// Breuk die dit vangt: XER-datums via MPP's bewuste date-only/middernacht-uitweg vergelijken,
-// of alleen de eerste zestien tekens bekijken en trailing rommel daardoor exact noemen.
 eq('2e XER date-only is niet minuut-exact tegen middernacht', measureMidnight('2026-03-01'), {
   deviations: 1, measurable: 1,
 });
@@ -454,7 +426,6 @@ const misalignedShape = misaligned as unknown as {
   gatePassed: boolean;
 };
 
-// Breuk die dit vangt: alleen op task-id waarden vergelijken en extra projecten/taken negeren.
 eq('2f uitlijning rapporteert verkeerde code plus extra taak en project', misaligned.errors, [
   'onverwacht opgelost project-id: P2',
   'project P1: onverwachte opgeloste taak-id: EXTRA',
@@ -482,8 +453,6 @@ eq('2j dubbele project- en taak-id zijn beide fataal', duplicateIds.errors, [
   'project P1: dubbele opgeloste taak-id: MID',
 ]);
 
-// Breuk die dit vangt: handgebouwde adapteruitvoer kan de scanner omzeilen. De meetgrens moet
-// daarom projectId, sourceTaskId en taskCode zelf op niet-lege waarden controleren.
 const emptySolvedProjectId = measureXerFidelity(midnightTruth, [{
   projectId: '', tasks: [{ sourceTaskId: 'MID', taskCode: 'MID', earlyStart: '2026-03-01T00:00' }],
 }]);
@@ -522,8 +491,6 @@ const schemaP1P2 = schemaTruth(['P1', 'P2'], 'Y');
 const schemaDrivingOnly = schemaTruth(['P1'], 'N');
 const schemaOtherTaskId = schemaTruth(['P1'], 'Y', 'OTHER');
 
-// Breuken die dit vangt: PROJECT-rijen negeren of de zevende rapportage-as indirect de
-// zesassige steekproef laten splitsen.
 eq('2n grondwaarheid leest de echte PROJECT-set inclusief leeg project',
   [...schemaP1P2.projects], ['P1', 'P2']);
 eq('2o extra PROJECT-rij verandert de zesassige schemafingerprint',
@@ -565,8 +532,6 @@ const unitManifest: XerCorpusManifest = {
 };
 const built = buildXerTargetBaseline(unitFiles, unitManifest);
 
-// Breuken die dit vangt: alleen bytehash dedupliceren, schemahash op bestandsbytes baseren,
-// niet-orakelbestanden laten meetellen of multi-projectcijfers niet per bestand sommeren.
 eq('3 twee deduplagen laten één uniek orakelbestand over', built.stats, {
   scannedFiles: 5,
   manifestFiles: 5,
@@ -631,8 +596,6 @@ const roleAwareManifest: XerCorpusManifest = {
 };
 const roleAwareBaseline = buildXerTargetBaseline(roleAwareFiles, roleAwareManifest);
 
-// Breuk die dit vangt: de alfabetisch eerdere excluded parserfixture vult `seenBytes` voordat de
-// latere inbegrepen orakelkopie aan de beurt komt. De groep moet altijd het orakellabel kiezen.
 eq('3d byte-dedup verkiest inbegrepen orakel boven eerdere excluded kopie', {
   labels: Object.values(roleAwareBaseline.baseline.files).map(entry => entry.label),
   errors: roleAwareBaseline.errors,
@@ -753,8 +716,6 @@ if (!corpusRoot) {
   eq('C0c completed-actuals worden alleen op de 79 benoemde broncellen niet meer als stored orakel geteld',
     measuredMissingStoredDates, expectedMissingStoredDates);
 
-  // Bindende ankers uit het goedgekeurde brief. Deze cijfers worden opnieuw uit de bytes gemeten;
-  // de implementatie gebruikt ze nergens om taken of bestanden te selecteren.
   eq('C1 volledige crawl', corpus.stats.scannedFiles, 93);
   eq('C2 unieke bestanden na byte-dedup', corpus.stats.byteUniqueFiles, 84);
   eq('C3 taken met vier opgeslagen datumassen', corpus.stats.fourDateTasks, 18_397);
@@ -763,15 +724,6 @@ if (!corpusRoot) {
     files: corpus.stats.partialOnlyByteUniqueFiles,
     cells: corpus.stats.partialOnlyAxisCells,
   }, { files: 27, cells: 2_025 });
-  // C5–C8b: populatie na het eigenaarsbesluit van 2026-09-23 (alleen aantoonbaar door P6 doorgerekende
-  // orakels, zie `xer-corpus-manifest.json` policy); vóór dat besluit 36/18.190/34/13.959/2. Herpin
-  // 2026-09-23 (tweede toepassing van hetzelfde besluit: DCP-03 Baseline, generatoruitvoer van
-  // build_programmes.py, naar reader-only): 10/10.178/9/5.961 → 9/10.118/8/5.901.
-  // Herpin 2026-09-23 (eigenaarsbesluiten vraag 8/10/12, manifestuitsluiting per taak/project: HarbourPointe
-  // 8 taken, OZB project 9033, Hotel project CR 2665; die taken vallen uit de meetbare orakelpopulatie, de
-  // bestanden blijven orakel): C6 10.118 → 10.096, C8 5.901 → 5.879 (tf/ff 5.712 → 5.690).
-  // Herpin 2026-09-24 (eigenaarsbesluit vraag 13 "Vraag 13, ja uitsluiten": HarbourPointe EC1420 erbij in
-  // excludeTasks): C6 10.096 → 10.095, C8 5.879 → 5.878 (tf/ff 5.690 → 5.689).
   eq('C5 herkomstgeselecteerde orakelbestanden na byte-dedup', corpus.stats.byteUniqueOracleFiles, 9);
   eq('C6 meetbare orakeltaken na byte-dedup', corpus.stats.byteUniqueOracleTasks, 10_095);
   eq('C7 unieke orakelbestanden na beide deduplagen', corpus.stats.uniqueOracleFiles, 8);
@@ -783,9 +735,6 @@ if (!corpusRoot) {
 
   const baselinePath = join(HERE, 'xer-fidelity-baseline.json');
   const committed = JSON.parse(readFileSync(baselinePath, 'utf-8')) as XerFidelityBaseline;
-  // De scanneroverzetting geldt per bronhash, los van de rol: de scanner meet ook een hash die sinds
-  // het populatiebesluit van 2026-09-23 (alleen P6-doorgerekende orakels) geen orakel meer is. De
-  // gecommitte baseline draagt zo'n hash dan niet meer — daar verwachten we null, niet `current`.
   const oracleHashes = new Set(Object.values(manifest.files)
     .filter(entry => entry.included && entry.role === 'oracle').map(entry => entry.sha256));
   const measuredFingerprintTransitions = Object.fromEntries(

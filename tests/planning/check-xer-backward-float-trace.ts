@@ -83,8 +83,6 @@ function fixtureBytes(variant: Variant): Uint8Array {
 function importFixture(bytes: Uint8Array): ImportResult {
   const opened = readXER(bytes);
   if (isMultiDocumentImport(opened)) throw new Error('tracefixture moet precies één project openen');
-  // B3/B4 staan sinds 2026-09-23 (eigenaarsvraag §1d-7) in elk ingebouwd profiel uit (0 cellen op de
-  // P6-doorgerekende populatie; gebouwd op rehab-2 = P3). Deze fixture toetst de regel zelf: als afwijking aan.
   setConvention(opened, 'p6CompletedDataDateWindow', true);
   setConvention(opened, 'p6CompletedLoeActualFinish', true);
   return opened;
@@ -121,8 +119,6 @@ function traceProjection(trace: CpmBackwardFloatTrace | undefined): TraceProject
 function solveTraceVariant(variant: Variant): TraceProjection {
   const imported = structuredClone(importFixture(fixtureBytes(variant)));
   setConvention(imported, 'p6FinishMilestoneBoundaryWindow', variant.finishMilestoneBoundary);
-  // Sinds 2026-09-24 (eigenaarsbesluit "a") zet rem_target_link_flag A19 niet meer: de variant stuurt
-  // A19 daarom expliciet via het profiel (de vlag in de fixture blijft alleen als diagnose).
   setConvention(imported, 'p6UseRemainingStartForProgress', variant.remainingStart);
   const result = solveProject({
     tasks: imported.tasks,
@@ -437,7 +433,6 @@ for (const variant of completedGuardVariants) {
   const baseline = variants[0]!;
   const replay = replayXerProductBeforeOracle(fixtureBytes(baseline), syntheticZeroRegressionCandidate, {
     includeBackwardFloatTrace: true,
-    // B3/B4 sinds 2026-09-23 in elk ingebouwd profiel uit (§1d-7); deze trace toetst de B3-route zelf.
     conventionOverrides: { p6CompletedDataDateWindow: true, p6CompletedLoeActualFinish: true },
   });
   const source = replay.predicate.find(log => log.sourceTaskId === 'C')?.source;
@@ -476,7 +471,6 @@ for (const variant of completedGuardVariants) {
   eq('backward-float-trace faalt gesloten zonder XER-bronsignaal', result.backwardFloatTrace, undefined);
 }
 {
-  // Rekenprofielen C4: de trace volgt conventie B3 (spec v3.1 §4) — alleen die ene conventie uit ⇒ geen trace.
   const imported = structuredClone(importFixture(fixtureBytes(variants[0]!)));
   setConvention(imported, 'p6CompletedDataDateWindow', false);
   const result = solveProject(solveInputFor(imported.project, imported.tasks, imported.sequences,

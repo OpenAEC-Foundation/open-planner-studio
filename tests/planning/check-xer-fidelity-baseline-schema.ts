@@ -1,22 +1,3 @@
-/**
- * De baseline-vorm-poort (X0/X1, XER-etappeplan §3/§6): X0 legde het lege harness-skelet vast;
- * X1 vult `xer-fidelity-baseline.json` met de onafhankelijk gemeten corpuspins. Dit bestand bewaakt
- * de VORM daarvan zonder de XER-parser of corpuslus te dupliceren.
- *
- * TWEE LAGEN, zelfde truc als `check-ext-contract.ts`:
- *  (a) COMPILE-TIME — `keys<T>()` klonkt de sleutellijsten vast aan `xerFidelityTypes.ts`'s
- *      interfaces. Een nieuw (ook optioneel) veld op `XerFidelityBaselineEntry`/`XerFidelityCounters`/
- *      `XerFidelityAxisCounts` zonder het hier te registreren geeft een COMPILEERFOUT — dat is het
- *      "veld uit de typelijst verwijderen ⇒ compile-fout"-mutatiebewijs uit de X0-acceptatie.
- *  (b) RUNTIME — `validateBaseline()` toetst een willekeurig JSON-blob TEGEN diezelfde sleutellijsten
- *      (type, aanwezigheid, onverwachte sleutels, en de interne `deviations <= measurable`-invariant
- *      per as). Dit is de laag die "de baseline-vorm muteren ⇒ de schema-check ROOD" bewijst: een
- *      hernoemde/weggehaalde sleutel in een RUW JSON-object (buiten het TS-typesysteem om, precies
- *      zoals een met de hand bewerkt of ooit-verkeerd-geschreven baselinebestand dat zou doen) wordt
- *      hier gevangen, niet pas bij het eerste gebruik door X1.
- *
- * Draait ALTIJD (geen corpus nodig) — dit is pure structuurbewaking, geen corpusmeting.
- */
 import { readFileSync } from 'node:fs';
 import { createHash } from 'node:crypto';
 import { join } from 'node:path';
@@ -28,26 +9,13 @@ import {
 } from './xerFidelityTypes';
 
 const HERE = fileURLToPath(new URL('.', import.meta.url));
-// Populatie na het eigenaarsbesluit van 2026-09-23: alleen aantoonbaar door P6 doorgerekende orakels.
-// Herpin 2026-09-23 (tweede toepassing: DCP-03 Baseline 0611f9054a4b5663 is generatoruitvoer → reader-only).
 const EXPECTED_BASELINE_KEYS = [
   '2bc12241c3f8ee5b', '4d8bce790a93b9bc', '55b7e4463dcd36ba', '68ce5f0bb2b534d5',
   '9679599df9108bd3', 'a2ef7b35c00d8cf8', 'a2f3b2469e26f199', 'b9547eb91c30af17',
 ] as const;
-// Herpin 2026-09-23 (eigenaarsbesluiten vraag 8/10/12: manifestuitsluiting HarbourPointe 8 taken, OZB project
-// 9033, Hotel project CR 2665): de uitgesloten taken vallen uit de X1-doelbaseline, 5.901/5.712 → 5.879/5.690.
-// Herpin 2026-09-24 (eigenaarsbesluit vraag 13: HarbourPointe EC1420 uitgesloten): 5.879/5.690 → 5.878/5.689.
 const EXPECTED_MEASURABLE = {
   es: 5_878, ef: 5_878, ls: 5_878, lf: 5_878, tf: 5_689, ff: 5_689,
 } as const;
-// HERPIN 2026-09-23i (fix critreview DCP-03): alleen policytekst/datums in het manifest, populatie ongewijzigd.
-// HERPIN 2026-09-23 (eigenaarsbesluiten vraag 8/10/12): drie uitsluitingsblokken + policyzin (DCP-03 bevestigd, §1a) in het manifest;
-// orakelselectie (9 bestanden, 84 uitgesloten) ongewijzigd.
-// HERPIN 2026-09-23 datumcorrectie (integratie 3): `decision`-datums 24 → 23; alleen manifestbytes.
-// HERPIN 2026-09-24 (eigenaarsbesluit vraag 13): HarbourPointe EC1420 in excludeTasks, `decision` + policyzin bijgewerkt;
-// orakelselectie (9 bestanden, 84 uitgesloten) ongewijzigd.
-// HERPIN 2026-09-24 datumherkomst (critreview C14-landing, bevinding 4): HarbourPointe-`decision` weer 2026-09-23
-// (vraag 8, dan vraag 13 chronologisch), EC1420 met een eigen regel-`decision` 2026-09-24; alleen manifestbytes.
 const EXPECTED_MANIFEST_SHA256 = '97b33bd7207a64c75972d6be00ef313a63964b96ee57352919f584fada2eaac7';
 const EXPECTED_BASELINE_SHA256 = 'e383370309457d292620ce75febc70b5e97336a890c0790fd88907936d7349f4';
 
@@ -64,8 +32,6 @@ const eq = (label: string, got: unknown, want: unknown) => {
   }
 };
 
-// ── (a) Sleutellijsten, compile-time vastgeklonken aan xerFidelityTypes.ts — zelfde patroon als
-// check-ext-contract.ts's `keys<T>()`. ──────────────────────────────────────────────────────────
 function keys<T>() {
   return <K extends readonly (keyof Required<T>)[]>(
     lijst: K & ([keyof Required<T>] extends [K[number]] ? unknown : ['mist:', Exclude<keyof Required<T>, K[number]>]),
@@ -77,14 +43,9 @@ const COUNTERS_KEYS = keys<XerFidelityCounters>()(['es', 'ef', 'ls', 'lf', 'tf',
 const ENTRY_KEYS = keys<XerFidelityBaselineEntry>()([
   'label', 'tasks', 'projects', 'counters', 'precision', 'schemaFingerprint', 'reason',
 ] as const);
-// Optionele subset — plain, TYPEGETOETST tegen `keyof`, maar bewust NIET zelf compile-volledig (dat
-// zou de required/optional-scheiding zelf weer dupliceren). REQUIRED wordt hieronder AFGELEID als
-// "alles in ENTRY_KEYS min dit" — dus een nieuw veld dat je vergeet hier te noemen valt automatisch
-// in REQUIRED, wat de striktere (veiligere) kant is voor een niet-geclassificeerd veld.
 const OPTIONAL_ENTRY_KEYS: readonly (keyof XerFidelityBaselineEntry)[] = ['precision', 'schemaFingerprint', 'reason'];
 const REQUIRED_ENTRY_KEYS = ENTRY_KEYS.filter(k => !OPTIONAL_ENTRY_KEYS.includes(k));
 
-// ── (b) Runtime-validator ────────────────────────────────────────────────────────────────────
 function isPlainObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v);
 }
@@ -162,15 +123,6 @@ function validateBaseline(v: unknown): string[] {
   return problems;
 }
 
-// ── 0. De v1- en v2-productfidelitybaseline dragen elk hun eigen versienummer ──────────────────
-// `xer-product-fidelity-baseline.json` (v1, cel-regressiebewaking per taak/as, gelezen door
-// `check-xer-product-fidelity.ts`) en `xer-product-fidelity-baseline-v2.json` (v2, de 34-entry-
-// karakterisering, gelezen door `check-xer-product-fidelity-x12.ts`/`check-xer-corpusless-fidelity-
-// gate.ts`) zijn twee verschillende schema's die ooit onder ÉÉN bestandsnaam botsten: v2 overschreef
-// v1 stil, en de v1-lezer crashte met een TypeError zonder `XX `-regel (STATUS=1 zonder zichtbare
-// reden). Deze assertie bewaakt uitsluitend de vorm-vingerafdruk (version + herkenbare sleutels) van
-// elk bestand, zodat een hernieuwde botsing — ook een simpele bestandsverwisseling — hier hard en
-// leesbaar rood wordt, vóór een van de twee lezers er ooit aan toekomt.
 {
   const v1Raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline.json'), 'utf-8');
   const v2Raw = readFileSync(join(HERE, 'xer-product-fidelity-baseline-v2.json'), 'utf-8');
@@ -193,7 +145,6 @@ function validateBaseline(v: unknown): string[] {
   }, { version: 2, hasManifestSha256: true, hasCharacterization: true, hasCellTransitions: false });
 }
 
-// ── 1. De committe X1-baseline is gevuld en welgevormd ─────────────────────────────────────────
 {
   const raw = readFileSync(join(HERE, 'xer-fidelity-baseline.json'), 'utf-8');
   eq('1a0 volledige corpusloze baseline-inhoud is exact gepind',
@@ -232,9 +183,6 @@ function validateBaseline(v: unknown): string[] {
   }
 }
 
-// De manifesthash maakt de 93 relatieve paden, volledige bytehashes, herkomstklassen en expliciete
-// inclusie-/uitsluitingsbesluiten zelfstandig CI-data. Een corpusmount verifieert die pins opnieuw
-// tegen de bytes; zonder mount kan de populatie niet ongemerkt worden verkleind of omgeboekt.
 {
   const raw = readFileSync(join(HERE, 'xer-corpus-manifest.json'));
   eq('1f openbaar corpusmanifest is corpusloos exact gepind',
@@ -244,9 +192,6 @@ function validateBaseline(v: unknown): string[] {
     && isPlainObject(manifest.files) && Object.keys(manifest.files).length === 93);
   if (isPlainObject(manifest) && isPlainObject(manifest.files)) {
     const entries = Object.entries(manifest.files);
-    // Populatie na het eigenaarsbesluit van 2026-09-23 (alleen aantoonbaar door P6 doorgerekende
-    // orakels): 45 → 13 orakelbestanden; de 32 andere zijn `reader-only` met reden. Tweede toepassing
-    // 2026-09-23: de vier DCP-03-Baseline-kopieën (generatoruitvoer) → 13 → 9, 80 → 84.
     eq('1h manifestselectie bevat 9 aantoonbaar door P6 doorgerekende orakelbestanden',
       entries.filter(([, entry]) => isPlainObject(entry) && entry.included === true).length, 9);
     eq('1i manifest sluit 84 fixtures/pseudo-/invoer-/lezerbestanden met reden uit',
@@ -259,7 +204,6 @@ function validateBaseline(v: unknown): string[] {
   }
 }
 
-// ── 2. Het X0-harness-skelet blijft een geldige lege bouwsteen ─────────────────────────────────
 {
   const built: XerFidelityBaseline = createEmptyXerFidelityBaseline();
   const problems = validateBaseline(built);
@@ -267,7 +211,6 @@ function validateBaseline(v: unknown): string[] {
   eq('2a createEmptyXerFidelityBaseline() blijft leeg', built, { files: {} });
 }
 
-// ── 3. emptyAxisCounts()/emptyCounters() zijn zelf welgevormde bouwstenen ───────────────────────
 {
   const axis = emptyAxisCounts();
   const axisProblems: string[] = [];
@@ -284,7 +227,6 @@ function validateBaseline(v: unknown): string[] {
   }
 }
 
-// ── 4. Een VOLLEDIG gevulde entry (élk optioneel veld gezet) valideert schoon ───────────────────
 {
   const sample: XerFidelityBaselineEntry = {
     label: 'crawl-xer/p6diff-baseline.xer',
@@ -303,7 +245,6 @@ function validateBaseline(v: unknown): string[] {
   truthy(`4 een volledig gevulde entry valideert schoon (${problems.join('; ')})`, problems.length === 0);
 }
 
-// ── 5. Negatieve gevallen — de validator moet ECHT iets afkeuren, geen "altijd waar"-stub ───────
 {
   const missingLabel = { tasks: 1, projects: 1, counters: emptyCounters() };
   const p1: string[] = [];
@@ -320,9 +261,6 @@ function validateBaseline(v: unknown): string[] {
   validateEntry(extraKey, 'x', p3);
   truthy('5b een onverwachte sleutel wordt geweigerd', p3.length > 0);
 
-  // De kern van "baseline-vorm muteren ⇒ schema-check ROOD" — een RUW object dat `deviations`
-  // hernoemt naar `dev` (zoals een met de hand kapotgemaakt of ooit-verkeerd-geschreven
-  // baselinebestand dat zou doen) moet de validator laten struikelen.
   const renamedAxisField = {
     label: 'x', tasks: 1, projects: 1,
     counters: {
@@ -349,7 +287,6 @@ function validateBaseline(v: unknown): string[] {
   truthy('5e een array i.p.v. een object wordt geweigerd', notAnObject.length > 0);
 }
 
-// ── Uitslag ──────────────────────────────────────────────────────────────────
 if (diffs.length === 0) {
   console.log(`OK: xer-fidelity-baseline-schema — ${checks} checks groen`);
 } else {

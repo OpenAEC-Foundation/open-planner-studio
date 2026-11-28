@@ -1,7 +1,3 @@
-// Knownbugs 117: een XER zonder `status_code` (kolom ontbreekt of cel leeg) gaf elke activiteit
-// status "niet gestart", ook met een werkelijk einde en 100 %. De lezer leidt de status nu af uit de
-// actuals en de voortgang, met dezelfde regel als `normalizeImportedProgress`. Een INGEVULDE status
-// blijft leidend (ook als hij de datums tegenspreekt: knownbugs 115) en leest byte-gelijk aan vroeger.
 import { isMultiDocumentImport } from '@/services/importTypes';
 import { normalizeImportedProgress } from '@/services/importNormalize';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -38,26 +34,15 @@ const head = [
   '%T\tTASK',
 ] as const;
 
-// Activiteitrijen zonder statuskolom. Kolommen: id, code, type, %-type, complete_pct,
-// phys_complete_pct, targetduur, restduur, geplande start/einde, werkelijke start/einde.
 const rows = [
-  // AF + AS op 100 % (de 77 MER-taken) ⇒ voltooid, actuals blijven.
   ['AF', 'TT_Task', '', '', '100', '16', '0', '2026-08-03 08:00', '2026-08-04 16:00', '2026-08-03 08:00', '2026-08-04 16:00'],
-  // AF zonder AS op 40 % ⇒ voltooid, 100 %, AS = AF.
   ['AFZ', 'TT_Task', '', '', '40', '16', '8', '2026-08-03 08:00', '2026-08-04 16:00', '', '2026-08-05 16:00'],
-  // 100 % zonder actuals ⇒ voltooid, AS = eigen geplande start, AF = statusdatum.
   ['P100', 'TT_Task', '', '', '100', '16', '0', '2026-08-03 08:00', '2026-08-04 16:00', '', ''],
-  // 100 % zonder actuals, geplande start ná de statusdatum ⇒ AS = AF (volgorderegel).
   ['P100L', 'TT_Task', '', '', '100', '16', '0', '2026-08-12 08:00', '2026-08-13 16:00', '', ''],
-  // AS op een percentage (de 24 MER-taken) ⇒ lopend, geen AF.
   ['AS', 'TT_Task', '', '', '50', '16', '8', '2026-08-03 08:00', '2026-08-04 16:00', '2026-08-03 08:00', ''],
-  // AS op 0 % ⇒ lopend.
   ['AS0', 'TT_Task', '', '', '0', '16', '16', '2026-08-03 08:00', '2026-08-04 16:00', '2026-08-04 08:00', ''],
-  // Voortgang > 0 zonder actuals ⇒ lopend, geen verzonnen AS.
   ['PCT', 'TT_Task', '', '', '30', '16', '', '2026-08-03 08:00', '2026-08-04 16:00', '', ''],
-  // Lopend met CP_Drtn: zelfde restduur als een TK_Active-taak (`p6RemainingHours`).
   ['DRTN', 'TT_Task', 'CP_Drtn', '25', '', '16', '14', '2026-08-03 08:00', '2026-08-04 16:00', '2026-08-03 08:00', ''],
-  // Niets ⇒ niet gestart.
   ['NIETS', 'TT_Task', '', '', '0', '16', '16', '2026-08-11 08:00', '2026-08-12 16:00', '', ''],
 ] as const;
 
@@ -80,8 +65,6 @@ const byCode = (result: { tasks: readonly Task[] }) => new Map(
   result.tasks.filter(task => !task.isSummary).map(task => [task.wbsCode, task]),
 );
 
-// Vastgelegd op main dcbdaf2e4 (vóór deze wijziging), met dezelfde fixture en `fullStatus` hieronder:
-// [code, status, completion, AS, AF, restduur-minuten, restduur-dagen].
 const PINNED_FULL_STATUS = [
   ['AF', 'COMPLETED', 1, '2026-08-03T08:00', '2026-08-04T16:00', 0, null],
   ['AFZ', 'STARTED', 0.4, null, '2026-08-05T16:00', 480, null],
@@ -94,12 +77,8 @@ const PINNED_FULL_STATUS = [
   ['NIETS', 'NOT_STARTED', 0, null, null, 960, null],
 ];
 
-// Fixture 4b: geen statusdatum ⇒ AF = eigen geplande einde. De taak zonder geplande datums krijgt de
-// vroegste taakstart (2026-08-03) van `resolveMissingScheduleDates`, en zonder target-einde is het
-// geplande einde gelijk aan die start. [statusdatum, status, completion, AS, AF].
 const PINNED_NO_ANCHOR = [null, 'COMPLETED', 1, '2026-08-03', '2026-08-03'];
 
-// ── 1. Kolom ontbreekt: de vier gevallen van de regel ────────────────────────────────────────────
 const noColumn = read([...head, ...taskLines(() => null), '%E']);
 const nc = byCode(noColumn);
 eq('117-1 werkelijk einde + start op 100 % ⇒ voltooid, actuals ongewijzigd', progressOf(nc.get('AF')!),
@@ -120,10 +99,6 @@ eq('117-8 geen voortgang ⇒ niet gestart', progressOf(nc.get('NIETS')!),
   ['NOT_STARTED', 0, null, null]);
 eq('117-9 geen statuskolom ⇒ geen enum-melding', noColumn.xer.enumFallbacks, []);
 
-// ── 2. Zelfde regel als normalizeImportedProgress ────────────────────────────────────────────────
-// Dezelfde rijen met TK_Active lezen de voortgang zonder statusdwang en zonder afleiding. Haal ze
-// daarna door `normalizeImportedProgress`: status, percentage en actuals moeten gelijk zijn aan de
-// afleiding zonder statuskolom.
 const active = read([...head, ...taskLines(() => 'TK_Active'), '%E']);
 const normalized = active.tasks.filter(task => !task.isSummary).map(task => structuredClone(task));
 normalizeImportedProgress(normalized, active.project.statusDate);
@@ -136,8 +111,6 @@ eq('117-11 lopend CP_Drtn zonder status: restduur als TK_Active',
   [activeByCode.get('DRTN')!.time.completion, activeByCode.get('DRTN')!.time.remainingMinutes]);
 eq('117-12 lopend CP_Drtn: restduur uit complete_pct (16 u × 75 %)', nc.get('DRTN')!.time.remainingMinutes, 720);
 
-// ── 3. Lege cel in een bestand MÉT statuskolom ───────────────────────────────────────────────────
-// Lege cellen worden afgeleid; ingevulde statussen blijven leidend, ook bij tegenspraak (115).
 const mixedStatus: Record<string, string> = {
   AF: '', AFZ: 'TK_NotStart', P100: 'TK_Weird', P100L: '', AS: '  ', AS0: 'TK_Complete',
   PCT: 'TK_Active', DRTN: '', NIETS: '',
@@ -158,16 +131,12 @@ eq('117-18 TK_Complete met alleen een start blijft voltooid zonder verzonnen AF'
   ['COMPLETED', 1, '2026-08-04T08:00', null]);
 eq('117-19 TK_Active zonder actuals blijft lopend zonder verzonnen AS', progressOf(mx.get('PCT')!),
   ['STARTED', 0.3, null, null]);
-// Pint het HUIDIGE gedrag vast, geen gewenst gedrag: een onbekende statustekst blijft "niet gestart",
-// ook op 100 %. MPXJ leest zo'n tekst als `null`, net als een lege status. Open vraag: knownbugs 118.
 eq('117-20 onbekende status op 100 % blijft de enum-fallback niet gestart', progressOf(mx.get('P100')!),
   ['NOT_STARTED', 1, null, null]);
 eq('117-21 onbekende status geeft precies één enum-melding',
   mixed.xer.enumFallbacks.map(issue => [issue.family, issue.token, issue.fallback, issue.field]),
   [['status', 'TK_Weird', 'NOT_STARTED', 'status_code']]);
 
-// ── 4. Bestand MÉT status leest byte-gelijk aan vroeger ──────────────────────────────────────────
-// Status, completion, actuals en restduur zoals main ze las (PINNED_FULL_STATUS bovenaan).
 const fullStatus: Record<string, string> = {
   AF: 'TK_Complete', AFZ: 'TK_Active', P100: 'TK_NotStart', P100L: 'TK_Complete', AS: 'TK_Active',
   AS0: 'TK_Active', PCT: 'TK_NotStart', DRTN: 'TK_Active', NIETS: 'TK_NotStart',
@@ -179,10 +148,6 @@ eq('117-22 bestand mét status: status, completion, actuals en restduur zoals op
   ]),
   PINNED_FULL_STATUS);
 
-// ── 4b. Defaults pas ná het aanvullen van ontbrekende geplande datums ───────────────────────────
-// Zonder statusdatum, zonder `plan_start_date` en zonder `target_start_date` staat er vóór
-// `resolveMissingScheduleDates` nog een plaatshouder als geplande start. De AS/AF-defaults mogen die
-// nooit overnemen: de lezer vult ze pas daarna in (review #358, mutant M7 gaf AS = AF = 0001-01-01).
 const noAnchor = read([
   'ERMHDR\t23.12\t2026-08-01\t\t\t\t\t\tEUR',
   '%T\tPROJECT', '%F\tproj_id\tproj_short_name\tclndr_id', '%R\tP1\tGeen anker\tC1',
@@ -200,7 +165,6 @@ eq('117-25 100 % zonder statusdatum en zonder geplande start: defaults uit de aa
 eq('117-26 geen plaatshouder-datum in de actuals',
   [x1.time.actualStart, x1.time.actualFinish].some(value => !value || value.startsWith('0001')), false);
 
-// ── 5. IFC-round-trip zonder statuswissel ────────────────────────────────────────────────────────
 const solved = solveProject({
   tasks: noColumn.tasks,
   sequences: noColumn.sequences,

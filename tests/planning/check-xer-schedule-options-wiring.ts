@@ -117,11 +117,8 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
       p6CompletedLateFromRemainingWindow: false,
       startToStartLagFrom: 'actualStart',
       useProjectEndDateForFloat: true,
-      // Nivelleerfundament: de kolom `levelprioritylist` staat in de fixture ('A-RAW', geen geldige
-      // sleutel) ⇒ een leeg prioriteitsblok met zichtbare terugval (test 3); geen aan/uit-veld.
       leveling: { priority: [] },
     },
-    // Sinds 2026-09-24 (eigenaarsbesluit "a") geen A19-override meer uit rem_target_link_flag = Y.
     schedulingProfile: builtInProfile('p6'),
   },
   {
@@ -142,11 +139,7 @@ eq('2 ieder project krijgt uitsluitend zijn eigen SCHEDOPTIONS-semantiek', [
   },
 ]);
 
-// De onafhankelijke raw-ground-truth moet precies dezelfde projectgebonden schakelaars afleiden
-// als de productlezer, maar mag hem niet importeren. Dit dekt de OZB-klasse: PROJECT-invoer en
-// SCHEDOPTIONS-invoer worden per project samengevoegd, ook in een meerdocumentbestand.
 const independentMultiTruth = scanRawXerScheduleOptions(multiSource);
-/** Sleutelvolgorde-ongevoelig: het register en de hand-lijst in de grondwaarheid ordenen verschillend. */
 const sortedJson = (value: object) => JSON.stringify(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : 1)));
 eq('2a onafhankelijke SCHEDOPTIONS-grondwaarheid combineert PROJECT en SCHEDOPTIONS per project',
   ['P-A', 'P-B'].map(projectId => {
@@ -166,7 +159,6 @@ eq('2a onafhankelijke SCHEDOPTIONS-grondwaarheid combineert PROJECT en SCHEDOPTI
     },
     {
       projectId: 'P-B',
-      // rem_target_link_flag = N stuurt sinds 2026-09-24 niets meer: A19 volgt de P6-basis (aan).
       useRemainingStartForProgress: true,
       useProjectEndDateForFloat: false,
       retainedSource: { sched_use_project_end_date_for_float: false },
@@ -193,7 +185,6 @@ eq('3 retained bronvlag, onbekend enumtoken en volledige bronrij blijven per pro
   {
     source: 'schedoptions',
     retainedSource: { sched_use_project_end_date_for_float: true },
-    // 'A-RAW' is geen `veld,[…/]richting`-sleutel: sinds het nivelleerfundament gelezen en zichtbaar weggelaten.
     fallbacks: [{ field: 'levelprioritylist', token: 'A-RAW', fallback: 'sleutel weggelaten', line: 12 }],
     rows: [
       {
@@ -442,7 +433,6 @@ eq('10 IFC bewaart X5-documentprovenance naast de bestaande projectinstellingen'
     return {
       name: roundTripped.project.name,
       progressMode: roundTripped.project.progressMode,
-      // Rekenprofielen C2: opties + profiel ⇒ dezelfde opgeloste set als direct na het lezen.
       schedulingOptions: solveOptionsFor(roundTripped.project).schedulingOptions,
       xer: {
         sourceProjectId: roundTripped.xer?.sourceProjectId,
@@ -463,8 +453,6 @@ eq('10 IFC bewaart X5-documentprovenance naast de bestaande projectinstellingen'
       },
     },
     {
-      // RETAINED_LOGIC is IFC's bestaande canonieke default en komt daarom als `undefined` terug;
-      // de solversemantiek blijft retained. Een expliciete PROGRESS_OVERRIDE hierboven blijft staan.
       name: 'Project B', progressMode: undefined,
       schedulingOptions: projectB ? solveOptionsFor(projectB.project).schedulingOptions : undefined,
       xer: {
@@ -544,9 +532,6 @@ if (corpusRoot && existsSync(corpusRoot)) {
       sourceRows: 2,
     })));
   for (const item of settings) console.log(`.   X5-settings ${JSON.stringify(item)}`);
-  // Nivelleerfundament (onderzoek 2026-09-24 §2a): 9033 draagt de door P6 gebruikte instellingen, maar
-  // 9045/9047/9049 exact dezelfde zonder dat P6 daar nivelleerde (§2b). De lezer leest ze dus als data
-  // zonder aan/uit-veld; de andere acht projecten dragen de P6-dialoogdefaults.
   const ozbLeveling = {
     preserveScheduledDates: false, levelAllResources: false,
     priority: [{ field: 'early_start_date', direction: 'ASC' }],
@@ -564,10 +549,6 @@ if (corpusRoot && existsSync(corpusRoot)) {
   console.log('OK  XER-SCHEDOPTIONS-wiring: openbare 15-projectenmeting overgeslagen (OPS_XER_CORPUS)');
 }
 
-// X12-brok 1 (plan XER §9, her-review 7a): de lezer bepaalt of er een bruikbaar projecteinde is.
-// P-Y: `Y`, geen plan_end_date, geen target_end_date (de cases-import.xer-vorm) ⇒ optie uit met
-// terugvalmelding. P-T: `Y` met een taakeinde, P-E: `Y` met alleen een plan_end_date ⇒ optie aan.
-// De onafhankelijke grondwaarheid moet dezelfde uitkomst afleiden uit de rauwe rijen.
 {
   const noEndSource = bytes([
     'ERMHDR\t23.12\t2026-08-25\t\t\t\t\t\tEUR',

@@ -106,10 +106,6 @@ eq('3 PROJECT-kalender blijft de hoofdkalender', {
   mondayBands: result.calendar.workTime?.byWeekday[1],
 }, { id: 'C1', hourMode: true, mondayBands: [{ start: 480, end: 960 }] });
 
-// X12-kalenderbandfixture: `clndr_data` is leeg, maar de toegestane geplande invoer bewijst een
-// P6 Standard 5x8-dag met lunchpauze: 40 uur vanaf wo 08:00 eindigt di 17:00, niet 16:00.
-// De bestaande Brugrenovatie-fixture hierboven bewijst tegelijk dat een lege kalender met
-// volledige-dagfinishes om 16:00 aaneengesloten 08:00-16:00 blijft.
 const p6Lunch = read([
   'ERMHDR\t23.12\t2026-04-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -145,8 +141,6 @@ const p6Lunch = read([
   '%R\tR7\t8010\t8000\tP1\tP1\tPR_FS\t0',
   '%E',
 ]);
-// A17 staat sinds 2026-09-23 (§1d-7) in elk ingebouwd profiel uit (0 cellen op de P6-doorgerekende
-// populatie); 3g toetst de regel zelf, dus als afwijking aan.
 setConvention(p6Lunch, 'p6FinishMilestoneBoundaryWindow', true);
 solveProject({
   tasks: p6Lunch.tasks,
@@ -208,9 +202,6 @@ eq('3i XER-FS bewaart een expliciete geplande start op de voorganger-finishgrens
   successorFinish: '2026-05-26T17:00',
 });
 
-// X12-voortgangsfixture: sommige geldige XER-producenten leveren bij CP_Drtn wel de expliciete
-// target-/restduur maar geen redundante `complete_pct`-kolom. Status+restduur blijven dan de
-// invoerwaarheid; 40 resterende uren op 80 totaal betekent 50%, niet 0%/nogmaals 80 uur.
 const p6DurationProgressWithoutPct = read([
   'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -244,9 +235,6 @@ eq('3j CP_Drtn zonder complete_pct leidt voortgang en restwerk af uit expliciete
   earlyFinish: '2026-06-05T17:00',
 });
 
-// X12-actualfixture: P6-actuals zijn geregistreerde broninstants, ook wanneer ze buiten een
-// kalenderband op 00:00 liggen. De XER-route mag ze niet naar dezelfde-dag-start/vorige-finish
-// normaliseren; dat zou zowel datum als minuut van een historisch feit wijzigen.
 const p6MidnightActual = read([
   'ERMHDR\t23.12\t2026-06-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -260,10 +248,6 @@ const p6MidnightActual = read([
   '%R\tT1\tP1\tC1\tA100\tVoltooid om middernacht\tTT_Task\tDT_FixedDUR\tTK_Complete\tCP_Phys\t100\t40\t0\t2026-05-04 08:00\t2026-05-08 17:00\t2026-05-03 00:00\t2026-05-10 00:00',
   '%E',
 ]);
-// Sinds 2026-09-24 (eigenaarsbesluit "a") staat A19 in de P6-basis aan; daarmee werkt C5
-// (`p6CompletedPhysicalAtDataDate`, alleen samen met A19) ook op deze voltooide CP_Phys-taak en zet haar
-// als één punt op de statusdatum ma 1 jun 08:00 (3k-b). 3k toetst de minuutexacte actuals (A18), dus
-// daar staat C5 uit — zoals deze fixture tot dan (zonder rem_target_link_flag, A19 uit) rekende.
 const p6MidnightActualC5 = structuredClone(p6MidnightActual);
 setConvention(p6MidnightActual, 'p6CompletedPhysicalAtDataDate', false);
 for (const input of [p6MidnightActual, p6MidnightActualC5]) solveProject({
@@ -293,8 +277,6 @@ eq('3k XER/P6 behoudt voltooide actual start/finish als minuutexacte broninstant
 });
 
 const byId = new Map(result.tasks.map(task => [task.id, task]));
-// Boomvolgorde (diepte-eerst): elke activiteit direct onder haar WBS, zoals de P6 XML-lezer. Tot
-// 2026-10-12 pinde deze check "alle WBS vóór alle activiteiten" (zie check-xer-wbs-tree.ts).
 eq('4 WBS-rijen worden exact één samenvattingstaak, in boomvolgorde en stabiel gesorteerd',
   result.tasks.map(task => ({ id: task.id, parent: task.parentId, children: task.childIds })),
   [
@@ -404,9 +386,6 @@ eq('13 externe relatie is uitsluitend brondata en geen solver-Sequence', {
   }],
 });
 
-// X12 late-pass RED/GREEN: P6 mag alleen het toegestane PROJECT.plan_end_date als late
-// projecteinde-anker gebruiken wanneer SCHEDOPTIONS dat expliciet vraagt. De bronwaarde ligt op
-// middernacht; in de projectkalender betekent dat het voorafgaande bandeinde (28 februari 17:00).
 const p6ProjectEndForFloat = read([
   'ERMHDR\t23.12\t2026-04-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -461,16 +440,6 @@ eq('13b P6 SNLT op de exacte startband houdt een nulduurmijlpaal op die broninst
   lateFinish: '2012-05-01T08:00',
 });
 
-// 13c–13g: `sched_use_project_end_date_for_float = Y` ZONDER `PROJECT.plan_end_date`
-// (eigenaarsbesluit 2026-09-24 "eigen PR", Fable-critreview PR #109 bevinding 2). De optie blijft
-// aan — dat is wat het bestand zegt — maar de lezer verzint geen anker meer uit het maximum van de
-// geplande `target_end_date`s: `project.endDate` blijft leeg en de solver rekent de late pass vanaf
-// het netwerkeinde, max(EF), zoals P6 zonder "Must Finish By". De fixture is 13a met een leeg
-// `plan_end_date` en een verouderd plan: WORK staat gepland tot 2 mei maar heeft nog 40 uur werk
-// (eindmijlpaal END op 5 mei), en de zijtak SIDE heeft nog 80 uur, dus het netwerk eindigt op
-// 10 mei. Het oude, verzonnen anker (max geplande taakeinde = 2 mei) gaf daardoor de hele keten
-// negatieve speling — het symptoom uit de review. Omdat END níét het netwerkeinde bepaalt, raken
-// ook de twee andere optietakken (P6-finishmijlpaalgrens en de FF=0-klem) deze fixture.
 const p6NoProjectEndLines = [
   'ERMHDR\t23.12\t2026-04-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -502,7 +471,6 @@ function solveNoProjectEnd(
   overrides: { useProjectEndDateForFloat?: boolean; projectEndDate?: string } = {},
 ): SolvedAxes {
   const tasks = imported.tasks.map(task => ({ ...task, time: { ...task.time } }));
-  // Rekenprofielen: de solver krijgt uitsluitend EffectiveSchedulingOptions via solveOptionsFor.
   const effective = solveOptionsFor(imported.project).schedulingOptions;
   const schedulingOptions = overrides.useProjectEndDateForFloat === undefined
     ? effective
@@ -531,30 +499,19 @@ eq('13c Y zonder plan_end_date: optie blijft aan, projecteinde blijft leeg (geen
 }, { useProjectEndDateForFloat: true, endDate: '' });
 const noEndAsRead = solveNoProjectEnd(p6NoProjectEnd);
 const noEndOptionOff = solveNoProjectEnd(p6NoProjectEnd, { useProjectEndDateForFloat: false });
-// Alle zes assen plus kritiek, voor élke taak — ook de open eindmijlpaal, waar de optie naast het
-// anker nog twee takken stuurt (finishmijlpaalgrens en de FF=0-klem). "Netwerkeinde" betekent:
-// precies hetzelfde als de optie uit.
 eq('13d Y zonder datum rekent byte-gelijk aan de optie uit (netwerkeinde, alle assen, alle taken)',
   noEndAsRead, noEndOptionOff);
-// Bewust zonder END's eigen late datum: die hangt af van de P6-finishmijlpaalgrens (op de
-// rekenprofielenbranch een conventie), niet van het projecteinde. Wat hier telt: het late einde
-// ligt op het netwerkeinde (SIDE) en END's vrije speling reikt tot precies dat einde.
 eq('13e netwerkeinde = max(EF) van SIDE (10 mei); END heeft vrije speling tot precies dat einde', {
   sideLf: noEndAsRead['T-SIDE']?.lf, sideTf: noEndAsRead['T-SIDE']?.tf,
   endEf: noEndAsRead['T-END']?.ef, endFf: noEndAsRead['T-END']?.ff,
   endLfNotAfterNetworkEnd: (noEndAsRead['T-END']?.lf ?? '') <= '2012-05-10T17:00',
 }, { sideLf: '2012-05-10T17:00', sideTf: 0, endEf: '2012-05-05T17:00', endFf: 5, endLfNotAfterNetworkEnd: true });
-// Tegenproef (mutant "oud anker terug"): het vroegere taak-afgeleide einde — exact de oude
-// lezerformule, max(scheduleFinish) — als projecteinde verankert de solver op 2 mei en geeft de
-// eindmijlpaal negatieve speling. Was die tegenproef gelijk aan 13d, dan mat de fixture niets.
 const oldAnchor = p6NoProjectEnd.tasks.map(task => task.time.scheduleFinish).filter(Boolean).sort().at(-1);
 const oldInventedAnchor = solveNoProjectEnd(p6NoProjectEnd, { projectEndDate: oldAnchor });
 eq('13f tegenproef: het oude verzonnen anker (max geplande taakeinde) gaf negatieve speling', {
   oldAnchor, lf: oldInventedAnchor['T-END']?.lf, negativeFloat: (oldInventedAnchor['T-END']?.tf ?? 0) < 0,
   differsFromNetwork: JSON.stringify(oldInventedAnchor) !== JSON.stringify(noEndAsRead),
 }, { oldAnchor: '2012-05-02T17:00', lf: '2012-05-02T17:00', negativeFloat: true, differsFromNetwork: true });
-// Y mét geldige datum blijft ongewijzigd verankerd (13a is de bronfixture; hier ook via dezelfde
-// helper, zodat de normalisatie in de solver aantoonbaar alleen de lege/ongeldige datum raakt).
 const withValidEnd = solveNoProjectEnd(p6NoProjectEnd, { projectEndDate: '2012-05-12T17:00' });
 const withInvalidEnd = solveNoProjectEnd(p6NoProjectEnd, { projectEndDate: 'geen-datum' });
 eq('13g Y mét geldige datum verankert daarop; een onparseerbare datum valt terug op het netwerkeinde', {
@@ -635,9 +592,6 @@ eq('16b enkelproject-XER rapporteert zelfverwijzing en vangrail zonder openseman
   },
 });
 
-// Fixronde 1, bevinding 1: een lege PROJWBS-rij blijft semantisch een samenvattingstaak. Dit
-// bewijs rijdt niet alleen langs de fidelityfilter, maar door de echte solveProject-keten én de
-// gedeelde relatie-/resourceconsumenten die uitsluitend bladtaken mogen zien.
 const emptyWbsResult = read([
   'ERMHDR\t23.12\t2026-01-01\t\t\t\t\t\tEUR',
   '%T\tCALENDAR',
@@ -798,9 +752,6 @@ eq('27 WBS-sortering is hostonafhankelijk onder sv-SE',
 eq('28 unieke wbs_id is tie-breaker, onafhankelijk van bronhussel',
   sortedWbsUnderLocale('en-US', ['z', 'root', 'umlaut']), expectedWbsOrder);
 
-// Fable-critreview PR #109 bevinding 9: de kale dialecttokens dekken alle vier relatietypen. Dezelfde
-// fixture met `ff`/`SF` in plaats van `PR_FF`/`PR_SF` geeft exact dezelfde relaties en géén
-// relatie-terugval (zonder de fix: beide FS + twee `relation`-fallbacks).
 {
   const bare = read(fixture.map(line => line
     .replace('\tP1\tP1\tPR_FF\t', '\tP1\tP1\tff\t')
@@ -812,8 +763,6 @@ eq('28 unieke wbs_id is tie-breaker, onafhankelijk van bronhussel',
     result.xer.enumFallbacks.filter(item => item.family === 'relation').length);
 }
 
-// Eigenaarsbesluit 2026-09-24 "projectnaam": documentnaam = "Projectnaam (P6 Project-ID)";
-// project.name blijft de kale naam (PROJECT.proj_name, anders de WBS-wortel), zonder ID.
 {
   eq('31 helper: naam ≠ ID ⇒ "Naam (ID)"', nameWithProjectCode('HarbourPointe Assisted Living', '4408'),
     'HarbourPointe Assisted Living (4408)');
@@ -879,8 +828,6 @@ eq('28 unieke wbs_id is tie-breaker, onafhankelijk van bronhussel',
   eq('43 baseline: baselinenaam = projectnaam van de bron, zonder ID',
     docs[0].baselines?.map(b => b.name), ['HarbourPointe nulmeting']);
 
-  // Critreview documentnaam (a): "Opslaan als"/opslaan/exporteren stelt dezelfde naam voor als de
-  // tab, zodat tab en titelbalk na het opslaan (dan afgeleid van de bestandsnaam) gelijk blijven.
   eq('44 bestandsnaambasis XER = documentnaam', documentFileBase(result.project.name, xerProjectCode(result.xer)),
     'Brug (Brugrenovatie)');
   eq('45 bestandsnaambasis na opslaan = zelfde tabtitel',
@@ -893,8 +840,6 @@ eq('28 unieke wbs_id is tie-breaker, onafhankelijk van bronhussel',
     /projectFileBase\(\s*state\.project\.name/.test(fileSliceSrc) || !/suggestedFileBase\(state\)/.test(fileSliceSrc)
       || !/documentFileBase\(s\.project\.name,\s*documentProjectCode\(s\.project,\s*s\.xerImportMetadata\)\)/.test(fileSliceSrc),
     false);
-  // Critreview documentnaam (b): het bezettingsoverzicht leidt de titel af zoals de tabbalk (met ID-code).
-  // Sinds 2026-10-13 via de gedeelde `documentProjectCode` (XER of P6 XML; check-p6xml-project-code).
   const occupancySrc = readFileSync(new URL('../../src/components/panels/ResourceOccupancyView.tsx', import.meta.url), 'utf8');
   eq('48 bezettingsoverzicht: documentTitle krijgt de XER-code mee',
     /documentTitle\(payload\.filePath,\s*payload\.project\.name,\s*documentProjectCode\(payload\.project,\s*payload\.xerImportMetadata\)\)/.test(occupancySrc)

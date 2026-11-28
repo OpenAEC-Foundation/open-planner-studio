@@ -1,11 +1,3 @@
-// Review 2026-09-28 — P6-profiel: FF-relatie van een dagtaak naar een uurtaak.
-//
-// Conventie `p6FinishNotBeforeFinishFinishBound` stapte met `prevWorkInstant` terug op de lag-engine
-// van de voorganger. Voor een dag-voorganger heeft die geen urenbanden, en de berekening van het hele
-// document stopte met een TypeError. De conventie is voor zo'n relatie niet gedefinieerd; nu rekent
-// het gewone pad door. (Bestond al vóór de audit; gevonden in de review.)
-//
-// Draait via run.sh. Exit 0 = alles groen.
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { effectiveSchedulingOptions } from '@/engine/scheduler/conventions/registry';
 import { createDefaultTaskTime } from '@/utils/taskDefaults';

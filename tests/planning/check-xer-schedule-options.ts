@@ -1,4 +1,3 @@
-// F2: verwachtingen volgen D1/D2/D7 op laad- en invoergrenzen (§4.2, §7.2).
 import { CPMSolver } from '@/engine/scheduler/CPMSolver';
 import { createDefaultProject } from '@/state/defaults';
 import {
@@ -40,9 +39,6 @@ function deriveXerScheduleOptions(
   return deriveIndexedXerScheduleOptions(indexXerScheduleOptions(tables), projectId, context);
 }
 
-/** Rekenprofielen C4: een afgeleid XER-resultaat draagt alleen projectopties. Zo rekent een
- *  XER-project: het kale P6-profiel — exact wat `xerReader` zet (sinds 2026-09-24 geen A19-override
- *  meer uit `rem_target_link_flag`, eigenaarsbesluit "a"). */
 function xerProfileOf(_result: ReturnType<typeof deriveIndexedXerScheduleOptions>) {
   return builtInProfile('p6');
 }
@@ -367,8 +363,6 @@ eq('expliciet uitgeschakelde XER-bronvlaggen laten niet-XER-solvergedrag byte-id
 eq('een vers OPS-project krijgt geen stille XER-defaults',
   createDefaultProject().schedulingOptions, undefined);
 
-// Drie onafhankelijk in P6 geverifieerde brongevallen. Alleen taak-/kalenderinvoer gaat de solver
-// in: de orakeldatums worden uitsluitend hieronder als verwachtingen gebruikt.
 const p6MonFri = p6Calendar('p6-monfri', [1, 2, 3, 4, 5]);
 const p6SixDay = p6Calendar('p6-sixday', [1, 2, 3, 4, 5, 6]);
 const p6MultiCalendar = new CPMSolver(
@@ -606,9 +600,6 @@ eq('projecteindevlag true/false verandert binnen één project geen enkele taakd
   falseResult: [...ordinaryEnd.tasks],
 });
 
-// X12-brok 1 (plan XER §9, her-review 7a): `Y` zonder bruikbaar einde — geen PROJECT.plan_end_date
-// en geen TASK.target_end_date — valt zichtbaar terug op N; de bronwaarde blijft `Y` in retainedSource.
-// Mét een bruikbaar einde, of zonder dat de lezer het weet (`undefined`), blijft `Y` staan.
 {
   const withUsable = (hasUsableProjectEnd: boolean | undefined) => deriveXerScheduleOptions(parseXerTables(xer(
     ['proj_id'],
@@ -715,8 +706,6 @@ const linearProjectRows = Array.from({ length: LINEAR_PROJECTS }, (_, index) =>
   `%R\tP${index}\tCT_TotFloat\t${index % 9}`).join('\n');
 const linearScheduleRows = Array.from({ length: LINEAR_PROJECTS }, (_, index) =>
   `%R\tP${index}\t${index % 2 === 0 ? 'FT_SS' : 'FT_FF'}`).join('\n');
-// X6 maakt parserrijen terecht immutable. Deze instrumentatietest meet uitsluitend property-reads
-// en krijgt daarom een lokale, mutable meetkopie — nooit de runtime-bron die readers delen.
 const linearTables = structuredClone(parseXerTables(new TextEncoder().encode([
   'ERMHDR\t23.12\t2026-08-25\t\t\t\t\t\tEUR',
   '%T\tPROJECT',
@@ -800,14 +789,10 @@ eq('default 5/8: relatielag op de voorgangerskalender',
   XER_SCHEDULING_DEFAULTS.schedulingOptions.lagCalendar, 'predecessor');
 eq('default 6/8: verwachte einddatums als bewaard bronbeleid (solverconsumptie volgt in X7)',
   XER_SCHEDULING_DEFAULTS.schedulingOptions.useExpectedFinishDates, true);
-// Rekenprofielen C4: de conventies staan sinds C3 in het P6-profiel dat de XER-lezer zet; de pin
-// hieronder is een hand-lijst (spec v3.1 bijlage A), niet uit het register afgeleid.
 const P6_PROFILE = resolveConventions(builtInProfile('p6'));
 const byKey = (value: object) => Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : 1)));
 eq('P6-profiel ≡ hand-lijst (A19 aan sinds 2026-09-24)', byKey(P6_PROFILE), byKey({
-  // B6: de losse mijlpaal aan het dageinde staat alleen in het OPS-profiel aan.
   milestoneWithoutPredecessorAtDayEnd: false,
-  // Alleen uren §3.14: de dagenmaat staat alleen in het OPS-profiel aan.
   workdayDurationMeasure: false,
   preserveActualDatesInBackwardPass: true, clampNegativeFreeFloat: true,
   p6ZeroDurationUsesPlannedBoundary: true, p6UseTaskPlannedStartFloor: true,
@@ -815,9 +800,7 @@ eq('P6-profiel ≡ hand-lijst (A19 aan sinds 2026-09-24)', byKey(P6_PROFILE), by
   p6PreserveZeroDurationConstraintInstants: true, p6UseRemainingStartForProgress: true,
   resumeFromActualElapsed: false, unstartedIgnoresStatusDate: false,
   p6RelationFinishBoundary: true, p6BackwardLagFinishBoundary: true,
-  // A17/B3/B4 sinds 2026-09-23 uit (§1d-7: 0 cellen op de P6-doorgerekende populatie; gebouwd op rehab-2 = P3).
   p6CompletedDataDateWindow: false, p6CompletedLoeActualFinish: false, p6OpenLoeTargetSpan: true,
-  // C1/C4 sinds 2026-09-23 uit (populatie = P6-doorgerekende orakels; alleen rehab-2 = P3 droeg ze).
   p6CompletedPredecessorAtDataDate: false, p6FreeFloatOnOwnCalendar: true, p6CompletedRemainingLag: true,
   p6CompletedOutOfSequenceWindow: false, p6CompletedPhysicalAtDataDate: true, p6InProgressStartLagElapsed: true,
   p6FinishFinishStartMilestoneLateFinish: true, p6StartedTaskIgnoresPlannedStartFloor: true,
@@ -923,7 +906,6 @@ eq('bekende enums en vlaggen worden case-insensitief naar bestaande opties gemap
     makeOpenEndedCritical: true,
     useExpectedFinishDates: false,
     p6CompletedLateFromRemainingWindow: false,
-    // `n` (case-insensitief) ⇒ P6 "Calculate Start-to-Start lag from: Actual Start".
     startToStartLagFrom: 'actualStart',
     useProjectEndDateForFloat: false,
     floatPaths: { enabled: true, method: 'TOTAL_FLOAT', maxPaths: 3 },
@@ -1045,10 +1027,6 @@ eq('niet-ondersteunde P6 Actual Dates-modus valt nooit stil terug', {
     line: 7,
   }],
 });
-// Her-review 7a, bevinding 3: de completed-late-klem sluit op "niet aantoonbaar retained logic",
-// niet op de solver-terugval. N/N (Actual Dates) en Y/Y houden de vlag dus NIET aan; Y/N en
-// (leeg)/(leeg) wél. MUTATIEBEWIJS: klem terug op `progressMode !== 'RETAINED_LOGIC'` ⇒ de N/N-
-// en Y/Y-regels hieronder slaan ROOD.
 const completedLateFlagFor = (retained: string, override: string) => deriveXerScheduleOptions(parseXerTables(xer(
   ['proj_id'],
   ['P1'],
@@ -1079,18 +1057,12 @@ const ifcRoundTrip = readIFC(writeIFC({
   resources: [],
   assignments: [],
 }));
-// Rekenprofielen C2: het IFC splitst de blob in projectopties (OPS_SchedulingOptions) en profiel
-// (OPS_SchedulingProfile); verliesloos = dezelfde OPGELOSTE set als vóór het opslaan.
 const sortedKeys = (value: object) => Object.fromEntries(Object.entries(value).sort(([a], [b]) => (a < b ? -1 : 1)));
 eq('X5-bronvlaggen round-trippen verliesloos via IFC (opties + profiel ⇒ dezelfde opgeloste set)',
   sortedKeys(solveOptionsFor(ifcRoundTrip.project).schedulingOptions), sortedKeys(xerEffective(withoutTable)));
 eq('X5: het optieblok na lezen draagt alleen projectopties',
   optionKeysOnly(ifcRoundTrip.project.schedulingOptions), ifcRoundTrip.project.schedulingOptions);
 
-// Projectoptie `startToStartLagFrom` uit `sched_lag_early_start_flag` (P6 "Calculate Start-to-Start lag
-// from", plan XER §9 vervolgpunt X12 brok 3): Y ⇒ earlyStart, N ⇒ actualStart, leeg ⇒ de P6-standaard
-// earlyStart, een onbekend token ⇒ zichtbare terugval op earlyStart. Mutant "N ook op earlyStart" ⇒ rood
-// (N-regel en de `mapped`-fixture hierboven); mutant "leeg ⇒ actualStart" ⇒ rood (leeg-regel).
 {
   const ssLag = (token: string) => deriveXerScheduleOptions(parseXerTables(xer(
     ['proj_id'], ['P1'], { fields: ['proj_id', 'sched_lag_early_start_flag'], values: ['P1', token] },
@@ -1109,10 +1081,6 @@ eq('X5: het optieblok na lezen draagt alleen projectopties',
     { field: 'sched_lag_early_start_flag', status: 'mapped', target: 'schedulingOptions.startToStartLagFrom' });
 }
 
-// Nivelleerfundament (`SchedulingOptions.leveling`, onderzoek 2026-09-24 §7 stap 1): de instellingen als
-// DATA, nooit rekeninvoer. Mutanten: een `enabled`-veld terugzetten ⇒ rood ("geen aan/uit-veld");
-// DEL-DEL niet splitsen ⇒ rood (twee sleutels); verweesde RSRCLEVELLIST-rij stil overslaan ⇒ rood; RSRCLEVELLIST op proj_id i.p.v. schedoptions_id ⇒ rood
-// (resourcelijst); ongelijke tariefrijen toch een waarde ⇒ rood (maxUnitsPerHour afwezig).
 {
   const DEL = '\u007f\u007f';
   const levelXer = (schedule: Record<string, string>, extra: { list?: string[][]; rates?: string[][] } = {}) => {

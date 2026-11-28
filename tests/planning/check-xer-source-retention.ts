@@ -1,5 +1,3 @@
-// P0 XER-bronretentiecontract — corpusloos, over echte gebruikersgrenzen en met onafhankelijke
-// STEP-inspectie. Mutanten veranderen geldige inhoud; elke grens moet daardoor inhoudelijk rood zijn.
 import { activeImportResult } from '@/services/importTypes';
 import { readXerArchiveIFC as readIFC } from './xerArchiveTestReader';
 import { writeIFC } from '@/services/ifc/ifcWriter';
@@ -74,12 +72,8 @@ const truthy = (label: string, value: boolean) => {
   if (!value) failures.push(`${label}: voorwaarde is niet vervuld`);
 };
 
-// De browserrand is nep; recoveryStore, IFC-write/read en documentrestore zijn echt.
 installFakeRecoveryIndexedDb();
 
-// Drie bronchunks, een onbekende tabel en een onbekend taakveld. De kalenderpayload is echte P6-XER:
-// dubbele/non-work exceptions leveren p6NonWorkPenaltyDates op; de FS-relatie begint exact op de
-// target-finishgrens van de voorganger en levert zo de sequence-boundaryvlag op.
 const unknownPayload = 'onbekende-bronwaarde-'.repeat(24_000);
 const bytes = new TextEncoder().encode([
   'ERMHDR\t23.12\t2025-12-31\t\t\t\t\t\tEUR',
@@ -339,7 +333,6 @@ const mutateDurationType = (step: string) => {
 };
 
 const directActive = activeImportResult(readXER(bytes));
-// Gerichte productpoort: dit komt rechtstreeks uit echte XER, vóór hydrate of handmatige injectie.
 equal('0 readXER leidt kalenderstate, kalenderbron en sequence-boundary uit bronregels af',
   p6Projection(payloadFromImport(directActive, null)), expectedP6);
 
@@ -392,7 +385,6 @@ equal('4 import/hydrate herberekent alle losscategorieën', baseline.lossCategor
 const retains = (label: string, source: SourceState = state()) =>
   equal(label, sourceSignature(source), baseline);
 
-// Live edit + CPM: verander echte duurinvoer, eis een afgeleide wijziging en pin de bron los daarvan.
 state().runCPM();
 const beforeEdit = scheduleProjection(state());
 const predecessor = state().tasks.find(task => task.p6TaskId === 'T-PRED');
@@ -425,7 +417,6 @@ state().redo();
 equal('10 redo zet live invoer en afgeleide toestand exact terug', scheduleProjection(state()), afterEdit);
 retains('11 redo zet de volledige bronretentie exact terug');
 
-// Documentwissel.
 const sourceDocumentId = state().activeDocumentId;
 state().newDocument();
 const temporaryDocumentId = state().activeDocumentId;
@@ -440,7 +431,6 @@ equal('13 documentwissel houdt exact het brondocument open', {
   activeId: state().activeDocumentId,
 }, { count: 1, ids: [sourceDocumentId], activeId: sourceDocumentId });
 
-// Duplicatie: veranderlijke payloads zijn gekloond; het diep immutable archief wordt bewust gedeeld.
 const duplicateId = state().duplicateDocument('Bronretentie-kopie');
 const sourcePayload = state().documents.find(document => document.id === sourceDocumentId)?.payload;
 if (!sourcePayload) throw new Error('Duplicatie verloor bronpayload');
@@ -469,7 +459,6 @@ if (mutant === 'duplicate') app.setState({ xerSourceProjectId: null });
 retains('17 duplicatie behoudt de volledige bronretentie');
 if (mutant === 'duplicate') app.setState({ xerSourceProjectId: 'P-RET' });
 
-// Recovery: pin opslaginhoud en herstel daarna in een verse store waarvan het startdocument verdwijnt.
 const openDocs = state().getOpenDocumentPayloads();
 const recoveryWrites = openDocs.map(document => ({
   id: document.id,
@@ -539,7 +528,6 @@ if (recoveryShapeOk) {
 }
 await clearRecovery();
 
-// IFC-write en onafhankelijke STEP-inspectie op het herstelde actieve document.
 const finalState = recoveryShapeOk ? recoveredApp.getState() : state();
 const writtenIfc = writeIFC(buildWriteIFCInput(finalState, 'planOnly'));
 const inspectedIfc = mutant === 'independent-step'
@@ -655,7 +643,6 @@ const relationGuids = [...entities.values()]
 equal('30 STEP pinnt sequence-boundary tegen de echte IFCRELSEQUENCE-GUID',
   boundaryGuids, relationGuids);
 
-// Productreader is een afzonderlijke grens. De mutant blijft geldige STEP en verandert concrete data.
 const ifcForReader = mutant === 'ifc-writer-reader'
   ? mutateDurationType(writtenIfc)
   : writtenIfc;

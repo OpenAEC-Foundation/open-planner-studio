@@ -1,7 +1,3 @@
-// X9-compactopslag — verse corpusprocessen meten de volledige IFC- en recoveryketen eerlijk.
-// Sinds 2026-10-07 (eigenaarsbesluit plan (9), "bronarchief één keer schrijven") loopt de recoveryprobe
-// over de echte tick (`runRecoveryTick`) en het echte herstel via de archiefverwijzing, en is er een
-// budgetpoort: een bewerkingstick schrijft geen archiefbytes en blijft onder de helft van de bron.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -43,13 +39,9 @@ interface RecoveryProbe {
   deltaDocumentWrites: number;
   deltaManifestWrites: number;
   deltaEditRestored: boolean;
-  /** Bytes die de bewerkingstick naar de opslag schreef (snapshots + manifest + archiefblobs). */
   editTickBytes: number;
-  /** Lengte van de INGEBEDDE IFC van het bewerkte document (de oude snapshotvorm), ter vergelijking. */
   editedEmbeddedIfcChars: number;
-  /** Archiefbytes in de bewerkingstick (moet 0 zijn). */
   editTickArchiveBytes: number;
-  /** Archiefblobs na de eerste tick (twaalf documenten uit één bestand ⇒ 1). */
   archiveBlobs: number;
   firstTickMs: number;
   editTickMs: number;
@@ -64,17 +56,10 @@ interface RecoveryStorageWrites {
   archiveBytes: number;
 }
 
-// Harde guardrails zijn uitsluitend semantisch/structureel en daardoor machine-onafhankelijk:
-// één documentedit mag exact één volledige IFC-upsert en één manifestcommit veroorzaken; OZB
-// blijft twaalf herstelbare documenten. Walltime en OS-peak-RSS zijn wel echte procesmetingen en
-// worden hieronder altijd gelogd, maar krijgen bewust GEEN bovengrens: CPU, beschikbare RAM,
-// kernel/page-cache en CI-host verschillen te sterk om zo'n getal een betrouwbare veiligheidspoort
-// te maken. Een niet-positieve/niet-eindige meting is wél rood, want dan meet de probe niet echt.
 const MAX_DELTA_DOCUMENT_WRITES = 1;
 const REQUIRED_DELTA_MANIFEST_WRITES = 1;
 const OZB_RECOVERY_DOCUMENTS = 12;
 const EDIT_TICK_ARCHIVE_SAVING = 1.3;
-/** Manifest en recordsleutels van één tick. */
 const EDIT_TICK_SLACK_BYTES = 64 * 1024;
 
 const sizeOf = (value: unknown): number => {
@@ -135,8 +120,6 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
   let restoredExact = true;
   if (mode === 'recovery') {
     await clearRecovery();
-    // De echte auto-save-tick (`useAutoSave` → `runRecoveryTick`): delta, serialisatie met
-    // archiefverwijzing, opslag (blob één keer) en pas daarna de persistentiebasis.
     const tracker = new RecoveryDeltaTracker();
     const recoveryDocs = (): RecoverySourceDocument[] => useAppStore.getState().getOpenDocumentPayloads()
       .map(({ id, payload }) => ({
@@ -149,8 +132,6 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
     archiveBlobs = countArchiveBlobs();
     Object.assign(storageWrites, { documents: 0, manifests: 0, readwriteTransactions: 0, recordBytes: 0, archiveBytes: 0 });
 
-    // Eén echte documentedit. De storagegrens krijgt alle manifestregels, maar precies één
-    // zware upsert — en geen archiefbytes (eigenaarsbesluit plan (9)).
     useAppStore.getState().switchDocument(activeId);
     useAppStore.getState().setProject({ description: '__x9-recovery-delta__' });
     started = performance.now();
@@ -166,7 +147,6 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
       throw new Error(`${label}: recoverydelta gebruikte ${storageWrites.readwriteTransactions} readwrite-transacties`);
     }
 
-    // Herstel zoals `useRecoveryRestore`: de bronbytes komen via de verwijzing uit de opslag.
     started = performance.now();
     const loaded = await loadRecovery();
     const inputs: RecoveryDocInput[] = [];
@@ -196,7 +176,6 @@ async function runProbe(label: string, mode: ProbeMode, filePath: string): Promi
     documents: docs.length,
     ifcChars: ifcs.reduce((total, ifc) => total + ifc.length, 0),
     elapsedMs: performance.now() - started,
-    // De probe is een vers Node-proces: dit is de OS-piek van de volledige keten, geen heapdelta.
     peakRssKiB: process.resourceUsage().maxRSS,
     recoveredDocuments,
     recoveredArchives,
@@ -264,11 +243,6 @@ if (!root || !existsSync(rehab) || !existsSync(ozb)) {
         probe.deltaDocumentWrites === MAX_DELTA_DOCUMENT_WRITES
         && probe.deltaManifestWrites === REQUIRED_DELTA_MANIFEST_WRITES
         && probe.deltaEditRestored);
-      // Budgetpoort (eigenaarsbesluit plan (9)): machine-onafhankelijk in bytes. Het ingebedde archief
-      // kost ≥ 1,33 tekens per bronbyte (`check-xer-archive-scale.ts`). De bewerkingstick moet dus
-      // minstens 1,3 × de bron MINDER schrijven dan de oude, ingebedde snapshot van datzelfde document,
-      // en nul archiefbytes. De rest van de tick is de planning zelf (rehab-2: ±35 MB IFC zonder archief)
-      // en valt buiten deze poort.
       expect(`${probe.label}: bewerkingstick schrijft geen archiefbytes en ≥ ${EDIT_TICK_ARCHIVE_SAVING} × bron minder dan een ingebedde snapshot (gemeten ${probe.editTickBytes} B, ingebed ${probe.editedEmbeddedIfcChars} tekens)`,
         probe.editTickArchiveBytes === 0
         && probe.editTickBytes + EDIT_TICK_ARCHIVE_SAVING * probe.sourceBytes <= probe.editedEmbeddedIfcChars + EDIT_TICK_SLACK_BYTES);
