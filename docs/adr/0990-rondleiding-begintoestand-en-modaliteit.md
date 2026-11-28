@@ -1,4 +1,4 @@
-# Rondleiding: begintoestand in de store, modaal via een eigen laag
+# Rondleiding: begintoestand in de store, klikken opgevangen door een eigen laag
 
 De rondleiding (`TourOverlay` in `src/components/tour/`) zet voor haar stappen UI-velden om (lint-tab, Backstage,
 histogram, rechterkolom, eigenschappenpaneel) en zet ze bij elke sluitroute terug naar de stand van vóór de start.
