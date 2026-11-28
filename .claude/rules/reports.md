@@ -219,5 +219,6 @@ het gedeelde XObject en de tekst per blad staan in ADR 0383 en 0350, de renders 
 **Besluiten van de rekenlaag van de rapporten** (`src/engine/reports/`):
 `docs/adr/0560-dcma-kritiek-padtest-en-ongeldige-datums.md` en `0561-tabelrapporten-gewicht-vensters-en-tellingen.md`.
 
+**Getallen in rapporten** (`src/utils/reportNumber.ts`): `docs/adr/0620-getallen-in-rapporten-latijnse-cijfers-en-bidi-markering.md`.
 **Besluiten in `ReportPanel.tsx`**: de export pas na de herberekening en de sleepzone buiten de kolom
 (`docs/adr/0691-rapportpaneel-export-na-herberekening-en-sleepzone.md`).

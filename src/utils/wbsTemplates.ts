@@ -4,18 +4,9 @@ import type { Sequence } from '@/types/sequence';
 import { generateId } from '@/utils/id';
 import { noteSiteHostSettingChanged } from '@/services/fileAccess/siteHostSettings';
 
-/**
- * WBS-templates (Asta "task pools"-model): een herbruikbare tak —
- * taken (naam/duur/mijlpaal/taaktype/omschrijving, met template-lokale ids)
- * plus de interne relaties (incl. lag-velden). Bewust ZONDER datums/voortgang
- * (die zijn projectspecifiek) en zonder activity-codes/custom-field-waarden
- * (die verwijzen naar projectgebonden definities die in een ander project
- * niet bestaan). App-niveau data in localStorage — geen IFC-round-trip,
- * zelfde categorie als het taakklembord.
- */
 export interface WbsTemplateTask {
-  id: string; // template-lokaal
-  parentId: string | null; // template-lokaal; null = wortel van de tak
+  id: string;
+  parentId: string | null;
   name: string;
   description: string;
   taskType: Task['taskType'];
@@ -24,7 +15,7 @@ export interface WbsTemplateTask {
 }
 
 export interface WbsTemplateSequence {
-  predecessorId: string; // template-lokaal
+  predecessorId: string;
   successorId: string;
   type: Sequence['type'];
   lagDays: number;
@@ -56,19 +47,14 @@ export function listWbsTemplates(): WbsTemplate[] {
 function persist(templates: WbsTemplate[]): void {
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(templates));
-    noteSiteHostSettingChanged(STORAGE_KEY); // ingebed ook bij de host bewaren (#818)
-  } catch { /* quota/privémodus — sjabloon gaat dan niet verloren uit de UI-flow, alleen niet bewaard */ }
+    noteSiteHostSettingChanged(STORAGE_KEY);
+  } catch { }
 }
 
 export function deleteWbsTemplate(id: string): void {
   persist(listWbsTemplates().filter(t => t.id !== id));
 }
 
-/**
- * Serialiseer een tak (taak + alle nakomelingen) tot een sjabloon en bewaar het.
- * Interne relaties (beide eindpunten binnen de tak) gaan mee; externe niet
- * (P6-conform default). Geeft het bewaarde sjabloon terug.
- */
 export function saveBranchAsWbsTemplate(
   name: string,
   rootId: string,
@@ -76,9 +62,6 @@ export function saveBranchAsWbsTemplate(
   allSequences: Sequence[],
 ): WbsTemplate {
   const byId = new Map(allTasks.map(t => [t.id, t]));
-  // Gedeelde verzamelaar i.p.v. een eigen recursie: die heeft een bezocht-set, anders loopt de
-  // stack over op een cyclische `childIds` — bereikbaar via een IFC waarin `extractNesting` de
-  // nesting zonder cyklusguard zet.
   const branchIds = collectSubtreeIds(allTasks, rootId).filter(id => byId.has(id));
   const branchSet = new Set(branchIds);
 
