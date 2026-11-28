@@ -40,11 +40,6 @@ export function GridCell({
     registerCell(cell, node);
   }, [cell, registerCell]);
   const pinned = column.pinned && stickyEnabled && pinnedLeft !== undefined;
-  // Een celwaarde die de zichtbare tekst alleen maar herhaalt is pas een tooltip
-  // wanneer de cel hem afknipt. Dat is uitsluitend bij de muis te meten (scrollWidth vs.
-  // clientWidth), dus de native title wordt bij binnenkomst van de muis bepaald — ruim vóór de
-  // hover-vertraging waarmee de browser hem toont. Kolomuitleg en een waarde die méér zegt dan de
-  // weergave (zie resolveGridCellTitle) hoeven niet gemeten te worden.
   const [truncated, setTruncated] = useState(false);
   const measureTruncation = useCallback((event: MouseEvent<HTMLDivElement>) => {
     if (model.tooltip || !model.title || model.title !== model.text) return;
@@ -91,15 +86,12 @@ export function GridCell({
       onContextMenu={event => onContextMenu?.(cell, event)}
     >
       {model.warning && (
-        // Zelfde ⚠ als bij afwijkend werk in het paneel Toewijzingen: themakleur, eigen uitleg als title.
         <span
           className="shrink-0 inline-flex items-center"
           style={{ color: 'var(--theme-warning-text)', marginInlineEnd: 3 }}
           title={model.warning.text}
           aria-label={model.warning.text}
           role="img"
-          // Een uitleg over meer regels (restwerk van meer toewijzingen): eerste regel vet, elke
-          // volgende regel apart in de tooltip (`Tooltip.tsx`, `data-tooltip-lead`).
           {...(model.warning.text.includes('\n') ? { 'data-tooltip-lead': '' } : {})}
           {...{ [`data-ops-${model.warning.kind}`]: 'true' }}
         >

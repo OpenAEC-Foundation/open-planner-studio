@@ -81,25 +81,16 @@ export interface ColumnChooserLabels {
   searchResults: string;
   noSearchResults: string;
   category: (category: TaskColumnCategory) => string;
-  /** Knop onderaan de kiezer die de kolomindeling van dit oppervlak op de standaard zet. */
   resetDefault: string;
 }
 
-/** De lintknop Kolommen (Tabel-tab, `data-ops-ribbon-item="tableColumns"`) zet de kiezer van de Tabel open
- *  en dicht. Een klik daarop is dus geen klik naast de kiezer. */
 export const COLUMNS_RIBBON_TOGGLE_SELECTOR = '[data-ops-ribbon-item="tableColumns"]';
 
-/**
- * Een knop met tekst in plaats van het plusje in de tabelkop: het Rapport-tabblad opent dezelfde kiezer met
- * "Kolom toevoegen" boven zijn kolomlijst (#817). Zonder deze prop blijft de kiezer precies zoals in de tabel.
- */
 export interface ColumnChooserTrigger {
-  /** Klasse van de omhulling, in plaats van de vaste plek rechts in de tabelkop. */
   anchorClassName: string;
   className: string;
   content: ReactNode;
   disabled?: boolean;
-  /** Extra `data-*`-attributen op de knop (voor tests). */
   data?: Record<`data-${string}`, string | boolean>;
 }
 
@@ -110,32 +101,14 @@ export interface ColumnChooserProps {
   labels: ColumnChooserLabels;
   beforeOpen?: () => boolean;
   onChoose: (option: TaskGridColumnOption) => boolean;
-  /** "Herstel standaard": één handeling; geeft false terug als er niets gewijzigd is. */
   onReset: () => boolean;
-  /** De indeling is al exact de standaard: er is niets te herstellen. */
   resetDisabled: boolean;
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
-  /** Selector van een knop buiten de tabel die de kiezer ook open en dicht zet (de lintknop
-   *  Kolommen). Een klik daarop telt niet als klik ernaast; die knop sluit de kiezer zelf. */
   externalToggleSelector?: string;
-  /** Zie `ColumnChooserTrigger`. */
   trigger?: ColumnChooserTrigger;
 }
 
-/**
- * Het paneel is uitsluitend rechts-verankerd aan de trigger (CSS `right`)
- * zonder linkerklem. Staat de trigger dicht genoeg bij de linkerkant van het venster — het plusje
- * in een smal Gantt-taakgridpaneel, vlak bij de splitter — dan steekt het (vaste
- * `min(310px, 100vw-16px)`-brede) paneel links voorbij x=0 en wordt het daar door de viewport
- * afgesneden: labels als "…ezen"/"…GEBRUIKT" missen hun begin.
- *
- * Deze pure functie bepaalt of dat gebeurt: `naturalLeft` is waar het paneel zou landen bij pure
- * rechtsverankering (triggerRect.right - panelWidth). Past het (>= viewportMargin), dan geeft dit
- * `null` terug — de aanroeper laat de `right`-verankering dan met rust. Past het niet,
- * dan schuift dit de linkerrand naar rechts tot 'm binnen het venster valt (nooit voorbij de
- * rechterrand, voor het geval `naturalLeft` zelf al negatief genoeg is om ook rechts te missen).
- */
 export function clampColumnChooserLeft(
   triggerRight: number,
   panelWidth: number,
@@ -213,12 +186,6 @@ export function ColumnChooser({
     });
   }, [open]);
 
-  // De eerste pass hierboven kan de werkelijke paneelbreedte nog niet meten (het paneel bestaat nog
-  // niet); deze tweede pass loopt ná mount, meet 'm via `panelRef` en schuift het paneel naar rechts
-  // (van `right`- naar expliciete `left`-verankering) zodra `clampColumnChooserLeft` een klem nodig
-  // acht — naar hetzelfde meet-ná-mount-patroon als het kolomkop-contextmenu (DataGridHeader.tsx).
-  // De guard (bail als de herberekende `left` al gelijk is aan de huidige) voorkomt een oneindige
-  // effect-lus: zonder klem nodig raakt `panelPosition` nooit aan, dus blijft dit effect stil.
   useLayoutEffect(() => {
     if (!open || !panelPosition) return;
     const trigger = triggerRef.current;
@@ -252,8 +219,6 @@ export function ColumnChooser({
     close(true);
   };
 
-  // Net als na het toevoegen van een kolom sluit de kiezer na de ene handeling; de tabel erachter
-  // toont direct de standaardindeling.
   const reset = () => {
     if (!onReset()) return;
     close(true);

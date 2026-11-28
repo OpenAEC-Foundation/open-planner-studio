@@ -64,8 +64,6 @@ export function GridEditorHost({
   };
 
   return (
-    // Elke toetsaanslag in de editor telt als werken voor Automatisch opslaan met een gebouwmodel, ook vóór Enter
-    // (`textEntryActivity.ts`); de invoer zelf blijft hier tot het vastleggen.
     <div
       className="task-grid-editor-host"
       data-grid-editor-cell={`${cell.rowKey}\u0000${cell.columnId}`}
