@@ -48,6 +48,10 @@ toets. Ook laten een paar checks bewust iets ongetoetst, zodat een gewone wijzig
   acht bestanden meedoen; de inhoud komt uit `fixtures/minute-model-examples-f0/`, de voorbeelden van vóór het
   minutenmodel waarop de vingerafdrukken gemeten zijn. Lees hier niet de opnieuw gegenereerde publieke bestanden: die
   hebben andere id's en een al berekend plan, en de check bewaakt de productieroute vanaf de oude invoer.
+- **De verwachte waarden van `check-xlsx-primitives.ts` komen van buiten de implementatie,** uit wat Excel en OOXML
+  (ECMA-376) voorschrijven: de `_xHHHH_`-notatie voor stuurtekens en de zelfontsnapping van een letterlijke `_xHHHH_`
+  in SpreadsheetML-tekst, en de seriële datums van Excel (het 1900-stelsel met de niet-bestaande 29 februari 1900,
+  zodat 1 maart 1900 serieel 61 is, en het 1904-stelsel). Lees ze niet terug uit `xmlText.ts` of `serialDate.ts`.
 - **Bewust niet getoetst:**
   - `check-ribbon-overlays.ts` en sectie 13 van `check-context-menu-scope.ts` pinnen geen exacte indeling of
     knoppenlijst, alleen invarianten (hoogstens drie knoppen per stack, de bestaande knoppen en de paren die bij elkaar
