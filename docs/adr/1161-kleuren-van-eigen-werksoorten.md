@@ -1,7 +1,8 @@
 # Kleuren van eigen werksoorten
 
-Een eigen werksoort krijgt één keer een kleur die nog niet in gebruik is en houdt die, in *Mijn werksoorten* en in het
-IFC-bestand (#856). Twee keuzes in `src/services/taskTypes/` verrassen zonder uitleg.
+Een eigen werksoort krijgt één keer een kleur die nog niet in gebruik is en houdt die (#856). Dat geldt per kopie: is
+de kleur uit *Mijn werksoorten* in de planning al bezet, dan krijgt de kopie in het project een vrije kleur
+(`enteringDocument`), en die gaat naar het IFC-bestand. Twee keuzes in `src/services/taskTypes/` verrassen zonder uitleg.
 
 ## Gevolgen
 
