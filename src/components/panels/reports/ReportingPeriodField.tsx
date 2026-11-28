@@ -10,36 +10,13 @@ import {
   isIsoDay, projectSpan, referenceDayOf, resolveReportingPeriod,
 } from '@/engine/reports';
 
-/**
- * Het gedeelde rapportageperiode-control: één preset-keuzelijst (volgende/afgelopen
- * N weken of maand, hele project, aangepast) plus twee datumvelden. Bij een preset tonen de velden
- * de berekende datums alleen-lezen als tekst in de datumnotatie van de app (`useDisplayDate`, net
- * als de rapportondertitel); bij *Aangepast* worden het bewerkbare datumvelden van de app
- * (`DateTextInput`, met de eigen kalender van #904). Een omgekeerd bereik (tot < van) of een leeg/
- * onvolledig veld wordt niet doorgegeven maar rood gemarkeerd met een melding — het rapport blijft
- * op de laatste geldige periode staan. Wisselen van *Aangepast* terug naar een preset laat de eigen
- * datums vallen; wisselen náár *Aangepast* start met de datums van de preset die op dat moment gold.
- *
- * LAYOUT: de datumvelden staan op een eigen rij die bij de standaardbreedte van de instellingen-
- * kolom (256 px) omslaat naar twee volle regels — een datumveld heeft ~120 px nodig om een datum
- * plus kalenderknop te tonen; onder een `w-32`-label ingesprongen blijft er 18 px over. Het Van/Tot-label
- * heeft bewust géén vaste breedte: "Başlangıç" (tr) is breder dan "Van" en wordt met `w-8` afgekapt.
- *
- * De opgeloste datums komen uit dezelfde pure functie als de engine (`resolveReportingPeriod`,
- * tegen dezelfde referentiedag en projectspanne), zodat wat hier staat exact het venster is dat het
- * rapport rekent — óók wanneer de statusdatum wijzigt.
- */
 interface Props {
   id: string;
   value: ReportingPeriod;
   onChange: (next: ReportingPeriod) => void;
-  /** `data-ops-report-option`-sleutel voor tests. */
   dataKey: string;
 }
 
-/** De referentiedag en projectspanne uit de live store — dezelfde bron als `useReportContext`.
- *  Ook gebruikt door `ReportPanel` voor het tijdvenster van het resourcediagram, zodat de rijen en
- *  de tijdas exact het venster nemen dat dit control toont. */
 export function useResolvedPeriod(period: ReportingPeriod): ResolvedPeriod {
   const tasks = useAppStore(s => s.tasks);
   const statusDate = useAppStore(s => s.project.statusDate);

@@ -10,23 +10,14 @@ import type { ReportFontChoice } from '@/services/pdf/reportFont';
 import { ReportingPeriodField } from './ReportingPeriodField';
 import { OrientationSelect, PaperSizeSelect, ReportCheckRow, ReportFieldRow, ReportFontSelect, ReportOptionsCard } from './reportFormPrimitives';
 
-/**
- * Optieblok van de tabelrapporten: per rapporttype alleen de knoppen die dat
- * rapport gebruikt. Zelfde rij-opmaak als het Gantt-instellingenblok in `ReportPanel`. De waarden
- * worden via `onChange` als patch teruggegeven; het paneel bewaart ze samen met de overige
- * rapportinstellingen (`reportSettings.tableReports`).
- */
 interface Props {
   reportType: ReportType;
   options: TableReportOptions;
   onChange: (patch: Partial<TableReportOptions>) => void;
-  /** Papier en oriëntatie sturen de PDF-schaal van élk rapport (fit-width): op A4 staand wordt een
-   *  brede tabel 5 pt — de knoppen horen dus ook hier, niet alleen bij de Gantt-afdruk. */
   paperSize: ReportPaperSize;
   orientation: ReportOrientation;
   onPaperSize: (p: ReportPaperSize) => void;
   onOrientation: (o: ReportOrientation) => void;
-  /** De rapportletter (issue #770): één keuze voor alle rapporten, dus ook hier, naast het vel. */
   fontFamily: ReportFontChoice;
   onFontFamily: (font: ReportFontChoice) => void;
 }
@@ -40,11 +31,6 @@ function clampInt(raw: string, min: number, max: number, fallback: number): numb
   return Math.min(max, Math.max(min, n));
 }
 
-/**
- * Getalveld met een lokale kladwaarde: de gebruiker mag het veld leegmaken en overtypen zonder dat
- * elke toetsaanslag meteen naar de minimumwaarde springt; de waarde wordt bij blur/Enter geklemd
- * en doorgegeven. Een wijziging van buitenaf (hydratatie, ander rapport) zet de klad opnieuw.
- */
 function NumberField({ id, value, min, max, onCommit, dataKey }: {
   id: string; value: number; min: number; max: number; onCommit: (n: number) => void; dataKey: string;
 }) {
@@ -86,12 +72,10 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
     </ReportFieldRow>
   );
 
-  // Het gedeelde rapportageperiode-control — per rapport een eigen opgeslagen keuze.
   const periodRow = (key: TableReportPeriodKey) => (
     <ReportingPeriodField id={`report-opt-${key}`} value={options[key]} onChange={next => onChange({ [key]: next })} dataKey={key} />
   );
 
-  // Label bóven de keuzelijst, net als bij de rapportageperiode: "Per maand" paste anders niet.
   const aggregationRow = (
     <div className="flex flex-col gap-1 min-w-0">
       <label className="text-text-secondary" htmlFor="report-opt-resourceLoadBucket">{t('tableReports.options.aggregation')}</label>
@@ -130,7 +114,6 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
       body = <>{periodRow('progressPeriod')}{numberRow('nearCriticalDays', t('tableReports.options.nearCriticalDays'), L.nearCriticalDays.min, L.nearCriticalDays.max)}</>;
       break;
     case 'progressCurve':
-      // Geen eigen opties: alleen papier en oriëntatie (spec 2026-10-27-voortgangscurve-rapport.md).
       break;
     case 'health':
       body = (
@@ -178,9 +161,6 @@ export function TableReportOptionsBlock({ reportType, options, onChange, paperSi
   return (
     <ReportOptionsCard title={t('tableReports.options.sectionTitle')} cardProps={{ 'data-ops-report-options': true }}>
       <div className="flex flex-col gap-2 text-small leading-4">
-        {/* Papier en oriëntatie elk op een eigen rij met het label erboven: naast een `w-32`-label
-            (en ook in twee kolommen) blijft bij de standaardkolom ~53 px over en leest "Landscape"
-            als "Landsc…" (dezelfde meting als bij de rapportageperiode). */}
         <div className="flex flex-col gap-2 min-w-0">
           <div className="flex flex-col gap-1 min-w-0">
             <label className="text-text-secondary" htmlFor="report-opt-paper">{t('paper')}</label>

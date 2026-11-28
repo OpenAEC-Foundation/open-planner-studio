@@ -227,3 +227,4 @@ het gedeelde XObject en de tekst per blad staan in ADR 0383 en 0350, de renders 
 `docs/adr/0650-rapporttabblad-keuzes-die-verrassen.md`.
 **Besluiten in `ReportPanel.tsx`**: de export pas na de herberekening en de sleepzone buiten de kolom
 (`docs/adr/0691-rapportpaneel-export-na-herberekening-en-sleepzone.md`).
+**Besluiten in `reports/`** (optieblok en lettertypevenster): `docs/adr/0930-rapportopties-labels-boven-het-veld-en-lettertypelijst-na-een-klik.md`.

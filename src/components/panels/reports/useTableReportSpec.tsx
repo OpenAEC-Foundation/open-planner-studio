@@ -31,32 +31,17 @@ import {
 import type { CurveChartSpec } from '@/services/pdf/pdfCurveChart';
 import { REPORT_COLORS, section, type ReportColumn, type ReportSummaryItem, type TableReportSpec } from './tableReportSpec';
 
-/**
- * Bouwt per tabelrapporttype de `TableReportSpec` uit de live store: engine-uitvoer → vertaalde
- * kolommen, samenvatting en secties. Eén hook voor alle zeven rapporten, zodat `ReportPanel` er
- * niets van hoeft te weten behalve "is dit een tabelrapport, en wat is de spec".
- *
- * Alle store-lezingen zijn echte subscriptions (geen `getState`): het rapport moet mee-verversen
- * met een F5/Bereken, een voortgangsinvoer of een baselinewissel.
- */
 type T = TFunction<'report'>;
-/** Datum- én getalnotatie van het rapport, gebonden aan de app-instellingen en -taal. */
 type DD = ReturnType<typeof useDisplayDate> & {
   num: (n: number) => string;
   signed: (n: number) => string;
   lagText: (lag: string) => string;
-  /** Een datum van een taak volgens B4 (`makeTaskDateLabeler`), in de notatie van de app. */
   taskDate: (taskId: string, value: string | undefined, side: InstantSide, opts?: TaskDateLabelOptions) => string;
-  /** Een duur in de maat van de taak (B8): "2,5d" bij de dagenmaat, "40u" bij de urenmaat; onder P6 en
-   *  MSP volgens Duurweergave, zoals de kolom Duur van de tabel. */
   duration: (duration: MeasuredDuration, hoursPerDay: number) => string;
-  /** Een restduur in de maat van de taak, zoals de kolom Resterende duur van de tabel (altijd de eigen maat). */
   remaining: (duration: MeasuredDuration) => string;
-  /** Een aantal werkdagen met de dag-afkorting ("3d"). */
   workDays: (days: number) => string;
 };
 
-/** Zelfde sleutelmap als `ResourcePanel.tsx` — `t()` is strikt getypeerd, dus geen template-sleutel. */
 const RESOURCE_TYPE_KEY = {
   LABOR: 'resource.type.labor',
   EQUIPMENT: 'resource.type.equipment',
@@ -80,8 +65,6 @@ function useReportContext(): { ctx: SolvedReportContext; stale: boolean } {
   const baselines = useAppStore(s => s.baselines);
   const activeBaselineId = useAppStore(s => s.activeBaselineId);
   const statusDate = useAppStore(s => s.project.statusDate);
-  // De velden die de solver van het project leest (`SolveProjectFields`) — voor de kritiek-padtest
-  // van de DCMA-beoordeling, die zelf een what-if doorrekent.
   const progressMode = useAppStore(s => s.project.progressMode);
   const schedulingOptions = useAppStore(s => s.project.schedulingOptions);
   const schedulingProfile = useAppStore(s => s.project.schedulingProfile);
@@ -89,7 +72,6 @@ function useReportContext(): { ctx: SolvedReportContext; stale: boolean } {
   const endDate = useAppStore(s => s.project.endDate);
   const stale = useAppStore(s => s.scheduleStale);
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
-  // "Vandaag" één keer per dag stabiel: een nieuwe dag geeft een nieuwe waarde, binnen de dag niet.
   const today = localTodayIso();
   const ctx = useMemo<SolvedReportContext>(() => ({
     tasks, sequences, resources, assignments, calendar, calendars, cpmResult,
@@ -101,7 +83,6 @@ function useReportContext(): { ctx: SolvedReportContext; stale: boolean } {
   return { ctx, stale };
 }
 
-// ── Gedeelde kolommen ────────────────────────────────────────────────────────────────────────────
 function wbsCol<R extends { wbs: string }>(t: T): ReportColumn<R> {
   return { key: 'wbs', header: t('tableReports.common.wbs'), width: 70, align: 'left', text: r => r.wbs };
 }
@@ -111,7 +92,6 @@ function nameCol<R extends { name: string }>(t: T, width = 220): ReportColumn<R>
 function dateCol<R>(key: string, header: string, get: (r: R) => string | undefined, dd: DD, width = 95): ReportColumn<R> {
   return { key, header, width, align: 'left', text: r => dd.date(get(r)) || '—' };
 }
-/** Een datumkolom van een taak: B4, een tijd alleen als het moment midden op de werkdag valt. */
 function taskDateCol<R extends { taskId: string }>(
   key: string, header: string, get: (r: R) => string | undefined, side: InstantSide, dd: DD, width = 95,
 ): ReportColumn<R> {
@@ -160,17 +140,11 @@ function commonNotes(t: T, dd: DD, ctx: ReportContext, stale: boolean, statusDat
   return notes;
 }
 
-/** Kort de resourcelijst in: "A, B, +2". */
 function resourcesText(names: string[]): string {
   if (names.length <= 2) return names.join(', ');
   return `${names.slice(0, 2).join(', ')} +${names.length - 2}`;
 }
 
-// ── Rapportbouwers ───────────────────────────────────────────────────────────────────────────────
-/**
- * "Periode: 10 sep 2026 – 7 okt 2026" — dezelfde ondertitel voor elk rapport met een venster; bij
- * *Hele project* staat de presetnaam erachter, zodat je ziet wélke spanne dat is.
- */
 function periodSubtitle(t: T, dd: DD, from: string, to: string, preset?: ReportingPeriod['preset']): string {
   const base = `${t('tableReports.period')}: ${dd.date(from)} – ${dd.date(to)}`;
   return preset === 'project' ? `${base} · ${t('tableReports.periodPresets.project')}` : base;
@@ -264,7 +238,6 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
   ];
   return {
     title: t(`${p}.title`),
-    // Geen ondertitel: de statusdatum staat al als eerste regel van de samenvatting.
     notes: commonNotes(t, dd, ctx, stale, s.statusDateMissing),
     summary,
     sections: [
@@ -278,7 +251,6 @@ function buildProgress(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, 
   };
 }
 
-/** Lijnkleuren van de voortgangscurve — dezelfde in DOM en PDF, leesbaar op licht en donker. */
 const CURVE_COLORS = {
   planned: REPORT_COLORS.info,
   actual: REPORT_COLORS.warn,
@@ -331,7 +303,6 @@ function buildProgressCurve(ctx: ReportContext, t: T, dd: DD, stale: boolean, lo
     const monthLabel = makeMonthLabeler(locale);
     const series: CurveChartSpec['series'] = [];
     if (r.plannedCurve) series.push({ key: 'planned', label: t(`${p}.seriesPlanned`), color: CURVE_COLORS.planned, dashed: true, points: r.plannedCurve });
-    // Zonder laatste data (niet berekend) is er geen band: dan de curve op vroegste data als lijn.
     if (!r.lateCurve) series.push({ key: 'early', label: t(`${p}.seriesEarly`), color: CURVE_COLORS.band, points: r.earlyCurve });
     series.push({ key: 'actual', label: t(`${p}.seriesActual`), color: CURVE_COLORS.actual, points: r.actualCurve });
     chart = {
@@ -388,8 +359,6 @@ function buildProgressCurve(ctx: ReportContext, t: T, dd: DD, stale: boolean, lo
 interface HealthSummaryRow { id: HealthCheck['id']; severity: HealthCheck['severity']; count: number }
 interface HealthDetailRow { id: HealthCheck['id']; severity: HealthCheck['severity']; item: HealthItem }
 
-/** B4 voor de datum in een gezondheidsregel: een beperking volgt haar kant, een deadline en een gemist
- *  baseline-einde zijn eindachtig. Alleen het baseline-einde is een eigen veld van de taak (mijlpaalregel). */
 function healthDateText(dd: DD, id: HealthCheck['id'], item: HealthItem, date: string): string {
   if (!item.taskId) return dd.date(date);
   const field = item.detail.constraintType ? constraintDateField(item.detail.constraintType) : null;
@@ -403,8 +372,6 @@ function healthDetailText(t: T, dd: DD, id: HealthCheck['id'], item: HealthItem)
   if (d.reason) parts.push(t(`tableReports.health.reason_${d.reason}`));
   if (d.constraintType) parts.push(d.constraintType);
   if (d.relationType) parts.push(SEQUENCE_TYPE_OPTIONS.find(o => o.value === d.relationType)?.label ?? d.relationType);
-  // De engine levert de lag taalneutraal ("+1.5d", "+2u", `formatLagShort`); hier krijgt hij hetzelfde
-  // decimaalteken als `dd.num(d.float)` verderop in dezelfde cel, en de uur-afkorting van de taal.
   if (d.lag) parts.push(t('tableReports.health.detail_lag', { value: dd.lagText(d.lag) }));
   else if (d.days !== undefined) parts.push(t('tableReports.health.detail_days', { value: dd.num(d.days) }));
   if (d.float !== undefined) parts.push(t('tableReports.health.detail_float', { value: dd.num(d.float) }));
@@ -500,12 +467,6 @@ function buildHealth(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD, st
   };
 }
 
-/**
- * Groepering per resource: de resourcenaam en het type alleen op de eerste rij van elke
- * groep, vet — DOM én PDF. Vooraf bepaald op de rijenlijst: een teller in `text()` zou bij een
- * her-render (StrictMode, PDF ná DOM) met de vorige eindstand beginnen en de eerste groepsnaam
- * laten wegvallen.
- */
 function firstOfResourceGroup<R extends { resourceId: string }>(rows: R[], keyOf: (r: R) => string): Set<string> {
   const first = new Set<string>();
   let prev = '';
@@ -523,7 +484,6 @@ function buildResourceLoading(ctx: SolvedReportContext, o: TableReportOptions, t
   const monthly = o.resourceLoadBucket === 'month';
   const rowKey = (row: ResourceLoadingRow) => `${row.resourceId}\u0000${row.bucketStart}`;
   const firstOfGroup = firstOfResourceGroup(r.rows, rowKey);
-  // Eén formatter per rapport, niet per cel; Gregoriaans + Latijnse cijfers (zie `monthLabel.ts`).
   const monthLabel = makeMonthLabeler(locale);
   const columns: ReportColumn<ResourceLoadingRow>[] = [
     { key: 'resource', header: t(`${p}.resource`), width: 180, align: 'left', text: row => (firstOfGroup.has(rowKey(row)) ? row.resourceName : ''), bold: () => true },
@@ -535,7 +495,6 @@ function buildResourceLoading(ctx: SolvedReportContext, o: TableReportOptions, t
     { key: 'available', header: t(`${p}.available`), width: 90, align: 'right', text: r => dd.num(r.available) },
     { key: 'variance', header: t(`${p}.variance`), width: 80, align: 'right', text: r => dd.signed(r.variance), color: r => (r.variance < 0 ? REPORT_COLORS.error : undefined), bold: r => r.variance < 0 },
     { key: 'peak', header: t(`${p}.peak`), width: 80, align: 'right', text: r => dd.num(r.peakDayLoad) },
-    // Aantal overbelaste dagen als getal: geen taalkundig meervoud nodig (Pools "dni" was fout bij 1).
     { key: 'overloaded', header: t(`${p}.overloaded`), width: 100, align: 'right', text: r => (r.overloaded ? String(r.overloadedDays) : ''), color: r => (r.overloaded ? REPORT_COLORS.error : undefined), bold: r => r.overloaded },
   ];
   const subtitleParts = [
@@ -561,8 +520,6 @@ function buildResourceLoading(ctx: SolvedReportContext, o: TableReportOptions, t
 function buildResourceAssignments(ctx: ReportContext, o: TableReportOptions, t: T, tCommon: TFunction<'common'>, dd: DD, stale: boolean): TableReportSpec {
   const r = computeResourceAssignments(ctx, { period: o.resourceAssignmentPeriod, includeCompleted: o.resourceAssignmentIncludeCompleted });
   const p = 'tableReports.resourceAssignments';
-  // Groepering per resource: naam en type alleen op de eerste rij van elke groep (DOM én PDF) —
-  // dezelfde stijl als het belastingsrapport.
   const firstOfGroup = firstOfResourceGroup(r.rows, row => row.assignmentId);
   const columns: ReportColumn<ResourceAssignmentRow>[] = [
     { key: 'resource', header: t(`${p}.resource`), width: 170, align: 'left', text: row => (firstOfGroup.has(row.assignmentId) ? row.resourceName : ''), bold: () => true },
@@ -572,7 +529,6 @@ function buildResourceAssignments(ctx: ReportContext, o: TableReportOptions, t: 
     taskDateCol('finish', t('tableReports.common.finish'), r => r.finish, 'end', dd),
     remainingCol(t, dd),
     { key: 'units', header: t(`${p}.units`), width: 75, align: 'right',
-      // Kostenresource (#815): het bedrag (of "—") in plaats van een inzet.
       text: r => r.resourceType === 'COST' ? (r.costAmount !== undefined ? dd.num(r.costAmount) : '—') : dd.num(r.unitsPerDay) },
     completionCol(t),
     { key: 'critical', header: t('tableReports.common.critical'), width: 60, align: 'left', text: r => (r.isCritical ? t('tableReports.common.yes') : ''), color: r => (r.isCritical ? REPORT_COLORS.error : undefined), bold: r => r.isCritical },
@@ -624,7 +580,6 @@ function buildWbsSummary(ctx: ReportContext, o: TableReportOptions, t: T, dd: DD
   };
 }
 
-/** De spec voor `reportType`, of null wanneer het geen tabelrapport is (gantt/milestones/variance). */
 export function useTableReportSpec(reportType: ReportType, options: TableReportOptions): TableReportSpec | null {
   const { t, i18n } = useTranslation('report');
   const { t: tCommon } = useTranslation('common');
@@ -633,8 +588,6 @@ export function useTableReportSpec(reportType: ReportType, options: TableReportO
   const locale = i18n.language;
   const hourSuffix = parseableHourSuffix(tCommon('duration.suffixHour'));
   const durationDisplay = useEffectiveDurationDisplay();
-  // Getallen in de app-taal (komma in nl/de/fr): dezelfde notatie als de toewijzingskolommen van het
-  // resourcediagram (`formatReportNumber`), zodat de rapporten in één paneel niet uiteenlopen.
   const dd = useMemo<DD>(() => {
     const label = makeTaskDateLabeler(ctx);
     const suffixes = durationSuffixesFrom(tCommon);
@@ -649,10 +602,6 @@ export function useTableReportSpec(reportType: ReportType, options: TableReportO
       workDays: days => formatWorkDaysText(days, { suffixes, locale }),
     };
   }, [dates, locale, hourSuffix, ctx, tCommon, durationDisplay]);
-  // "Datums zoals opgeslagen": in de modus lezen de
-  // rapporten `task.time` zoals de tabel, maar zónder de "niet vastgelegd"-poort van de kolommen —
-  // een as die het bestand niet vastlegde staat er dan als leeg/0. Eén melding bovenaan elk rapport
-  // (en dus ook in de PDF, die dezelfde spec tekent) zegt waar die nullen vandaan komen.
   const datesAsRecorded = useAppStore(s => s.datesAsRecorded);
   return useMemo(() => {
     if (!isTableReportType(reportType)) return null;

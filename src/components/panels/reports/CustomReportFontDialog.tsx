@@ -16,13 +16,7 @@ type ListState =
   | { kind: 'denied' }
   | { kind: 'unsupported' };
 
-/**
- * *Ander lettertype…* (issue #770, besluit Ethan 14 november 2026): een lettertype van deze computer of een
- * lettertypebestand. Wat niet kiesbaar is, staat in de lijst met de reden erbij. In de browser vraagt de lijst
- * eerst toestemming (alleen Chrome en Edge), daarom pas na een klik; in de desktopapp verschijnt hij meteen.
- */
 export function CustomReportFontDialog({ onPicked, onClose }: {
-  /** Krijgt het gekozen lettertype; geeft een fout als bewaren mislukt (de dialoog blijft dan open). */
   onPicked: (font: PickedFont) => Promise<void>;
   onClose: () => void;
 }) {
@@ -31,7 +25,6 @@ export function CustomReportFontDialog({ onPicked, onClose }: {
   const [query, setQuery] = useState('');
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
-  /** Redenen die pas bij het kiezen bleken (browser): die familie is daarna niet meer kiesbaar. */
   const [lateRefusals, setLateRefusals] = useState<ReadonlyMap<string, FontPickFailure>>(new Map());
   const fileInput = useRef<HTMLInputElement>(null);
 
@@ -42,7 +35,6 @@ export function CustomReportFontDialog({ onPicked, onClose }: {
       () => setList({ kind: 'denied' }),
     );
   };
-  // Desktop: meteen. Browser: pas na de klik op de knop (de toestemmingsvraag hoort bij een handeling).
   useEffect(() => { if (isTauri()) showList(); }, []);
 
   const reasonText = (reason: FontPickFailure) => t(`customFont.refusal.${reason}`);

@@ -2,11 +2,6 @@ import { forwardRef, type CSSProperties } from 'react';
 import type { TableReportSpec, ReportSection } from './tableReportSpec';
 import { CurveChartView } from './CurveChartView';
 
-/**
- * DOM-weergave van een gesectioneerd tabelrapport. Tekent exact wat `makeSectionedRenderReport`
- * in de PDF zet — zelfde kolomspec, zelfde kleuren, zelfde lege-staat-teksten — in de huisstijl
- * van het mijlpalen-/variance-rapport (`text-small leading-4`-tabel met thema-randen).
- */
 function SectionTable({ s }: { s: ReportSection }) {
   return (
     <table className="w-full text-small leading-4" style={{ borderCollapse: 'collapse' }} data-ops-report-section={s.key}>
@@ -54,11 +49,6 @@ function SectionTable({ s }: { s: ReportSection }) {
   );
 }
 
-/**
- * De rapportletter (issue #770) op een DOM-rapport: de letter zelf én de twee UI-fontvariabelen,
- * zodat ook koppen met `font-family: var(--font-heading)` (`.ui-card-header`) hem tonen. Zo laat de
- * schermweergave van mijlpalen, afwijkingen en de tabelrapporten dezelfde letter zien als de PDF.
- */
 export function reportFontStyle(fontStack: string): CSSProperties {
   return { fontFamily: fontStack, '--font-body': fontStack, '--font-heading': fontStack } as CSSProperties;
 }
