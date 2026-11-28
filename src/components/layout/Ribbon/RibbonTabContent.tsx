@@ -7,23 +7,6 @@ import {
   type NsKey, type RibbonButtonSpec, type RibbonItemSpec, type RibbonGroupSpec, type RibbonComponentSpec,
 } from './ribbonConfig';
 
-/**
- * Generiek render-pad voor de declaratieve ribbon-config — één component rendert
- * elke tab uit `RIBBON_TABS`, net zoals ExtensionRibbonGroups extensieknoppen uit data rendert.
- *
- * Generieke ankers (`data-tour-anchor`, voor de rondleiding en de begeleiding van extensies) komen
- * hier vandaan, nooit per knop met de hand: `ribbon-group:<tab>:<groupId>` op elke groep en
- * `ribbon:<tab>:<itemId>` op elk item. Een knop-item draagt het anker zelf; een component-item
- * (popover, invoerveld, samengestelde widget) rendert zijn eigen DOM, dus daar zet het render-pad een
- * onzichtbare `<template data-ribbon-anchor>` vóór en een `<template data-ribbon-anchor-end>` ná,
- * waarna `useRibbonAnchorMarkers` (Ribbon.tsx) het anker op precies de elementen daartussen zet.
- *
- * Rules-of-hooks: elke knop met een `use`-binding wordt in zijn EIGEN component-instantie
- * gerenderd (RibbonButtonView) en met een tab-uniek key gemount, zodat een tab-wissel remount
- * i.p.v. de hook-volgorde binnen één instantie te veranderen.
- */
-
-/** Resolveert een 'ns:key'-sleutel naar vertaalde tekst; laadt alle vier de namespaces. */
 function useRibbonTranslate() {
   const { t: tMenu } = useTranslation('menu');
   const { t: tCommon } = useTranslation('common');
@@ -32,8 +15,6 @@ function useRibbonTranslate() {
   return useCallback((full: NsKey): string => {
     const idx = full.indexOf(':');
     const ns = full.slice(0, idx);
-    // Runtime-sleutel: de i18next-typing verwacht een letterlijke sleutel-union; hier is de
-    // sleutel dynamisch (uit de config), dus `as never` om de argument-typecheck te omzeilen.
     const key = full.slice(idx + 1) as never;
     switch (ns) {
       case 'common': return tCommon(key);
@@ -44,9 +25,7 @@ function useRibbonTranslate() {
   }, [tMenu, tCommon, tTask, tReport]);
 }
 
-/** Het generieke anker van een lintitem. */
 const ribbonItemAnchor = (tab: string, itemId: string) => `ribbon:${tab}:${itemId}`;
-/** Het generieke anker van een lintgroep. */
 const ribbonGroupAnchor = (tab: string, groupId: string) => `ribbon-group:${tab}:${groupId}`;
 
 function RibbonButtonView({ spec, anchor }: { spec: RibbonButtonSpec; anchor: string }) {
@@ -73,8 +52,6 @@ function RibbonButtonView({ spec, anchor }: { spec: RibbonButtonSpec; anchor: st
 
 function RibbonComponentView({ spec, anchor }: { spec: RibbonComponentSpec; anchor: string }) {
   const C = spec.Component;
-  // `<template>` rendert niets en neemt geen plek in (ook niet in het mini-grid van het lint); de twee
-  // markeren alleen waar de elementen van dit component beginnen en eindigen.
   return (
     <>
       <template data-ribbon-anchor={anchor} />
@@ -113,9 +90,7 @@ function RibbonGroupView({ group, tab }: { group: RibbonGroupSpec; tab: string }
   );
 }
 
-/** Groep + voorafgaande scheidingslijn; een groep met `useVisible() === false` rendert niets. */
 function RibbonGroupSlot({ group, first, tab }: { group: RibbonGroupSpec; first: boolean; tab: string }) {
-  // `useVisible` is per groep een vaste eigenschap van de config, dus de hookvolgorde is stabiel.
   const visible = group.useVisible ? group.useVisible() : true;
   if (!visible) return null;
   return (
@@ -131,7 +106,6 @@ export function RibbonTabContent({ tab }: { tab: Exclude<RibbonTab, 'file'> }) {
   return (
     <>
       {groups.map((group, i) => (
-        // tab-uniek key → remount bij tab-wissel (rules-of-hooks veilig)
         <RibbonGroupSlot key={`${tab}:${group.id}`} group={group} first={i === 0} tab={tab} />
       ))}
     </>

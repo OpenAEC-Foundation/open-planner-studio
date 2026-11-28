@@ -3,12 +3,6 @@ import { useFocusTrap } from '@/hooks/useFocusTrap';
 import { Popover } from '@/components/common/Popover';
 import { Icon } from '@/components/icons';
 
-/**
- * Gedeelde ribbon-primitives: zowel het declaratieve render-pad (RibbonTabContent) als de
- * complexe widget-escape-hatches (ribbonWidgets) delen deze bouwstenen. De markup/CSS-klassen
- * horen bij Ribbon.css.
- */
-
 export { encodeFieldRef, decodeFieldRef } from '@/components/viewControls/fieldRefCodec';
 
 export function RibbonDropdown<T extends string>({ value, options, onChange }: {
@@ -76,11 +70,6 @@ export function RibbonDropdown<T extends string>({ value, options, onChange }: {
   );
 }
 
-/**
- * Compacte native keuzelijst voor een bediening die al ín een Popover staat. Een tweede
- * geportalde RibbonDropdown is daar niet veilig: de buitenste click-outside-handler ziet een klik
- * in dat tweede portaal als buitenklik en kan de opties vóór hun click-handler ontkoppelen.
- */
 export function RibbonInlineSelect<T extends string>({ value, options, onChange, ariaLabel }: {
   value: T;
   options: { value: T; label: string }[];
@@ -109,22 +98,12 @@ interface RibbonButtonProps {
   disabled?: boolean;
   primary?: boolean;
   danger?: boolean;
-  /** Dient een bestaand formulier buiten het lint in (rapportexport). */
   form?: string;
-  /** Tooltip — ook op de grote knop, waar de Relatie-knop afhankelijk van de selectie iets anders
-   *  doet. Puur een `title`-attribuut:
-   *  geen enkel effect op de vormgeving van het lint. */
   title?: string;
-  /** Spec-id van het lintitem als `data-ops-ribbon-item`. Stabiel aanknopingspunt voor de
-   *  browsertests: de toegankelijke naam is de (taalafhankelijke) tooltip, en het zichtbare label
-   *  verdwijnt in de icoon-only-standen. */
   itemId?: string;
-  /** Generiek anker `ribbon:<tab>:<itemId>` (`data-tour-anchor`) voor rondleiding en extensie-
-   *  begeleiding; gezet door het generieke render-pad (RibbonTabContent), niet per knop. */
   anchor?: string;
 }
 
-/** Grote en kleine lintknop delen alles behalve de `small`-klasse (en `primary` bestaat alleen groot). */
 function ribbonButton(
   small: boolean,
   { icon, label, onClick, active, disabled, primary, danger, form, title, itemId, anchor }: RibbonButtonProps,
@@ -134,11 +113,6 @@ function ribbonButton(
   if (disabled) cls.push('disabled');
   if (primary) cls.push('primary');
   if (danger) cls.push('danger');
-  // Zonder eigen tooltip valt het label terug als tooltip: in de icoon-only-standen (handmatig
-  // ingeklapt, of automatisch gedegradeerd) is het label verborgen en zou de knop anders volstrekt
-  // naamloos zijn. Een expliciete `title` (bv. de Relatie-knop) wint. Een zacht afbreekstreepje
-  // (U+00AD, bv. nl "Project­instellingen") of een harde regelafbreking (en "Project\nsettings")
-  // hoort alleen bij het afbreken van het label, niet in de tooltip of de toegankelijke naam.
   const tip = title ?? label.replace(/\u00ad/g, '').replace(/\s*\n\s*/g, ' ');
   return (
     <button
@@ -166,10 +140,6 @@ export function RibbonSmallButton(props: Omit<RibbonButtonProps, 'primary'>) {
   return ribbonButton(true, props);
 }
 
-/**
- * Icoon-only trigger van een compacte lintgroep: de hele groep zit dan achter deze ene knop en een
- * popover (Basislijnen/Voortgang, AI-verbinding).
- */
 export function RibbonCompactTrigger({ icon, title, ariaLabel, onClick }: {
   icon: React.ReactNode;
   title: string;
@@ -189,24 +159,6 @@ export function RibbonCompactTrigger({ icon, title, ariaLabel, onClick }: {
   );
 }
 
-/**
- * Lintgroep met invoervelden die bij een smal venster als geheel inklapt (automatische inpassing,
- * `useRibbonAutoFit` in Ribbon.tsx). Een veld kan niet tot een icoon krimpen zoals een knop; zonder
- * deze vorm bleef het op volle breedte staan naast een losse mini-knop.
- *
- * Beide vormen staan altijd in de DOM: `full` (de gewone bediening) en `collapsed` (één knop met
- * popover, meestal dezelfde popover als in de handmatig ingeklapte strip). De automaat kiest met
- * `data-ribbon-collapsed` op de groep welke vorm zichtbaar is; dat gaat via CSS, zonder React-state,
- * zodat de meting in één layout-effect blijft en niets knippert. Knoppen in deze vormen doen niet
- * mee aan het per-knop verkleinen: de groep klapt als één stap in.
- *
- * Zolang de popover open is (`popoverOpen`), houdt de automaat de groep ingeklapt; een breder
- * venster sluit het paneel dus niet midden in het typen. `onHidden` is het vangnet: verdwijnt de
- * ingeklapte vorm toch (bijv. de handmatige inklapknop), dan sluit de popover in plaats van te
- * blijven hangen bij een onzichtbare knop.
- *
- * `RibbonCollapsedTrigger` is de knop van de ingeklapte vorm.
- */
 export function RibbonCollapsible({ full, collapsed, popoverOpen, onHidden }: {
   full: React.ReactNode;
   collapsed: React.ReactNode;
@@ -239,22 +191,14 @@ export function RibbonCollapsible({ full, collapsed, popoverOpen, onHidden }: {
   );
 }
 
-/**
- * Knop van een ingeklapte veldengroep: zoals de andere lintknoppen met een menu (Mijlpaal ▾) een
- * groot icoon, het label en ▾. De automatische inpassing maakt hem pas klein als zelfs dat niet
- * meer past. `title` mag meer zeggen dan het label (bijv. de ingevulde statusdatum).
- */
 export function RibbonCollapsedTrigger({ icon, label, title, open, onClick }: {
   icon: React.ReactNode;
   label: string;
   title: string;
   open: boolean;
-  /** `viaKeyboard`: geopend met Enter of spatie (een klik zonder muis heeft `detail === 0`). */
   onClick: (viaKeyboard: boolean) => void;
 }) {
   return (
-    // Geen `active` (accentkleur) als het paneel open is: dat leest als een schakelaar die aan staat.
-    // Zoals Mijlpaal ▾ en Relatie ▾ blijft de knop neutraal; `aria-expanded` meldt de open stand.
     <button
       className="ribbon-btn"
       onClick={event => onClick(event.detail === 0)}
@@ -269,12 +213,6 @@ export function RibbonCollapsedTrigger({ icon, label, title, open, onClick }: {
   );
 }
 
-/**
- * Inhoud van de popover van een ingeklapte veldengroep. Geopend met het toetsenbord (`trap`): de
- * focus gaat naar het eerste veld en Tab blijft in de popover tot Escape (die zet de focus terug op
- * de knop), zoals `aria-haspopup="dialog"` belooft. Met de muis geopend blijft de focus waar hij is:
- * een klik ernaast moet de focus niet terug naar de knop trekken.
- */
 export function RibbonPopoverContent({ trap, children }: { trap: boolean; children: React.ReactNode }) {
   return trap ? <FocusTrappedContent>{children}</FocusTrappedContent> : <>{children}</>;
 }
@@ -283,17 +221,11 @@ function FocusTrappedContent({ children }: { children: React.ReactNode }) {
   const ref = useRef<HTMLDivElement>(null);
   const firstField = useCallback(() => ref.current?.querySelector<HTMLElement>('input:not([disabled]), select:not([disabled])') ?? null, []);
   useFocusTrap(ref, firstField);
-  // `display: contents`: het paneel houdt zijn eigen flex-indeling.
   return <div ref={ref} style={{ display: 'contents' }}>{children}</div>;
 }
 
 type MenuItemOverflow = 'wrap' | 'nowrap' | 'ellipsis';
 
-/**
- * Tekstregel in een lint-keuzemenu (Mijlpaal, Sjablonen, Recent, Exporteren, Resource toewijzen).
- * `overflow` bepaalt of lange tekst doorloopt, op één regel blijft of met "…" afkapt; `fill` laat
- * de knop naast een ander element in een flex-rij de resterende breedte nemen (sjablonen).
- */
 export function RibbonMenuItem({ onClick, title, overflow = 'nowrap', fill = false, children }: {
   onClick: () => void;
   title?: string;
@@ -323,7 +255,6 @@ export function RibbonMenuItem({ onClick, title, overflow = 'nowrap', fill = fal
 
 export function RibbonGroup({ label, anchor, children }: {
   label: string;
-  /** Generiek anker `ribbon-group:<tab>:<groupId>` (zie `RibbonButtonProps.anchor`). */
   anchor?: string;
   children: React.ReactNode;
 }) {
