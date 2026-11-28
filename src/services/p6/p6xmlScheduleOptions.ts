@@ -1,19 +1,8 @@
-/**
- * De rekenopties van een P6 XML-project (`<ScheduleOptions>` en twee projectvelden) via DEZELFDE afleiding als
- * een XER (`deriveXerScheduleOptions`), zodat een P6 XML en een XER van hetzelfde project met dezelfde regels
- * rekenen (issue #775). De lezer zet de P6 XML-waarden hier om naar de XER-tokens; de schrijver gebruikt de
- * labels hieronder. Een onbekende waarde gaat ongewijzigd door, zodat de XER-afleiding hem als terugval meldt.
- *
- * Labels: zoals P6 ze schrijft in echte exports (corpus `crawl-pmxml/OZB-14_3rd_Update_eh.xml`,
- * `CartaGantt_Exportacion_P6_es.xml`, `pmxml-samples/*`) en in het P6-schema (`ScheduleOptionsType`, via MPXJ
- * `org.mpxj.primavera.schema` als gedragsreferentie; geen code overgenomen). De corpusbestanden dragen alleen de
- * P6-standaard; de andere labels komen uit het schema. `24-Hour Calendar` en `24 Hour Calendar` gelden allebei.
- */
+// Bron: MPXJ `org.mpxj.primavera.schema` (`ScheduleOptionsType`) als gedragsreferentie, geen code overgenomen (LGPL-2.1, github.com/joniles/mpxj).
 import type { BuiltInProfileId } from '@/types/project';
 import type { XerRow, XerTable } from '@/services/xer/xerTables';
 import { deriveXerScheduleOptions, indexXerScheduleOptions, type XerScheduleOptionsResult } from '@/services/xer/xerScheduleOptions';
 
-/** Een P6 XML-project opent met hetzelfde rekenprofiel als een XER. */
 export const P6XML_PROFILE_ID: BuiltInProfileId = 'p6';
 
 const key = (value: string): string => value.trim().toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -56,7 +45,6 @@ function floatTypeToken(raw: string): string {
   return raw.trim();
 }
 
-/** Retained Logic ⇒ Y/N, Progress Override ⇒ N/Y, Actual Dates ⇒ N/N (de XER-paren). */
 function outOfSequenceTokens(raw: string): { sched_retained_logic: string; sched_progress_override: string } {
   switch (key(raw)) {
     case '': return { sched_retained_logic: '', sched_progress_override: '' };
@@ -67,17 +55,11 @@ function outOfSequenceTokens(raw: string): { sched_retained_logic: string; sched
   }
 }
 
-/** Een getal zoals P6 XML het schrijft (punt als decimaalteken); anders leeg, zodat de XER-standaard geldt. */
 function numberToken(raw: string): string {
   const value = raw.trim();
   return /^-?\d+(\.\d+)?$/.test(value) ? value : '';
 }
 
-/**
- * `PriorityList` (`(0||priority_type(sort_type|ASC)())`, mogelijk meerdere achter elkaar) ⇒ de XER-vorm
- * `veld,/ASC` met het DEL-DEL-scheidingsteken. Past een stuk niet, dan gaat de ruwe tekst door en meldt de
- * XER-afleiding hem als terugval.
- */
 function priorityListToken(raw: string): string {
   const value = raw.trim();
   if (!value) return '';
@@ -95,24 +77,16 @@ const table = (name: string, rows: XerRow[]): XerTable => ({
 });
 
 export interface P6XmlScheduleOptionsSource {
-  /** De tekst van een direct kindelement van `<Project>`, of `''`. */
   project: (field: string) => string;
-  /** De tekst van een direct kindelement van `<ScheduleOptions>`, of `''`; `null` zonder dat element. */
   schedule: ((field: string) => string) | null;
 }
 
-/**
- * De voortgangsmodus en projectopties van een P6 XML-project, afgeleid zoals bij een XER. Zonder
- * `<ScheduleOptions>` gelden de P6-standaarden, net als bij een XER zonder SCHEDOPTIONS-rij.
- */
 export function deriveP6XmlScheduleOptions(
   source: P6XmlScheduleOptionsSource,
   context: Parameters<typeof deriveXerScheduleOptions>[2] = {},
 ): XerScheduleOptionsResult {
   const projectId = '1';
   const schedule = source.schedule;
-  // Het kritiek-criterium staat in P6 XML op het project (zoals PROJECT.critical_path_type in een XER) en,
-  // in echte exports, nog eens in <ScheduleOptions>. Het project wint.
   const criticalType = source.project('CriticalActivityPathType') || (schedule?.('CriticalActivityPathType') ?? '');
   const criticalHours = source.project('CriticalActivityFloatLimit') || (schedule?.('CriticalActivityFloatThreshold') ?? '');
   const projectRow = row({

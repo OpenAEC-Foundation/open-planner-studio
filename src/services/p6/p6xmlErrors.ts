@@ -1,7 +1,3 @@
-// Fout van de P6 XML-lezer bij een bestand zonder één leesbare activiteit. Net als een lege XER
-// (`XER_EMPTY_PROJECT`) mislukt de import dan: geen leeg tabblad. `importFailureNotice` (fileSlice)
-// maakt er de melding `notifications.p6xmlImportEmpty` van, met de reden als detailregel.
-// Bladmodule: alleen een type-import.
 import type { P6XmlEmptyReason } from '@/services/importTypes';
 
 export class P6XmlImportError extends Error {
