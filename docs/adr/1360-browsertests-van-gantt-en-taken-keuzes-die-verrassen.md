@@ -36,3 +36,7 @@ als hij omslachtig lijkt.
   balk, dat nog de oude stand draagt; het raster mag daardoor niet terugspringen. Later houdt hij met een
   capture-listener op `window` het event van het raster tegen terwijl de store nog de vorige stand doorgeeft, en
   laat het daarna alsnog door. Een echte wielbeweging levert geen van beide volgordes vast.
+- `task-recorded-dates-block.spec.ts` eist dat *Datums zoals opgeslagen* in het eigenschappenpaneel altijd een
+  infoblok in de accentkleur is (`alert--info`, `TaskRecordedDatesNotice`), nooit een grijs blok (`alert--neutral`).
+  Ook een taak waarvoor het bestand niet alles bewaarde, krijgt dat blok, met de ontbrekende velden als derde regel
+  (eigenaarsbesluiten 2026-10-17 en 2026-10-19, besluit 4).
