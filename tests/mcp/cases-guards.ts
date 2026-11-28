@@ -1,15 +1,3 @@
-// WP7 / taak T4 — validatielaag: pure `validate.*`/`progress.*`-helpers bovenop de drafts.
-// Draait headless tegen de ECHTE Zustand-store (via de harness). De helpers zijn PUUR (geen
-// store-mutatie) behalve `progress.applyProgressUpdate`, dat op een Immer-DRAFT werkt — die test
-// draaien we daarom binnen een `useAppStore.setState`-producer of binnen een transactie.
-//
-// De testlijst spiegelt spec §Testen (regel 146) + §Werkpakket 7 (regel 60): completion out-of-range
-// zonder klem, 40%-taak ⇒ STARTED + afgeleide actualStart (0-100→0-1-conversie), actual ná
-// statusdatum ⇒ weigering, actuals zonder statusdatum ⇒ weigering met uitleg, actualFinish <
-// actualStart ⇒ weigering, actualFinish-wis op 100% ⇒ completion-reset, voortgang op summary ⇒
-// weigering, kringverwijzing in de voorgestelde batch ⇒ noCycle noemt de kring (+ store byte-
-// identiek binnen een transactie), dubbele toewijzing ⇒ assignmentAllowed én de store weigeren hem,
-// onbekend task-id ⇒ per-item-fout uit tasksExist.
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import { validate, progress } from '@/state/mcpValidation';
 import { runInMcpTransaction, draft } from '@/state/mcpTransaction';
@@ -21,15 +9,9 @@ import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 const store = useAppStore;
 
-// Warm-up (zelfde reden als cases-draft.ts): een verse store heeft `calendars: []`; het rollback-/
-// restore-pad promoot de projectkalender-cache tot bibliotheek-entry (syncProjectCalendar, §9.1). Door
-// hier één edit te undo'en staat `cal-default` al in de bibliotheek, zodat de byte-identiek-assert na
-// een transactie-rollback niet op die (gedocumenteerde, benigne) promotie struikelt.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
-/** Kleine helper: een progress-update op een taak toepassen BINNEN een Immer-draft (de helper muteert
- *  de draft alleen bij `applied:true`). Retourneert het per-item-resultaat. */
 function applyProgress(
   taskId: string,
   update: { completion?: number; actualStart?: string; actualFinish?: string },
@@ -42,9 +24,6 @@ function applyProgress(
   return result;
 }
 
-// =================================================================================================
-// 1) validate.tasksExist / taskExists — onbekend task-id ⇒ per-item-fout
-// =================================================================================================
 test('validate.taskExists: bestaand id ⇒ null, onbekend id ⇒ {id, reason}', () => {
   const id = store.getState().addTask({ name: 'bestaat' });
   assertEq(validate.taskExists(store.getState(), id), null, 'bestaand id hoort null (geen fout) te geven');
@@ -62,9 +41,6 @@ test('validate.tasksExist: rapporteert per ontbrekend id een aparte fout, bestaa
   assert(errors.every((e) => typeof e.reason === 'string' && e.reason.length > 0), 'elke fout hoort een reden te dragen');
 });
 
-// =================================================================================================
-// 2) validate.noCycle — kringverwijzing in de voorgestelde batch ⇒ noemt de kring; store byte-identiek
-// =================================================================================================
 test('validate.noCycle: acyclische voorgestelde batch ⇒ null', () => {
   const a = store.getState().addTask({ name: 'nc-a' });
   const b = store.getState().addTask({ name: 'nc-b' });
@@ -93,9 +69,7 @@ test('validate.noCycle: kring binnen de voorgestelde batch ⇒ noemt de betrokke
 test('validate.noCycle: kring die pas ontstaat met de BESTAANDE relaties erbij', () => {
   const a = store.getState().addTask({ name: 'mix-a' });
   const b = store.getState().addTask({ name: 'mix-b' });
-  // Bestaande relatie a→b.
   store.getState().addSequence({ predecessorId: a, successorId: b, type: 'FINISH_START', lagDays: 0 });
-  // Voorgestelde relatie b→a sluit de kring met de bestaande a→b.
   const cyc = validate.noCycle(store.getState(), [{ predecessorId: b, successorId: a }]);
   assert(Array.isArray(cyc), 'b→a bovenop bestaande a→b hoort een kring te vormen');
   const set = new Set(cyc as string[]);
@@ -114,7 +88,6 @@ test('validate.noCycle is PUUR: detectie muteert de store niet (byte-identiek)',
 });
 
 test('kringverwijzing die tóch de transactie in glipt ⇒ rollback laat de store byte-identiek', () => {
-  // WP3-vangnet: de transactie-rollback vangt een kring die de pre-check zou hebben moeten weren.
   const a = store.getState().addTask({ name: 'tx-a' });
   const b = store.getState().addTask({ name: 'tx-b' });
   const before = JSON.stringify(createSnapshot(store.getState()));
@@ -126,9 +99,6 @@ test('kringverwijzing die tóch de transactie in glipt ⇒ rollback laat de stor
   assertEq(JSON.stringify(createSnapshot(store.getState())), before, 'na de rollback hoort de store byte-identiek te zijn');
 });
 
-// =================================================================================================
-// 3) validate.assignmentAllowed — leaf-only/mijlpaal/units + dubbele-toewijzing-guard
-// =================================================================================================
 test('validate.assignmentAllowed: geldige leaf-toewijzing ⇒ ok', () => {
   const t = store.getState().addTask({ name: 'aa-leaf' });
   const r = store.getState().addResource({ name: 'aa-res', type: 'LABOR', description: '', maxUnits: 1 });
@@ -155,27 +125,21 @@ test('validate.assignmentAllowed weigert de DUBBELE toewijzing (duplicaat = dubb
   const t = store.getState().addTask({ name: 'dup-leaf' });
   const r = store.getState().addResource({ name: 'dup-res', type: 'LABOR', description: '', maxUnits: 10 });
 
-  // Eerste toewijzing via de store: toegestaan.
   const first = validate.assignmentAllowed(store.getState(), t, r, 2);
   assert(first.ok, 'de eerste toewijzing hoort te worden toegestaan');
   store.getState().assignResource(t, r, 2);
 
-  // De algemene store-route bewaakt dezelfde invariant als laatste vangrail voor niet-MCP-aanroepers.
   store.getState().assignResource(t, r, 2);
   const dupes = store.getState().assignments.filter((a) => a.taskId === t && a.resourceId === r);
   assertEq(dupes.length, 1, 'de store weigert een tweede (duplicaat-)toewijzing');
   const loadSum = dupes.reduce((sum, a) => sum + a.unitsPerDay, 0);
   assertEq(loadSum, 2, 'de geweigerde duplicaat verhoogt de gevraagde last niet');
 
-  // De guard weigert de tweede toewijzing (op een staat waarin de resource er al op zit).
   const second = validate.assignmentAllowed(store.getState(), t, r, 2);
   assert(!second.ok && /already assigned|double|already|exist/i.test(second.ok ? '' : second.reason),
     'assignmentAllowed hoort de dubbele toewijzing te weigeren met een duidelijke reden');
 });
 
-// =================================================================================================
-// 4) progress.applyProgressUpdate — het volledige voortgangspad (WP7)
-// =================================================================================================
 test('voortgang: completion 150 ⇒ weigering ZONDER klem (geen mutatie op de taak)', () => {
   const id = store.getState().addTask({ name: 'pg-oob' });
   store.getState().setProject({ statusDate: '2026-08-01' });
@@ -190,7 +154,7 @@ test('voortgang: completion 150 ⇒ weigering ZONDER klem (geen mutatie op de ta
 
 test('voortgang: 40%-taak ⇒ STARTED + afgeleide actualStart, 0-100→0-1-conversie', () => {
   const id = store.getState().addTask({ name: 'pg-40' });
-  store.getState().runCPM(); // earlyStart vullen zodat de afleiding een echte datum pakt.
+  store.getState().runCPM();
   store.getState().setProject({ statusDate: '2027-01-01' });
   const task0 = store.getState().tasks.find((t) => t.id === id)!;
   const expectStart = task0.time.earlyStart || task0.time.scheduleStart;
@@ -240,8 +204,6 @@ test('voortgang: actualFinish < actualStart ⇒ weigering', () => {
 });
 
 test('voortgang: datums vergeleken als instant, niet als string (zelfde regel als store en grid)', () => {
-  // Date-only statusdatum ⇒ de hele dag telt (isActualPastStatusDate). Als string is
-  // "2026-09-01T15:00" > "2026-09-01", dus vóór de fix weigerde MCP wat de UI accepteerde.
   store.getState().setProject({ statusDate: '2026-09-01' });
   const sameDay = store.getState().addTask({ name: 'pg-sameday' });
   const r1 = applyProgress(sameDay, { actualStart: '2026-09-01T15:00' }, '2026-09-01');
@@ -249,7 +211,6 @@ test('voortgang: datums vergeleken als instant, niet als string (zelfde regel al
   const viaStore = store.getState().setActualStart(store.getState().addTask({ name: 'pg-sameday-ui' }), '2026-09-01T15:00');
   assertEq(viaStore, true, 'de store-setter accepteert dezelfde waarde');
 
-  // Een finish met expliciete offset die als instant ná de start ligt, maar als string ervóór sorteert.
   const offset = store.getState().addTask({ name: 'pg-offset' });
   const r2 = applyProgress(offset, { actualStart: '2026-06-10T10:00+02:00', actualFinish: '2026-06-10T09:00' }, '2026-12-31');
   assert(r2.applied, `finish 09:00Z ná start 08:00Z hoort geaccepteerd te worden (${r2.applied ? '' : r2.reason})`);
@@ -258,14 +219,12 @@ test('voortgang: datums vergeleken als instant, niet als string (zelfde regel al
 test('voortgang: actualFinish wissen op een 100%-taak reset ook completion', () => {
   const id = store.getState().addTask({ name: 'pg-clearfinish' });
   store.getState().setProject({ statusDate: '2026-12-31' });
-  // Zet de taak eerst op 100% mét een echte finish.
   const r1 = applyProgress(id, { actualFinish: '2026-06-01' }, '2026-12-31');
   assert(r1.applied, 'de taak op 100% zetten hoort te lukken');
   const done = store.getState().tasks.find((t) => t.id === id)!;
   assertEq(done.time.completion, 1, 'de taak hoort nu op completion 1 te staan');
   assertEq(done.status, 'COMPLETED', 'de taak hoort COMPLETED te zijn');
 
-  // Wis de finish: completion moet meeresetten (anders re-default de invariant meteen een finish).
   const r2 = applyProgress(id, { actualFinish: undefined }, '2026-12-31');
   assert(r2.applied, 'de finish wissen hoort te lukken');
   const cleared = store.getState().tasks.find((t) => t.id === id)!;
@@ -287,12 +246,6 @@ test('voortgang op een summary-taak ⇒ weigering', () => {
   assertEq(after, before, 'een geweigerd item mag de summary niet muteren');
 });
 
-// (5 — `validate.milestoneDuration` — is vervallen: de helper had geen enkele aanroeper. De
-// mijlpaal-duurregel staat in `draft.addTasks` (aanmaak, cases-draft.ts) en in `taskFields.ts`.)
-
-// =================================================================================================
-// 6) Contextfactory-vangrails: solverrollback en strikt synchrone callback
-// =================================================================================================
 test('solvercycle in factory B rolt B volledig terug en laat A bytegelijk', () => {
   const A = createAppStoreContext();
   const B = createAppStoreContext();

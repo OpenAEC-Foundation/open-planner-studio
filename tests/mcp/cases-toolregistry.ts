@@ -1,36 +1,12 @@
-// MCP-toolregistry — volledigheidscheck (contract ⇄ registratie).
-//
-// Zie docs/recepten/mcp-tool.md voor het volledige recept van een nieuwe tool. Dit bestand is het
-// mechanische vangnet daarachter: het bewijst dat elke tool die in de broncode staat als
-// `McpToolDef` met een `name: 'planner_...'` óók daadwerkelijk in `registerAllTools()` terechtkomt —
-// en omgekeerd dat er geen geregistreerde tool bestaat zonder zo'n bron-literal, met EXACT gelijke
-// namen. Zonder deze poort compileert een vergeten regel in `MODULES` (`toolRegistry.ts`) gewoon:
-// het tool-bestand exporteert zijn array keurig, TypeScript ziet niets fout, en de tool verdwijnt
-// stilzwijgend uit `tools/list` — precies het gat dat `cases-schemavalidatie.ts` niet dicht: dat
-// bestand bewijst dat de AL geregistreerde set intern consistent is, niet dat er niets aan die set
-// ontbreekt. Daarom is dit bestand ook de enige plek die de volledigheid bewaakt: de andere MCP-tests
-// noemen bewust geen vast aantal tools meer, zodat een nieuwe tool geen tellers elders laat breken.
-//
-// Let op het onderscheid met Poort 7e in `scripts/verify-docs.ts`: die telt `planner_*`-literals in
-// dezelfde map en vergelijkt alleen het GETAL met de "N `planner_*` tools"-bewering in AGENTS.md.
-// Beide scannen dezelfde bron, maar Poort 7e bewaakt de documentatie; dit bestand bewaakt de
-// registratie zelf.
-//
-// De bron-van-waarheid hier is een REGEX-scan van `src/services/mcp/tools/*.ts` op `name: '...'`-
-// literals — bewust dezelfde scanmethode als Poort 7e, en bewust GEEN introspectie van de al
-// geregistreerde staat (dat zou de vraag "is er iets vergeten?" niet kunnen beantwoorden).
 import { readFileSync, readdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { test, assertEq, run } from './harness';
 import { getTools, registerAllTools } from '@/services/mcp/toolRegistry';
 
-// esbuild bundelt dit bestand naar tests/mcp/.cases-toolregistry.mjs (zie run.sh); twee mapniveaus
-// omhoog vanaf de OUTPUT-locatie is de repo-root, ongeacht de cwd waarmee run.sh is aangeroepen.
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const TOOLS_DIR = join(ROOT, 'src', 'services', 'mcp', 'tools');
 
-/** Alle `name: 'planner_...'`-literals in de tool-broncode — de "contracten" uit het recept. */
 function scanContractNames(): string[] {
   const names: string[] = [];
   for (const file of readdirSync(TOOLS_DIR)) {

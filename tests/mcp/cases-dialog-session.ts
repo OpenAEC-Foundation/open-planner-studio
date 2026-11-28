@@ -1,7 +1,3 @@
-// PR #170-hercheck, punt 1 en 2 — de bewerksessie van de taakdialoog (`historyMark` /
-// `revertHistorySince` / `squashHistorySince`) raakt uitsluitend haar EIGEN events. Een MCP-mutatie
-// die tijdens de open dialoog landt blijft bij Annuleren staan en houdt bij Opslaan een eigen
-// undo-stap. Headless tegen een echte, geïsoleerde storecontext.
 import { test, assert, assertEq, run } from './harness';
 import { createAppStoreContext, type AppStoreContext } from '@/state/appStore';
 import { createMcpTransactions } from '@/state/runtime/createMcpTransactions';
@@ -119,10 +115,6 @@ test('Annuleren: een extensie-data.*-mutatie tussendoor blijft staan (her-check 
 });
 
 test('Documentwissel (MCP-route newDocument/switchDocument) sluit de taakdialoog (her-check punt 3)', () => {
-  // `TaskDialog.tsx` sluit zijn bewerksessie (`endHistorySession`) in het effect op
-  // `showTaskDialog === false`; dat werkt alleen als elke documentwissel de vlag ook echt laat vallen
-  // (`resetDocumentScopedUI`). De MCP-tools `planner_new_document`/`planner_switch_document` roepen
-  // precies deze twee store-acties aan.
   const { ctx, a } = setup();
   const origin = ctx.store.getState().activeDocumentId;
   const open = () => ctx.store.setState(s => { s.ui.showTaskDialog = true; s.ui.editingTaskId = a; });

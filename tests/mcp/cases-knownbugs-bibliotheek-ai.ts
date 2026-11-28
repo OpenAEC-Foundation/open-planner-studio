@@ -1,4 +1,3 @@
-// Regressies via de echte dispatcher: dezelfde kalender- en voortgangsroutes als een MCP-client.
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run } from './harness';
 import { registerAllTools } from '@/services/mcp/toolRegistry';
 import { handleMcpMessage } from '@/services/mcp/dispatcher';

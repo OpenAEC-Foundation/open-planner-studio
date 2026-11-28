@@ -1,9 +1,3 @@
-// Onderhoudbaarheidsprogramma 2, Task 8 — volledige twee-store MCP-matrix.
-//
-// Dit is bewust één genormaliseerde bewijsbatterij bovenop de kleinere eigenaarstests uit Task 3–6.
-// Elke fixture heeft echte documentdata, kalendercache+bibliotheek, resource/toewijzing, historie en
-// meldingen. Vergelijkingen nemen niet alleen het actieve DocumentPayload mee, maar ook registry en
-// appglobale velden die een singletonlek zichtbaar maken. Maps/Sets worden stabiel geserialiseerd.
 import {
   appStoreContext,
   makeMcpContext,
@@ -34,7 +28,6 @@ import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
 type Stable = null | boolean | number | string | Stable[] | { [key: string]: Stable };
 
-/** JSON-stabiele kopie die ook aanwezigheid van undefined en inhoud van Map/Set bewaart. */
 function stable(value: unknown): Stable {
   if (value === undefined) return { $undefined: true };
   if (value === null || typeof value === 'boolean' || typeof value === 'number'
@@ -61,10 +54,6 @@ function stable(value: unknown): Stable {
   return { $unsupported: typeof value };
 }
 
-/**
- * Volledige relevante toestand voor bytevergelijking. `capturePayload` is de documentbron; de
- * overige velden zijn juist de niet-documentgebonden grenzen waarop een contextlek zichtbaar wordt.
- */
 function plainState(app: AppStoreContext): Stable {
   const state = app.store.getState();
   return stable({
@@ -191,8 +180,6 @@ function expectError(result: McpToolResult, code: McpErrorCode, label: string): 
   if (!result.ok) assertEq(result.code, code, `${label}: foutcode`);
 }
 
-// ── Succesmatrix ────────────────────────────────────────────────────────────────────────────────
-
 test('succes op B: taak, relatie, resource, toewijzing en kalender committen éénmaal; A blijft exact', async () => {
   const f = pair('success');
   const aBefore = plainState(f.A.app);
@@ -256,8 +243,6 @@ test('succes op B: taak, relatie, resource, toewijzing en kalender committen é�
   assertEq(result.envelope.scheduleStale, false, 'de B-envelop is na de eindsolve vers');
   assertEq(plainState(f.A.app), aBefore, 'succes op B laat A volledig bytegelijk');
 });
-
-// ── Vier rollbackoorzaken ────────────────────────────────────────────────────────────────────────
 
 const rollbackCases: {
   label: string;
@@ -341,8 +326,6 @@ for (const rollbackCase of rollbackCases) {
     assertEq(plainState(f.A.app), aBefore, `${rollbackCase.label}: ook hergebruik van B raakt A niet`);
   });
 }
-
-// ── Lease en reentrancy ──────────────────────────────────────────────────────────────────────────
 
 test('verkeerde of gesloten lease kan een actieve outer lease niet vrijgeven', () => {
   const context = seedContext('lease-identity').app;
@@ -445,8 +428,6 @@ test('A kan synchroon binnen B committen; na gefaalde B-run blijven eerst A en d
   assert(bReuse.ok, 'B wordt door het eigen finally weer bruikbaar');
 });
 
-// ── Contextlokale coalescing ────────────────────────────────────────────────────────────────────
-
 test('B-succes en B-rollback breken alleen B-coalescing; A-reeks blijft doorlopen', () => {
   const f = pair('coalescing');
   f.A.app.store.setState({ historyEvents: [], nextHistorySequence: 1 });
@@ -485,8 +466,6 @@ test('B-succes en B-rollback breken alleen B-coalescing; A-reeks blijft doorlope
   assertEq(historyDepthsForActiveScope(f.B.app.store.getState()).undoDepth, bBeforeRollback + 1,
     'B begint na rollback opnieuw');
 });
-
-// ── Contextlokale timephased teller en meldingsgate ─────────────────────────────────────────────
 
 function seedTimephasedWindow(context: SeededContext): void {
   context.app.store.setState((state) => {
@@ -533,8 +512,6 @@ test('timephased teller, envelop en melding zijn lease-/contextlokaal; A-gate bl
   assertEq(f.A.app.store.getState().ui.notifications.length, aNotificationBaseline + 1,
     'A-meldingsgate was niet door B geconsumeerd');
 });
-
-// ── Singletoncompatibiliteit ────────────────────────────────────────────────────────────────────
 
 test('legacy runInMcpTransaction/draft blijven uitsluitend de app-singleton binden', () => {
   const A = seedContext('legacy-A');

@@ -1,13 +1,3 @@
-// WP / taak T17 — tool-runtime: envelop, guards, drift-anker, backup-hookpunt.
-// Draait headless tegen de ECHTE Zustand-store (via de harness) — geen mock. Bewijst de
-// runtime-semantiek uit spec §Sessie-semantiek & respons-contract (regels 115-116, 128-132):
-//   - envelop-velden compleet (activeDocumentId, titel, scheduleStale, paused, readOnly);
-//   - dialoog-guard benoemt de open vlag, blokkeert read én mutate;
-//   - paused/readOnly blokkeren ALLEEN mutaties (read gaat door, mét de vlag in de envelop);
-//   - drift: user-switch ⇒ DOC_DRIFT met beide id's; eerste mutatie bindt het anker;
-//     bindExpectedDoc verzet het;
-//   - AI-backup: pad ⇒ backupCreated precies één keer; reject ⇒ BACKUP_FAILED vóór enige mutatie;
-//   - transactie-fout ⇒ nette code (CYCLE bij kring, VALIDATION anders).
 import { appStoreContext, makeMcpContext, useAppStore, test, assert, assertEq, run, type McpContextOverrides } from './harness';
 import {
   buildEnvelope, runReadTool, runMutateTool, bindExpectedDoc,
@@ -21,21 +11,15 @@ import { createSnapshot } from '@/state/snapshot';
 
 const store = useAppStore;
 
-// Warm-up (zelfde reden als cases-transaction.ts): een verse store heeft `calendars: []`; het
-// rollback-/restore-pad promoot de projectkalender-cache tot bibliotheek-entry (syncProjectCalendar,
-// §9.1). Door hier één edit te undo'en staat `cal-default` al in de bibliotheek, zodat een latere
-// byte-identiek-assert die (benigne) promotie niet als store-verschil waarneemt.
 store.getState().addTask({ name: 'warmup' });
 store.getState().undo();
 
-/** Verse ctx met overschrijfbare velden (spiegelt buildMcpContext, maar volledig in de hand). */
 function makeCtx(over: McpContextOverrides = {}): McpContext {
   return makeMcpContext(appStoreContext, {
     ...over,
   });
 }
 
-/** Alle door de tests gezette runtime-vlaggen weer op de rustwaarde. */
 function resetFlags(): void {
   store.setState((s) => {
     s.ui.showNewProjectDialog = false;
@@ -44,12 +28,8 @@ function resetFlags(): void {
   });
 }
 
-/** Muterende fn die één taak toevoegt en het id als data teruggeeft. */
 const addTaskOutcome = (): MutationOutcome => ({ data: draft.addTask({ name: 'via-runtime' }) });
 
-// =================================================================================================
-// 1) Envelop-velden compleet
-// =================================================================================================
 test('buildEnvelope: alle contractvelden aanwezig en kloppend, geen backupCreated', () => {
   resetFlags();
   const env = buildEnvelope(makeCtx());
@@ -62,10 +42,6 @@ test('buildEnvelope: alle contractvelden aanwezig en kloppend, geen backupCreate
   assert(!('backupCreated' in env), 'backupCreated hoort te ontbreken zonder backup deze call');
 });
 
-// Regressie: de store levert voor een NAAMLOOS document bewust een lege titel (datalaag), maar de
-// MCP-laag mag nooit een lege titel naar de AI-client sturen — die zag anders "" waar vroeger een
-// naam stond. De terugval is een vaste Engelse string (geen `t(...)` in deze laag), en bij meerdere
-// naamloze documenten komt er een taalonafhankelijk volgnummer bij.
 test('buildEnvelope: naamloos document ⇒ Engelse terugvaltitel i.p.v. een lege string', () => {
   resetFlags();
   const before = store.getState().project.name;
@@ -87,9 +63,6 @@ test('mcpDocumentTitle: volgnummer onderscheidt meerdere naamloze documenten', (
     'Kade 7', 'een echte titel wint altijd van de terugval');
 });
 
-// =================================================================================================
-// 2) Dialoog-guard — leestool
-// =================================================================================================
 test('runReadTool: open dialoog ⇒ DIALOG_OPEN met de vlag-naam', () => {
   resetFlags();
   store.setState((s) => { s.ui.showNewProjectDialog = true; });
@@ -101,9 +74,6 @@ test('runReadTool: open dialoog ⇒ DIALOG_OPEN met de vlag-naam', () => {
   assert(res.error.includes('showNewProjectDialog'), `fout hoort de vlag-naam te noemen, kreeg: ${res.error}`);
 });
 
-// =================================================================================================
-// 3) Dialoog-guard — muterende tool
-// =================================================================================================
 test('runMutateTool: open dialoog ⇒ DIALOG_OPEN met de vlag-naam', async () => {
   resetFlags();
   store.setState((s) => { s.ui.showNewProjectDialog = true; });
@@ -115,9 +85,6 @@ test('runMutateTool: open dialoog ⇒ DIALOG_OPEN met de vlag-naam', async () =>
   assert(res.error.includes('showNewProjectDialog'), `fout hoort de vlag-naam te noemen, kreeg: ${res.error}`);
 });
 
-// =================================================================================================
-// 4) Paused blokkeert ALLEEN mutaties; read gaat door mét de vlag in de envelop
-// =================================================================================================
 test('paused: read werkt (paused-vlag in envelop), mutate ⇒ PAUSED', async () => {
   resetFlags();
   store.setState((s) => { s.ui.aiPaused = true; });
@@ -131,9 +98,6 @@ test('paused: read werkt (paused-vlag in envelop), mutate ⇒ PAUSED', async () 
   if (!mutRes.ok) assertEq(mutRes.code, 'PAUSED', 'code hoort PAUSED te zijn');
 });
 
-// =================================================================================================
-// 5) ReadOnly blokkeert ALLEEN mutaties; read gaat door mét de vlag in de envelop
-// =================================================================================================
 test('readOnly: read werkt (readOnly-vlag in envelop), mutate ⇒ READ_ONLY', async () => {
   resetFlags();
   store.setState((s) => { s.ui.aiReadOnly = true; });
@@ -147,9 +111,6 @@ test('readOnly: read werkt (readOnly-vlag in envelop), mutate ⇒ READ_ONLY', as
   if (!mutRes.ok) assertEq(mutRes.code, 'READ_ONLY', 'code hoort READ_ONLY te zijn');
 });
 
-// =================================================================================================
-// 6) Eerste mutatie bindt het drift-anker aan het actieve document
-// =================================================================================================
 test('runMutateTool: eerste mutatie met expectedDocId null bindt het anker', async () => {
   resetFlags();
   const ctx = makeCtx();
@@ -159,9 +120,6 @@ test('runMutateTool: eerste mutatie met expectedDocId null bindt het anker', asy
   assertEq(ctx.expectedDocId, store.getState().activeDocumentId, 'het anker hoort nu op het actieve doc-id te staan');
 });
 
-// =================================================================================================
-// 7) bindExpectedDoc verzet het anker naar het huidige actieve document
-// =================================================================================================
 test('bindExpectedDoc: verzet het anker naar het actieve doc-id', () => {
   resetFlags();
   const ctx = makeCtx({ expectedDocId: 'een-oud-verlopen-id' });
@@ -169,9 +127,6 @@ test('bindExpectedDoc: verzet het anker naar het actieve doc-id', () => {
   assertEq(ctx.expectedDocId, store.getState().activeDocumentId, 'bindExpectedDoc hoort het anker op het actieve doc te zetten');
 });
 
-// =================================================================================================
-// 8) AI-backup: pad ⇒ backupCreated in de envelop, precies één keer aangeroepen
-// =================================================================================================
 test('runMutateTool: backup-hook geeft pad ⇒ backupCreated precies één keer', async () => {
   resetFlags();
   let calls = 0;
@@ -184,9 +139,6 @@ test('runMutateTool: backup-hook geeft pad ⇒ backupCreated precies één keer'
   assertEq(calls, 1, 'de backup-hook hoort precies één keer aangeroepen te zijn');
 });
 
-// =================================================================================================
-// 9) AI-backup: reject ⇒ BACKUP_FAILED en de store blijft onaangeroerd (JSON-assert)
-// =================================================================================================
 test('runMutateTool: backup-hook rejectet ⇒ BACKUP_FAILED, store onaangeroerd', async () => {
   resetFlags();
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
@@ -199,9 +151,6 @@ test('runMutateTool: backup-hook rejectet ⇒ BACKUP_FAILED, store onaangeroerd'
   assertEq(JSON.stringify(createSnapshot(store.getState())), beforeSnap, 'de store hoort byte-identiek te zijn (geen mutatie)');
 });
 
-// =================================================================================================
-// 10) Transactie-rollback: kringverwijzing ⇒ nette CYCLE-code
-// =================================================================================================
 test('runMutateTool: kring in de transactie ⇒ CYCLE-code, store teruggerold', async () => {
   resetFlags();
   const a = store.getState().addTask({ name: 'cyc-A' });
@@ -217,22 +166,16 @@ test('runMutateTool: kring in de transactie ⇒ CYCLE-code, store teruggerold', 
   assertEq(store.getState().sequences.filter((s) => s.predecessorId === a || s.predecessorId === b).length, 0, 'de kring-relaties horen teruggerold te zijn');
 });
 
-// =================================================================================================
-// 11) Transactie-fout die geen kring is ⇒ VALIDATION-code
-// =================================================================================================
 test('runMutateTool: niet-kring-transactiefout ⇒ VALIDATION-code', async () => {
   resetFlags();
   const res = await runMutateTool(makeCtx(), 'mutate', () => {
-    draft.updateCalendar('onbestaand-kalender-id', { name: 'x' }); // gooit een herkenbare fout
+    draft.updateCalendar('onbestaand-kalender-id', { name: 'x' });
     return { data: null };
   });
   assert(!res.ok, 'de mutatie hoort te falen op de onbekende kalender');
   if (!res.ok) assertEq(res.code, 'VALIDATION', 'een niet-kring-fout hoort code VALIDATION te krijgen');
 });
 
-// =================================================================================================
-// 12) itemRejections uit de outcome komen in de Ok-respons terecht
-// =================================================================================================
 test('runMutateTool: itemRejections uit de outcome verschijnen in de Ok-respons', async () => {
   resetFlags();
   const res = await runMutateTool(makeCtx(), 'mutate', () => ({
@@ -245,18 +188,13 @@ test('runMutateTool: itemRejections uit de outcome verschijnen in de Ok-respons'
   }
 });
 
-// =================================================================================================
-// 13) Drift: user-switch buiten ctx om ⇒ DOC_DRIFT met beide id's
-// =================================================================================================
 test('runMutateTool: user-switch ⇒ DOC_DRIFT met was-X-nu-Y', async () => {
   resetFlags();
   const ctx = makeCtx();
-  // Eerste mutatie bindt het anker aan het huidige (bron)document.
   const bind = await runMutateTool(ctx, 'mutate', addTaskOutcome);
   assert(bind.ok, 'de eerste (ankerbindende) mutatie hoort te slagen');
   const srcDoc = ctx.expectedDocId!;
 
-  // Simuleer een user-tabwissel BUITEN de ctx om: een nieuw, actief document.
   store.getState().newDocument();
   const nowDoc = store.getState().activeDocumentId;
   assert(srcDoc !== nowDoc, 'voorwaarde: het actieve document is nu een ander');
@@ -270,10 +208,6 @@ test('runMutateTool: user-switch ⇒ DOC_DRIFT met was-X-nu-Y', async () => {
   }
 });
 
-// =================================================================================================
-// 13b) Pauze / alleen-lezen / dialoog TIJDENS de backup-await ⇒ geweigerd, niets gemuteerd
-//      (audit 2026-09-26: de guards draaiden alleen vóór de await, op een ctx-snapshot).
-// =================================================================================================
 for (const [label, flip, code] of [
   ['pauze', () => store.setState((s) => { s.ui.aiPaused = true; }), 'PAUSED'],
   ['alleen-lezen', () => store.setState((s) => { s.ui.aiReadOnly = true; }), 'READ_ONLY'],
@@ -291,11 +225,6 @@ for (const [label, flip, code] of [
   });
 }
 
-// =================================================================================================
-// 14) Tabwissel TIJDENS de backup-await ⇒ DOC_DRIFT; brondocument byte-identiek (spec-volgorde:
-//     backup-await → drift-check). De fake-backup wisselt midden in zijn await van tabblad — precies
-//     het venster waarin een user-klik `switchDocument`/`newDocument` synchroon kan afvuren.
-// =================================================================================================
 test('runMutateTool: tabwissel tijdens backup-await ⇒ DOC_DRIFT, brondoc onaangeroerd', async () => {
   resetFlags();
   const srcDoc = store.getState().activeDocumentId;
@@ -304,7 +233,6 @@ test('runMutateTool: tabwissel tijdens backup-await ⇒ DOC_DRIFT, brondoc onaan
 
   const ctx = makeCtx({
     expectedDocId: srcDoc,
-    // Backup-hook die MIDDEN in zijn await van tabblad wisselt (synchrone store-actie op een klik).
     ensureBackup: async () => { store.getState().newDocument(); return null; },
   });
   const res = await runMutateTool(ctx, 'mutate', addTaskOutcome);
@@ -314,17 +242,11 @@ test('runMutateTool: tabwissel tijdens backup-await ⇒ DOC_DRIFT, brondoc onaan
     assertEq(res.code, 'DOC_DRIFT', 'code hoort DOC_DRIFT te zijn (drift-check draait ná de backup-await)');
     assert(res.error.includes(srcDoc), 'de fout hoort het bron-doc-id te noemen');
   }
-  // Het brondocument staat nu geparkeerd in de registry en mag geen mutatie hebben gekregen.
   const srcPayload = store.getState().documents.find((d) => d.id === srcDoc)?.payload;
   assert(srcPayload != null, 'het brondocument hoort geparkeerd in de registry te staan');
   assertEq(JSON.stringify(srcPayload!.tasks), srcTasksBefore, 'de taken van het brondocument horen byte-identiek te zijn (geen mutatie)');
 });
 
-// =================================================================================================
-// 15) Envelop-versheid: de succes-envelop toont de POST-mutatie-waarden. De transactie draait aan het
-//     eind runCPM (⇒ scheduleStale false) en de mutatie hernoemt het project (⇒ nieuwe titel); beide
-//     moeten in de envelop de ná-waarde tonen, niet de vóór-waarde.
-// =================================================================================================
 test('runMutateTool: succes-envelop toont post-mutatie scheduleStale én documenttitel', async () => {
   resetFlags();
   store.setState((s) => { s.scheduleStale = true; s.filePath = null; });
@@ -346,15 +268,11 @@ test('runMutateTool: succes-envelop toont post-mutatie scheduleStale én documen
   }
 });
 
-// =================================================================================================
-// 16) McpStepError uit de handler ⇒ díe code overleeft de transactie-rollback (i.p.v. de
-//     string-heuristiek); de store rolt schoon terug.
-// =================================================================================================
 test('runMutateTool: McpStepError in de handler ⇒ die exacte code, store teruggerold', async () => {
   resetFlags();
   const beforeSnap = JSON.stringify(createSnapshot(store.getState()));
   const res = await runMutateTool(makeCtx(), 'mutate', () => {
-    draft.addTask({ name: 'wordt-teruggerold' }); // muteert binnen de transactie
+    draft.addTask({ name: 'wordt-teruggerold' });
     throw new McpStepError('NOT_FOUND', 'de doeltaak bestaat niet');
   });
   assert(!res.ok, 'de mutatie hoort te falen op de McpStepError');
@@ -365,32 +283,23 @@ test('runMutateTool: McpStepError in de handler ⇒ die exacte code, store terug
   assertEq(JSON.stringify(createSnapshot(store.getState())), beforeSnap, 'de store hoort schoon teruggerold te zijn (geen achtergebleven taak)');
 });
 
-// =================================================================================================
-// 17) guardNonTransactional (undo/redo): zelfde guards, ZONDER backup/transactie.
-// =================================================================================================
 test('guardNonTransactional: paused ⇒ PAUSED; schoon ⇒ null + anker gebonden; drift ⇒ DOC_DRIFT', async () => {
   resetFlags();
-  // paused blokkeert.
   const pausedErr = guardNonTransactional(makeCtx({ paused: true }));
   assert(pausedErr !== null && pausedErr.code === 'PAUSED', 'gepauzeerd hoort een PAUSED-fout te geven');
 
-  // Schoon ⇒ null, en het losse anker wordt gebonden.
   const ctx = makeCtx();
   const ok = guardNonTransactional(ctx);
   assertEq(ok, null, 'zonder blokkade hoort guardNonTransactional null te geven');
   assertEq(ctx.expectedDocId, store.getState().activeDocumentId, 'het anker hoort gebonden te zijn aan het actieve doc');
 
-  // Gebonden anker + user-switch ⇒ DOC_DRIFT (geen backup/transactie in het spel).
   store.getState().newDocument();
   const driftErr = guardNonTransactional(ctx);
   assert(driftErr !== null && driftErr.code === 'DOC_DRIFT', 'na een user-switch hoort guardNonTransactional DOC_DRIFT te geven');
 });
 
-// =================================================================================================
-// 18) toolError: paused/readOnly in de fout-envelop komen uit ctx.
-// =================================================================================================
 test('toolError: envelop-paused/readOnly worden uit ctx overschreven', () => {
-  resetFlags(); // ui-vlaggen staan nu op false
+  resetFlags();
   const err = toolError(makeCtx({ paused: true, readOnly: true }), 'SCOPE', 'buiten bereik');
   assert(!err.ok, 'toolError hoort een McpToolErr te zijn');
   assertEq(err.code, 'SCOPE', 'de code hoort te kloppen');

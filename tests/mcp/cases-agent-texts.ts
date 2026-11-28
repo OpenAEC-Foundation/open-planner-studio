@@ -1,14 +1,3 @@
-// De agentteksten (`public/agent/**`, `public/skills/**`) noemen tools en parameters bij naam. Een
-// agent volgt die letterlijk, dus een hernoemde tool of parameter mag daar niet stil blijven staan.
-// Deze goedkope poort houdt de teksten tegen de ECHTE registry:
-//   1. elke `planner_[a-z_]+` in de teksten is een geregistreerde tool;
-//   2. "`planner_x` `param`" (of "`planner_x` with `param`"; de toolnaam mag ook zonder backticks staan,
-//      zoals in de teksten sinds #818): `param` (ook een pad als `fields.calendarId`) bestaat in het
-//      inputSchema van precies die tool;
-//   3. elke backtick-span in de vorm `sleutel: waarde` (ook JSON-achtig, meerdere paren): de sleutel is
-//      een parameter uit een inputSchema of een bekend antwoordveld, en een tekstwaarde staat in de enum
-//      van die parameter als hij er een heeft.
-// Plus het mutatiebewijs: een verzonnen tool, parameter of enumwaarde maakt de toets rood.
 import { test, assert, assertEq, run } from './harness';
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -19,18 +8,13 @@ registerAllTools();
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 
-/**
- * Velden uit de ANTWOORDEN van de tools (envelop en data), die de teksten in de vorm `veld: waarde`
- * noemen. Geen invoer, dus niet in een inputSchema; elk staat in `contracts.ts` (`McpEnvelope`) of in
- * de beschrijving/het antwoord van de genoemde tool.
- */
 const RESPONSE_FIELDS = new Set([
-  'scheduleRecalculated', // McpEnvelope
-  'datesAsRecorded', // McpEnvelope
-  'scheduleStale', // McpEnvelope
-  'becameLiteral', // planner_update_calendar, per item
-  'summary', // planner_list_tasks, rij van een samenvattingstaak
-  'sourceMissing', // planner_get_task, per externe koppeling (externalLinks)
+  'scheduleRecalculated',
+  'datesAsRecorded',
+  'scheduleStale',
+  'becameLiteral',
+  'summary',
+  'sourceMissing',
 ]);
 
 type Schema = { type?: unknown; properties?: Record<string, Schema>; items?: Schema; enum?: unknown[] };
@@ -49,7 +33,6 @@ function agentFiles(): string[] {
   return out;
 }
 
-/** Alle schema-knopen met een `properties`-blok, over de hele boom (ook binnen `items`). */
 function propertyNodes(schema: Schema | undefined, out: Schema[] = []): Schema[] {
   if (!schema || typeof schema !== 'object') return out;
   if (schema.properties) {
@@ -60,7 +43,6 @@ function propertyNodes(schema: Schema | undefined, out: Schema[] = []): Schema[]
   return out;
 }
 
-/** De schema-knoop van het eind van een pad (`fields.calendarId`), ergens in de boom begonnen. */
 function resolvePath(schema: Schema, segs: string[]): Schema | undefined {
   for (const node of propertyNodes(schema)) {
     let cur: Schema | undefined = node;
@@ -75,7 +57,6 @@ function resolvePath(schema: Schema, segs: string[]): Schema | undefined {
 
 interface Registry {
   tools: Map<string, Schema>;
-  /** parameternaam → de enums die hij in de schema's heeft; `free` als hij ergens geen enum heeft. */
   params: Map<string, { enums: unknown[][]; free: boolean }>;
 }
 
@@ -92,12 +73,9 @@ function realRegistry(): Registry {
       }
     }
   }
-  // De stappen van planner_batch: `tool` en `args` staan in zijn schema, dus al hierboven.
   return { tools, params };
 }
 
-/** Toets één tekst; geeft de afwijkingen terug (leeg = in orde). */
-/** "planner_x `param`" of "planner_x with `param`", met of zonder backticks rond de toolnaam. */
 const TOOL_PARAM = /`?\b(planner_[a-z_]*[a-z])\b`?\s+(?:with\s+)?`([A-Za-z_][\w.]*)/g;
 
 function checkAgentText(label: string, text: string, reg: Registry): string[] {
@@ -107,12 +85,12 @@ function checkAgentText(label: string, text: string, reg: Registry): string[] {
   }
   for (const m of text.matchAll(TOOL_PARAM)) {
     const schema = reg.tools.get(m[1]);
-    if (!schema) continue; // al gemeld
+    if (!schema) continue;
     if (!resolvePath(schema, m[2].split('.'))) diffs.push(`${label}: ${m[1]} heeft geen parameter ${m[2]}`);
   }
   for (const span of text.matchAll(/`([^`]+)`/g)) {
     const body = span[1];
-    if (/^\w+:\/\//.test(body)) continue; // een URL, geen sleutel: waarde
+    if (/^\w+:\/\//.test(body)) continue;
     if (!/^\s*\{?\s*"?[A-Za-z_]\w*"?\s*:/.test(body)) continue;
     for (const pair of body.matchAll(/"?([A-Za-z_]\w*)"?\s*:\s*("([^"]*)"|[^,}\s]+)/g)) {
       const key = pair[1];
@@ -141,7 +119,6 @@ test('de poort ziet echt iets: de teksten noemen tools en parameters', () => {
   const tools = new Set([...text.matchAll(/\bplanner_[a-z_]*[a-z]\b/g)].map((m) => m[0]));
   const adjacent = [...text.matchAll(TOOL_PARAM)].length;
   const pairs = [...text.matchAll(/`\s*\{?\s*"?[A-Za-z_]\w*"?\s*:[^`]*`/g)].length;
-  // Sinds #818 zijn de teksten kort; deze ondergrenzen vangen alleen een scan die niets meer vindt.
   assert(tools.size >= 1, `geen toolnamen gevonden (${tools.size}) — scant de poort nog wel?`);
   assert(adjacent >= 1, `geen "tool + parameter"-plekken gevonden (${adjacent})`);
   assert(pairs >= 1, `geen "sleutel: waarde"-spans gevonden (${pairs})`);

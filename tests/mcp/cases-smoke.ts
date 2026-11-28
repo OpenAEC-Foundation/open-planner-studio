@@ -1,5 +1,3 @@
-// Rooktest: bewijst dat de glob-lus in run.sh een cases-*.ts-bestand bundelt, draait en de
-// exitcode als poort gebruikt. Raakt de echte store (via de harness) en de Snapshot-fabriek.
 import { useAppStore, test, assert, run } from './harness';
 import { createSnapshot } from '@/state/snapshot';
 

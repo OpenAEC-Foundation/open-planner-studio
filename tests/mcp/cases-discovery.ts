@@ -1,12 +1,3 @@
-// Ontdekkingsbestanden voor de MCP-plugin (issue #570): `runtime.json` en `open-files.json`.
-//
-// Headless, zonder Tauri: het contract (`discoveryContract.ts`) is puur, de writer
-// (`discoveryFiles.ts`) krijgt een geheugen-bestandssysteem, en de bridge-controller (`server.ts`)
-// krijgt fakes. De bijwerk-triggers toetsen we tegen de ECHTE store: dezelfde koppeling als
-// `useMcpDiscovery` (store-abonnement → `openFilePathsFromState` → `setOpenFiles`).
-// Wat hier NIET bewezen wordt: de echte plugin-fs-aanroepen, bestandsrechten op schijf en het
-// proces-id uit het initialisatiescript. Dat toetst `tests/mcp/realApp/run-real-app.ts` (CI, Linux).
-
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -39,8 +30,6 @@ import { buildMcpContext, createBridgeController, type BridgeDeps } from '@/serv
 
 const ROOT = fileURLToPath(new URL('../..', import.meta.url));
 
-// --- Geheugen-bestandssysteem -----------------------------------------------------------------------
-
 interface MemFile { text: string; mode: number }
 
 interface FsFaults { failRename?: number; failWrite?: number; failClose?: number; failRemove?: boolean }
@@ -59,7 +48,7 @@ function memFs(opts: FsFaults = {}) {
       return {
         async write(text) {
           ops.push(`write ${name}`);
-          files.set(name, { text, mode }); // ook volledig geschreven bytes kunnen gevolgd worden door een fout
+          files.set(name, { text, mode });
           if (writeFailures > 0) { writeFailures--; throw new Error('ENOSPC'); }
         },
         async close() {
@@ -104,10 +93,7 @@ function makeWriter(over: Partial<DiscoveryWriterDeps> = {}, fsOpts?: FsFaults) 
 
 const readJson = (files: Map<string, MemFile>, name: string): any => JSON.parse(files.get(name)!.text);
 
-// --- (1) paden blijven letterlijk ---------------------------------------------------------------------
-
 test('openFileList bewaart paden letterlijk (spatie aan het eind, .., backslash, hoofdletters); alleen ontdubbelen en sorteren', () => {
-  // Review PR #573: `trim()` maakte van "/home/jan/plan.ifc " een ANDER bestand. Elke omvorming kan dat.
   const raw = ['/home/jan/plan.ifc ', '/home/jan/plan.ifc', '/a/../b.ifc', '/x/back\\slash.ifc', 'C:\\Users\\Jan\\Plan.IFC', '/b.ifc', '/b.ifc', ''];
   assertEq(
     openFileList(raw),
@@ -121,8 +107,6 @@ test('het register op schijf draagt het pad met spatie letterlijk', async () => 
   await writer.setOpenFiles(['/home/jan/plan.ifc ']);
   assertEq(readJson(files, 'open-files.json').files, ['/home/jan/plan.ifc '], 'geen trim');
 });
-
-// --- (2) inhoud en lezen ------------------------------------------------------------------------------
 
 test('runtime.json: opbouw, slot-newline en terugleesbaar; precies de zes velden', () => {
   const file = buildRuntimeFile({ pid: 7, port: 3877, token: 'abc', appVersion: '2026.43.1', startedAt: new Date('2026-10-23T08:00:00Z') });
@@ -217,8 +201,6 @@ test('alleen FileRef van de soort path telt: site, browserhandle en naamloos nie
   assertEq(openFilePathsFromDocuments(docs, true), ['/a.ifc'], 'desktop');
   assertEq(openFilePathsFromDocuments(docs, false), [], 'browser');
 });
-
-// --- (3) writer ---------------------------------------------------------------------------------------
 
 test('bridgeStarted schrijft runtime.json atomair (nieuw halffabricaat, 0600, dan rename)', async () => {
   const { writer, files, ops } = makeWriter();
@@ -354,8 +336,6 @@ test('buiten de desktop-app is er geen writer (browser, platformbouw, tests)', (
   assertEq(getMcpDiscoveryWriter(), null, 'geen Tauri ⇒ null');
 });
 
-// --- (4) bridge-controller → runtime-bestand ---------------------------------------------------------
-
 function fakeBridge(opts: { failStart?: boolean; token?: () => string; port?: () => number } = {}) {
   const events: string[] = [];
   const deps: BridgeDeps = {
@@ -407,8 +387,6 @@ test('controller: een fout in het ontdekkingsbestand stopt de bridge niet', asyn
   assertEq(c.activeListenerCount(), 2, 'listeners blijven gekoppeld');
 });
 
-// --- (5) bijwerk-triggers tegen de echte store ---------------------------------------------------------
-
 test('register volgt de store: openen, tweede document, documentwissel, Opslaan als, sluiten', async () => {
   const { writer, files } = makeWriter();
   const current = () => readJson(files, 'open-files.json').files as string[];
@@ -419,38 +397,31 @@ test('register volgt de store: openen, tweede document, documentwissel, Opslaan 
     await writer.idle();
     assertEq(current(), [], 'vers, naamloos document: leeg register');
 
-    // "Openen": het actieve document krijgt een pad.
     useAppStore.setState({ filePath: '/proj/a.ifc' });
     await writer.idle();
     assertEq(current(), ['/proj/a.ifc'], 'na openen');
 
-    // Tweede (naamloos) document: het eerste slaapt, maar blijft open.
     const first = useAppStore.getState().activeDocumentId;
     const second = useAppStore.getState().newDocument();
     await writer.idle();
     assertEq(current(), ['/proj/a.ifc'], 'slapend document telt mee, naamloos niet');
 
-    // "Opslaan als" op het tweede document.
     useAppStore.setState({ filePath: '/proj/b.ifc' });
     await writer.idle();
     assertEq(current(), ['/proj/a.ifc', '/proj/b.ifc'], 'na Opslaan als');
 
-    // Documentwissel verandert de set niet.
     useAppStore.getState().switchDocument(first);
     await writer.idle();
     assertEq(current(), ['/proj/a.ifc', '/proj/b.ifc'], 'na wissel');
 
-    // "Opslaan als" naar een andere naam: het oude pad verdwijnt.
     useAppStore.setState({ filePath: '/proj/a-v2.ifc' });
     await writer.idle();
     assertEq(current(), ['/proj/a-v2.ifc', '/proj/b.ifc'], 'oud pad weg');
 
-    // Sluiten.
     useAppStore.getState().closeDocument(second);
     await writer.idle();
     assertEq(current(), ['/proj/a-v2.ifc'], 'na sluiten');
 
-    // Site-bestand: geen pad op schijf.
     useAppStore.setState({ siteFileId: 'f-9' });
     await writer.idle();
     assertEq(current(), [], 'site-bestand telt niet');

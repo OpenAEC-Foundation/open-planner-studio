@@ -1,17 +1,3 @@
-// Claude Desktop-bundel (`.mcpb`, issue #567 en #730): bouwt hem met `scripts/build-mcpb.mjs`, controleert de
-// ZIP en het manifest, en start de MEEGELEVERDE servers (uit de ZIP gehaald) zoals Claude Desktop dat doet
-// (`node server/index.mjs`). Twee planners achter het schakelstuk:
-//   - de app: de bridge-spiegel (`bridgeMirror.ts`) rond de echte TS-kant op een eigen headless store, gevonden
-//     via een `runtime.json` in een tijdelijke ontdekkingsmap (`OPS_MCP_DISCOVERY_DIR`);
-//   - zonder app: `server/headless.mjs` uit de ZIP, als kindproces van het schakelstuk, op een tijdelijke werkmap.
-// De client is de officiële SDK-client; het stdio-transport hieronder start de server zelf. Niet de
-// `StdioClientTransport` van de SDK: die sleept `cross-spawn` (CommonJS) mee, en dat laadt niet in de
-// ESM-testbundel van `run.sh`.
-//
-// Wat dit NIET bewijst: dat Claude Desktop de bundel installeert en het installatievenster toont, en de echte
-// Rust-bridge en het echte `runtime.json` van de app (dat doet `tests/mcp/realApp/`). De volledige
-// schemacontrole van het manifest doet de officiële `mcpb validate` in `.github/workflows/mcpb.yml` en
-// `release.yml`; hier staan de velden waar de bundel op leunt.
 import { test, assert, assertEq, run } from './harness';
 import { spawn, spawnSync } from 'node:child_process';
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -45,7 +31,6 @@ const appPkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')) as {
 const work = mkdtempSync(join(tmpdir(), 'ops-mcpb-'));
 const outDir = join(work, 'out');
 const serverFile = join(work, 'extracted', 'server', 'index.mjs');
-/** MCP-backups van de headless planner: niet in de gegevensmap van wie de test draait. */
 const dataDir = join(work, 'data');
 const EXAMPLE = join(ROOT, 'public/examples/showcase-verbouwing-eengezinswoning.ifc');
 const EXAMPLE_NAME = 'Refurbishment & Extension of a Family Home';
@@ -53,8 +38,6 @@ const EXAMPLE_NAME = 'Refurbishment & Extension of a Family Home';
 type Json = Record<string, any>;
 let manifest: Json = {};
 let entries = new Map<string, Uint8Array>();
-
-// --- De headless app achter de spiegel -----------------------------------------------------------
 
 const app = createAppStoreContext();
 const APP_PROJECT = 'Claude Desktop-bundel';
@@ -78,12 +61,10 @@ const startMirror = (
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-/** Wacht tot `cond` waar is (max. ~2 s); de assertie erna toont de echte stand. */
 async function waitFor(cond: () => boolean): Promise<void> {
   for (let i = 0; i < 100 && !cond(); i++) await sleep(20);
 }
 
-/** Een poort waar niets luistert (net vrijgegeven). */
 async function freePort(): Promise<number> {
   const server = http.createServer();
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', () => resolve()));
@@ -92,21 +73,18 @@ async function freePort(): Promise<number> {
   return port;
 }
 
-/** Het pid van een proces dat al gestopt is. */
 function deadPid(): number {
   const r = spawnSync(process.execPath, ['-e', 'process.stdout.write(String(process.pid))'], { encoding: 'utf8' });
   return Number(r.stdout);
 }
 
 let dirCount = 0;
-/** Een lege ontdekkingsmap (`<appDataDir>/mcp` van een nep-app). */
 function newDiscoveryDir(): string {
   const dir = join(work, `discovery-${++dirCount}`);
   mkdirSync(dir, { recursive: true });
   return dir;
 }
 
-/** Een werkmap met één planning (`plan.ifc`). */
 function newRoot(): string {
   const dir = join(work, `root-${++dirCount}`);
   mkdirSync(dir, { recursive: true });
@@ -114,7 +92,6 @@ function newRoot(): string {
   return dir;
 }
 
-/** Schrijft `runtime.json` zoals de app dat doet als de bridge draait. */
 function writeRuntime(dir: string, port: number, opts: { token?: string; pid?: number } = {}): void {
   const file = buildRuntimeFile({
     pid: opts.pid ?? process.pid, port, token: opts.token ?? TOKEN, appVersion: appPkg.version, startedAt: new Date(),
@@ -123,7 +100,6 @@ function writeRuntime(dir: string, port: number, opts: { token?: string; pid?: n
 }
 const removeRuntime = (dir: string) => rmSync(join(dir, 'runtime.json'), { force: true });
 
-/** Schrijft `open-files.json` zoals de app dat doet: deze bestanden staan open in de app. */
 function writeOpenFiles(dir: string, paths: readonly string[]): void {
   const file = buildOpenFilesFile({ pid: process.pid, appVersion: appPkg.version, updatedAt: new Date(), paths });
   writeFileSync(join(dir, 'open-files.json'), serializeDiscoveryFile(file), { mode: 0o600 });
@@ -135,7 +111,6 @@ interface Session {
   stderr: () => string;
 }
 
-/** Minimaal stdio-clienttransport: één regel JSON per bericht, zoals de MCP-specificatie voor stdio. */
 function stdioTransport(env: Record<string, string>, onStderr: (text: string) => void): Transport {
   const child = spawn(process.execPath, [serverFile], { env, stdio: ['pipe', 'pipe', 'pipe'] });
   const buffer = new ReadBuffer();
@@ -169,7 +144,6 @@ function stdioTransport(env: Record<string, string>, onStderr: (text: string) =>
   return transport;
 }
 
-/** Start de meegeleverde server zoals Claude Desktop: `node server/index.mjs`, met de werkmap in env. */
 async function startExtension(opts: { discovery: string; root?: string }): Promise<Session> {
   let log = '';
   const env: Record<string, string> = { PATH: process.env.PATH ?? '', OPS_MCP_DISCOVERY_DIR: opts.discovery, OPS_MCP_DATA_DIR: dataDir };
@@ -182,7 +156,6 @@ async function startExtension(opts: { discovery: string; root?: string }): Promi
   return { client, listChanged: () => changes, stderr: () => log };
 }
 
-/** De bundel met een draaiende app (de spiegel op `port`), zonder werkmap: zoals vóór #730. */
 const startWithApp = (port: number) => {
   const discovery = newDiscoveryDir();
   writeRuntime(discovery, port);
@@ -203,8 +176,6 @@ async function toolNames(session: Session): Promise<string[]> {
 }
 
 const projectName = (res: ToolResult) => res.structured.data?.project?.name as string | undefined;
-
-// --- Bouwen en de ZIP ----------------------------------------------------------------------------
 
 test('build:mcpb bouwt de bundel (exit 0)', () => {
   const r = spawnSync(process.execPath, [join(ROOT, 'scripts/build-mcpb.mjs'), '--out', outDir], { cwd: ROOT, encoding: 'utf8' });
@@ -252,7 +223,6 @@ test('manifest.json: de velden waar de bundel op leunt', () => {
   assert(entries.has(manifest.icon), `icon ${manifest.icon} zit in de bundel`);
   assertEq(manifest.server?.type, 'node', 'server.type');
   assert(entries.has(manifest.server?.entry_point), 'server.entry_point zit in de bundel');
-  // De werkmap via env, niet via args: Claude Desktop breekt op Windows een argument met een spatie.
   assertEq(manifest.server?.mcp_config, {
     command: 'node',
     args: ['${__dirname}/server/index.mjs'],
@@ -271,8 +241,6 @@ test('instellingen: werkmap, een letterlijke manifestvariabele en de dev-slug', 
   const bad = readBundleConfig({ OPS_MCP_DEV_INSTANCE: '../x' });
   assertEq([bad.devInstance, bad.notes.length], [null, 1], 'ongeldige slug genegeerd, met melding');
 });
-
-// --- Twee standen, dezelfde tool -------------------------------------------------------------------
 
 let mirror: BridgeMirror;
 let appTools: Json[] = [];
@@ -358,7 +326,6 @@ test('wissel app → zonder app tijdens een sessie: melding, list_changed, wijzi
     assert(!inApp.isError && inApp.structured.ok === true, `wijziging in de app: ${inApp.text}`);
     assertEq(app.store.getState().tasks.length, before + 1, 'de taak staat in de app');
 
-    // De app gaat dicht: de app verwijdert runtime.json en de bridge stopt.
     removeRuntime(discovery);
     await bridge.close();
     open = false;
@@ -400,7 +367,6 @@ test('wissel zonder app → app: niet weggeschreven werk houdt de aanvraag zonde
     const added = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-u', name: 'Nog niet opgeslagen', duration: 1 }] });
     assert(!added.isError && added.structured.ok === true, `wijziging zonder app: ${added.text}`);
 
-    // De app gaat open en start de bridge.
     bridge = await startMirror();
     writeRuntime(discovery, bridge.port);
     const read = await call(s, 'planner_get_project_info');
@@ -410,8 +376,6 @@ test('wissel zonder app → app: niet weggeschreven werk houdt de aanvraag zonde
     assert(!more.isError && more.structured.ok === true, `tweede wijziging zonder app: ${more.text}`);
     assertEq(app.store.getState().tasks.length, before, 'niets in de app gezet');
 
-    // De gebruiker heeft plan.ifc in de app open: zolang de app draait, vervangt de headless planner geen
-    // bestaand bestand (het slot), en het werk blijft dus niet weggeschreven.
     const original = readFileSync(join(root, 'plan.ifc'), 'utf8');
     writeOpenFiles(discovery, [join(root, 'plan.ifc')]);
     const locked = await call(s, 'planner_export_ifc', { path: '~/plan.ifc', overwrite: true });
@@ -448,8 +412,6 @@ test('wissel zonder app → app: niet weggeschreven werk houdt de aanvraag zonde
 });
 
 test('wijziging zonder app zonder antwoord op tijd: telt bij het juiste document als niet weggeschreven, de planner blijft tot het opslaan (review r1, 1 en r2)', async () => {
-  // Het schakelstuk zelf, met een nep-kindproces dat een actief document bijhoudt: een time-out van 130 s is
-  // in een test niet af te wachten.
   const sent: Json[] = [];
   const toChild: string[] = [];
   let closed = false;
@@ -478,11 +440,10 @@ test('wijziging zonder app zonder antwoord op tijd: telt bij het juiste document
         return answer(msg, { tools: [tool('planner_get_project_info', true), tool('planner_list_documents', true),
           tool('planner_add_tasks', false), tool('planner_export_ifc', false), tool('planner_new_document', false)] });
       }
-      // De wijziging wordt uitgevoerd, maar het antwoord komt te laat.
       if (name === 'planner_add_tasks') return { type: 'timeout' };
       if (name === 'planner_list_documents') {
         checks++;
-        if (checks === 1) return { type: 'timeout' }; // de controle zelf krijgt ook geen antwoord op tijd
+        if (checks === 1) return { type: 'timeout' };
         if (checks === 2) await new Promise<void>((resolve) => { releaseCheck = resolve; });
       }
       if (name === 'planner_new_document') active = 'doc-B';
@@ -516,18 +477,14 @@ test('wijziging zonder app zonder antwoord op tijd: telt bij het juiste document
     await callTool(3, 'planner_add_tasks');
     assert(reply(3).isError === true && String(reply(3).content[0].text).includes('did not answer within'), `time-out: ${JSON.stringify(reply(3))}`);
 
-    // De app gaat open. De controle krijgt ook geen antwoord: een documentwissel gaat dan niet door (r2), anders
-    // telt de wijziging in A later bij B.
     appOpen = true;
     await callTool(4, 'planner_new_document');
     assertEq(reply(4).content.at(-1).text, HEADLESS_BUSY_MESSAGE, 'nieuw document geweigerd zolang het onzeker is');
     assertEq([count('planner_new_document'), active], [0, 'doc-A'], 'het kindproces kreeg geen documentwissel');
     assertEq(closed, false, 'het kindproces blijft draaien');
 
-    // Een wijziging die geannuleerd wordt terwijl de tweede controle loopt, gaat niet naar het kindproces.
     const pending = callTool(5, 'planner_add_tasks');
     await waitFor(() => releaseCheck !== null);
-    // Niet wachten op `handle`: de wachtrij is pas klaar als de controle klaar is.
     const cancelled = proxy.handle({ jsonrpc: '2.0', method: 'notifications/cancelled', params: { requestId: 5 } });
     (releaseCheck as unknown as () => void)();
     await Promise.all([pending, cancelled]);
@@ -555,8 +512,6 @@ test('verloren antwoord van de app: een wijziging gaat niet twee keer, een leesa
   let readPosts = 0;
   let dropAdd = true;
   let dropRead = true;
-  // Tussen bundel en spiegel: geeft de aanvraag door, en verbreekt bij de eerste wijziging en de eerste
-  // leesaanvraag de verbinding vóór het antwoord (de app voerde ze dan wel uit).
   const front = http.createServer((req, res) => {
     const chunks: Buffer[] = [];
     req.on('data', (chunk: Buffer) => chunks.push(chunk));
@@ -639,16 +594,14 @@ test('de headless planner stopt onverwacht: melding, en wijzigen pas na opnieuw 
   }
 });
 
-// --- Met de app: sessies, herstarts en annuleren (zoals vóór #730, nu via runtime.json) ------------
-
 test('app-herstart (sessie kwijt): leestool wordt herhaald, schrijftool niet', async () => {
   const s = await startWithApp(mirror.port);
   try {
-    await toolNames(s); // de bundel leert welke tools alleen lezen
+    await toolNames(s);
     const restart = async () => {
       const port = mirror.port;
       await mirror.close();
-      mirror = await startMirror(port); // nieuwe sessietabel, zoals een herstarte app
+      mirror = await startMirror(port);
     };
     await restart();
     const read = await call(s, 'planner_get_project_info');
@@ -688,7 +641,7 @@ test('nieuwe runtime.json (andere bridge) tijdens de sessie: nieuwe sessie, wijz
   const before = app.store.getState().tasks.length;
   try {
     await toolNames(s);
-    writeRuntime(discovery, other.port); // de app herstartte de bridge op een andere poort
+    writeRuntime(discovery, other.port);
     const read = await call(s, 'planner_get_project_info');
     assert(!read.isError && read.structured.ok === true, `lezen bij de nieuwe bridge: ${read.text}`);
     const refused = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-n', name: 'Nieuwe bridge', duration: 1 }] });
@@ -710,14 +663,12 @@ test('app-herstart met een ander plan actief, ontdekt door een ping: wachtende e
     const bind = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-a', name: 'Op plan A', duration: 1 }] });
     assert(!bind.isError && bind.structured.ok === true, `sessie binden aan plan A: ${bind.text}`);
 
-    // De app herstart; daarna is plan B actief. De oude sessie (met anker A) bestaat niet meer.
     const port = mirror.port;
     await mirror.close();
     docB = app.store.getState().newDocument();
     mirror = await startMirror(port);
     const tasksB = app.store.getState().tasks.length;
 
-    // De ping ontdekt het sessieverlies; de wijziging staat er al achter in de wachtrij.
     const later = { tasks: [{ tempId: 'tmp-b', name: 'Hoort bij plan A', duration: 1 }] };
     const [, waiting] = await Promise.all([s.client.ping(), call(s, 'planner_add_tasks', later)]);
     assertEq(waiting.text, SESSION_RESET_MESSAGE, 'wachtende wijziging na een ping met 404');
@@ -749,7 +700,6 @@ test('na sessieverlies: lezen heft niets op, expliciete documentkeuze wel; daarn
     const bind = await add('Op plan A');
     assert(!bind.isError && bind.structured.ok === true, `sessie binden aan plan A: ${bind.text}`);
 
-    // App-herstart met plan B actief.
     const port = mirror.port;
     await mirror.close();
     const docB = app.store.getState().newDocument();
@@ -757,13 +707,11 @@ test('na sessieverlies: lezen heft niets op, expliciete documentkeuze wel; daarn
     mirror = await startMirror(port);
     const tasksB = count();
 
-    // (a) Een leesaanvraag ontdekt het verlies en wordt herhaald; de wijziging erachter wacht al.
     const [read, waiting] = await Promise.all([call(s, 'planner_get_project_info'), add('Hoort bij plan A')]);
     assert(!read.isError && read.structured.ok === true, `leesaanvraag na herstart: ${read.text}`);
     assertEq(waiting.text, SESSION_RESET_MESSAGE, '(a) wachtende wijziging na een herhaalde lezing');
     assertEq(count(), tasksB, '(a) niets op plan B');
 
-    // (b) De gebruiker opent plan C; zonder documentkeuze blijft elke wijziging geweigerd.
     const docC = app.store.getState().newDocument();
     opened.push(docC);
     const tasksC = count();
@@ -771,7 +719,6 @@ test('na sessieverlies: lezen heft niets op, expliciete documentkeuze wel; daarn
     assertEq(onC.text, SESSION_RESET_MESSAGE, '(b) wijziging na lezen en tabwissel');
     assertEq(count(), tasksC, '(b) niets op plan C');
 
-    // (c) Expliciete keuze van plan B: de wijziging landt op B ...
     const chosen = await call(s, 'planner_switch_document', { documentId: docB });
     assert(!chosen.isError && chosen.structured.ok === true, `(c) plan B kiezen: ${chosen.text}`);
     assertEq(app.store.getState().activeDocumentId, docB, '(c) plan B is actief');
@@ -780,7 +727,6 @@ test('na sessieverlies: lezen heft niets op, expliciete documentkeuze wel; daarn
     assert(!onB.isError && onB.structured.ok === true, `(c) wijziging op plan B: ${onB.text}`);
     assertEq(count(), tasksB + 1, '(c) één taak op plan B');
 
-    // ... en wisselt de gebruiker daarna naar C, dan weigert de drift-guard van de app.
     app.store.getState().switchDocument(docC);
     const drift = await add('Na tabwissel');
     assert(drift.isError && drift.structured.code === 'DOC_DRIFT', `(c) drift-guard: ${drift.text}`);
@@ -826,7 +772,6 @@ test('sessieherstel via nieuw/import: alleen expliciet, alleen na succes en zond
     assertEq(count(), before, 'geen extra document bij de geweigerde aanvraag');
     const duplicate = await call(s, 'planner_duplicate_document');
     assertEq(duplicate.text, SESSION_RESET_MESSAGE, 'kopie van toevallig actief document blijft geblokkeerd');
-    // Ook een echte toolfout mag de blokkade niet opheffen.
     app.store.getState().setUI({ aiReadOnly: true });
     const failedNew = await call(s, 'planner_new_document');
     assert(failedNew.isError, 'alleen-lezen weigert nieuw document');
@@ -887,15 +832,15 @@ test('geannuleerde wijziging in de wachtrij gaat nooit naar de bridge (review r1
       undefined,
       { signal: controller.signal },
     ).then(() => 'beantwoord', () => 'afgebroken');
-    await sleep(200); // de wijziging staat nu in de wachtrij van de bundel
-    controller.abort('de gebruiker stopt'); // de SDK stuurt notifications/cancelled
+    await sleep(200);
+    controller.abort('de gebruiker stopt');
     await sleep(200);
     hold = false;
     release();
     const read = await slow;
     assert(!read.isError, `trage leesaanvraag: ${read.text}`);
     assertEq(await outcome, 'afgebroken', 'de client gaf de wijziging op');
-    await toolNames(s); // komt pas na de geannuleerde aanvraag aan de beurt
+    await toolNames(s);
     assert(!bodies.some((b) => b.includes('planner_add_tasks')), 'planner_add_tasks bereikte de bridge');
     assertEq(app.store.getState().tasks.length, before, 'geen taak toegevoegd');
   } finally {
@@ -908,7 +853,7 @@ test('geannuleerde wijziging in de wachtrij gaat nooit naar de bridge (review r1
 
 test('knownbugs 206/323: annuleren tijdens verbinden en na 404 voorkomt de tool-POST', async () => {
   const port = await freePort();
-  const s = await startWithApp(port); // lokale initialize terwijl de bridge nog uit staat (geen werkmap)
+  const s = await startWithApp(port);
   let release = () => {};
   let holding = false;
   const bodies: string[] = [];
@@ -931,9 +876,9 @@ test('knownbugs 206/323: annuleren tijdens verbinden en na 404 voorkomt de tool-
     assert(holding, 'de aanvraag wacht daadwerkelijk op upstream initialize');
     controller.abort('annuleren tijdens opnieuw verbinden');
     assertEq(await outcome, 'afgebroken', 'SDK-client annuleert');
-    await sleep(200); // laat de cancellation-notification de stdio-proxy bereiken
+    await sleep(200);
     release();
-    await toolNames(s); // wacht achter aanvraag én annuleringsmelding in dezelfde proxywachtrij
+    await toolNames(s);
     assert(!bodies.some(body => body.includes('planner_add_tasks')), 'geannuleerde tool is niet naar bridge gepost');
     assertEq(app.store.getState().tasks.length, before, 'geen taak toegevoegd na annuleren');
     const next = await call(s, 'planner_add_tasks', { tasks: [{ tempId: 'tmp-after-cancel', name: 'Na annuleren', duration: 1 }] });
@@ -941,7 +886,6 @@ test('knownbugs 206/323: annuleren tijdens verbinden en na 404 voorkomt de tool-
     assertEq(app.store.getState().tasks.length, before + 1, 'volgende aanvraag precies eenmaal uitgevoerd');
     app.store.getState().undo();
 
-    // Een app-herstart wist de sessie: de eerste lees-POST krijgt 404 en wacht daarna op initialize.
     await late.close();
     bodies.length = 0;
     holding = false;
@@ -953,9 +897,9 @@ test('knownbugs 206/323: annuleren tijdens verbinden en na 404 voorkomt de tool-
     assert(holding, 'na sessieverlies wacht de leesaanvraag op een nieuwe initialize');
     after404.abort('annuleren na 404 tijdens opnieuw verbinden');
     assertEq(await cancelledRead, 'afgebroken', 'SDK-client annuleert de leesaanvraag na 404');
-    await sleep(200); // de cancellation-notification bereikt de proxy terwijl initialize nog wacht
+    await sleep(200);
     release();
-    await toolNames(s); // barrière achter aanvraag en annuleringsmelding
+    await toolNames(s);
     assert(!bodies.some(body => body.includes('planner_get_project_info')), 'geannuleerde lezing niet herhaald na 404');
     assertEq(app.store.getState().tasks.length, before, 'geen taakwijziging tijdens sessieherstel');
     const read = await call(s, 'planner_get_project_info');
@@ -968,8 +912,6 @@ test('knownbugs 206/323: annuleren tijdens verbinden en na 404 voorkomt de tool-
   }
 });
 
-// --- Geen van beide planners: de statustool ------------------------------------------------------
-
 test('bridge Stop/Start zonder werkmap, sessie behouden: statustool en terug, elk met list_changed (review r1, 3)', async () => {
   const sessions = createMcpSessionTable();
   let bridge = await startMirror(undefined, { sessions });
@@ -979,7 +921,7 @@ test('bridge Stop/Start zonder werkmap, sessie behouden: statustool en terug, el
     assert((await toolNames(s)).includes('planner_get_project_info'), 'online: plannertools');
     assertEq(s.listChanged(), 0, 'nog geen list_changed');
 
-    await bridge.close(); // Stop in de app (runtime.json blijft hier staan: de bundel moet het zelf merken)
+    await bridge.close();
     const off = await call(s, 'planner_get_project_info');
     assert(off.isError && off.text.startsWith(`Open Planner Studio does not answer on http://127.0.0.1:${port}/mcp`), `bridge gestopt: ${off.text}`);
     assert(off.text.includes('No working folder is set'), `de fout noemt de ontbrekende werkmap: ${off.text}`);
@@ -987,7 +929,7 @@ test('bridge Stop/Start zonder werkmap, sessie behouden: statustool en terug, el
     assertEq(s.listChanged(), 1, 'list_changed bij de overgang naar de statustool');
     assertEq(await toolNames(s), [STATUS_TOOL_NAME], 'toollijst met de bridge gestopt');
 
-    bridge = await startMirror(port, { sessions }); // Start in de app: dezelfde sessies
+    bridge = await startMirror(port, { sessions });
     const status = await call(s, STATUS_TOOL_NAME);
     assert(!status.isError && status.text.startsWith('Connected to the Open Planner Studio app'), `statustool: ${status.text}`);
     await waitFor(() => s.listChanged() >= 2);

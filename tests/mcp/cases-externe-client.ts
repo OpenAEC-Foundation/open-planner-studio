@@ -1,10 +1,3 @@
-// Externe-clienttest: de OFFICIËLE MCP-client (`@modelcontextprotocol/sdk`) praat over echt HTTP met
-// de productcode. De HTTP-schil is `bridgeMirror.ts` (spiegel van `src-tauri/src/mcp_bridge.rs`);
-// daarachter draait de echte `createRequestHandler` → `handleMcpMessage` → `planner_*`-tools op een
-// EIGEN headless storecontext (niet de app-singleton), met `buildMcpContext` zoals de app hem bouwt.
-//
-// De spiegel is een kopie van de Rust-HTTP-laag en bewijst niets over Rust zelf. Het Rust-gedrag toetst
-// `.github/workflows/mcp-real-app.yml`, met dezelfde SDK-controles tegen de ECHTE bridge.
 import { test, assertEq, run } from './harness';
 import { createAppStoreContext } from '@/state/appStore';
 import { buildMcpContext } from '@/services/mcp/server';
@@ -20,12 +13,9 @@ import type { McpToolDef } from '@/services/mcp/contracts';
 import { startBridgeMirror } from './bridgeMirror';
 import { externalClientChecks, type AppProbe } from './externalClient';
 
-// --- De headless app achter de spiegel -----------------------------------------------------------
-
 const app = createAppStoreContext();
 app.store.getState().setProject({ name: 'Externe client' });
 app.store.getState().ensureProjectCalendarInLibrary();
-// Warm-up zoals in cases-batch.ts: de eerste undo promoot de projectkalender naar de bibliotheek.
 app.store.getState().addTask({ name: 'warmup' });
 app.store.getState().undo();
 

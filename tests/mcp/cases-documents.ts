@@ -1,18 +1,9 @@
-// T11 — `duplicateDocument`: kopieert de actieve payload naar een nieuw document, maakt de kopie
-// actief, nult filePath/fileHandle, deep-clonet alle muteerbare payload-velden en nummert de variant.
-// Draait headless tegen de ECHTE Zustand-store via de gedeelde harness.
 import { useAppStore, test, assert, assertEq, run } from './harness';
 import type { Baseline } from '@/types/baseline';
 import { displayDocumentTitle } from '@/utils/documents';
 import { historyDepthsForActiveScope } from '@/state/sessionHistory';
 
-/**
- * Zet de store terug op ÉÉN vers, actief document met een bekende projectnaam, een paar taken en
- * een gevulde bron-identiteit (filePath/fileHandle/baselines). De bron leeft na deze helper op
- * top-level (= het actieve document).
- */
 function seedSource(name: string, taskNames: string[] = ['Alpha', 'Beta']): string[] {
-  // Vers, leeg document + de registry terugbrengen tot alleen dit document.
   useAppStore.getState().newDocument();
   useAppStore.setState((s) => {
     s.documents = [{ id: s.activeDocumentId, payload: null }];
@@ -40,7 +31,6 @@ function seedSource(name: string, taskNames: string[] = ['Alpha', 'Beta']): stri
   return ids;
 }
 
-/** Vind de (inactieve) bron-registry-entry na een duplicatie. */
 function sourceEntry(newId: string) {
   return useAppStore.getState().documents.find((d) => d.id !== newId)!;
 }
@@ -77,28 +67,24 @@ test('3 — de kopie is dirty', () => {
 test('4 — geen gedeelde arrays: muteren in de kopie raakt de bron niet (+ !==-bewijs)', () => {
   seedSource('Project X', ['Alpha', 'Beta']);
   const s0 = useAppStore.getState();
-  const srcTasksRef = s0.tasks; // bron leeft top-level vóór de duplicatie
-  const srcFirstName = s0.tasks[0].name; // 'Alpha'
+  const srcTasksRef = s0.tasks;
+  const srcFirstName = s0.tasks[0].name;
   const newId = s0.duplicateDocument();
   const s1 = useAppStore.getState();
   const src = sourceEntry(newId).payload!;
 
-  // Bron-payload draagt exact dezelfde array-referentie als vóór de duplicatie (per referentie opgeslagen).
   assert(src.tasks === srcTasksRef, 'bron-tasks-referentie behouden in de registry');
-  // Directe-identiteit: de kopie-arrays/objecten zijn NIET hetzelfde object als die van de bron.
   assert(s1.tasks !== src.tasks, 'kopie-tasks is een ander array-object (!==)');
   assert(s1.tasks[0] !== src.tasks[0], 'kopie-taak-object is niet de bron-taak (!==)');
   assert(s1.project !== src.project, 'kopie-project is een ander object (!==)');
   assert(s1.baselines !== src.baselines, 'kopie-baselines is een ander array-object (!==)');
 
-  // Muteer een taak in de kopie via de store; de bron moet ongemoeid blijven.
   const copyFirstId = s1.tasks[0].id;
   useAppStore.getState().updateTask(copyFirstId, { name: 'GEWIJZIGD' });
   const s2 = useAppStore.getState();
   assertEq(s2.tasks[0].name, 'GEWIJZIGD', 'kopie-taaknaam gewijzigd');
   assertEq(sourceEntry(newId).payload!.tasks[0].name, srcFirstName, 'bron-taaknaam onveranderd');
 
-  // Directe-groei-variant: een taak toevoegen aan de kopie laat de bron-lengte met rust.
   const srcLen = sourceEntry(newId).payload!.tasks.length;
   const copyLen = useAppStore.getState().tasks.length;
   useAppStore.getState().addTask({ name: 'Extra' });
@@ -143,14 +129,9 @@ test('7 — baselines + activeBaselineId reizen mee naar de kopie', () => {
   assertEq(s.baselines.length, 1, 'kopie heeft de baseline');
   assertEq(s.baselines[0].id, 'bl1', 'kopie-baseline heeft het juiste id');
   assertEq(s.activeBaselineId, 'bl1', 'kopie behoudt activeBaselineId');
-  // Deep-clone: niet hetzelfde array-object als de bron.
   assert(s.baselines !== sourceEntry(newId).payload!.baselines, 'kopie-baselines is een ander array (!==)');
 });
 
-// Regressie (punt 2): een NAAMLOOS project dupliceren gaf twee volstrekt identieke tabbladen — de
-// projectnaam bleef terecht leeg (anders belandt er een taalgebonden string in de IFC-data), maar
-// er kwam ook geen onderscheid meer. Dat onderscheid hoort nu uit `untitledOrdinal` te komen: een
-// taalonafhankelijk volgnummer op de AFGELEIDE laag, niet in de data.
 test('8 — naamloze bron: kopie blijft naamloos in de DATA maar krijgt een volgnummer', () => {
   seedSource('');
   useAppStore.setState((s) => { s.filePath = null; s.fileHandle = null; });
@@ -164,7 +145,6 @@ test('8 — naamloze bron: kopie blijft naamloos in de DATA maar krijgt een volg
   assertEq(docs.map((d) => d.title), ['', ''], 'de store blijft een lege titel leveren (datalaag)');
   assertEq(docs.map((d) => d.untitledOrdinal), [undefined, 2],
     'het eerste naamloze document blijft ongenummerd, het tweede krijgt volgnummer 2');
-  // Weergavelaag (useDocumentCards / mcpDocumentTitle) maakt hier onderscheidbare titels van.
   assertEq(docs.map((d) => displayDocumentTitle(d.title, d.untitledOrdinal, 'Nieuwe planning')),
     ['Nieuwe planning', 'Nieuwe planning (2)'], 'de twee tabbladen zijn onderscheidbaar');
 
