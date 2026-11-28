@@ -2664,6 +2664,10 @@ en noem het in je rapport of PR-tekst.
      `lag`. Nagespeeld via de dispatcher: twee taken en één item `{ predecessorId, successorId, type: 'FS', lagDays: 2 }`;
      de aanroep slaagde zonder weigering en de relatie kreeg `lagDays: 0`. ADR 0494.
      Issue #1314. — B
+2760. **Een herhaalde `planner_import_schedule` die pas na de wachtrijgrens binnenkomt, opent een tweede tabblad.**
+     `createRequestHandler` in `src/services/mcp/requestHandler.ts` voert een verzoek dat langer dan
+     `MCP_QUEUE_DEADLINE_MS` wachtte niet uit; een herhaling van de client daarna is een nieuw verzoek, en de import
+     ontdubbelt niet op pad. Gezien in het weggehaalde commentaar bij de wachtrij, niet nagespeeld. — S
 
 ## Bestanden en herstel
 

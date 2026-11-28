@@ -1,58 +1,28 @@
-// Contracten voor de MCP-bridge — BEVROREN: alleen additieve uitbreidingen.
-
 import type { AppStoreContext } from '@/state/appStore';
 import type { McpTransactions } from '@/state/runtime/createMcpTransactions';
 
-/** Eén herschreven restwerk in `McpEnvelope.remainingWorkRecomputed`. */
 export interface McpRecomputedRemainingWork {
   taskId: string;
   taskName: string;
   assignmentId: string;
   resourceId: string;
-  /** Restwerk vóór en ná de duurwijziging, in uren (op twee decimalen). */
   beforeHours: number;
   afterHours: number;
 }
 
-/** Envelop op elke tool-respons. */
 export interface McpEnvelope {
   activeDocumentId: string;
   documentTitle: string;
   scheduleStale: boolean;
   paused: boolean;
   readOnly: boolean;
-  /** Pad van de zojuist geschreven AI-backup; alleen gezet op de call die hem maakte. */
   backupCreated?: string;
   backupWithheld?: string;
-  /** Additieve contractuitbreiding: aantal taken waarvan DEZE mutatie de MSP-timephased-
-   *  sturing losliet (`clearTimephasedWindow`/`clearTimephasedDurationWalks` gaven `true` terug —
-   *  zie `taskDefaults.ts`). Alleen gezet, en > 0, op de call die het verlies veroorzaakte. De
-   *  in-app melding is het primaire kanaal (eenmalig per document per sessie, ziet de gebruiker
-   *  ook zonder AI-client); dit veld laat de AI-client het verlies ZONDER UI ook zien, zonder aan de
-   *  eenmalige-melding-gate te hangen — een tweede mutatie die opnieuw sturing loslaat (geen nieuwe
-   *  toast meer, zie `timephasedLossNotice.ts`) draagt dit veld dus gewoon opnieuw. */
   timephasedGuidanceLost?: number;
-  /** Additieve contractuitbreiding: alleen gezet, en niet leeg, op de call waarin een DUURwijziging
-   *  een bewaard restwerk opnieuw uitrekende dat afweek van inzet × restduur (bv. P6 `remain_qty`
-   *  uit het bestand; eigenaarsbesluit 2026-10-19). Per toewijzing het oude en het nieuwe restwerk in
-   *  uren, zodat een agent het kan rapporteren; de app meldt het ook zelf. Geen vraag vooraf: de
-   *  taakregel beslist, zoals in P6. Ctrl+Z (of `planner_undo`) zet het terug. */
   remainingWorkRecomputed?: McpRecomputedRemainingWork[];
-  /** Additieve contractuitbreiding: alleen gezet (en dan `true`) op de LEESTOOL-call die een
-   *  verouderde of nooit berekende planning eerst zelf doorrekende (`ensureFreshScheduleForRead`).
-   *  Dezelfde herrekening als F5: geen undo-stap, geen `isDirty`; wel zichtbaar in de app. */
   scheduleRecalculated?: true;
-  /** Additieve contractuitbreiding: alleen gezet (en dan `true`) zolang het document in "datums
-   *  zoals opgeslagen" staat. De datums zijn dan die uit het bestand, geen berekening, en leestools
-   *  rekenen bewust niet door. `scheduleStale` is in die modus altijd `false` (state/scheduleStale.ts),
-   *  dus dit veld is het enige signaal. */
   datesAsRecorded?: true;
-  /** Korte Engelse toelichting op de rekenstand: bij `datesAsRecorded`, of op de leestool-call die
-   *  niet doorrekende omdat de gebruiker midden in een bewerking zat (sleept, typt). */
   scheduleNote?: string;
-  /** Additieve contractuitbreiding: de fout van de laatste berekening (`cpmResult.error`, bv. een
-   *  kringverwijzing), alleen gezet zolang die er is. Zo ziet de agent hem bij elke tool, niet alleen
-   *  bij `get_project_info` en de histogram. */
   scheduleError?: string;
 }
 
@@ -60,7 +30,6 @@ export interface McpToolOk {
   ok: true;
   envelope: McpEnvelope;
   data: unknown;
-  /** Per-item-zachte weigeringen binnen een bulk-call. */
   itemRejections?: { id: string; reason: string }[];
 }
 
@@ -73,27 +42,14 @@ export interface McpToolErr {
   envelope?: McpEnvelope;
   error: string;
   code: McpErrorCode;
-  /**
-   * Additieve aanvulling op het bevroren contract: een fout mag OPTIONEEL gestructureerde context
-   * dragen. `error` blijft de
-   * leesbare samenvatting; dit veld is de machine-leesbare bijlage. Nodig omdat een teruggerolde
-   * `planner_batch` anders zijn stap-rapport en sub-stappen kwijt is — juist bij een mislukking wil
-   * het AI-activiteitenpaneel tonen wélke stap viel. De dispatcher stuurt het hele resultaat al als
-   * `structuredContent` mee, dus er verandert niets aan het transport.
-   */
   data?: unknown;
 }
 
 export type McpToolResult = McpToolOk | McpToolErr;
 
-/**
- * Backup-hook (implementatie in `backup.ts`). Draait op de dispatch-grens, vóór de
- * contextgebonden MCP-transactie. Resolve = backup-pad, of null (geen backup nodig).
- */
 export type EnsureBackupFn = (docId: string, kind: McpToolDef['kind']) => Promise<string | null>;
 export type MarkDuplicateBornFn = (docId: string) => void;
 
-/** Eén ondeelbare backupbinding: beide functies moeten dezelfde contextservice bezitten. */
 export interface McpBackupBinding {
   ensureBackup: EnsureBackupFn;
   markDuplicateBorn: MarkDuplicateBornFn;
@@ -101,20 +57,14 @@ export interface McpBackupBinding {
 }
 
 export interface McpContext {
-  /** Store, runtime en app-host waarop dit request is gebonden. */
   app: AppStoreContext;
-  /** Transacties en drafts die uitsluitend bij `app` horen. */
   transactions: McpTransactions;
-  /** Drift-anker: verwacht actief document-id (null vóór de eerste document-binding). */
   expectedDocId: string | null;
-  /** tempId→realId-map; de batch-executor bezit en vult deze. */
   tempIdMap: Map<string, string>;
-  /** Vlaggen uit de ui-state, door de runtime ingevuld. */
   paused: boolean;
   readOnly: boolean;
   ensureBackup: EnsureBackupFn;
   backupWithheld?: () => string | null;
-  /** Registreert een duplicaat bij exact dezelfde service als `ensureBackup`. */
   markDuplicateBorn: MarkDuplicateBornFn;
 }
 
@@ -126,34 +76,20 @@ export interface McpToolAnnotations {
 }
 
 export interface McpToolDef {
-  /** Altijd met service-prefix: 'planner_add_tasks'. */
   name: string;
-  /**
-   * Additieve aanvulling op het bevroren contract: tools/list vereist beschrijvingen. De AI kiest
-   * tools op beschrijving.
-   */
   description: string;
   describe?: (ctx: McpContext) => string;
-  /** Stuurt guards + backup-trigger. */
   kind: 'read' | 'mutate' | 'document' | 'other' | 'batch';
-  /** Mag deze tool als batch-stap draaien? */
   batchable: boolean;
-  /** JSON-schema; eenheden expliciet (completion 0-100). */
   inputSchema: object;
   annotations: McpToolAnnotations;
-  /**
-   * Async toegestaan (bestandstools doen echte I/O; de dispatcher awaits).
-   * Batch-STAPPEN blijven synchroon (invariant binnen runInMcpTransaction).
-   */
   handler: (args: unknown, ctx: McpContext) => McpToolResult | Promise<McpToolResult>;
 }
 
-/** Eén regel in het AI-activiteitenpaneel. */
 export interface ActivityEntry {
   ts: number;
   tool: string;
   summary: string;
-  /** Vaste UI-markering; de technische samenvatting blijft beschikbaar zonder i18n. */
   summaryKind?: 'unparseableRequest';
   errorKind?: 'unparseableResponse' | 'error';
   durationMs: number;
